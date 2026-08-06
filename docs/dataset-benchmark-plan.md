@@ -1,6 +1,9 @@
 # Public dataset survey and benchmark suite design
 
-Research date: 2026-08-07. Nothing has been downloaded.
+Research date: 2026-08-07. **Verification pass 2026-08-07** — see
+[Verification results](#verification-results-2026-08-07), which corrected
+several conclusions below. Nothing has been downloaded beyond ZIP central
+directories and one 2.2 MB sample file used to test an existing reader.
 
 ## How to read this
 
@@ -41,14 +44,14 @@ untestable. It is not a ranking of scientific quality.
 |---|---------|------|---------|-------------------|
 | 1 | [4TU Netherlands utility surveying](#1-4tu-netherlands-utility-surveying-ground-truth) | 403 MB | CC0 | Only dataset with SEG-Y **+** RTK GNSS **+** excavated ground truth. Tiny. |
 | 2 | [AHN LiDAR (+ PDOK ortho)](#2-ahn--pdok-netherlands-national-lidar-and-orthophoto) | AOI-clipped | CC0 / CC-BY | Co-located with #1 in a **declared projected CRS** — the only way to test cross-CRS fusion on real data. |
-| 3 | [TU1208 / IFSTTAR Nantes test site](#3-tu1208--ifsttar-nantes-geophysical-test-site) | 201 MB | CC-BY-4.0 | Controlled buried targets, **three manufacturers**, 11 parallel lines. |
-| 4 | [Hillside, Lancaster](#4-hillside-lancaster-uk) | 80 MB | CC-BY-4.0 | Local site grids **plus** corners surveyed to EPSG:27700. Cheapest GeoTie test that exists. |
+| 3 | [TU1208 / IFSTTAR Nantes test site](#3-tu1208--ifsttar-nantes-geophysical-test-site) | 201 MB | CC-BY-4.0 | **Four formats in one archive** (GSSI, MALÅ, IDS, ASCII); the IDS files parse **today**, unchanged. |
+| 4 | [Hillside, Lancaster](#4-hillside-lancaster-uk) | 80 MB | CC-BY-4.0 | 321 raw **MALÅ** lines on orthogonal 0.4 m grids, 3 frequencies, corners surveyed to EPSG:27700. |
 | 5 | [Roman Republican Cities (ADS)](#5-beneath-the-surface-of-roman-republican-cities-ads) | UNVERIFIED | ADS Terms | Raw SEG-Y at 0.06–0.12 m line spacing — genuine 3D reconstruction. |
 | 6 | [Guangzhou IDS `.dt`](#6-guangzhou-gpr-dataset-ids-dt) | 3.8 GB | CC-BY-4.0 | **Already local.** Tunnels, pipelines, rebar. Odometry. |
 | 7 | [INGV-UNISA SEG-Y + KMZ](#7-ingv-unisa-segy--kmz) | local | see notes | **Already local.** The pinned regression baseline. |
 | 8 | [CMU-GPR](#8-cmu-gpr) | ~12 GB | CC-BY-NC-SA | Odometry + total-station truth, but NC license and 12 GB for one capability. |
 | 9 | [Copernicus DEM / Sentinel-2](#9-copernicus-dem-and-sentinel-2) | AOI-clipped | free/open | Global DEM and satellite fill-in for any AOI. |
-| 10 | [NSGeophysics/GPRdata](#10-nsgeophysicsgprdata) | 59 MB | **none** | 95 GSSI `.dzt` + 2 `.dt1`/`.hd`. Format coverage only; licensing is a blocker. |
+| 10 | [NSGeophysics/GPRdata](#10-nsgeophysicsgprdata) | 59 MB | **none** | Superseded for GSSI by #3; unique only for 2 Sensors & Software `.dt1`. Unlicensed. |
 | 11 | [Morocco utilities/voids](#11-morocco-subsurface-utilities-and-voids) | small | none stated | Annotated **images**, not traces. ML labels, not geophysics. |
 | 12 | [SERDP/ESTCP UXO](#12-serdpestcp-uxo-live-sites) | gated | US Gov | EMI, not GPR. Access is not a clean download. |
 
@@ -93,39 +96,39 @@ untestable. It is not a ranking of scientific quality.
 **Official source** COST Action TU1208, "Civil engineering applications of GPR"; site operated by IFSTTAR (now Université Gustave Eiffel), Nantes, France. Paper: *Remote Sensing* 10(4):530.
 **Download** https://zenodo.org/records/1211173 — DOI [10.5281/zenodo.1211173](https://doi.org/10.5281/zenodo.1211173)
 **License** CC-BY-4.0.
-**Size** 200.7 MB for the Zenodo supplementary archive. The record cites a 467.6 GB total data volume; **the location of the full database is UNVERIFIED** and the Zenodo record appears to hold supplementary material only.
-**Formats** ZIP archive; internal radargram formats **UNVERIFIED** (three different manufacturers implies three native formats).
+**Size** 200,679,334 bytes (200.7 MB) compressed, 250 entries. The record also cites a 467.6 GB total data volume; the relationship between that figure and this archive is **UNVERIFIED**.
+**Formats** **VERIFIED — four, in one archive.** `.DZT` + `.DZX` (GSSI, 80 + 28 files, 222 MB), `.rd3` + `.rad` (MALÅ, 30 + 30, 15.2 MB), `.DT` (IDS, 24, 19.4 MB), `.asc` (ASCII export, 24, 436.6 MB uncompressed). Also `readgssi.m`, a reference MATLAB GSSI reader.
 **CRS** UNVERIFIED. A purpose-built test site normally uses a local site grid.
 **Survey geometry** 67 profiles along **eleven parallel lines** crossing the site transversely. Three pulsed radar systems from **different manufacturers**, antennas from 200 MHz to 900 MHz.
-**Preprocessing required** Format identification first. Likely per-vendor readers.
+**Preprocessing required** **Partly none.** The existing `converters/ids_dt_converter.py` parses the `.DT` files **unchanged** — verified against `GNEISS0-20/200MHz_gneiss0-20_1_rev.DT`, which reads as 1,079 traces × 1,024 samples with a clean ASCII header block. GSSI and MALÅ need new readers.
 **GeoTie available** Probably needed (local grid → real coordinates), but UNVERIFIED.
 **True 3D reconstruction** Limited — 11 lines over a controlled site supports pseudo-3D time-slicing, not dense volumetric imaging.
 **Capabilities validated** Multi-vendor ingestion and `converters/registry.py`; `LocalCartesianPosition`; anomaly detection against **designed, known targets**; cross-instrument consistency — the same buried object seen by three radars is the cleanest possible test that preprocessing is not instrument-dependent.
 **Strengths** A fully controlled subsurface: objects and obstacles reproducing the urban subsurface, emplaced deliberately. This is the only dataset here where "ground truth" means *we put it there*. Multi-manufacturer is otherwise very hard to obtain.
-**Weaknesses** Substantial UNVERIFIED surface area — formats, CRS, target inventory, and where the bulk data lives. MDPI, HAL and ADS all returned 403 to automated fetches, so the details need a human browser visit. Budget an inspection step before relying on it.
+**Weaknesses** Two real ones found on inspection. (a) **The archive's own index spreadsheet is absent** — `Database_2018/` contains the stale lock file `.~lock.List_Database_V1.ods#` but not `List_Database_V1.ods` itself, so the authoritative inventory did not survive packaging. (b) **The directory structure does not match the paper's description.** Contents are grouped by material — `GNEISS0-20`, `GNEISS14-20`, `LIMESTONE`, `MULTI-LAYER`, `SILT`, `GPR3_ASCII` — not by the 67 profiles along 11 parallel lines the paper describes, so **whether this archive is the IFSTTAR profile set or a different TU1208 contribution is UNVERIFIED**. The target inventory and site grid remain unconfirmed, and the paper text is unreachable (MDPI, HAL and the Sapienza repository all serve bot challenges).
 
 ### 4. Hillside, Lancaster (UK)
 
 **Official source** Andrew Binley, Lancaster University, 2022 archaeological geophysical survey.
 **Download** https://zenodo.org/records/8253179 — DOI [10.5281/zenodo.8253179](https://doi.org/10.5281/zenodo.8253179)
 **License** CC-BY-4.0.
-**Size** 80.3 MB main archive (`Hillside GPR data.zip`) plus a 151 kB description PDF.
-**Formats** UNVERIFIED — the description PDF does not state the instrument or native format in its readable text.
+**Size** 80,291,265 bytes (80.3 MB) compressed; 111.5 MB uncompressed, 1,950 entries. Plus a 151 kB description PDF.
+**Formats** **VERIFIED — MALÅ.** 321 lines × 6 files each: `.rd3` (raw int16, 111.1 MB), `.rad` (plain-text key:value header), `.cor` (GPS), `.mrk` (markers), `.add`, `.em`.
 **CRS** **Declared, and unusually well documented.** Six plots (HA–HF), each with its own **local X/Y coordinate system** with a defined origin and axis convention, and each plot's four corners **surveyed to British National Grid** (EPSG:27700) with elevation in m aOD. Corner coordinates are tabulated in the PDF, e.g. HA(1) = 347289.47 E, 461931.93 N, 32.09 m aOD.
-**Survey geometry** Six rectangular plots ranging from 2.8 × 8.4 m to 7.6 × 24 m.
-**Preprocessing required** Format identification; then construction of a 2D tie from four corner control points per plot.
+**Survey geometry** **VERIFIED.** Six plots (2.8 × 8.4 m to 7.6 × 24 m), each surveyed in **two orthogonal directions** (`Dir1`/`Dir2`) on a **≈0.4 m line grid**. 321 lines total. HA: 33 lines of 7.41 m + 20 lines of 11.73 m. Per `.rad`: 500 MHz shielded, 336 samples, 66.33 ns window, 0.019 m trace spacing, distance-triggered measuring wheel. Plots HE and HF were additionally surveyed at **250 and 800 MHz** — multi-frequency over identical ground.
+**Preprocessing required** **A MALÅ `.rd3`/`.rad` reader, which does not exist yet** — `.rd3` is in `KNOWN_UNSUPPORTED_FORMATS`. Then a 2D tie from four corner control points per plot.
 **GeoTie available** **Yes — and it is the best example found.** Four control points per plot relating a local grid to a declared projected CRS.
 **True 3D reconstruction** Likely within plots (dense grids over small areas), pending line-spacing confirmation.
 **Capabilities validated** `LocalCartesianPosition`; `ControlPoint` / `GeoTie` / `apply_geo_tie`; `registered_position` and the native/registered/derived provenance tiers; `SpatialRef` with EPSG:27700 `supplied_by_caller`; cross-CRS fusion 27700→4326; a real `VerticalAxis` origin (m aOD, i.e. ODN).
-**Strengths** 80 MB for the complete control-point story. Elevation data means the vertical datum is real rather than assumed.
-**Weaknesses** **The current `GeoTie` cannot consume it as-is.** `ingestion/geo_tie.py` interpolates control points against `along_track_m` — a 1D, along-a-line model. Hillside's control points are 2D plot corners. Supporting it needs a 2D similarity/affine tie, which is a genuine new capability, not a configuration change. That is a design decision worth making deliberately. Instrument/format also unverified.
+**Strengths** 80 MB for the complete control-point story, **plus** it turns out to be the openly-licensed raw MALÅ dataset this survey initially reported as not existing. Orthogonal 0.4 m grids make it genuinely 3D-capable, and the 250/500/800 MHz repeats on HE/HF are a controlled frequency comparison over identical ground. Elevation data means the vertical datum is real rather than assumed.
+**Weaknesses** Three, all now precise. (a) **No reader exists** — MALÅ support is the gating work item. (b) **All 321 `.cor` GPS files are 0 bytes**, so there is no satellite positioning of any kind; the surveyed corners in the PDF are the only route to real coordinates. (c) **The current `GeoTie` cannot consume those corners.** `ingestion/geo_tie.py:66` interpolates against `along_track_m` — a 1D along-a-line model — and Hillside's control points are 2D plot corners. Per instruction, this is recorded as a future enhancement rather than built.
 
 ### 5. Beneath the Surface of Roman Republican Cities (ADS)
 
 **Official source** Millett, Verdonck, Leone & Launaro (2019), Archaeology Data Service, York. Cambridge/Ghent AHRC project.
 **Download** https://archaeologydataservice.ac.uk/archives/view/romancities_ahrc_2019/ — DOI [10.5284/1052663](https://doi.org/10.5284/1052663). Processed companion at Cambridge: [10.17863/CAM.113175](https://doi.org/10.17863/CAM.113175).
-**License** ADS Terms of Use and Access — **not a Creative Commons license.** Use and adaptation for historic-environment research is permitted, including commercially, with attribution and no resale of the data. Cambridge companion is CC-BY-NC-SA. **Read both before ingesting; the ADS terms are the more permissive of the two for commercial work, and the CC-BY-NC-SA on the Cambridge copy would restrict it.**
-**Size** ADS archive size UNVERIFIED (the site returns 403 to automated fetches). Cambridge companion is ≈1.07 GB, of which 1.035 GB is two time-slice ZIPs and 12.86 kB is the metadata ZIP.
+**License** **VERIFIED via DataCite** (`10.5284/1052663`): *"ADS Terms and Conditions apply to reuse"* — **not a Creative Commons license.** Use and adaptation for historic-environment research is permitted, including commercially, with attribution and no resale of the data. Cambridge companion is CC-BY-NC-SA. **Read both before ingesting; the ADS terms are the more permissive of the two for commercial work, and the CC-BY-NC-SA on the Cambridge copy would restrict it.**
+**Size** **Still UNVERIFIED and not resolvable here.** ADS serves a Cloudflare managed JS challenge to automated fetches, and the DataCite record returns empty `sizes` and `formats` arrays. This needs a human browser session; no legitimate API exposes it. Cambridge companion is ≈1.07 GB, of which 1.035 GB is two time-slice ZIPs and 12.86 kB is the metadata ZIP.
 **Formats** ADS: raw **and** processed GPR profiles in **SEG-Y**, plus georeferenced GeoTIFF time-slices. Cambridge: GeoTIFF time-slices, shapefiles delineating GPR anomalies, CSV acquisition/processing metadata.
 **CRS** Georeferenced (Italian national grid or UTM 33N expected); **exact EPSG UNVERIFIED.**
 **Survey geometry** The best in this survey. ~27 ha at Falerii Novi and ~23 ha at Interamna Lirenas. **Traverse separation 0.06–0.12 m**, reading interval ≈0.05 m, positioned by **RTK-GNSS or robotic total station**.
@@ -200,8 +203,8 @@ untestable. It is not a ranking of scientific quality.
 **Formats** Verified by tree listing: **95 `.dzt`** (GSSI), **2 `.dt1` + 2 `.hd`** (Sensors & Software), 102 `.txt`, 2 `.csv`, 8 `.py`. Directories: `ExampleDuneInterface`, `ExampleDuneProfile`, `ExampleVelocityAnalysis`, `exampleCommonOffset`, `exampleDataCube`.
 **CRS** None. **No GPS sidecars of any kind** — no `.dzg`, `.cor`, or GPS files; the only positional files are two topography CSVs.
 **Capabilities validated** `.dzt` and `.dt1` reader development — the two formats currently in `KNOWN_UNSUPPORTED_FORMATS`.
-**Strengths** By far the cheapest route to real GSSI and Sensors & Software bytes, which matters because both readers must be written against real files rather than a specification.
-**Weaknesses** **The missing license is a genuine blocker** for anything beyond local development; it cannot be redistributed or committed. No positioning at all. `exampleDataCube` may support 3D work, unverified.
+**Strengths** Real Sensors & Software `.dt1`/`.hd` bytes, which no other dataset here supplies.
+**Weaknesses** **The missing license is a genuine blocker** for anything beyond local development; it cannot be redistributed or committed. No positioning at all. **Largely superseded for GSSI**: TU1208 (#3) supplies 80 `.DZT` files under CC-BY-4.0, which is strictly better than 95 unlicensed ones. Its remaining unique value is the two Sensors & Software files.
 
 ### 11. Morocco subsurface utilities and voids
 
@@ -233,8 +236,8 @@ untestable. It is not a ranking of scientific quality.
 |---|---|---|
 | Ground Penetrating Radar | ✅ | all of #1–#8 |
 | IDS GeoRadar | ✅ | #6 Guangzhou (already local) |
-| MALA | ❌ | **no well-licensed open MALA `.rd3`/`.rad` dataset found** |
-| GSSI | ⚠️ | #10 — 95 `.dzt`, but **unlicensed** |
+| MALA | ✅ | **#4 Hillside — 321 raw `.rd3`/`.rad` lines, CC-BY-4.0**; #3 adds 30 more |
+| GSSI | ✅ | **#3 TU1208 — 80 `.DZT` + 28 `.DZX` under CC-BY-4.0** (#10 is unlicensed) |
 | Sensors & Software | ⚠️ | #10 (2 `.dt1`), #8 CMU (Noggin 500 but CSV-exported) |
 | SEG-Y | ✅ | #1, #5, #7 |
 | Survey control points | ✅ | #4 Hillside (4/plot), #8 CMU (total station) |
@@ -255,10 +258,15 @@ untestable. It is not a ranking of scientific quality.
 
 ### The four real gaps
 
-1. **MALA.** No openly-licensed raw `.rd3`/`.rad` dataset surfaced. The format is well documented — Guideline Geo publishes the RD3/RD7/RAD specification — so a reader can be written and tested against synthetic files, but it cannot be validated against real field data from public sources found here.
+1. ~~**MALA.**~~ **CLOSED by verification.** Hillside (#4) is 321 raw MALÅ lines under CC-BY-4.0, and TU1208 (#3) adds 30 more from a different site. Both were reported here as format-UNVERIFIED before the ZIP directories were read. A reader can now be written *and* validated against real field data from two independent sources.
 2. **UXO by GPR.** Does not appear to exist openly. UXO detection is dominated by EMI, and the good ground truth (ESTCP dig results) is EMI ground truth. Treat UXO as out of scope for GPR validation, or accept a modality expansion.
 3. **Ground truth with coordinates.** The best excavated truth (#1) deliberately withholds location. The best-positioned data (#5) has interpretation, not truth. **No single open dataset has both.** #3 IFSTTAR is the closest, being a controlled site, and is the reason it ranks 3rd despite the unverified fields.
 4. **Orthophotos as files.** Service-only from PDOK; needs a tile-fetch step or a different provider.
+
+A fifth gap emerged during verification: **`.rd3` and `.dzt` readers do not
+exist**, and the two best newly-verified datasets are written in them. That
+is a code gap rather than a data gap, and it is now the binding constraint
+on Tier 1 — see the acquisition plan.
 
 ---
 
@@ -372,6 +380,81 @@ available — with the ADS archive the only real uncertainty.
 4. Tier 2 — the one that converts cross-CRS fusion from fixture-tested to
    data-tested.
 5. Tier 3 only after 1–2 are green against the Tier 0 regression gate.
+
+---
+
+## Verification results (2026-08-07)
+
+Requested follow-up on the ADS and MDPI records, plus a Tier 1 readiness
+check. Method, since it matters for how much to trust the results: ZIP
+**central directories were read over HTTP Range**, so file inventories are
+the archives' own, not a description of them. No bulk data was downloaded.
+One 2.2 MB member was extracted to test an existing reader.
+
+**What could not be verified, and why.** `archaeologydataservice.ac.uk`,
+`mdpi.com`, `hal.science` and `iris.uniroma1.it` all serve Cloudflare or
+equivalent **JS bot challenges**. These are anti-automation walls, not
+authentication, and were not circumvented. Consequently the ADS archive
+size and file inventory, and the TU1208 paper text, **remain unverified
+and need a human browser session.** DataCite supplied the ADS license but
+returns empty `sizes` and `formats`.
+
+**What the archives themselves answered, better than the papers would
+have:**
+
+| Finding | Consequence |
+|---|---|
+| Hillside is **MALÅ `.rd3`/`.rad`**, 321 lines | Closes the "no open MALA dataset" gap |
+| Hillside `.cor` GPS files are **all 0 bytes** | No satellite positioning; surveyed corners are the only route to coordinates |
+| Hillside is an **orthogonal 0.4 m grid**, two directions, 250/500/800 MHz on HE/HF | 3D-capable and a controlled frequency comparison |
+| TU1208 holds **GSSI + MALÅ + IDS + ASCII** in one 201 MB archive | Supersedes the unlicensed NSGeophysics repo for GSSI |
+| **`converters/ids_dt_converter.py` parses TU1208 `.DT` unchanged** — 1,079 × 1,024 traces | 24 files ingestible today, zero new code |
+| TU1208's `List_Database_V1.ods` index is **missing** (only its stale lock file was packaged) | The archive's own inventory is unavailable |
+| TU1208 is grouped by **material**, not the paper's 11 parallel lines | Whether this is the IFSTTAR profile set is now genuinely in doubt |
+| 4TU confirmed **CC0** via JSON-LD; download is a **streamed ZIP** with no `Content-Length` and no range support | All-or-nothing 403 MB; cannot preview or partially fetch |
+
+### Can Hillside use the existing `LocalCartesianPosition`?
+
+**Yes for acquisition geometry, no for georeferencing** — and the split
+falls exactly on the boundary the instruction drew.
+
+*Works today, no new abstraction:*
+
+- Each `.rad` records `START POSITION`, `STOP POSITION` and
+  `DISTANCE INTERVAL` from a distance-triggered measuring wheel. A trace is
+  therefore `OdometryPosition(along_track_m=…, path_id=<line file stem>)`
+  with **zero assumptions** — the same representation the Guangzhou `.dt`
+  data already uses.
+- `LocalCartesianPosition(x, y, origin_description=…)` is also
+  constructible: the plot corners define the origin and axes, `x` is the
+  along-track distance, and `y` is the line's cross-line offset. Line
+  lengths corroborate the layout — HA `Dir1` lines stop at 7.41 m against a
+  7.6 m `Xlength`, `Dir2` at 11.73 m against a 12.8 m `Ylength`.
+
+  The catch is that cross-line offset is **not recorded in any machine-readable
+  field**. It has to be derived from line count, plot width and file
+  ordering — 33 lines across 12.8 m ⇒ ≈0.4 m. That is a **caller-supplied
+  survey-geometry assertion**, directly analogous to the existing
+  caller-supplied velocity and caller-supplied CRS mechanisms, and it
+  belongs in an `Assumption` on the frame rather than in a heuristic.
+  Fits the architecture as implemented; no new type needed.
+
+*Does not work, recorded as a future enhancement per instruction:*
+
+- **Promoting either representation to EPSG:27700 using the four surveyed
+  corners.** `ingestion/geo_tie.py` interpolates control points against
+  `along_track_m`, a 1D model along a single line. Hillside's control
+  points are 2D plot corners, which needs a 2D similarity or affine tie.
+  **Not built.** Until it is, Hillside's real-world coordinates stay in the
+  PDF and its data stays in local/odometry space — which is a correct and
+  honest terminal state, not a defect.
+
+*Blocking either path:* **no MALÅ reader exists.** `.rd3` is in
+`KNOWN_UNSUPPORTED_FORMATS`. The format is undemanding — `.rad` is
+plain-text `KEY:value` and `.rd3` is raw int16 — and the vendor
+specification is public, so this is substantially simpler than the IDS
+`.dt` reader that was reverse-engineered for this platform. It is
+nonetheless real work that must precede any Hillside ingestion.
 
 ---
 
