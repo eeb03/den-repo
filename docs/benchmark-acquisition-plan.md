@@ -4,7 +4,8 @@ Companion to [dataset-benchmark-plan.md](dataset-benchmark-plan.md), which
 holds the research and the per-dataset detail. This document is the
 decision: what to download, in what order, and what it costs.
 
-**Status: nothing downloaded.** Awaiting approval to begin Tier 1.
+**Status: Hillside (T1.3) acquired and checksum-verified.** 4TU (T1.1) and
+TU1208 (T1.2) await approval. No converter implementation has begun.
 
 Every classification below reflects the 2026-08-07 verification pass, which
 read the candidate archives' own ZIP central directories over HTTP Range.
@@ -39,7 +40,7 @@ Watch: ground truth **withholds coordinates** for confidentiality, linked
 to radargrams only by activity ID. This caps how quantitative a detection
 benchmark can be — see "What this suite cannot claim".
 
-### T1.2 · TU1208 / IFSTTAR database — 201 MB · **promoted from Tier 3**
+### T1.2 · TU1208 / IFSTTAR database — 201 MB · **promoted from Tier 3, identity verified**
 
 | | |
 |---|---|
@@ -50,18 +51,28 @@ benchmark can be — see "What this suite cannot claim".
 | **Benchmark value** | **Four vendor formats in one 201 MB archive**: GSSI `.DZT`×80, MALÅ `.rd3`×30, IDS `.DT`×24, ASCII `.asc`×24. Verified: the existing IDS parser reads its `.DT` files **unchanged** (1,079 × 1,024 traces). Cross-instrument agreement over the same ground is the cleanest available test that preprocessing is not instrument-dependent. |
 | **Preprocessing effort** | **None for the 24 IDS files.** Medium for the rest — one GSSI and one MALÅ reader. `.asc` may route through `CSVConverter`. |
 
-**Why promoted.** The previous plan ranked this Tier 3 on the assumption
-its formats were unknown and its bulk lived elsewhere. Both were wrong:
-the archive is self-contained, multi-vendor, and partly works today. It
-also **retires the unlicensed NSGeophysics dependency** for GSSI.
+**Why promoted — identity now verified.** Promotion was held pending proof
+that the archive is the dataset the paper describes. It is. The paper's
+abstract (via the OpenAlex API) states that "an archive containing all
+profiles (raw data) is enclosed to this paper as supplementary material",
+and every countable claim matches: **67 profiles ↔ 67 native radargram
+files**, three producers ↔ three vendor formats, 200–900 MHz ↔ the exact
+frequency set in the filenames. Header timestamps resolve into three
+coherent campaigns (1999 GSSI, **2005-03-24 IDS in a single field day**,
+2017 GSSI SIR-4000) over one unchanging set of material zones — a test
+site reused for device comparison across two decades. Full evidence in
+[the survey](dataset-benchmark-plan.md#tu1208-identity-verification-2026-08-07).
 
-Watch: the archive's own index spreadsheet is missing, and its
-material-based directory structure does not match the paper's description
-of 67 profiles on 11 parallel lines — **whether this is the IFSTTAR
-profile set is unverified.** Treat the target inventory as unknown until a
-human reads the paper.
+It also **retires the unlicensed NSGeophysics dependency** for GSSI.
 
-### T1.3 · Hillside, Lancaster — 80 MB · **conditional**
+**Watch — the one thing verification did not settle.** The buried-target
+inventory (what objects, where, what depth) lives in the paper *body*,
+which is behind bot walls. **TU1208's format value is verified; its
+ground-truth value is not.** Plan no detection score against it until
+someone reads the paper. The index spreadsheet `List_Database_V1.ods` is
+also still missing from the archive.
+
+### T1.3 · Hillside, Lancaster — 80 MB · **ACQUIRED 2026-08-07**
 
 | | |
 |---|---|
@@ -72,18 +83,23 @@ human reads the paper.
 | **Benchmark value** | 321 raw MALÅ lines under a real license — this **closes the MALA gap** the survey first reported as unfillable. Orthogonal two-direction grids make it genuinely 3D-capable at 80 MB. |
 | **Preprocessing effort** | **Blocked, then low.** No MALÅ reader exists. Building one is modest: `.rad` is plain-text `KEY:value`, `.rd3` is raw int16, and the vendor spec is public — materially simpler than the IDS reader already built here. |
 
-**Conditional on what.** The download is cheap enough to take now, but
-**nothing can be ingested until the MALÅ reader exists.** Two options:
+**Acquisition record.** Downloaded to
+`datasets/raw/zenodo/8253179/` on 2026-08-07 and verified against the
+Zenodo record's published MD5s:
 
-- **(a) Download now, build the reader next.** TU1208's 30 MALÅ files
-  become an independent validation set for it — a second site, a second
-  operator, a second set of acquisition parameters.
-- **(b) Defer to Tier 2** and complete 4TU + TU1208-IDS first, keeping
-  Tier 1 to zero new converter work.
+    Hillside GPR data.zip                          80,291,265 B  md5 5aa777103d5b7b9b67d84ea86d2e82bf  OK
+    Hillside GPR file structure and description.pdf   151,126 B  md5 b3a33ece6a689c8ccef07bdb730147e7  OK
 
-**Recommendation: (a).** The reader is needed for TU1208's MALÅ portion
-regardless, so building it once serves both, and Hillside is the better
-test corpus for it (321 lines vs 30).
+Extracted inventory matches the pre-download remote reading exactly:
+**321 `.rd3` + 321 `.rad` + 321 `.mrk` + 321 `.em` + 321 `.cor` + 321
+`.add`**, 110 MB, across 10 plot/frequency directories — `HA(500)`,
+`HB(500)`, `HC(500)`, `HD(500)`, `HE(250)`, `HE(500)`,
+`HE(800 Transects)`, `HF(250)`, `HF(500)`, `HF(800)`. **All 321 `.cor`
+files are 0 bytes**, confirming no satellite positioning. Covered by
+`.gitignore:12` (`datasets/`), so no raw data enters git.
+
+**Ingestion is still blocked** — no MALÅ reader exists. Per instruction
+this is an acquisition task only; no converter work has started.
 
 Also settled, per instruction: Hillside **fits the existing spatial
 abstractions** for acquisition geometry — `OdometryPosition` with zero

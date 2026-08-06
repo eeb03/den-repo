@@ -413,6 +413,75 @@ have:**
 | TU1208 is grouped by **material**, not the paper's 11 parallel lines | Whether this is the IFSTTAR profile set is now genuinely in doubt |
 | 4TU confirmed **CC0** via JSON-LD; download is a **streamed ZIP** with no `Content-Length` and no range support | All-or-nothing 403 MB; cannot preview or partially fetch |
 
+### TU1208 identity verification (2026-08-07)
+
+**Question asked:** does the Zenodo archive genuinely correspond to the
+IFSTTAR dataset the paper describes? The previous pass flagged this as
+doubtful because the directory structure is grouped by material rather
+than by the paper's 11 parallel lines.
+
+**Verdict: VERIFIED with high confidence.** The doubt was unfounded.
+
+The paper's abstract, retrieved from the **OpenAlex API** (the publisher
+site, HAL and the Sapienza mirror are all bot-walled), states verbatim:
+
+> Overall, **67 profiles** were recorded along **eleven parallel lines**
+> crossing the test site in the transverse direction; **three pulsed radar
+> systems** were used to perform the measurements, manufactured by
+> **different producers** and equipped with various antennas having central
+> frequencies **from 200 MHz to 900 MHz**. **An archive containing all
+> profiles (raw data) is enclosed to this paper as supplementary material.**
+
+Every countable claim matches the archive:
+
+| Paper | Archive | |
+|---|---|---|
+| 67 profiles | **67 native radargram files** (79 data files − 12 ASCII exports, each with a native counterpart; 64 unique stems, 3 recorded in two formats) | ✅ exact |
+| Three systems, different producers | **Three vendor formats**: GSSI `.DZT`, MALÅ `.rd3`, IDS `.DT` | ✅ exact |
+| 200 MHz to 900 MHz | Filename tokens 200/250/270/350/400/500/600/800/900 MHz | ✅ exact |
+| Raw data enclosed as supplementary material | Native vendor binaries, no processing applied | ✅ |
+| Site reused "over the years" for device comparison | See campaigns below | ✅ |
+
+**Independent provenance evidence.** Acquisition timestamps decoded from
+the file headers themselves resolve into three internally coherent
+campaigns over a constant set of five material zones:
+
+| Campaign | System | Files | Evidence of coherence |
+|---|---|---|---|
+| 1998-09-24 → 1999-08-19 | GSSI (16-bit, older) | 26 | Lines 1–4 at 13:43/13:50/14:09/14:15; 900 MHz set at 09:10/09:15/09:21/09:27 — consecutive traverses minutes apart |
+| **2005-03-24** | IDS | **all 12** | **One field day, 09:40 → 15:07**, progressing silt → limestone → gneiss |
+| 2017-10-25 → 2017-11-27 | GSSI SIR-4000, 32-bit | 14 | Same-session clusters, e.g. 14:50/14:55/15:15/15:18/15:39/15:41 |
+
+Three campaigns, three vintages of instrument, one unchanging set of
+material zones, spanning 1998–2017 — which is precisely a purpose-built
+test site "used for various needs over the years, such as tests or
+comparisons of devices." Timestamps this internally consistent are not
+corrupted clocks.
+
+**Correction to the previous pass.** The 467.6 GB figure read off the
+Zenodo page is a site-wide statistic, not this record's volume. The
+archive is self-contained; the paper says so explicitly. The earlier
+worry that "the location of the full database is UNVERIFIED" was
+misplaced.
+
+**What remains unverified, and it matters:**
+
+- **The buried-target inventory** — what objects are emplaced, where, of
+  what material, at what depth — is in the paper *body*, not the abstract,
+  and the body is unreachable behind bot walls. So TU1208's **format value
+  is verified; its ground-truth value is not.** Do not plan a detection
+  score against it until someone reads the paper.
+- **"Eleven parallel lines"** is not derivable from the archive. Filename
+  line labels are `1`, `2`, `3`, `4`, `h1`, `h2` within five material
+  zones — consistent with transverse lines crossing several zones, but not
+  independently counted.
+- `List_Database_V1.ods` is still absent (only its stale lock file).
+- **No embedded metadata names IFSTTAR or Nantes.** MALÅ `SITE`,
+  `OPERATOR`, `CUSTOMER` and `COMMENT` fields are empty; the GSSI `.DZX`
+  records only `<system>SIR4K</system>` and `<gridId>Grid</gridId>`.
+  Identity rests on the publisher-level assertion plus the content match
+  above, not on a self-identifying file.
+
 ### Can Hillside use the existing `LocalCartesianPosition`?
 
 **Yes for acquisition geometry, no for georeferencing** — and the split
