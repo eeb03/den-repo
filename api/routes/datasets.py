@@ -18,6 +18,8 @@ from converters.base import MissingDependencyError
 from validators.dataset_validator import validate_dataset
 from preprocessing.pipeline import run_pipeline
 from database.records_store import save_records, load_records
+from database.frames_store import save_frames, synthesize_frames_from_records
+from schemas.spatial import Assumption
 from ingestion.downloader import download_file, DownloadError, SUPPORTED_EXTENSIONS
 from preprocessing.dem_alignment import align_records_with_dem
 from configs.settings import settings
@@ -63,7 +65,8 @@ def _run_ingest_pipeline(
     dataset_id = gen_uuid()
 
     try:
-        records = converter.convert(raw_path, dataset_id=dataset_id, sensor_type=sensor_type, **(converter_kwargs or {}))
+        result = converter.load(raw_path, dataset_id=dataset_id, sensor_type=sensor_type, **(converter_kwargs or {}))
+        records, frames = result.records, result.frames
     except MissingDependencyError as e:
         raise HTTPException(status_code=501, detail=str(e))
     except Exception as e:
@@ -75,6 +78,9 @@ def _run_ingest_pipeline(
         records = run_pipeline(records, mode=preprocessing_mode)
 
     save_records(dataset_id, records)
+    # Converters not yet migrated to load() return no frames; reconstruct one
+    # from the records so every dataset has frame coverage from ingest onward.
+    save_frames(dataset_id, frames or synthesize_frames_from_records(records))
 
     center_lat = sum(r.latitude for r in records) / len(records) if records else None
     center_lon = sum(r.longitude for r in records) / len(records) if records else None
@@ -542,6 +548,7 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
 
     dataset_id = gen_uuid()
     all_records = []
+    all_frames = []
     per_file_errors = []
     georeferenced_count = 0
 
@@ -558,18 +565,43 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
     for file_path in supported_files:
         try:
             converter = get_converter(file_path)
-            records = converter.convert(file_path, dataset_id=dataset_id, sensor_type=req.sensor_type)
+            result = converter.load(file_path, dataset_id=dataset_id, sensor_type=req.sensor_type)
+            records = result.records
+            file_frames = result.frames or synthesize_frames_from_records(records)
 
             # If this file's SEG-Y header coordinates are unusable, map
             # positions from a matching KMZ placemark instead -- this
             # source's SourceX/SourceY are projected (UTM-scale) values,
             # not real per-trace GPS.
+            #
+            # This updates latitude/longitude ONLY. `record.position`
+            # continues to hold what the FILE said, and the frame's
+            # spatial_ref describes that. Neither source overwrites the
+            # other, because which one is authoritative is genuinely not
+            # yet known -- see the recorded assumption below.
             stem = file_path.stem
             if stem in kmz_lookup and len(records) > 0:
                 georeference_records_by_trace(records, kmz_lookup[stem])
                 georeferenced_count += 1
+                for fr in file_frames:
+                    fr.assumptions.append(Assumption(
+                        key="position_source_discrepancy",
+                        value="latitude/longitude from KMZ track; record.position from the file's own header",
+                        basis=(
+                            "UNRESOLVED: the two position sources have not been cross-validated. "
+                            "ingestion/kmz_georeference.py documents SEG-Y SourceX/SourceY as one "
+                            "static placeholder per file, but they were measured to vary per trace "
+                            "(67 distinct positions across 72 traces on C1T_7,5_0001.SGY). Until "
+                            "header-derived positions are compared against the KMZ polyline for the "
+                            "same line, neither is treated as authoritative and neither overwrites "
+                            "the other. That comparison would also independently test the KMZ "
+                            "direction assumption, which is itself unverified."
+                        ),
+                        verified=False,
+                    ))
 
             all_records.extend(records)
+            all_frames.extend(file_frames)
         except MissingDependencyError as e:
             per_file_errors.append(f"{file_path.name}: {e}")
         except Exception as e:
@@ -587,6 +619,7 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
         all_records = run_pipeline(all_records, mode=req.preprocessing_mode)
 
     save_records(dataset_id, all_records)
+    save_frames(dataset_id, all_frames)
 
     center_lat = sum(r.latitude for r in all_records) / len(all_records) if all_records else None
     center_lon = sum(r.longitude for r in all_records) / len(all_records) if all_records else None

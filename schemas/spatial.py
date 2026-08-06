@@ -232,6 +232,30 @@ class Assumption(BaseModel):
     verified: bool = False
 
 
+#: Inverse of POSITION_KIND_FOR_CRS, for converters that classify positions
+#: first and then have to describe the frame as a whole.
+CRS_KIND_FOR_POSITION: dict[PositionKind, CRSKind] = {
+    v: k for k, v in POSITION_KIND_FOR_CRS.items()
+}
+
+
+def crs_kind_for_positions(kinds) -> CRSKind:
+    """
+    The CRSKind describing a whole acquisition unit, given the position
+    kinds its samples actually carry.
+
+    A frame with mixed position kinds is reported UNKNOWN rather than
+    resolved to whichever kind is commoner: mixed header quality within one
+    line means the line as a whole cannot be characterised, and silently
+    picking a majority would be exactly the kind of quiet guess this module
+    exists to prevent.
+    """
+    distinct = set(kinds)
+    if len(distinct) == 1:
+        return CRS_KIND_FOR_POSITION[PositionKind(next(iter(distinct)))]
+    return CRSKind.UNKNOWN
+
+
 def assert_position_matches_ref(position: Position, ref: SpatialRef) -> None:
     """Raises ValueError if a record's position kind contradicts its frame's CRS kind."""
     expected = POSITION_KIND_FOR_CRS[ref.kind]

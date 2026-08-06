@@ -6,13 +6,24 @@ Expected/auto-detected columns (case-insensitive, flexible aliases):
   latitude/lat/y, longitude/lon/lng/x, elevation/elev/z, depth,
   timestamp/time/date, signal/value/reading/measurement, and any
   remaining columns are folded into `metadata`.
+
+COORDINATES. A CSV carries no CRS declaration, so its latitude/longitude
+columns are ASSUMED to be WGS84 -- recorded as an unverified assumption on
+the frame rather than left implicit. Note the `x`/`y` aliases: a table whose
+x/y are actually projected coordinates would be misread as lon/lat, and
+(like the LAS case) would fail the schema's range check. Column-detection
+behaviour is UNCHANGED in this milestone; see the frame's `crs` assumption.
 """
 from pathlib import Path
 
 import pandas as pd
 
-from converters.base import BaseConverter
+from converters.base import BaseConverter, ConversionResult
+from schemas.spatial import (
+    Assumption, AxisKind, CRSKind, SpatialRef, VerticalAxis, crs_kind_for_positions,
+)
 from schemas.subterra_record import SubterraRecord, SensorType
+from schemas.survey_frame import SurveyFrame, make_frame_id
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -40,8 +51,14 @@ class CSVConverter(BaseConverter):
     supported_extensions = (".csv", ".xyz", ".tsv")
 
     def convert(
-        self, path: str | Path, dataset_id: str, sensor_type: SensorType
+        self, path: str | Path, dataset_id: str, sensor_type: SensorType, **kwargs
     ) -> list[SubterraRecord]:
+        """Records only. See `load()` for records plus the file's SurveyFrame."""
+        return self.load(path, dataset_id=dataset_id, sensor_type=sensor_type, **kwargs).records
+
+    def load(
+        self, path: str | Path, dataset_id: str, sensor_type: SensorType, **kwargs
+    ) -> ConversionResult:
         path = Path(path)
         sep = "\t" if path.suffix.lower() == ".tsv" else None
         # XYZ files are typically whitespace-delimited with no header
@@ -100,6 +117,7 @@ class CSVConverter(BaseConverter):
                     sensor_type=sensor_type,
                     latitude=lat,
                     longitude=lon,
+                    frame_id=make_frame_id(dataset_id, path.name),
                     elevation=float(row[col_elev]) if col_elev and pd.notna(row[col_elev]) else None,
                     depth=float(row[col_depth]) if col_depth and pd.notna(row[col_depth]) else None,
                     timestamp=timestamp,
@@ -108,5 +126,46 @@ class CSVConverter(BaseConverter):
                 )
             )
 
+        has_depth = col_depth is not None and any(r.depth is not None for r in records)
+        kind = crs_kind_for_positions(r.position.kind for r in records)
+        frame = SurveyFrame(
+            frame_id=make_frame_id(dataset_id, path.name),
+            dataset_id=dataset_id,
+            modality=sensor_type,
+            modality_source="user_supplied",
+            source_format=self.format_name,
+            source_file=path.name,
+            spatial_ref=SpatialRef(
+                kind=kind,
+                code="EPSG:4326" if kind == CRSKind.GEOGRAPHIC else None,
+                name="latitude/longitude columns; a CSV declares no coordinate system",
+                horizontal_units="deg" if kind == CRSKind.GEOGRAPHIC else "m",
+            ),
+            vertical_axis=VerticalAxis(
+                kind=AxisKind.DEPTH_M if has_depth else AxisKind.NONE,
+                units="m" if has_depth else "",
+                origin="unrecorded (a CSV declares no vertical datum)",
+                positive_down=True,
+                n_samples=1,
+            ),
+            n_positions=len(records),
+            position_index_name="row",
+            assumptions=[
+                Assumption(
+                    key="crs", value="EPSG:4326" if kind == CRSKind.GEOGRAPHIC else None,
+                    basis="ASSUMED: the file's latitude/longitude columns carry no CRS declaration",
+                    verified=False,
+                )
+            ],
+            source_metadata={
+                "columns": columns,
+                "detected_columns": {
+                    "latitude": col_lat, "longitude": col_lon, "elevation": col_elev,
+                    "depth": col_depth, "timestamp": col_time, "signal": col_signal,
+                },
+                "row_count": int(len(df)),
+            },
+        )
+
         logger.info(f"CSVConverter: parsed {len(records)}/{len(df)} rows from {path.name}")
-        return records
+        return ConversionResult(records=records, frames=[frame])

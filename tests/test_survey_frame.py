@@ -23,6 +23,7 @@ from pathlib import Path
 
 import pytest
 
+from converters.base import BaseConverter
 from database.frames_store import (
     frames_by_id, load_frames, save_frames, synthesize_frames_from_records,
 )
@@ -216,17 +217,31 @@ class TestSegyFrame:
 
 # --- the default shim keeps pre-frame converters working ---
 
-def test_base_load_shim_wraps_convert_without_frames(tmp_path):
-    import csv
-    from converters.csv_converter import CSVConverter
+class _UnmigratedConverter(BaseConverter):
+    """A converter that only implements convert(), as all of them did before M1.
 
-    path = tmp_path / "s.csv"
-    with open(path, "w", newline="") as fh:
-        w = csv.writer(fh)
-        w.writerow(["lat", "lon", "signal"])
-        w.writerow([41.0, 15.0, 1.0])
+    Deliberately a local stand-in rather than a real converter: every
+    registered converter now emits frames, so using one here would silently
+    stop testing the shim the moment it was migrated.
+    """
+    format_name = "unmigrated"
+    supported_extensions = (".none",)
 
-    result = CSVConverter().load(path, dataset_id="ds", sensor_type=SensorType.MAGNETOMETER)
+    def convert(self, path, dataset_id, sensor_type, **kwargs):
+        return [SubterraRecord(dataset_id=dataset_id, sensor_type=sensor_type,
+                               latitude=41.0, longitude=15.0, signal=[1.0])]
+
+
+def test_base_load_shim_wraps_convert_without_frames():
+    result = _UnmigratedConverter().load("x.none", dataset_id="ds", sensor_type=SensorType.MAGNETOMETER)
     assert len(result.records) == 1
     assert result.frames == []          # unmigrated converter: no frame yet
     assert result.records[0].position.kind == PositionKind.GEOGRAPHIC
+
+
+def test_synthesis_covers_converters_that_emit_no_frames():
+    """The ingest routes fall back to synthesis exactly for this case."""
+    result = _UnmigratedConverter().load("x.none", dataset_id="ds", sensor_type=SensorType.MAGNETOMETER)
+    frames = synthesize_frames_from_records(result.records)
+    assert len(frames) == 1
+    assert frames[0].assumption("frame_reconstructed").value is True
