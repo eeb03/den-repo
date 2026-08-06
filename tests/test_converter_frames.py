@@ -15,7 +15,7 @@ import pytest
 
 from converters.csv_converter import CSVConverter
 from converters.registry import get_converter
-from schemas.spatial import AxisKind, CRSKind, PositionKind
+from schemas.spatial import AxisKind, CRSKind, CRSProvenance, PositionKind
 from schemas.subterra_record import SensorType
 
 laspy = pytest.importorskip("laspy", reason="laspy not installed")
@@ -382,3 +382,121 @@ def test_the_discrepancy_is_recordable_as_an_unresolved_assumption():
     # The frame still describes the file's own CRS -- KMZ has not been
     # promoted to authoritative.
     assert frame.spatial_ref.kind == CRSKind.PROJECTED
+
+
+# --- CSV projected columns ---------------------------------------------------
+#
+# A CSV declares no coordinate system, and `x`/`y` are lon/lat in one table
+# and projected easting/northing in the next. Reading the projected case as
+# lon/lat used to fail with an opaque "2 validation errors for
+# SubterraRecord" from the schema's range check -- the same defect
+# LASConverter had, in a converter that ships by default.
+
+UTM_ROWS = [(501134.03, 4544705.58), (501140.00, 4544710.00), (501150.00, 4544720.00)]
+
+
+def _csv(tmp_path, name, header, rows):
+    path = tmp_path / name
+    with open(path, "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(header)
+        for r in rows:
+            w.writerow(list(r) + [1.0])
+    return path
+
+
+def test_projected_xy_without_a_crs_is_rejected_with_a_useful_message(tmp_path):
+    """REGRESSION: this used to raise a bare pydantic range error."""
+    path = _csv(tmp_path, "utm.csv", ["x", "y", "signal"], UTM_ROWS)
+    with pytest.raises(ValueError, match="outside WGS84 lon/lat range"):
+        CSVConverter().load(path, dataset_id="ds", sensor_type=SensorType.MAGNETOMETER)
+
+
+def test_the_rejection_names_the_remedy(tmp_path):
+    path = _csv(tmp_path, "utm.csv", ["x", "y", "signal"], UTM_ROWS)
+    with pytest.raises(ValueError) as exc:
+        CSVConverter().load(path, dataset_id="ds", sensor_type=SensorType.MAGNETOMETER)
+    assert "crs='EPSG:...'" in str(exc.value)
+    assert "somewhere it is not" in str(exc.value)
+
+
+def test_an_explicit_crs_preserves_native_coordinates(tmp_path):
+    path = _csv(tmp_path, "utm.csv", ["x", "y", "signal"], UTM_ROWS)
+    result = CSVConverter().load(path, dataset_id="ds", sensor_type=SensorType.MAGNETOMETER,
+                                 crs="EPSG:32633")
+    p = result.records[0].position
+    assert p.kind == PositionKind.PROJECTED
+    assert (p.easting, p.northing) == pytest.approx(UTM_ROWS[0])
+
+
+def test_an_explicit_crs_derives_usable_latitude_longitude(tmp_path):
+    path = _csv(tmp_path, "utm.csv", ["x", "y", "signal"], UTM_ROWS)
+    r = CSVConverter().load(path, dataset_id="ds", sensor_type=SensorType.MAGNETOMETER,
+                            crs="EPSG:32633").records[0]
+    assert r.latitude == pytest.approx(41.0536, abs=0.001)
+    assert r.longitude == pytest.approx(15.0135, abs=0.001)
+
+
+def test_csv_crs_is_recorded_as_caller_supplied(tmp_path):
+    path = _csv(tmp_path, "utm.csv", ["x", "y", "signal"], UTM_ROWS)
+    frame = CSVConverter().load(path, dataset_id="ds", sensor_type=SensorType.MAGNETOMETER,
+                                crs="EPSG:32633").frames[0]
+    assert frame.spatial_ref.kind == CRSKind.PROJECTED
+    assert frame.spatial_ref.code == "EPSG:32633"
+    assert frame.spatial_ref.crs_provenance == CRSProvenance.SUPPLIED_BY_CALLER
+    assert "DECLARES NO CRS" in frame.spatial_ref.name
+    a = frame.assumption("crs_supplied_by_caller")
+    assert a is not None and "NOT inferred from the data" in a.basis
+
+
+def test_an_invalid_csv_crs_fails_explicitly(tmp_path):
+    path = _csv(tmp_path, "utm.csv", ["x", "y", "signal"], UTM_ROWS)
+    for bad in ("not-a-crs", ""):
+        with pytest.raises(ValueError, match="crs"):
+            CSVConverter().load(path, dataset_id="ds", sensor_type=SensorType.MAGNETOMETER,
+                                crs=bad)
+
+
+def test_named_geographic_columns_are_unaffected(tmp_path):
+    """lat/lon columns keep their existing behaviour exactly."""
+    path = _csv(tmp_path, "geo.csv", ["lat", "lon", "signal"], [(41.05, 15.01)])
+    result = CSVConverter().load(path, dataset_id="ds", sensor_type=SensorType.MAGNETOMETER)
+    r = result.records[0]
+    assert r.position.kind == PositionKind.GEOGRAPHIC
+    assert (r.latitude, r.longitude) == (41.05, 15.01)
+    assert result.frames[0].spatial_ref.crs_provenance == CRSProvenance.INFERRED
+
+
+def test_ambiguous_xy_in_range_is_read_as_geographic_but_flagged(tmp_path):
+    """
+    x/y values inside WGS84 range stay readable, but the frame says plainly
+    that these column names are ambiguous -- they are easting/northing in
+    plenty of tables.
+    """
+    path = _csv(tmp_path, "xy.csv", ["x", "y", "signal"], [(15.01, 41.05)])
+    result = CSVConverter().load(path, dataset_id="ds", sensor_type=SensorType.MAGNETOMETER)
+    assert result.records[0].position.kind == PositionKind.GEOGRAPHIC
+    assert "AMBIGUOUS x/y names" in result.frames[0].spatial_ref.name
+    assert "Supply crs= explicitly" in result.frames[0].assumption("crs").basis
+
+
+def test_a_geographic_crs_may_also_be_declared(tmp_path):
+    path = _csv(tmp_path, "geo.csv", ["lat", "lon", "signal"], [(41.05, 15.01)])
+    result = CSVConverter().load(path, dataset_id="ds", sensor_type=SensorType.MAGNETOMETER,
+                                 crs="EPSG:4326")
+    assert result.records[0].position.kind == PositionKind.GEOGRAPHIC
+    assert result.frames[0].spatial_ref.crs_provenance == CRSProvenance.SUPPLIED_BY_CALLER
+
+
+def test_malformed_rows_are_still_skipped_with_projected_columns(tmp_path):
+    path = tmp_path / "mixed.csv"
+    with open(path, "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["x", "y", "signal"])
+        w.writerow([501134.03, 4544705.58, 1.0])
+        w.writerow(["bad", 4544710.00, 2.0])
+        w.writerow([501150.00, 4544720.00, 3.0])
+    result = CSVConverter().load(path, dataset_id="ds", sensor_type=SensorType.MAGNETOMETER,
+                                 crs="EPSG:32633")
+    assert len(result.records) == 2
+    assert result.records[1].position.easting == pytest.approx(501150.00)
