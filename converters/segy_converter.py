@@ -1,15 +1,32 @@
 """
 SEG-Y converter for Subterra.
 
-Converts SEG-Y files (GPR or seismic) into Universal Subterra Records.
+Converts SEG-Y files (GPR or seismic) into Universal Subterra Records plus
+one SurveyFrame per file (a SEG-Y file IS one acquisition line here).
 
-For normal SEG-Y files, coordinates are taken from SourceX/SourceY when
-they fall within valid WGS84 lon/lat range. For the INGV-UNISA GPR files,
-SourceX/SourceY are projected (UTM-scale) values -- nowhere near +/-180/
-+/-90 -- so they're left as an unset (0.0, 0.0) placeholder; the
-acquisition-track mapping supplied separately by the ingestion layer
+COORDINATES. SourceX/SourceY are reported in whatever CRS the acquisition
+system used, and SEG-Y has no field that declares which one. This converter
+therefore classifies rather than guesses:
+
+- values inside WGS84 lon/lat range -> GeographicPosition
+- any other non-zero pair          -> ProjectedPosition (easting/northing),
+                                      with the CRS recorded as undeclared
+- (0, 0)                           -> NoPosition, with the reason recorded
+
+Previously the middle case was thrown away: out-of-range headers were
+overwritten with a literal (0.0, 0.0). On the INGV-UNISA lines that
+discarded a genuine UTM position (easting ~501134, northing ~4544705, i.e.
+zone 33N near 41N 15E) and replaced it with a coordinate in the Gulf of
+Guinea. `position` now preserves it.
+
+`latitude`/`longitude` keep their previous values EXACTLY, including the
+(0.0, 0.0) fallback, so every existing consumer is unaffected. They are the
+legacy view; `position` is the truth.
+
+The acquisition-track mapping supplied separately by the ingestion layer
 (ingestion/kmz_georeference.py, applied per-trace in
-api/routes/datasets.py::ingest_zip_from_url) overwrites it.
+api/routes/datasets.py::ingest_zip_from_url) still overwrites latitude/
+longitude as before.
 
 GPR two-way travel time is commonly written into the SEG-Y binary header's
 "microseconds" sample-interval field pre-scaled by 1000 so it round-trips
@@ -18,19 +35,39 @@ Interval=293 -> segyio sample step 0.293, i.e. a 0.293 ns interval and a
 ~141 ns two-way window -- physically sane for a shallow GPR survey; taken
 as literal microseconds it would imply an absurd multi-km penetration
 depth). `depth` is derived from that time axis via a standard constant-
-velocity conversion, not the raw time value itself.
+velocity conversion, not the raw time value itself -- and because that
+velocity is ASSUMED rather than measured, the frame records it as an
+explicit Assumption instead of leaving it implicit in this module.
 """
 
 from pathlib import Path
 
-from converters.base import BaseConverter, MissingDependencyError
+from converters.base import BaseConverter, ConversionResult, MissingDependencyError
+from schemas.spatial import (
+    Assumption, AxisKind, CRSKind, GeographicPosition, NoPosition,
+    ProjectedPosition, SpatialRef, VerticalAxis,
+)
 from schemas.subterra_record import SubterraRecord, SensorType
+from schemas.survey_frame import SurveyFrame, make_frame_id
 
 
 # Typical near-surface soil GPR velocity (relative permittivity ~9);
 # override with converter_kwargs={"velocity_m_per_ns": ...} when a
 # site-specific velocity (e.g. from a CMP survey) is known.
 DEFAULT_GPR_VELOCITY_M_PER_NS = 0.1
+
+_NO_HEADER_POSITION = (
+    "SEG-Y trace header SourceX/SourceY are (0, 0); the file carries no trace position"
+)
+
+
+def _classify_position(x: float, y: float):
+    """Maps a SEG-Y header coordinate pair to an explicit Position (see module docstring)."""
+    if x == 0.0 and y == 0.0:
+        return NoPosition(reason=_NO_HEADER_POSITION)
+    if -90.0 <= y <= 90.0 and -180.0 <= x <= 180.0:
+        return GeographicPosition(lat=y, lon=x)
+    return ProjectedPosition(easting=x, northing=y)
 
 
 class SEGYConverter(BaseConverter):
@@ -48,6 +85,20 @@ class SEGYConverter(BaseConverter):
         velocity_m_per_ns: float = DEFAULT_GPR_VELOCITY_M_PER_NS,
         **kwargs,
     ) -> list[SubterraRecord]:
+        """Records only. See `load()` for records plus the file's SurveyFrame."""
+        return self.load(
+            path, dataset_id=dataset_id, sensor_type=sensor_type,
+            velocity_m_per_ns=velocity_m_per_ns, **kwargs,
+        ).records
+
+    def load(
+        self,
+        path: Path,
+        dataset_id: str,
+        sensor_type: SensorType,
+        velocity_m_per_ns: float = DEFAULT_GPR_VELOCITY_M_PER_NS,
+        **kwargs,
+    ) -> ConversionResult:
 
         try:
             import segyio
@@ -57,7 +108,9 @@ class SEGYConverter(BaseConverter):
                 "Install with: pip install segyio"
             ) from e
 
+        path = Path(path)
         records = []
+        trace_positions = []   # one Position per trace, for frame-level summary
 
         with segyio.open(str(path), "r", ignore_geometry=True) as f:
 
@@ -100,16 +153,16 @@ class SEGYConverter(BaseConverter):
                     x = 0.0
                     y = 0.0
 
-                # Only trust these as real WGS84 lon/lat when they're
-                # actually in range -- INGV-UNISA's SourceX/SourceY are
-                # projected (UTM-scale) values. Out-of-range/zero coords
-                # are left as a (0.0, 0.0) placeholder for the KMZ-based
-                # georeferencing fallback (applied per-trace, downstream)
-                # to overwrite.
+                # Legacy lat/lon, unchanged: only trusted as real WGS84 when
+                # actually in range, else the historical (0.0, 0.0) fallback.
+                # `position` below is what preserves the discarded case.
                 if -90.0 <= y <= 90.0 and -180.0 <= x <= 180.0:
                     latitude, longitude = y, x
                 else:
                     latitude, longitude = 0.0, 0.0
+
+                position = _classify_position(x, y)
+                trace_positions.append(position)
 
                 sample_interval = f.bin.get(segyio.BinField.Interval, None)
 
@@ -126,6 +179,8 @@ class SEGYConverter(BaseConverter):
                         dataset_id=dataset_id,
                         latitude=latitude,
                         longitude=longitude,
+                        position=position,
+                        frame_id=make_frame_id(dataset_id, path.name),
                         elevation=None,
                         depth=depth,
                         signal=[float(value)],
@@ -147,4 +202,106 @@ class SEGYConverter(BaseConverter):
 
                     records.append(record)
 
-        return records
+            frame = self._build_frame(
+                path=path, dataset_id=dataset_id, sensor_type=sensor_type,
+                trace_positions=trace_positions, samples=samples,
+                sample_interval=f.bin.get(segyio.BinField.Interval, None),
+                velocity_m_per_ns=velocity_m_per_ns, trace_count=trace_count,
+            )
+
+        return ConversionResult(records=records, frames=[frame])
+
+    def _build_frame(
+        self, path, dataset_id, sensor_type, trace_positions, samples,
+        sample_interval, velocity_m_per_ns, trace_count,
+    ) -> SurveyFrame:
+        """Describes the acquisition line as a whole: CRS, vertical axis, provenance, assumptions."""
+        kinds = {p.kind for p in trace_positions}
+        if kinds == {"geographic"}:
+            ref = SpatialRef(
+                kind=CRSKind.GEOGRAPHIC, code="EPSG:4326",
+                name="SEG-Y SourceX/SourceY, in WGS84 lon/lat range",
+                horizontal_units="deg",
+            )
+        elif kinds == {"projected"}:
+            ref = SpatialRef(
+                kind=CRSKind.PROJECTED, code=None,
+                name="SEG-Y SourceX/SourceY easting/northing; SEG-Y declares no CRS for them",
+                horizontal_units="m",
+            )
+        elif kinds == {"none"}:
+            ref = SpatialRef(kind=CRSKind.UNKNOWN, name=_NO_HEADER_POSITION)
+        else:
+            # Mixed header quality within one line: refuse to characterise the
+            # line as a whole rather than pick whichever kind is commoner.
+            ref = SpatialRef(
+                kind=CRSKind.UNKNOWN,
+                name=f"SEG-Y trace headers are inconsistent across this line (kinds: {sorted(kinds)})",
+            )
+
+        assumptions = [
+            Assumption(
+                key="gpr_velocity", value=velocity_m_per_ns,
+                basis=(
+                    "assumed default (typical near-surface soil, relative permittivity ~9)"
+                    if velocity_m_per_ns == DEFAULT_GPR_VELOCITY_M_PER_NS
+                    else "supplied by caller"
+                ),
+                verified=False,
+            ),
+            Assumption(
+                key="two_way_time_units", value="ns",
+                basis="SEG-Y binary header Interval is pre-scaled by 1000 in this family of files",
+                verified=False,
+            ),
+        ]
+
+        # Whether the header gives a genuine per-trace track or one static
+        # value repeated -- downstream lateral-extent maths must not treat
+        # the latter as a survey path.
+        distinct = {p.model_dump_json() for p in trace_positions}
+        if trace_positions:
+            assumptions.append(
+                Assumption(
+                    key="per_trace_position",
+                    value="varies" if len(distinct) > 1 else "constant across all traces",
+                    basis=f"observed: {len(distinct)} distinct header position(s) across {trace_count} traces",
+                    verified=True,
+                )
+            )
+
+        step = float(samples[1] - samples[0]) if len(samples) > 1 else None
+
+        return SurveyFrame(
+            frame_id=make_frame_id(dataset_id, path.name),
+            dataset_id=dataset_id,
+            modality=sensor_type,
+            modality_source="user_supplied",
+            source_format=self.format_name,
+            source_file=path.name,
+            spatial_ref=ref,
+            vertical_axis=VerticalAxis(
+                kind=AxisKind.TWO_WAY_TIME_NS,
+                units="ns",
+                origin="instrument time-zero at each trace",
+                positive_down=True,
+                n_samples=len(samples),
+                sample_interval=step,
+                conversion={
+                    "method": "constant_velocity",
+                    "velocity_m_per_ns": velocity_m_per_ns,
+                    "formula": "depth_m = two_way_time_ns * velocity_m_per_ns / 2",
+                    "target_axis": AxisKind.DEPTH_M.value,
+                },
+            ),
+            n_positions=trace_count,
+            position_index_name="trace_index",
+            assumptions=assumptions,
+            source_metadata={
+                "segy_binary_interval": sample_interval,
+                "trace_count": trace_count,
+                "sample_count": len(samples),
+                "time_min_ns": float(samples[0]) if samples else None,
+                "time_max_ns": float(samples[-1]) if samples else None,
+            },
+        )
