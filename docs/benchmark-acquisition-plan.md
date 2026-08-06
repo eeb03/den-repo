@@ -4,8 +4,12 @@ Companion to [dataset-benchmark-plan.md](dataset-benchmark-plan.md), which
 holds the research and the per-dataset detail. This document is the
 decision: what to download, in what order, and what it costs.
 
-**Status: Hillside (T1.3) acquired and checksum-verified.** 4TU (T1.1) and
-TU1208 (T1.2) await approval. No converter implementation has begun.
+**Status: Tier 1 complete.** All three datasets acquired, verified,
+extracted and catalogued 2026-08-07. See
+[`docs/dataset-inventory.md`](dataset-inventory.md) and
+[`datasets/metadata/benchmark_manifest.json`](../datasets/metadata/benchmark_manifest.json)
+— the manifest is now the authoritative view. No converter implementation
+has begun.
 
 Every classification below reflects the 2026-08-07 verification pass, which
 read the candidate archives' own ZIP central directories over HTTP Range.
@@ -34,11 +38,16 @@ three are partly or wholly ingestible with existing code.
 | **License** | **CC0 1.0** — verified via JSON-LD. No restrictions, no attribution required. Redistributable. |
 | **Phases validated** | `SEGYConverter` · `GeographicPosition` · `NoPosition` · **`CRSProvenance.NONE`** · mixed-position frames · `preprocessing` + anomaly detection against excavated truth · `interpretation/` |
 | **Benchmark value** | **Highest per byte in the survey.** The only dataset combining SEG-Y, RTK GNSS trajectories, and utility ground truth confirmed by trial trench (depth, material, diameter). |
-| **Preprocessing effort** | **Low — no new code.** SEG-Y reads today. Work is (a) confirm the trace-header position convention per file rather than assuming INGV's, (b) decide CRS handling for a dataset that declares none, (c) route GNSS-obstructed lines to `NoPosition`. |
+| **Preprocessing effort** | **CORRECTED after inspection: medium, new code required.** The pre-download estimate said "no new code, SEG-Y reads today". It does not — these files are **little-endian**, and `SEGYConverter` fails with `segyio` `RuntimeError: trace count inconsistent with file size`. Needed: (a) an endianness-aware read path, (b) sample interval in **picoseconds** not microseconds, (c) NMEA `ddmm.mmmm` float32 coordinate decoding, (d) route the 43 non-georeferenced files to `NoPosition`. |
 
 Watch: ground truth **withholds coordinates** for confidentiality, linked
-to radargrams only by activity ID. This caps how quantitative a detection
+to radargrams only by `LocationID`. This caps how quantitative a detection
 benchmark can be — see "What this suite cannot claim".
+
+Also found on inspection: **759 `.sgy` files, not the 959 the article
+abstract claims.** The archive is internally consistent and complete
+against its own Readme, so this reads as a discrepancy in the publication
+rather than a truncated download — but it is unexplained.
 
 ### T1.2 · TU1208 / IFSTTAR database — 201 MB · **promoted from Tier 3, identity verified**
 
