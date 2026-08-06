@@ -6,6 +6,8 @@ The machine-readable source of truth is
 this document is generated from the same facts and should be updated with it.
 
 **Inventory date:** 2026-08-07 · **Total on disk: 2.65 GB**
+**Updated 2026-08-07:** little-endian SEG-Y implemented; `4tu-nl-utility`
+moves from blocked to fully ingestible (759/759 files).
 
 Each entry describes **what is actually on disk**, which is not always what
 the publisher's record describes — `guangzhou-ids` is a 2.9 MB subset of a
@@ -46,7 +48,8 @@ extraction; 4TU additionally nests 13 inner ZIPs that are also extracted.
 | **Number of files** | 1,009 |
 | **CRS** | **None declared.** Trace headers carry WGS84 geographic coordinates as **float32 in NMEA `ddmm.mmmm`** at SourceX/SourceY (bytes 73–80). The SEG-Y coordinate-units code is `2` ("arc seconds"), which is **wrong** for that encoding. Subterra asserts no EPSG. |
 | **Survey geometry** | 125 activities across 13 sites; 2–26 lines each, ~1 m apart, perpendicular to utilities; 0.02 m trace spacing; 512 samples/trace; air-launched 500 MHz; Spectre SP80 RTK GNSS + wheel encoder. **716 files georeferenced at trace 0, 43 not.** |
-| **Supported phases** | `SEGYConverter` (needs a little-endian path) · `GeographicPosition` · `NoPosition` · `CRSProvenance` · `preprocessing` · anomaly detection · `interpretation/` |
+| **Supported phases** | ✅ `SEGYConverter` **little-endian path** · `GeographicPosition` · `NoPosition` · `CRSProvenance` · `preprocessing` · anomaly detection · `interpretation/` |
+| **Ingestion** | **759/759 files read, 0 failures.** 459,308 traces, 235,165,696 samples. Requires `coordinate_encoding="ieee_nmea"`. |
 | **Benchmark role** | Primary spatial-truth dataset — the only one combining SEG-Y, RTK GNSS, and utilities confirmed by trial trench. |
 
 **Verified header facts** (all 759 files scanned):
@@ -66,9 +69,15 @@ extraction; 4TU additionally nests 13 inner ZIPs that are also extracted.
   Unexplained; the archive is internally consistent and complete per its
   own Readme, so this is a discrepancy in the publication, not a truncated
   download.
-- **The existing `SEGYConverter` fails on these files** (`segyio`
-  `RuntimeError: trace count inconsistent with file size`) because it
-  assumes big-endian. This corrects the earlier "reads today" estimate.
+- ~~The existing `SEGYConverter` fails on these files.~~ **Resolved** by
+  `converters/segy_endian.py`; all 759 now read.
+- **The time-axis origin is instrument time-zero, not the ground surface.**
+  `DelayRecordingTime` places t0 at 0.3–11 ns depending on file, so every
+  derived depth carries that offset (0.05–0.13 m on the sampled files). For
+  an air-launched antenna it is largely air path, which the constant ground
+  velocity does not model. Recorded as a frame `Assumption`, not removed.
+- Full ingestion of all 759 files yields **235,165,696 records**; batch
+  accordingly.
 - **Ground truth carries no coordinates** — withheld for confidentiality,
   joined to radargrams only by `LocationID`.
 - Utility material blank for 82/125 activities; diameter blank for 65/125.
@@ -76,7 +85,9 @@ extraction; 4TU additionally nests 13 inner ZIPs that are also extracted.
 
 **Assumptions**
 
-- The NMEA `ddmm.mmmm` decoding is **inferred**, not declared. It is
+- The NMEA `ddmm.mmmm` decoding is a **caller declaration**
+  (`coordinate_encoding="ieee_nmea"`), never inferred — the default remains
+  the SEG-Y standard integer reading. It is
   corroborated by the GNSS track length agreeing with the odometer length
   (6.3 m vs 6.08 m on the probe line) and by every position landing in the
   Netherlands — but the file does not say so.
@@ -201,7 +212,7 @@ Capability → which datasets can exercise it, given what is on disk today.
 | Capability | Covered by | Status |
 |---|---|---|
 | SEG-Y ingestion (big-endian) | `ingv-unisa` | ✅ working |
-| SEG-Y ingestion (**little-endian**) | `4tu-nl-utility` | ❌ **converter gap** |
+| SEG-Y ingestion (**little-endian**) | `4tu-nl-utility` (759 files) | ✅ **working** |
 | IDS `.dt` ingestion | `guangzhou-ids`, `tu1208-ifsttar` | ✅ working, now on two instruments |
 | MALÅ `.rd3`/`.rad` ingestion | `hillside-lancaster` (321), `tu1208-ifsttar` (15) | ❌ **converter gap** |
 | GSSI `.dzt` ingestion | `tu1208-ifsttar` (40) | ❌ converter gap |
@@ -240,14 +251,20 @@ a genuine `NoPosition` population; two datasets that declare no CRS.
 
 ### Immediate consequence for implementation
 
-Three converter gaps now block Tier 1 ingestion, in priority order:
-
-1. **Little-endian SEG-Y** — unblocks 759 files and the highest-value
-   dataset. Smallest change: an endianness-aware read path plus
-   picosecond sample-interval handling and NMEA coordinate decoding.
+1. ~~**Little-endian SEG-Y**~~ — **done.** `converters/segy_endian.py`;
+   759/759 files ingest.
 2. **MALÅ `.rd3`/`.rad`** — unblocks 336 files across two independent
    sites. `.rad` is plain-text `KEY:value`, `.rd3` is raw int16.
 3. **GSSI `.dzt`** — unblocks 40 files; `readgssi.m` in the TU1208 archive
    is a reference implementation of the header layout.
 
-Per instruction, none of these has been started.
+### Unsupported SEG-Y variants that remain
+
+| Variant | Status |
+|---|---|
+| Format 1 — IBM 4-byte float | **Refused by name** on the little-endian path. Big-endian IBM float still works via segyio. |
+| Format 4 — fixed point with gain | Refused (withdrawn in rev 1) |
+| Formats 6, 7 — reserved | Refused |
+| SEG-Y rev 2 extended headers | Not parsed; rev-2 files read as rev-1 |
+| Variable trace lengths | Refused — detection requires the trace length to divide the body exactly |
+| Mixed endianness *within* one file | Not supported and not observed; detection is per file |

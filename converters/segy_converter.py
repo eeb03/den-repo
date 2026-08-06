@@ -49,9 +49,14 @@ velocity is ASSUMED rather than measured, the frame records it as an
 explicit Assumption instead of leaving it implicit in this module.
 """
 
+import math
 from pathlib import Path
 
 from converters.base import BaseConverter, ConversionResult, MissingDependencyError
+from converters.segy_endian import (
+    BIG, LITTLE, LittleEndianSegyFile, detect_endianness, int32_as_float32,
+    nmea_to_degrees,
+)
 from schemas.spatial import (
     Assumption, AxisKind, CRSKind, CRSProvenance, GeographicPosition, NoPosition,
     ProjectedPosition, SpatialRef, VerticalAxis,
@@ -68,6 +73,23 @@ DEFAULT_GPR_VELOCITY_M_PER_NS = 0.1
 _NO_HEADER_POSITION = (
     "SEG-Y trace header SourceX/SourceY are (0, 0); the file carries no trace position"
 )
+
+_NON_FINITE_COORDS = (
+    "SEG-Y trace header SourceX/SourceY do not reinterpret to finite IEEE floats under the "
+    "declared coordinate_encoding, so no coordinate can be read from this trace"
+)
+
+#: How SourceX/SourceY are encoded. The standard says 4-byte integers scaled
+#: by SourceGroupScalar, and that stays the default. Some GPR vendors instead
+#: write IEEE floats holding NMEA ddmm.mmmm -- which the bytes cannot reveal,
+#: so it is a CALLER DECLARATION, never inferred. Same contract as `crs`.
+COORDINATE_ENCODINGS = {
+    "int32_scaled": "SEG-Y standard: 4-byte integers scaled by SourceGroupScalar",
+    "ieee_nmea": (
+        "vendor deviation: IEEE float32 in the integer field, holding NMEA ddmm.mmmm "
+        "geographic coordinates. SourceGroupScalar does NOT apply."
+    ),
+}
 
 
 def _parse_declared_crs(crs, path):
@@ -131,12 +153,14 @@ class SEGYConverter(BaseConverter):
         sensor_type: SensorType,
         velocity_m_per_ns: float = DEFAULT_GPR_VELOCITY_M_PER_NS,
         crs: str | None = None,
+        coordinate_encoding: str = "int32_scaled",
         **kwargs,
     ) -> list[SubterraRecord]:
         """Records only. See `load()` for records plus the file's SurveyFrame."""
         return self.load(
             path, dataset_id=dataset_id, sensor_type=sensor_type,
-            velocity_m_per_ns=velocity_m_per_ns, crs=crs, **kwargs,
+            velocity_m_per_ns=velocity_m_per_ns, crs=crs,
+            coordinate_encoding=coordinate_encoding, **kwargs,
         ).records
 
     def load(
@@ -146,6 +170,7 @@ class SEGYConverter(BaseConverter):
         sensor_type: SensorType,
         velocity_m_per_ns: float = DEFAULT_GPR_VELOCITY_M_PER_NS,
         crs: str | None = None,
+        coordinate_encoding: str = "int32_scaled",
         **kwargs,
     ) -> ConversionResult:
         """
@@ -155,6 +180,14 @@ class SEGYConverter(BaseConverter):
         turned into latitude/longitude -- and nothing here infers one. When
         supplied, the native easting/northing remain authoritative and a
         geographic view is DERIVED from them for the legacy fields.
+
+        `coordinate_encoding` is likewise an EXPLICIT declaration, defaulting
+        to the SEG-Y standard. See COORDINATE_ENCODINGS.
+
+        Byte order is DETECTED, not declared, because unlike the two above it
+        is a structural property the file can be checked against. Big-endian
+        always wins: the little-endian reader is reached only when segyio
+        could not have opened the file at all.
         """
 
         try:
@@ -166,6 +199,13 @@ class SEGYConverter(BaseConverter):
             ) from e
 
         path = Path(path)
+        if coordinate_encoding not in COORDINATE_ENCODINGS:
+            raise ValueError(
+                f"{path.name}: coordinate_encoding={coordinate_encoding!r} is not recognised. "
+                f"Choose one of {sorted(COORDINATE_ENCODINGS)}. Nothing is inferred here, so an "
+                f"unrecognised value is refused rather than defaulted."
+            )
+        byte_order, endian_evidence = detect_endianness(path)
         records = []
         trace_positions = []   # one Position per trace, for frame-level summary
 
@@ -174,7 +214,14 @@ class SEGYConverter(BaseConverter):
         is_gpr = sensor_type == SensorType.GPR
         declared_crs = _parse_declared_crs(crs, path) if crs is not None else None
 
-        with segyio.open(str(path), "r", ignore_geometry=True) as f:
+        # ONE record-building path for both byte orders. LittleEndianSegyFile
+        # presents the same surface segyio does, so nothing below is duplicated.
+        opener = (
+            (lambda: segyio.open(str(path), "r", ignore_geometry=True)) if byte_order == BIG
+            else (lambda: LittleEndianSegyFile(path, order=LITTLE))
+        )
+
+        with opener() as f:
 
             trace_count = f.tracecount
             samples = list(f.samples)
@@ -201,21 +248,45 @@ class SEGYConverter(BaseConverter):
                 )
 
                 try:
-                    scalar = float(scalar)
-
-                    if scalar < 0:
-                        scale = 1.0 / abs(scalar)
+                    if coordinate_encoding == "ieee_nmea":
+                        # The same four bytes, read as an IEEE float instead of
+                        # an integer, then decoded from NMEA ddmm.mmmm. The
+                        # coordinate scalar does NOT apply -- a float carries
+                        # its own precision, and applying the scalar as well
+                        # would divide the position by 1000.
+                        fx = int32_as_float32(raw_x, byte_order)
+                        fy = int32_as_float32(raw_y, byte_order)
+                        # Arbitrary integer bit patterns reinterpret to NaN or
+                        # infinity (0xFFFFFFFF is a NaN). A non-finite value is
+                        # not a position, so it becomes NoPosition rather than
+                        # propagating NaN into the spatial model.
+                        if not (math.isfinite(fx) and math.isfinite(fy)):
+                            # NOT (0.0, 0.0). That placeholder is exactly what
+                            # M3 removed; None keeps "no position" distinct
+                            # from a real coordinate off the coast of Africa.
+                            x = y = None
+                        else:
+                            x = nmea_to_degrees(fx)
+                            y = nmea_to_degrees(fy)
                     else:
-                        scale = scalar
+                        scalar = float(scalar)
 
-                    x = float(raw_x) * scale
-                    y = float(raw_y) * scale
+                        if scalar < 0:
+                            scale = 1.0 / abs(scalar)
+                        else:
+                            scale = scalar
+
+                        x = float(raw_x) * scale
+                        y = float(raw_y) * scale
 
                 except Exception:
                     x = 0.0
                     y = 0.0
 
-                position = _classify_position(x, y)
+                if x is None:
+                    position = NoPosition(reason=_NON_FINITE_COORDS)
+                else:
+                    position = _classify_position(x, y)
                 trace_positions.append(position)
 
                 # latitude/longitude are a DERIVED VIEW of the position, and
@@ -223,7 +294,9 @@ class SEGYConverter(BaseConverter):
                 # derive them from. The (0.0, 0.0) placeholder this used to
                 # write made "no position" indistinguishable from a real
                 # coordinate in the Gulf of Guinea.
-                if -90.0 <= y <= 90.0 and -180.0 <= x <= 180.0:
+                if x is None:
+                    latitude, longitude = None, None
+                elif -90.0 <= y <= 90.0 and -180.0 <= x <= 180.0:
                     latitude, longitude = y, x
                 elif declared_crs is not None:
                     # The caller declared what these coordinates ARE, so a
@@ -292,6 +365,8 @@ class SEGYConverter(BaseConverter):
                 sample_interval=f.bin.get(segyio.BinField.Interval, None),
                 velocity_m_per_ns=velocity_m_per_ns, trace_count=trace_count,
                 declared_crs=declared_crs, declared_crs_input=crs,
+                byte_order=byte_order, endian_evidence=endian_evidence,
+                coordinate_encoding=coordinate_encoding,
             )
 
         return ConversionResult(records=records, frames=[frame])
@@ -300,6 +375,7 @@ class SEGYConverter(BaseConverter):
         self, path, dataset_id, sensor_type, trace_positions, samples,
         sample_interval, velocity_m_per_ns, trace_count,
         declared_crs=None, declared_crs_input=None,
+        byte_order=BIG, endian_evidence=None, coordinate_encoding="int32_scaled",
     ) -> SurveyFrame:
         """Describes the acquisition line as a whole: CRS, vertical axis, provenance, assumptions."""
         kinds = {p.kind for p in trace_positions}
@@ -411,6 +487,50 @@ class SEGYConverter(BaseConverter):
                 verified=False,
             ))
 
+        # Recorded only when NON-DEFAULT, so a big-endian standard file's
+        # frame is byte-for-byte what it was before this reader existed.
+        if byte_order == LITTLE:
+            big = (endian_evidence or {}).get("big", {})
+            little = (endian_evidence or {}).get("little", {})
+            assumptions.append(Assumption(
+                key="segy_byte_order", value=LITTLE,
+                basis=(
+                    f"DETECTED, not assumed: the big-endian reading of the binary header is "
+                    f"self-inconsistent (format code {big.get('format')}, "
+                    f"{big.get('samples')} samples/trace) while the little-endian reading is "
+                    f"consistent (format code {little.get('format')}, "
+                    f"{little.get('samples')} samples/trace, trace length divides the file "
+                    f"body exactly). SEG-Y rev 0/1 specifies big-endian; this file does not "
+                    f"follow it, which is a known GPR vendor deviation."
+                ),
+                verified=True,
+            ))
+        if byte_order == LITTLE and samples and samples[0] != 0.0:
+            assumptions.append(Assumption(
+                key="time_axis_origin_offset", value=float(samples[0]),
+                basis=(
+                    f"the trace header's DelayRecordingTime places time-zero at "
+                    f"{samples[0]:g} ns rather than 0, read in the SAME pre-scaled-by-1000 "
+                    f"unit as the sample interval because one instrument wrote both fields. "
+                    f"The vertical axis origin is INSTRUMENT TIME-ZERO, not the ground "
+                    f"surface, so every derived depth carries this offset. For an "
+                    f"air-launched antenna it is largely air path, which this constant "
+                    f"ground velocity does not model."
+                ),
+                verified=False,
+            ))
+        if coordinate_encoding != "int32_scaled":
+            assumptions.append(Assumption(
+                key="segy_coordinate_encoding", value=coordinate_encoding,
+                basis=(
+                    f"SUPPLIED BY CALLER: {COORDINATE_ENCODINGS[coordinate_encoding]}. The file "
+                    f"cannot declare this -- the bytes are identical either way -- so it was "
+                    f"asserted as ingest configuration for this dataset and generalises to "
+                    f"nothing else. Under 'ieee_nmea' the SEG-Y coordinate scalar is NOT applied."
+                ),
+                verified=False,
+            ))
+
         distinct = {p.model_dump_json() for p in trace_positions}
         if trace_positions:
             assumptions.append(
@@ -453,6 +573,8 @@ class SEGYConverter(BaseConverter):
             position_index_name="trace_index",
             assumptions=assumptions,
             source_metadata={
+                "segy_byte_order": byte_order,
+                "segy_coordinate_encoding": coordinate_encoding,
                 "segy_binary_interval": sample_interval,
                 "trace_count": trace_count,
                 "sample_count": len(samples),
