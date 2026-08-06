@@ -290,6 +290,24 @@ def crs_kind_for_positions(kinds) -> CRSKind:
     return CRSKind.UNKNOWN
 
 
+def has_geographic_coordinates(record) -> bool:
+    """
+    True when a record's latitude/longitude are REAL, not the legacy
+    placeholder.
+
+    Two ways that happens, and both count: the record's own position is
+    geographic, or a sidecar track supplied one. KMZ georeferencing writes
+    real coordinates while `position` keeps what the file itself reported
+    (projected, for SEG-Y), so keying on `position.kind` alone would discard
+    perfectly good coordinates -- a mistake made twice before this helper
+    existed, in lateral-extent measurement and in fusion partitioning.
+    """
+    pos = getattr(record, "position", None)
+    if pos is not None and getattr(pos, "kind", None) == PositionKind.GEOGRAPHIC:
+        return True
+    return bool((getattr(record, "metadata", None) or {}).get("georeferenced_from_kmz"))
+
+
 def assert_position_matches_ref(position: Position, ref: SpatialRef) -> None:
     """Raises ValueError if a record's position kind contradicts its frame's CRS kind."""
     expected = POSITION_KIND_FOR_CRS[ref.kind]

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from database.session import get_db
 from database.models import Dataset, FusionSample as FusionSampleModel, gen_uuid
 from database.records_store import load_all_records
-from fusion.sensor_fusion import fuse_datasets, multimodal_only
+from fusion.sensor_fusion import fuse_datasets, multimodal_only, non_fusable_partitions
 
 router = APIRouter()
 
@@ -25,6 +25,10 @@ def run_fusion(
     """
     records = load_all_records(dataset_ids)
     samples = fuse_datasets(records, radius_m=radius_m)
+    # Records fusion could not place. Reported rather than silently absent:
+    # an odometry or un-georeferenced dataset simply has no spatial
+    # relationship to a geographic one until someone supplies a tie.
+    excluded = non_fusable_partitions(records)
     if multimodal_only_flag:
         samples = multimodal_only(samples)
 
@@ -46,6 +50,16 @@ def run_fusion(
     return {
         "input_record_count": len(records),
         "fusion_sample_count": len(samples),
+        "excluded_from_fusion": [
+            {
+                "position_kind": p.kind,
+                "record_count": len(p.records),
+                "dataset_ids": p.dataset_ids,
+                "sensor_types": p.sensor_types,
+                "reason": p.reason,
+            }
+            for p in excluded
+        ],
         "samples": [
             {
                 "center_lat": s.center_lat,

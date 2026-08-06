@@ -16,6 +16,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from schemas.spatial import has_geographic_coordinates
 from schemas.subterra_record import SubterraRecord
 from utils.logger import get_logger
 
@@ -484,12 +485,7 @@ def build_trace_depth_grid_for_records(
         # fabricated measurement rather than a missing one.
         kind = getattr(r.position, "kind", None)
         trace_kind.setdefault(t, kind)
-        # A trace has usable lat/lon either because its own position is
-        # geographic, or because a sidecar track supplied one (KMZ
-        # georeferencing writes real coordinates while `position` keeps what
-        # the file itself reported).
-        trace_geographic.setdefault(
-            t, kind == "geographic" or bool(r.metadata.get("georeferenced_from_kmz")))
+        trace_geographic.setdefault(t, has_geographic_coordinates(r))
         # Along-track distance, for acquisitions positioned by odometry.
         trace_along_track.setdefault(
             t, getattr(r.position, "along_track_m", None) if kind == "odometry" else None)
