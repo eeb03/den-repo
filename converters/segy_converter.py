@@ -220,6 +220,9 @@ class SEGYConverter(BaseConverter):
                             "sample_interval": sample_interval,
                             "segy_x": x,
                             "segy_y": y,
+                            "position_source": (
+                                "segy_header" if position.kind != "none" else "none"
+                            ),
                             "trace_count": trace_count,
                             "sample_count": len(samples),
                         },

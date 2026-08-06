@@ -560,7 +560,8 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
     per_file_errors = []
     georeferenced_count = 0
 
-    from ingestion.kmz_georeference import find_matching_kmz_files, build_georeference_lookup, georeference_records_by_trace
+    from ingestion.kmz_georeference import (find_matching_kmz_files, build_georeference_lookup,
+                                            georeference_records_by_trace, records_needing_kmz_fallback)
     kmz_files = find_matching_kmz_files(supported_files[0].parent.parent if supported_files else downloaded_path.parent)
     # search from the extraction root, not just alongside the data files -- KMZ often sits in the same
     # subdirectory as its SEG-Y files, but walk up to be safe about sibling directory layouts
@@ -577,35 +578,42 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
             records = result.records
             file_frames = result.frames or synthesize_frames_from_records(records)
 
-            # If this file's SEG-Y header coordinates are unusable, map
-            # positions from a matching KMZ placemark instead -- this
-            # source's SourceX/SourceY are projected (UTM-scale) values,
-            # not real per-trace GPS.
+            # SEG-Y header positions are AUTHORITATIVE where usable: they
+            # were measured to be a real per-trace acquisition track
+            # matching the KMZ to ~1 m (see ingestion/kmz_georeference.py).
+            # KMZ is the FALLBACK, applied only when the headers cannot
+            # supply a geographic position -- it never overwrites one.
             #
-            # This updates latitude/longitude ONLY. `record.position`
-            # continues to hold what the FILE said, and the frame's
-            # spatial_ref describes that. Neither source overwrites the
-            # other, because which one is authoritative is genuinely not
-            # yet known -- see the recorded assumption below.
+            # Either way this sets latitude/longitude only; `record.position`
+            # always keeps what the file itself reported.
             stem = file_path.stem
-            if stem in kmz_lookup and len(records) > 0:
+            needs_fallback = records_needing_kmz_fallback(records)
+            if stem in kmz_lookup and len(records) > 0 and needs_fallback:
                 georeference_records_by_trace(records, kmz_lookup[stem])
                 georeferenced_count += 1
                 for fr in file_frames:
                     fr.assumptions.append(Assumption(
-                        key="position_source_discrepancy",
-                        value="latitude/longitude from KMZ track; record.position from the file's own header",
+                        key="position_source",
+                        value="kmz_fallback",
                         basis=(
-                            "UNRESOLVED: the two position sources have not been cross-validated. "
-                            "ingestion/kmz_georeference.py documents SEG-Y SourceX/SourceY as one "
-                            "static placeholder per file, but they were measured to vary per trace "
-                            "(67 distinct positions across 72 traces on C1T_7,5_0001.SGY). Until "
-                            "header-derived positions are compared against the KMZ polyline for the "
-                            "same line, neither is treated as authoritative and neither overwrites "
-                            "the other. That comparison would also independently test the KMZ "
-                            "direction assumption, which is itself unverified."
+                            "the file's own headers did not yield a geographic position "
+                            "(absent, or projected with no declared CRS), so latitude/longitude "
+                            "were taken from the matching KMZ track. record.position still holds "
+                            "the header-derived position where one exists."
                         ),
-                        verified=False,
+                        verified=True,
+                    ))
+            elif len(records) > 0:
+                for fr in file_frames:
+                    fr.assumptions.append(Assumption(
+                        key="position_source",
+                        value="segy_header",
+                        basis=(
+                            "the file's own trace headers supplied a usable geographic position; "
+                            "KMZ georeferencing was NOT applied and did not overwrite it"
+                            + ("" if stem in kmz_lookup else " (no matching KMZ placemark either)")
+                        ),
+                        verified=True,
                     ))
 
             all_records.extend(records)

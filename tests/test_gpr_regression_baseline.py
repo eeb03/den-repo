@@ -35,9 +35,19 @@ from schemas.subterra_record import SensorType
 
 DATA = Path("datasets/downloads/multiline_C1T_0001_0002_extracted")
 
-#: Fields M1 adds. Excluded from the record-equality digest so this test
-#: asserts "everything else is byte-identical".
+#: Record fields added since the pre-M1 baseline. Excluded from the
+#: record-equality digest so this test asserts "everything else is
+#: byte-identical". Each entry is provenance, never a scientific value.
+#:   position, frame_id  -- M1, explicit spatial representation
 NEW_FIELDS = {"position", "frame_id"}
+
+#: Metadata keys added since the pre-M1 baseline, likewise excluded and
+#: likewise provenance-only:
+#:   position_source -- coordinate-authority milestone; says whether a
+#:                      position came from the SEG-Y header, the KMZ
+#:                      fallback, or nowhere. Additive: no pre-existing key
+#:                      changed meaning or value.
+NEW_METADATA_KEYS = {"position_source"}
 
 BASELINE = {
     "C1T_7,5_0001": {
@@ -112,6 +122,8 @@ def _record_digest(records) -> str:
         d = r.to_flat_dict()
         for k in NEW_FIELDS:
             d.pop(k, None)
+        d["metadata"] = {k: v for k, v in d.get("metadata", {}).items()
+                         if k not in NEW_METADATA_KEYS}
         h.update(json.dumps(d, sort_keys=True, default=str).encode())
     return h.hexdigest()
 
@@ -153,8 +165,19 @@ def test_record_fields_unchanged_apart_from_new_ones(line):
 
 
 def test_metadata_keys_unchanged(line):
-    """The converter still emits exactly the metadata keys it emitted pre-M1."""
-    assert line["converter_metadata_keys"] == BASELINE_METADATA_KEYS
+    """
+    Every metadata key the converter emitted pre-M1 is still emitted, and the
+    only additions are the documented provenance keys. A key disappearing or
+    an undocumented key appearing both fail here.
+    """
+    current = set(line["converter_metadata_keys"])
+    assert set(BASELINE_METADATA_KEYS) <= current, (
+        f"pre-M1 metadata key(s) lost: {set(BASELINE_METADATA_KEYS) - current}"
+    )
+    assert current - set(BASELINE_METADATA_KEYS) == NEW_METADATA_KEYS, (
+        f"undocumented metadata key(s) added: "
+        f"{current - set(BASELINE_METADATA_KEYS) - NEW_METADATA_KEYS}"
+    )
 
 
 def test_raw_trace_depth_grid_unchanged(line):

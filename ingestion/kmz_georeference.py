@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -131,7 +132,117 @@ def build_georeference_lookup(kmz_paths: list[Path]) -> dict[str, list[tuple[flo
     return lookup
 
 
-def georeference_records_by_trace(records: list, path_coords: list[tuple[float, float]]) -> int:
+@dataclass
+class DirectionVerification:
+    """
+    Result of checking a KMZ track's ordering against an independent
+    per-trace position source.
+
+    Scoped deliberately: `applies_to` names the ONE acquisition line this
+    was measured on. A favourable result here says nothing about any other
+    dataset -- different acquisition software may well write its KMZ in the
+    opposite order -- so nothing in this module generalises it.
+    """
+    verified: bool
+    applies_to: str
+    method: str
+    residual_as_recorded_m: float
+    residual_reversed_m: float
+    n_traces: int
+
+    @property
+    def improvement_ratio(self) -> float:
+        """How much better the as-recorded ordering fits. >1 favours as-recorded."""
+        if self.residual_as_recorded_m == 0:
+            return float("inf")
+        return self.residual_reversed_m / self.residual_as_recorded_m
+
+    def as_dict(self) -> dict:
+        return {
+            "verified": self.verified, "applies_to": self.applies_to,
+            "method": self.method, "n_traces": self.n_traces,
+            "residual_as_recorded_m": round(self.residual_as_recorded_m, 4),
+            "residual_reversed_m": round(self.residual_reversed_m, 4),
+            "improvement_ratio": round(self.improvement_ratio, 3),
+        }
+
+
+def verify_kmz_direction(
+    reference_lonlat: list[tuple[float, float]],
+    path_coords: list[tuple[float, float]],
+    applies_to: str,
+    min_improvement_ratio: float = 2.0,
+) -> DirectionVerification:
+    """
+    Checks a KMZ track's ordering against an INDEPENDENT per-trace position
+    source (`reference_lonlat`, one (lon, lat) per trace, in trace order --
+    e.g. reprojected SEG-Y header coordinates).
+
+    Replaces the hardcoded `kmz_direction_verified=False`: direction is now
+    something measured when a second source exists, rather than an
+    assumption that could never be falsified. Resamples the KMZ path both
+    as-recorded and reversed, and reports the mean residual for each.
+
+    Verified only when as-recorded fits at least `min_improvement_ratio`
+    times better -- a marginal difference means the two orderings are not
+    distinguishable and the honest answer stays "unverified".
+    """
+    from fusion.sensor_fusion import haversine_m
+
+    n = len(reference_lonlat)
+    if n < 2 or len(path_coords) < 2:
+        return DirectionVerification(
+            verified=False, applies_to=applies_to,
+            method="insufficient points to compare", n_traces=n,
+            residual_as_recorded_m=float("nan"), residual_reversed_m=float("nan"),
+        )
+
+    def mean_residual(ordered):
+        resampled = resample_path_by_arc_length(ordered, n)
+        return float(np.mean([
+            haversine_m(reference_lonlat[i][1], reference_lonlat[i][0],
+                        resampled[i][1], resampled[i][0])
+            for i in range(n)
+        ]))
+
+    forward = mean_residual(path_coords)
+    reverse = mean_residual(path_coords[::-1])
+    verified = reverse > forward * min_improvement_ratio
+
+    return DirectionVerification(
+        verified=verified, applies_to=applies_to,
+        method=(
+            "mean haversine residual between per-trace reference positions and the "
+            f"arc-length-resampled KMZ path, both orderings; verified when as-recorded "
+            f"fits >{min_improvement_ratio}x better"
+        ),
+        residual_as_recorded_m=forward, residual_reversed_m=reverse, n_traces=n,
+    )
+
+
+def records_needing_kmz_fallback(records: list) -> bool:
+    """
+    True when the KMZ path should supply positions for these records.
+
+    SEG-Y header positions are authoritative where usable (see this module's
+    docstring). KMZ is the fallback for the case the headers cannot cover:
+    no position at all, or a projected position with no declared CRS, which
+    cannot be turned into the latitude/longitude the schema still requires.
+
+    A record whose header already gives a GEOGRAPHIC position needs nothing
+    from the KMZ and must not be overwritten by it.
+    """
+    if not records:
+        return False
+    return not any(getattr(r, "position", None) is not None
+                   and r.position.kind == "geographic" for r in records)
+
+
+def georeference_records_by_trace(
+    records: list,
+    path_coords: list[tuple[float, float]],
+    direction: "DirectionVerification | None" = None,
+) -> int:
     """
     Assigns real (lat, lon) to `records` from a KMZ acquisition-track
     polyline, per TRACE rather than per record.
@@ -143,26 +254,28 @@ def georeference_records_by_trace(records: list, path_coords: list[tuple[float, 
     Resampling to len(records) directly would treat vertically-stacked
     depth samples as if they were separate lateral positions.
 
-    UNVERIFIED DIRECTION ASSUMPTION: trace_index is assumed to increase in
-    the SAME direction the KMZ placemark's coordinate list is ordered
-    (i.e. trace 0 <-> the path's first point, the highest trace index <->
-    its last point). Nothing here independently confirms this against a
-    known start/end waypoint -- if the KMZ path were recorded in the
-    opposite direction from SEG-Y trace acquisition, every trace's
-    position would be silently mirrored end-to-end while still passing
-    aggregate checks like total line length. Every georeferenced record is
-    tagged metadata["kmz_direction_verified"]=False to make this
-    assumption visible to downstream consumers rather than leaving it
-    undocumented. This does NOT change the mapping itself -- doing so
-    would require independent ground truth (e.g. a second known waypoint)
-    that isn't available here.
+    DIRECTION. trace_index is assumed to increase in the SAME direction the
+    KMZ placemark's coordinate list is ordered (trace 0 <-> the path's first
+    point). If the KMZ were recorded in the opposite direction, every
+    trace's position would be silently mirrored end-to-end while still
+    passing aggregate checks like total line length.
 
-    Mutates `records` in place (sets latitude/longitude and
-    metadata["georeferenced_from_kmz"]=True) and returns the number of
-    distinct traces that were georeferenced. Records without a
-    metadata["trace_index"] are treated as their own single-sample trace
-    (index = their position in the list), so this also works for
-    converters that emit one record per trace.
+    Pass `direction` (from `verify_kmz_direction`) when an independent
+    per-trace position source exists, and that measured result is recorded
+    per record. Without it the assumption remains unverified and is tagged
+    as such -- the previous behaviour, which is still correct whenever
+    nothing is available to check against.
+
+    Mutates `records` in place (sets latitude/longitude,
+    metadata["georeferenced_from_kmz"]=True, metadata["position_source"]
+    ="kmz_fallback") and returns the number of distinct traces that were
+    georeferenced. Records without a metadata["trace_index"] are treated as
+    their own single-sample trace (index = their position in the list), so
+    this also works for converters that emit one record per trace.
+
+    NOTE this sets latitude/longitude only. `record.position` is left
+    untouched, so a header-derived position is never overwritten by the
+    fallback -- see `records_needing_kmz_fallback`.
     """
     if not records:
         return 0
@@ -177,6 +290,9 @@ def georeference_records_by_trace(records: list, path_coords: list[tuple[float, 
         r.latitude = float(lat)
         r.longitude = float(lon)
         r.metadata["georeferenced_from_kmz"] = True
-        r.metadata["kmz_direction_verified"] = False
+        r.metadata["position_source"] = "kmz_fallback"
+        r.metadata["kmz_direction_verified"] = bool(direction.verified) if direction else False
+        if direction is not None:
+            r.metadata["kmz_direction_verification"] = direction.as_dict()
 
     return len(unique_traces)
