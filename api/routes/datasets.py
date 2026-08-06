@@ -765,9 +765,14 @@ def get_dataset_points(dataset_id: str, max_points: int = 20000, db: Session = D
             "anomaly_reliable": (r.metadata or {}).get("anomaly_reliable"),
             # What kind of position this point actually has, and where it came
             # from. "lat"/"lon" above are the legacy view and may be the (0,0)
-            # placeholder; these two say whether that is a real position.
+            # placeholder; these say whether that is a real position.
             "position_kind": r.position.kind,
             "position_source": (r.metadata or {}).get("position_source"),
+            # Distance along the survey line, for acquisitions positioned by a
+            # wheel encoder rather than by GNSS. This is the ONLY coordinate an
+            # odometry dataset has, so without it such a line cannot be plotted
+            # at all. None for every other position kind.
+            "along_track_m": getattr(r.position, "along_track_m", None),
         }
         for r in records
     ]
@@ -775,6 +780,8 @@ def get_dataset_points(dataset_id: str, max_points: int = 20000, db: Session = D
     position_kinds: dict[str, int] = {}
     for pnt in points:
         position_kinds[pnt["position_kind"]] = position_kinds.get(pnt["position_kind"], 0) + 1
+    along = [p["along_track_m"] for p in points if p["along_track_m"] is not None]
+    along_track_extent_m = (max(along) - min(along)) if along else None
 
     return {
         "dataset_id": dataset_id,
@@ -783,6 +790,7 @@ def get_dataset_points(dataset_id: str, max_points: int = 20000, db: Session = D
         "total_records": total,
         "returned_points": len(points),
         "position_kinds": position_kinds,
+        "along_track_extent_m": along_track_extent_m,
         "points": points,
     }
 
@@ -849,6 +857,12 @@ def get_dataset_grid(
         "lon_centers": lon_centers.tolist(),
         "grid": grid_json,
     }
+
+
+def _along_track_extent(values) -> Optional[float]:
+    """Length of the survey line in metres, or None when it is not positioned."""
+    known = [v for v in (values or []) if v is not None]
+    return (max(known) - min(known)) if known else None
 
 
 @router.get("/{dataset_id}/trace_grid")
@@ -929,6 +943,13 @@ def get_dataset_trace_grid(
         # legacy placeholder -- a caller georeferencing a column needs to know
         # before treating those numbers as a location.
         "trace_position_kind": result.get("trace_position_kind"),
+        "trace_geographic": result.get("trace_geographic"),
+        # Distance of each trace along its own survey line. For an odometry
+        # acquisition this is the real horizontal axis of the radargram: the
+        # grid's columns are evenly spaced in trace index, not in metres, so a
+        # caller plotting distance needs these values rather than the indices.
+        "trace_along_track": result.get("trace_along_track"),
+        "along_track_extent_m": _along_track_extent(result.get("trace_along_track")),
         "survey_frame": line_frame,
         "grid": grid_json,
         "velocity_m_per_ns": velocity_assumption,

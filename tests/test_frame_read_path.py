@@ -258,3 +258,73 @@ def test_trace_grid_falls_back_to_a_reconstructed_frame(monkeypatch):
     assert body["survey_frame"] is not None
     keys = [a["key"] for a in body["survey_frame"]["assumptions"]]
     assert "frame_reconstructed" in keys
+
+
+# --- odometry surfaced so an IDS line can actually be plotted ----------------
+#
+# Along-track distance is the ONLY coordinate a wheel-encoder acquisition
+# has. Without it in the API, such a line cannot be plotted at all: the
+# grid's columns are evenly spaced in trace INDEX, not in metres.
+
+def _odometry_records(n_traces=5, n_depths=20, spacing=0.024):
+    from schemas.spatial import OdometryPosition
+    return [
+        SubterraRecord(
+            dataset_id="ds", sensor_type=SensorType.GPR,
+            latitude=0.0, longitude=0.0,
+            position=OdometryPosition(along_track_m=t * spacing, path_id="line"),
+            frame_id="ds:line", depth=round(d * 0.01, 6), signal=[1.0],
+            metadata={"source_file": "line.dt", "trace_index": t, "sample_index": d,
+                      "position_source": "ids_wheel_odometry",
+                      "velocity_m_per_ns": 0.1},
+        )
+        for t in range(n_traces) for d in range(n_depths)
+    ]
+
+
+def test_points_endpoint_exposes_along_track_distance(monkeypatch):
+    body = _endpoint(monkeypatch, "/api/datasets/ds/points", _odometry_records(), [_frame()])
+    vals = sorted({p["along_track_m"] for p in body["points"]})
+    # exact set equality is wrong here: 3 * 0.024 is 0.07200000000000001
+    assert vals == pytest.approx([0.0, 0.024, 0.048, 0.072, 0.096])
+    assert body["position_kinds"] == {"odometry": len(body["points"])}
+
+
+def test_points_endpoint_reports_the_line_length(monkeypatch):
+    body = _endpoint(monkeypatch, "/api/datasets/ds/points", _odometry_records(), [_frame()])
+    assert body["along_track_extent_m"] == pytest.approx(4 * 0.024)
+
+
+def test_points_along_track_is_null_for_non_odometry_records(monkeypatch):
+    """A geographic dataset has no along-track coordinate, and must not invent one."""
+    body = _endpoint(monkeypatch, "/api/datasets/ds/points", _records(projected=True), [_frame()])
+    assert all(p["along_track_m"] is None for p in body["points"])
+    assert body["along_track_extent_m"] is None
+
+
+def test_trace_grid_exposes_per_trace_along_track(monkeypatch):
+    body = _endpoint(monkeypatch, "/api/datasets/ds/trace_grid", _odometry_records(), [_frame()])
+    assert body["trace_along_track"] == pytest.approx([0.0, 0.024, 0.048, 0.072, 0.096])
+    assert len(body["trace_along_track"]) == body["n_traces"]
+    assert body["along_track_extent_m"] == pytest.approx(4 * 0.024)
+
+
+def test_trace_grid_reports_which_traces_are_geographic(monkeypatch):
+    """A caller georeferencing a column must know before trusting trace_lat/lon."""
+    body = _endpoint(monkeypatch, "/api/datasets/ds/trace_grid", _odometry_records(), [_frame()])
+    assert body["trace_geographic"] == [False] * body["n_traces"]
+    assert set(body["trace_position_kind"]) == {"odometry"}
+
+
+def test_trace_grid_along_track_is_null_for_unpositioned_lines(monkeypatch):
+    body = _endpoint(monkeypatch, "/api/datasets/ds/trace_grid",
+                     _trace_records(geographic=False), [_frame()])
+    assert all(v is None for v in body["trace_along_track"])
+    assert body["along_track_extent_m"] is None
+
+
+def test_trace_grid_along_track_matches_the_grid_width(monkeypatch):
+    """One value per column, so a caller can use it directly as the x axis."""
+    body = _endpoint(monkeypatch, "/api/datasets/ds/trace_grid",
+                     _odometry_records(n_traces=7), [_frame()])
+    assert len(body["trace_along_track"]) == len(body["grid"][0]) == body["n_traces"]
