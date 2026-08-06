@@ -22,12 +22,14 @@ from converters.csv_converter import CSVConverter
 from converters.segy_converter import SEGYConverter
 from converters.las_converter import LASConverter
 from converters.geotiff_converter import GeoTIFFConverter
+from converters.ids_dt_converter import IDSDTConverter
 
 _CONVERTERS: list[BaseConverter] = [
     CSVConverter(),
     SEGYConverter(),
     LASConverter(),
     GeoTIFFConverter(),
+    IDSDTConverter(),
 ]
 
 #: Formats we can NAME but not yet read. Being listed here is a promise that
@@ -35,7 +37,6 @@ _CONVERTERS: list[BaseConverter] = [
 #: it is NOT a claim of support. A format graduates out of this map only when
 #: a real file of that format has parsed and validated.
 KNOWN_UNSUPPORTED_FORMATS: dict[str, str] = {
-    ".dt": "IDS GeoRadar (proprietary GPR)",
     ".dt_info": "IDS GeoRadar sidecar",
     ".rd3": "MALA RAMAC (proprietary GPR)",
     ".rad": "MALA RAMAC header sidecar",

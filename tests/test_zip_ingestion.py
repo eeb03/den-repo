@@ -33,7 +33,10 @@ def test_extract_zip_finds_only_supported_files(sample_zip, tmp_path):
 def test_extract_zip_with_no_supported_files_returns_empty(tmp_path):
     zip_path = tmp_path / "empty_useful.zip"
     with zipfile.ZipFile(zip_path, "w") as zf:
-        zf.writestr("data.dt", b"proprietary format content")
+        # .dzt (GSSI) stands in for a proprietary format with no adapter.
+        # .dt is no longer an example: an IDS .dt reader now exists
+        # (converters/ids_dt_converter.py).
+        zf.writestr("data.dzt", b"proprietary format content")
         zf.writestr("readme.txt", "nothing usable here")
     found = extract_zip_and_find_supported_files(zip_path, extract_to=tmp_path / "extracted2")
     assert found == []

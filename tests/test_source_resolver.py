@@ -44,10 +44,10 @@ def test_a_single_supported_file_resolves_to_one_source(tmp_path):
 
 
 def test_a_single_unreadable_but_recognised_file_is_reported_not_dropped(tmp_path):
-    _write(tmp_path, ["survey.dt"])
-    result = resolve(tmp_path / "survey.dt")
+    _write(tmp_path, ["survey.dzt"])
+    result = resolve(tmp_path / "survey.dzt")
     assert result.sources == []
-    assert result.unsupported_summary() == {"IDS GeoRadar (proprietary GPR)": 1}
+    assert result.unsupported_summary() == {"GSSI (proprietary GPR)": 1}
 
 
 def test_an_unknown_file_yields_nothing_and_claims_nothing(tmp_path):
@@ -93,11 +93,11 @@ def test_an_archive_is_extracted_and_resolved(tmp_path):
 
 def test_an_archive_of_only_proprietary_files_says_so(tmp_path):
     """Distinguishable from an archive holding nothing of interest."""
-    path = _zip(tmp_path, ["a.dt", "b.dt", "c.rd3"])
+    path = _zip(tmp_path, ["a.dzt", "b.dzt", "c.rd3"])
     result = resolve(path, extract_to=tmp_path / "out")
     assert result.sources == []
     assert result.unsupported_summary() == {
-        "IDS GeoRadar (proprietary GPR)": 2, "MALA RAMAC (proprietary GPR)": 1,
+        "GSSI (proprietary GPR)": 2, "MALA RAMAC (proprietary GPR)": 1,
     }
 
 
@@ -160,7 +160,8 @@ def test_resolving_one_file_does_not_pull_in_its_siblings_as_sources(tmp_path):
 def test_readable_formats_comes_from_the_registry():
     formats = readable_formats()
     assert ".sgy" in formats and ".csv" in formats
-    assert ".dt" not in formats
+    assert ".dt" in formats          # IDS .dt is now readable
+    assert ".dzt" not in formats     # GSSI still is not
 
 
 def test_unsupported_summary_of_an_empty_result_is_empty(tmp_path):

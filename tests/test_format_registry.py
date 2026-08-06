@@ -59,7 +59,10 @@ def test_downloader_derives_from_registry_rather_than_a_private_copy():
 # --- recognised-but-unreadable formats ---
 
 def test_known_unsupported_formats_are_named_not_silently_skipped():
-    assert describe_unsupported("survey.dt") == "IDS GeoRadar (proprietary GPR)"
+    # .dt itself is now READABLE (see tests/test_ids_dt_converter.py); its
+    # sidecar and the other vendors' formats are still name-only.
+    assert describe_unsupported("survey.dt") is None
+    assert describe_unsupported("survey.dt_info") == "IDS GeoRadar sidecar"
     assert describe_unsupported("line.rd3").startswith("MALA")
     assert describe_unsupported("scan.dzt").startswith("GSSI")
     assert describe_unsupported("readme.txt") is None
@@ -73,7 +76,8 @@ def test_no_unsupported_format_is_also_claimed_as_supported():
 @pytest.mark.parametrize("name,expected", [
     ("a.csv", "supported"),
     ("a.SGY", "supported"),
-    ("a.dt", "recognized_unsupported"),
+    ("a.dt", "supported"),
+    ("a.rd3", "recognized_unsupported"),
     ("a.dzt", "recognized_unsupported"),
     ("a.txt", "unknown"),
     ("noext", "unknown"),
@@ -83,15 +87,16 @@ def test_classify_file(name, expected):
 
 
 def test_get_converter_error_names_a_recognised_format(tmp_path):
-    """The error should say 'IDS GeoRadar, no adapter yet', not 'unknown extension'."""
-    with pytest.raises(ValueError, match="IDS GeoRadar"):
-        get_converter("survey.dt")
+    """The error should say 'GSSI, no adapter yet', not 'unknown extension'."""
+    with pytest.raises(ValueError, match="GSSI"):
+        get_converter("survey.dzt")
     with pytest.raises(ValueError, match="No converter registered"):
         get_converter("survey.qqq")
 
 
 def test_is_supported():
-    assert is_supported("a.sgy") and not is_supported("a.dt")
+    assert is_supported("a.sgy") and is_supported("a.dt")
+    assert not is_supported("a.dzt")
 
 
 # --- archive scanning ---
@@ -105,20 +110,20 @@ def _zip(tmp_path, names):
 
 
 def test_scan_archive_separates_supported_from_recognised_unsupported(tmp_path):
-    path = _zip(tmp_path, ["Site/line1.csv", "Site/line2.dt", "Site/line3.dt", "Site/readme.txt"])
+    path = _zip(tmp_path, ["Site/line1.csv", "Site/line2.dzt", "Site/line3.dzt", "Site/readme.txt"])
     scan = scan_archive(path, extract_to=tmp_path / "out")
     assert [p.name for p in scan.supported] == ["line1.csv"]
     assert len(scan.recognized_unsupported) == 2
-    assert scan.unsupported_summary() == {"IDS GeoRadar (proprietary GPR)": 2}
+    assert scan.unsupported_summary() == {"GSSI (proprietary GPR)": 2}
 
 
 def test_scan_archive_of_only_proprietary_files_reports_them(tmp_path):
     """The case that used to look identical to an empty archive."""
-    path = _zip(tmp_path, ["a.dt", "b.dt", "c.rd3"])
+    path = _zip(tmp_path, ["a.dzt", "b.dzt", "c.rd3"])
     scan = scan_archive(path, extract_to=tmp_path / "out")
     assert scan.supported == []
     assert scan.unsupported_summary() == {
-        "IDS GeoRadar (proprietary GPR)": 2, "MALA RAMAC (proprietary GPR)": 1,
+        "GSSI (proprietary GPR)": 2, "MALA RAMAC (proprietary GPR)": 1,
     }
 
 
@@ -131,6 +136,6 @@ def test_scan_archive_excludes_macos_appledouble_sidecars(tmp_path):
 
 def test_legacy_extract_helper_still_returns_supported_files_only(tmp_path):
     """Backward compatibility: the old function keeps its exact contract."""
-    path = _zip(tmp_path, ["a.csv", "b.dt"])
+    path = _zip(tmp_path, ["a.csv", "b.dzt"])
     found = extract_zip_and_find_supported_files(path, extract_to=tmp_path / "out")
     assert [p.name for p in found] == ["a.csv"]

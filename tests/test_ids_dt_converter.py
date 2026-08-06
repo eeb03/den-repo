@@ -1,0 +1,245 @@
+"""
+IDS GeoRadar .dt ingestion.
+
+Exercised against REAL acquisition data: tests/fixtures/ids_dt_sample.dt is
+the verbatim header block plus first 8 trace records of a file from Zenodo
+record 14637589 (Guangzhou University GPR dataset). Nothing is synthesised,
+so the parser is tested against bytes a real IDS instrument wrote -- but the
+fixture is 24 KB rather than the 3.8 GB source archive.
+
+The format is proprietary and undocumented. These tests pin what was
+actually established, and equally pin what the format does NOT provide:
+coordinates, a CRS, and a time window are all absent, and the adapter must
+represent that absence rather than filling it in.
+"""
+import struct
+from pathlib import Path
+
+import numpy as np
+import pytest
+
+from converters.ids_dt_converter import IDSDTConverter, IDSDTParseError, parse_dt
+from converters.registry import (
+    KNOWN_UNSUPPORTED_FORMATS, classify_file, get_converter, supported_extensions,
+)
+from schemas.spatial import AxisKind, CRSKind, CRSProvenance, PositionKind
+from schemas.subterra_record import SensorType
+
+FIXTURE = Path("tests/fixtures/ids_dt_sample.dt")
+EXPECTED_TRACES = 8
+EXPECTED_SAMPLES = 512
+EXPECTED_LEN_REC = 1028
+EXPECTED_DATA_START = 16448
+
+pytestmark = pytest.mark.skipif(not FIXTURE.exists(), reason="IDS .dt fixture missing")
+
+
+@pytest.fixture(scope="module")
+def parsed():
+    return parse_dt(FIXTURE)
+
+
+@pytest.fixture(scope="module")
+def result():
+    return IDSDTConverter().load(FIXTURE, dataset_id="ds", sensor_type=SensorType.GPR)
+
+
+# --- file discovery ---
+
+def test_dt_is_now_a_readable_format():
+    assert ".dt" in supported_extensions()
+    assert classify_file("x.dt")[0] == "supported"
+    assert get_converter(FIXTURE).format_name == "ids_dt"
+
+
+def test_dt_graduated_out_of_the_unsupported_map():
+    """A format may not be both readable and listed as unreadable."""
+    assert ".dt" not in KNOWN_UNSUPPORTED_FORMATS
+    assert not (set(KNOWN_UNSUPPORTED_FORMATS) & supported_extensions())
+
+
+def test_the_ids_sidecar_extension_is_still_only_recognised():
+    """.dt_info is named but not claimed as readable -- no parser exists for it."""
+    assert ".dt_info" in KNOWN_UNSUPPORTED_FORMATS
+    assert ".dt_info" not in supported_extensions()
+
+
+# --- parsing the real bytes ---
+
+def test_header_magic_and_version(parsed):
+    assert parsed["version"] == (4, 0, 0)
+    assert parsed["len_rec"] == EXPECTED_LEN_REC
+
+
+def test_data_start_is_located_from_the_R_sentinel(parsed):
+    assert parsed["data_start"] == EXPECTED_DATA_START
+    assert parsed["data_start"] % parsed["len_rec"] == 0
+
+
+def test_trace_and_sample_counts(parsed):
+    assert parsed["n_traces"] == EXPECTED_TRACES
+    assert parsed["n_samples"] == EXPECTED_SAMPLES
+    # samples/trace follows from the declared record length
+    assert parsed["n_samples"] == (parsed["len_rec"] - 4) // 2
+    assert parsed["trailing_bytes"] == 0
+
+
+def test_sample_matrix_shape_and_dtype(parsed):
+    s = parsed["samples"]
+    assert s.shape == (EXPECTED_TRACES, EXPECTED_SAMPLES)
+    assert s.dtype == np.dtype("<u2")
+
+
+def test_samples_carry_real_signal_not_a_flat_line(parsed):
+    """
+    The source acquisition uses the full 16-bit range. A parser reading the
+    wrong offset or endianness would produce a near-constant series, which
+    is exactly what a wrong alignment looked like during development.
+    """
+    s = parsed["samples"]
+    assert int(s.max()) > 40000
+    assert float(s.std()) > 1000
+
+
+def test_header_records_are_decoded(parsed):
+    h = parsed["header"]
+    assert h["I"] == "180124AA"
+    assert "/" in h["C"] and ":" in h["C"]     # e.g. '01/24/18  hh:mm:ss'
+    assert h["FZ"] == "180124AA"
+    assert "N_CHANNEL" in h["S"]
+
+
+def test_trace_markers_are_the_expected_sentinel(parsed):
+    assert set(parsed["markers"][:, 0].tolist()) == {ord("R")}
+
+
+def test_parsing_is_deterministic():
+    a, b = parse_dt(FIXTURE), parse_dt(FIXTURE)
+    assert np.array_equal(a["samples"], b["samples"])
+    assert a["header"] == b["header"]
+    assert (a["n_traces"], a["n_samples"]) == (b["n_traces"], b["n_samples"])
+
+
+# --- malformed input fails explicitly ---
+
+def test_a_non_dt_file_is_rejected_by_magic(tmp_path):
+    bad = tmp_path / "bad.dt"
+    bad.write_bytes(b"NOTADT" + b"\x00" * 100)
+    with pytest.raises(IDSDTParseError, match="magic"):
+        parse_dt(bad)
+
+
+def test_a_file_without_the_R_sentinel_is_rejected(tmp_path):
+    """Truncated acquisitions exist in the real archive; they must not parse silently."""
+    truncated = tmp_path / "trunc.dt"
+    truncated.write_bytes(FIXTURE.read_bytes()[:4096])
+    with pytest.raises(IDSDTParseError, match="no 'R' header record"):
+        parse_dt(truncated)
+
+
+def test_an_implausible_record_length_is_rejected(tmp_path):
+    bad = tmp_path / "bad.dt"
+    bad.write_bytes(b"V" + bytes([4, 0, 0]) + struct.pack("<H", 2) + b"\x00" * 64)
+    with pytest.raises(IDSDTParseError, match="record length"):
+        parse_dt(bad)
+
+
+def test_a_header_with_no_trace_records_is_rejected(tmp_path):
+    header_only = tmp_path / "empty.dt"
+    header_only.write_bytes(FIXTURE.read_bytes()[:EXPECTED_DATA_START])
+    with pytest.raises(IDSDTParseError, match="no trace records"):
+        parse_dt(header_only)
+
+
+# --- records ---
+
+def test_record_count_and_signal_round_trip(result, parsed):
+    assert len(result.records) == EXPECTED_TRACES * EXPECTED_SAMPLES
+    first = result.records[0]
+    assert first.signal == [float(parsed["samples"][0, 0])]
+    assert first.metadata["trace_index"] == 0
+    assert first.metadata["sample_index"] == 0
+
+
+def test_records_carry_trace_identity_matching_the_segy_shape(result):
+    """The existing trace tooling keys on these, so the shape must match."""
+    for r in result.records[:50]:
+        assert {"source_file", "trace_index", "sample_index"} <= set(r.metadata)
+    assert {r.metadata["trace_index"] for r in result.records} == set(range(EXPECTED_TRACES))
+
+
+def test_convert_matches_load_records():
+    c = IDSDTConverter()
+    a = c.convert(FIXTURE, dataset_id="ds", sensor_type=SensorType.GPR)
+    b = c.load(FIXTURE, dataset_id="ds", sensor_type=SensorType.GPR).records
+    assert [r.to_flat_dict() for r in a[:100]] == [r.to_flat_dict() for r in b[:100]]
+
+
+# --- position and CRS: absence must be represented, never filled in ---
+
+def test_no_coordinates_are_fabricated(result):
+    assert all(r.position.kind == PositionKind.NONE for r in result.records[:200])
+    assert "no per-trace coordinates" in result.records[0].position.reason
+
+
+def test_no_crs_is_invented(result):
+    ref = result.frames[0].spatial_ref
+    assert ref.kind == CRSKind.UNKNOWN
+    assert ref.code is None
+    assert ref.crs_provenance == CRSProvenance.NONE
+
+
+def test_position_source_is_recorded_as_none(result):
+    assert result.records[0].metadata["position_source"] == "none"
+
+
+def test_depth_is_unset_because_no_time_window_is_declared(result):
+    """No sample interval and no velocity means no depth -- so none is invented."""
+    assert all(r.depth is None for r in result.records[:200])
+
+
+# --- frame ---
+
+def test_one_frame_per_file_and_every_record_points_at_it(result):
+    assert len(result.frames) == 1
+    assert result.frames[0].frame_id == "ds:ids_dt_sample"
+    assert {r.frame_id for r in result.records} == {"ds:ids_dt_sample"}
+
+
+def test_frame_reports_geometry_and_format(result):
+    f = result.frames[0]
+    assert f.source_format == "ids_dt"
+    assert f.n_positions == EXPECTED_TRACES
+    assert f.position_index_name == "trace_index"
+    assert f.source_metadata["record_length_bytes"] == EXPECTED_LEN_REC
+    assert f.source_metadata["ids_version"] == "4.0.0"
+
+
+def test_frame_declares_the_time_axis_scale_unknown(result):
+    axis = result.frames[0].vertical_axis
+    assert axis.kind == AxisKind.TWO_WAY_TIME_NS
+    assert axis.n_samples == EXPECTED_SAMPLES
+    # None is the machine-readable "the scale of this axis is unknown".
+    assert axis.sample_interval is None
+    assert axis.conversion is None
+
+
+def test_frame_states_the_format_is_reverse_engineered(result):
+    a = result.frames[0].assumption("format_specification")
+    assert a is not None and a.verified is False
+    assert "not publicly specified" in a.basis
+
+
+def test_frame_states_why_there_are_no_coordinates_and_no_depth(result):
+    coords = result.frames[0].assumption("coordinates")
+    time_axis = result.frames[0].assumption("time_axis_unresolved")
+    assert coords is not None and coords.verified is True
+    assert time_axis is not None and time_axis.verified is True
+    assert "velocity model" in time_axis.basis
+
+
+def test_frame_records_companion_files_without_parsing_them(result):
+    """The .ZON siblings are provenance, not interpreted data."""
+    companions = result.frames[0].source_metadata["companion_files"]
+    assert isinstance(companions, list)
+    assert FIXTURE.name not in companions
