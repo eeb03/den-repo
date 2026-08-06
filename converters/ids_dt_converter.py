@@ -77,7 +77,7 @@ import numpy as np
 
 from converters.base import BaseConverter, ConversionResult
 from schemas.spatial import (
-    Assumption, AxisKind, CRSKind, NoPosition, SpatialRef, VerticalAxis,
+    Assumption, AxisKind, CRSKind, NoPosition, OdometryPosition, SpatialRef, VerticalAxis,
 )
 from schemas.subterra_record import SubterraRecord, SensorType
 from schemas.survey_frame import SurveyFrame, make_frame_id
@@ -104,6 +104,14 @@ _H_SWEEP_TIME_DUP = 3
 _H_PROP_VELOCITY = 1
 #: The software's own vertical cell size. Used only as a cross-check.
 _H_Y_CELL = 9
+#: Along-track trace spacing in METRES, from the wheel encoder. Like the sweep
+#: time it is stored twice (6 and 8), which gives a free cross-check, and both
+#: indices hold in v3 and v4 alike. Ini000N.ini corroborates the value and its
+#: derivation: "data_x_cell = 0.024" under ";;Wheel_Compress * Wheel_dx", with
+#: Wheel_Compress = 12 and Wheel_dx = 0.002.
+_H_X_CELL = 6
+_H_X_CELL_DUP = 8
+_H_WHEEL_DX = 7
 
 #: Header record codes whose payload is ASCII text worth keeping verbatim.
 _TEXT_CODES = {"I", "C", "AH", "FZ", "FX", "FQ", "FM", "AM", "ATR", "S"}
@@ -161,6 +169,12 @@ def _parse_acquisition(raw: bytes, len_rec: int) -> dict:
 MIN_VELOCITY_M_PER_NS = 0.01
 MAX_VELOCITY_M_PER_NS = 0.30
 
+#: Plausible bounds for wheel-encoder trace spacing, in metres. A GPR cart
+#: triggering every 4 mm to a few cm is normal; anything past a metre per
+#: trace is not a profile, and zero means the encoder was not recording.
+MIN_TRACE_SPACING_M = 1e-4
+MAX_TRACE_SPACING_M = 1.0
+
 #: Widest plausible GPR two-way time window. Real windows are tens of ns;
 #: 1 ms would imply kilometres of penetration and means the field is not a
 #: sweep time at all.
@@ -215,6 +229,38 @@ def derive_time_axis(acquisition: dict, n_samples: int) -> dict:
         "stored_cell_size_agrees": cell_agrees,
         "configured_velocity_m_per_s": fields[_H_PROP_VELOCITY],
     }
+
+
+def derive_along_track(acquisition: dict) -> tuple[dict | None, str | None]:
+    """
+    Recovers the along-track geometry from the H record's acquisition block.
+
+    This is the ONLY positional information IDS .dt carries: a wheel-encoder
+    trace spacing in metres. It is a MEASURED acquisition parameter, not an
+    assumption, but it locates traces along their own survey line and says
+    nothing about where that line is on Earth -- hence OdometryPosition
+    rather than a geographic or projected one.
+
+    Returns (geometry, None) when usable, or (None, reason) when not.
+    """
+    fields = (acquisition or {}).get("ascii_fields") or []
+    if len(fields) <= _H_X_CELL_DUP:
+        return None, "acquisition H record is missing or truncated"
+    spacing = fields[_H_X_CELL]
+    if spacing is None:
+        return None, f"trace spacing (H record ASCII field {_H_X_CELL}) is not a number"
+    if not (MIN_TRACE_SPACING_M <= spacing <= MAX_TRACE_SPACING_M):
+        return None, (
+            f"trace spacing {spacing} m is outside the plausible range "
+            f"[{MIN_TRACE_SPACING_M}, {MAX_TRACE_SPACING_M}] m; the wheel encoder "
+            f"most likely was not recording for this acquisition"
+        )
+    duplicate = fields[_H_X_CELL_DUP]
+    return {
+        "trace_spacing_m": spacing,
+        "duplicate_field_agrees": duplicate == spacing,
+        "wheel_dx_m": fields[_H_WHEEL_DX],
+    }, None
 
 
 def validate_velocity(velocity) -> tuple[float | None, str | None]:
@@ -370,6 +416,13 @@ class IDSDTConverter(BaseConverter):
         interval_ns = time_axis["sample_interval_ns"]
         frame_id = make_frame_id(dataset_id, path.name)
 
+        along_track, along_track_rejected = derive_along_track(parsed["acquisition"])
+        if along_track_rejected:
+            logger.warning(
+                f"IDSDTConverter: {path.name}: {along_track_rejected}. Records will carry "
+                f"NoPosition; no along-track coordinate is available."
+            )
+
         velocity, velocity_rejected = validate_velocity(velocity_m_per_ns)
         if velocity_rejected and velocity_m_per_ns is not None:
             logger.warning(
@@ -379,10 +432,22 @@ class IDSDTConverter(BaseConverter):
 
         # One record per (trace, sample), matching SEGYConverter's shape so the
         # existing trace/depth tooling sees a familiar structure.
-        position = NoPosition(reason=_NO_POSITION_REASON)
+        no_position = NoPosition(
+            reason=(along_track_rejected or _NO_POSITION_REASON)
+            if along_track is None else _NO_POSITION_REASON
+        )
+        spacing = along_track["trace_spacing_m"] if along_track else None
+
         records: list[SubterraRecord] = []
         for trace_index in range(n_traces):
             row = samples[trace_index]
+            # The wheel encoder locates each trace ALONG ITS OWN LINE. That is
+            # a real measurement, but it is not a position on Earth, so it is
+            # an odometry coordinate and never a geographic one.
+            position = (
+                OdometryPosition(along_track_m=trace_index * spacing, path_id=path.stem)
+                if spacing is not None else no_position
+            )
             for sample_index in range(n_samples):
                 records.append(SubterraRecord(
                     dataset_id=dataset_id,
@@ -401,11 +466,15 @@ class IDSDTConverter(BaseConverter):
                         "trace_index": trace_index,
                         "sample_index": sample_index,
                         "two_way_time_ns": sample_index * interval_ns,
+                        **({"along_track_m": trace_index * spacing,
+                            "trace_spacing_m": spacing}
+                           if spacing is not None else {}),
                         **({"velocity_m_per_ns": velocity,
                             "velocity_source": "supplied_by_caller",
                             "depth_is_velocity_derived": True}
                            if velocity is not None else {}),
-                        "position_source": "none",
+                        "position_source": (
+                            "ids_wheel_odometry" if spacing is not None else "none"),
                         "trace_count": n_traces,
                         "sample_count": n_samples,
                     },
@@ -417,7 +486,31 @@ class IDSDTConverter(BaseConverter):
         )
         return ConversionResult(records=records, frames=[self._build_frame(
             path, dataset_id, sensor_type, parsed, frame_id, time_axis,
-            velocity, velocity_rejected)])
+            velocity, velocity_rejected, along_track, along_track_rejected)])
+
+    @staticmethod
+    def _along_track_assumption(along_track, rejected) -> Assumption:
+        """States whether an along-track coordinate exists and where it came from."""
+        if along_track is None:
+            return Assumption(
+                key="along_track_unavailable", value=None,
+                basis=(
+                    f"No along-track coordinate: {rejected or 'trace spacing not recoverable'}. "
+                    f"Records carry NoPosition."
+                ),
+                verified=True,
+            )
+        return Assumption(
+            key="along_track_spacing", value=along_track["trace_spacing_m"],
+            basis=(
+                f"MEASURED: wheel-encoder trace spacing from the .dt H record, in metres "
+                f"(Ini000N.ini corroborates it as data_x_cell = Wheel_Compress * Wheel_dx, "
+                f"with Wheel_dx = {along_track['wheel_dx_m']} m). The duplicate field agrees: "
+                f"{along_track['duplicate_field_agrees']}. This positions traces along their "
+                f"own line; it does NOT georeference the line."
+            ),
+            verified=bool(along_track["duplicate_field_agrees"]),
+        )
 
     @staticmethod
     def _depth_assumption(velocity, velocity_rejected, time_axis) -> Assumption:
@@ -449,7 +542,9 @@ class IDSDTConverter(BaseConverter):
     def _build_frame(self, path: Path, dataset_id: str, sensor_type: SensorType,
                      parsed: dict, frame_id: str, time_axis: dict,
                      velocity: float | None = None,
-                     velocity_rejected: str | None = None) -> SurveyFrame:
+                     velocity_rejected: str | None = None,
+                     along_track: dict | None = None,
+                     along_track_rejected: str | None = None) -> SurveyFrame:
         header = parsed["header"]
         companions = sorted(
             p.name for p in path.parent.iterdir()
@@ -479,6 +574,7 @@ class IDSDTConverter(BaseConverter):
                               and time_axis["stored_cell_size_agrees"]),
             ),
             self._depth_assumption(velocity, velocity_rejected, time_axis),
+            self._along_track_assumption(along_track, along_track_rejected),
             Assumption(
                 key="format_specification", value="reverse-engineered",
                 basis=(
@@ -497,9 +593,22 @@ class IDSDTConverter(BaseConverter):
             modality_source="user_supplied",
             source_format=self.format_name,
             source_file=path.name,
-            spatial_ref=SpatialRef(
-                kind=CRSKind.UNKNOWN,
-                name=_NO_POSITION_REASON,
+            spatial_ref=(
+                SpatialRef(
+                    kind=CRSKind.ACQUISITION,
+                    name=(
+                        "along-track distance from the wheel encoder. IDS .dt carries no "
+                        "geographic or projected coordinates, so this locates traces along "
+                        "their own survey line only."
+                    ),
+                    horizontal_units="m",
+                    origin_description=(
+                        f"trace 0 of {path.name}; spacing "
+                        f"{along_track['trace_spacing_m']} m per trace"
+                    ),
+                )
+                if along_track is not None
+                else SpatialRef(kind=CRSKind.UNKNOWN, name=_NO_POSITION_REASON)
             ),
             vertical_axis=VerticalAxis(
                 # The axis this frame MEASURES is always two-way time. When a
@@ -536,6 +645,7 @@ class IDSDTConverter(BaseConverter):
                 "antenna_raw": header.get("ATR"),
                 "channels_raw": header.get("S"),
                 "time_axis": time_axis,
+                "along_track": along_track,
                 "companion_files": companions,
             },
         )

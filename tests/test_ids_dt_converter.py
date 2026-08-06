@@ -21,7 +21,7 @@ import numpy as np
 import pytest
 
 from converters.ids_dt_converter import (
-    IDSDTConverter, IDSDTParseError, derive_time_axis, parse_dt,
+    IDSDTConverter, IDSDTParseError, derive_along_track, derive_time_axis, parse_dt,
 )
 from converters.registry import (
     KNOWN_UNSUPPORTED_FORMATS, classify_file, get_converter, supported_extensions,
@@ -181,20 +181,25 @@ def test_convert_matches_load_records():
 
 # --- position and CRS: absence must be represented, never filled in ---
 
-def test_no_coordinates_are_fabricated(result):
-    assert all(r.position.kind == PositionKind.NONE for r in result.records[:200])
-    assert "no per-trace coordinates" in result.records[0].position.reason
+def test_no_geographic_coordinates_are_fabricated(result):
+    """
+    The wheel encoder gives an along-track coordinate (see below), but nothing
+    geographic: the format has no lat/lon and none is invented.
+    """
+    assert all(r.position.kind == PositionKind.ODOMETRY for r in result.records[:200])
+    assert (result.records[0].latitude, result.records[0].longitude) == (0.0, 0.0)
 
 
 def test_no_crs_is_invented(result):
+    """An acquisition frame has no EPSG identity by definition."""
     ref = result.frames[0].spatial_ref
-    assert ref.kind == CRSKind.UNKNOWN
+    assert ref.kind == CRSKind.ACQUISITION
     assert ref.code is None
     assert ref.crs_provenance == CRSProvenance.NONE
 
 
-def test_position_source_is_recorded_as_none(result):
-    assert result.records[0].metadata["position_source"] == "none"
+def test_position_source_names_the_wheel_encoder(result):
+    assert result.records[0].metadata["position_source"] == "ids_wheel_odometry"
 
 
 def test_depth_is_unset_despite_a_known_time_axis(result):
@@ -488,3 +493,130 @@ def test_convert_accepts_the_velocity_too():
     recs = IDSDTConverter().convert(FIXTURE, dataset_id="ds", sensor_type=SensorType.GPR,
                                     velocity_m_per_ns=TEST_VELOCITY)
     assert all(r.depth is not None for r in recs[:100])
+
+
+# --- along-track geometry from the wheel encoder -----------------------------
+#
+# The only positional information IDS .dt carries. It is MEASURED -- an
+# acquisition parameter, not an assumption -- but it locates traces along
+# their own line and says nothing about where that line is on Earth.
+
+EXPECTED_SPACING_M = 0.004        # this acquisition's data_x_cell, in metres
+
+
+def test_trace_spacing_is_read_from_the_file(parsed):
+    geom, reason = derive_along_track(parsed["acquisition"])
+    assert reason is None
+    assert geom["trace_spacing_m"] == pytest.approx(EXPECTED_SPACING_M)
+
+
+def test_the_duplicate_spacing_field_corroborates_it(parsed):
+    geom, _ = derive_along_track(parsed["acquisition"])
+    assert geom["duplicate_field_agrees"] is True
+    # Ini000N.ini derives data_x_cell as Wheel_Compress * Wheel_dx
+    assert geom["wheel_dx_m"] == pytest.approx(0.002)
+
+
+def test_every_trace_gets_an_odometry_position(result):
+    by_trace = {}
+    for r in result.records:
+        by_trace.setdefault(r.metadata["trace_index"], r.position)
+    assert len(by_trace) == EXPECTED_TRACES
+    assert all(p.kind == PositionKind.ODOMETRY for p in by_trace.values())
+
+
+def test_along_track_distance_accumulates_with_trace_index(result):
+    by_trace = {}
+    for r in result.records:
+        by_trace.setdefault(r.metadata["trace_index"], r.position)
+    for t, pos in by_trace.items():
+        assert pos.along_track_m == pytest.approx(t * EXPECTED_SPACING_M)
+    assert by_trace[0].along_track_m == 0.0
+    # cross-track is unknown for a single line and stays at its default
+    assert all(p.cross_track_m == 0.0 for p in by_trace.values())
+
+
+def test_the_line_is_identified_by_path_id(result):
+    assert result.records[0].position.path_id == FIXTURE.stem
+
+
+def test_records_carry_the_along_track_metadata(result):
+    r = next(r for r in result.records if r.metadata["trace_index"] == 3)
+    assert r.metadata["along_track_m"] == pytest.approx(3 * EXPECTED_SPACING_M)
+    assert r.metadata["trace_spacing_m"] == pytest.approx(EXPECTED_SPACING_M)
+
+
+def test_frame_declares_an_acquisition_reference_frame(result):
+    ref = result.frames[0].spatial_ref
+    assert ref.kind == CRSKind.ACQUISITION
+    assert ref.horizontal_units == "m"
+    assert "own survey line" in ref.name
+    assert "spacing" in ref.origin_description
+
+
+def test_frame_records_the_spacing_as_measured(result):
+    a = result.frames[0].assumption("along_track_spacing")
+    assert a is not None
+    assert a.value == pytest.approx(EXPECTED_SPACING_M)
+    assert a.verified is True                     # duplicate field agreed
+    assert "MEASURED" in a.basis
+    assert "does NOT georeference" in a.basis
+
+
+def test_along_track_provenance_is_preserved(result):
+    at = result.frames[0].source_metadata["along_track"]
+    assert at["trace_spacing_m"] == pytest.approx(EXPECTED_SPACING_M)
+
+
+def test_spacing_is_independent_of_the_supplied_velocity(result):
+    """Along-track geometry is measured; depth is assumed. They must not couple."""
+    with_v = _load(TEST_VELOCITY)
+    a = [r.position.along_track_m for r in with_v.records[:500]]
+    b = [r.position.along_track_m for r in result.records[:500]]
+    assert a == b
+
+
+# --- absent or implausible spacing falls back to NoPosition ------------------
+
+def _acq(spacing, dup=None):
+    fields = [0.0] * 10
+    fields[2] = fields[3] = 1e-8          # a valid time window
+    fields[6] = spacing
+    fields[8] = dup if dup is not None else spacing
+    fields[9] = 1e-8 / 512
+    return {"ascii_fields": fields, "ints": [0] * 11}
+
+
+@pytest.mark.parametrize("bad", [0.0, -0.01, 5.0, None])
+def test_implausible_spacing_is_rejected(bad):
+    geom, reason = derive_along_track(_acq(bad))
+    assert geom is None and reason
+
+
+def test_a_truncated_acquisition_block_yields_no_geometry():
+    geom, reason = derive_along_track({"ascii_fields": [0.0] * 3})
+    assert geom is None and "missing or truncated" in reason
+
+
+def test_a_disagreeing_duplicate_is_reported_not_hidden():
+    geom, _ = derive_along_track(_acq(0.024, dup=0.048))
+    assert geom["duplicate_field_agrees"] is False
+
+
+def test_records_fall_back_to_no_position_without_spacing(tmp_path):
+    """A cart with no wheel encoder must not gain an invented coordinate."""
+    raw = bytearray(FIXTURE.read_bytes())
+    h = parse_dt(FIXTURE)["acquisition"]["h_offset"]
+    base = h + 4 + 44
+    # zero the two trace-spacing fields, leaving the time window intact
+    for idx in (6, 8):
+        raw[base + idx * 16: base + (idx + 1) * 16] = b"    0.000000E+00"
+    broken = tmp_path / "no_encoder.dt"
+    broken.write_bytes(bytes(raw))
+    out = IDSDTConverter().load(broken, dataset_id="ds", sensor_type=SensorType.GPR)
+    assert all(r.position.kind == PositionKind.NONE for r in out.records[:100])
+    assert out.frames[0].spatial_ref.kind == CRSKind.UNKNOWN
+    assert out.frames[0].assumption("along_track_unavailable") is not None
+    assert out.records[0].metadata["position_source"] == "none"
+    # the measured time axis is unaffected by the missing geometry
+    assert out.frames[0].vertical_axis.sample_interval == pytest.approx(EXPECTED_INTERVAL_NS)
