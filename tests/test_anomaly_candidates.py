@@ -378,3 +378,123 @@ def test_zero_extent_still_means_a_single_trace_not_missing_data():
     single = [c for c in cands if c.evidence.trace_range[1] == c.evidence.trace_range[0]]
     for c in single:
         assert c.characteristics.approx_lateral_extent_m == 0.0
+
+
+# --- lateral extent from an odometry frame -----------------------------------
+#
+# A wheel-encoder acquisition knows how far apart its traces are even though
+# it has no idea where it is on Earth. That distance is measurable and must
+# be reported -- and must stay distinguishable from a GPS-derived one.
+
+def _odometry_records(source_file="line.dt", n_traces=8, n_depths=40, spacing=0.024):
+    from schemas.spatial import OdometryPosition
+    from schemas.subterra_record import SensorType, SubterraRecord
+
+    recs = []
+    for t in range(n_traces):
+        for d in range(n_depths):
+            val = 9.0 if (3 <= t <= 5 and 18 <= d <= 20) else 0.0
+            recs.append(SubterraRecord(
+                dataset_id="d", sensor_type=SensorType.GPR,
+                latitude=0.0, longitude=0.0,
+                position=OdometryPosition(along_track_m=t * spacing, path_id="line"),
+                depth=round(d * 0.01, 6), signal=[val],
+                metadata={"source_file": source_file, "trace_index": t,
+                          "sample_index": d, "anomaly_reliable": True},
+            ))
+    return recs
+
+
+def test_odometry_frames_yield_a_real_lateral_extent():
+    from interpretation.anomaly_candidates import find_anomaly_candidates
+    cands = find_anomaly_candidates(_odometry_records(), source_file="line.dt")
+    multi = [c for c in cands if c.evidence.trace_range[1] > c.evidence.trace_range[0]]
+    assert multi, "fixture should produce a multi-trace candidate"
+    for c in multi:
+        span = c.evidence.trace_range[1] - c.evidence.trace_range[0]
+        assert c.characteristics.approx_lateral_extent_m == pytest.approx(span * 0.024)
+
+
+def test_odometry_extent_is_labelled_as_such():
+    """A wheel-encoder distance must not be mistaken for a GPS one."""
+    from interpretation.anomaly_candidates import find_anomaly_candidates
+    cands = find_anomaly_candidates(_odometry_records(), source_file="line.dt")
+    assert all(c.characteristics.lateral_extent_source == "odometry" for c in cands)
+
+
+def test_odometry_spacing_is_respected():
+    from interpretation.anomaly_candidates import find_anomaly_candidates
+    fine = find_anomaly_candidates(_odometry_records(spacing=0.004), source_file="line.dt")
+    coarse = find_anomaly_candidates(_odometry_records(spacing=0.024), source_file="line.dt")
+    f = max(c.characteristics.approx_lateral_extent_m for c in fine)
+    c = max(c.characteristics.approx_lateral_extent_m for c in coarse)
+    assert c == pytest.approx(f * 6)
+
+
+def test_geographic_extent_is_labelled_and_still_preferred():
+    from interpretation.anomaly_candidates import find_anomaly_candidates
+    cands = find_anomaly_candidates(_line_records(geographic=True), source_file="line.SGY")
+    multi = [c for c in cands if c.evidence.trace_range[1] > c.evidence.trace_range[0]]
+    assert multi
+    assert all(c.characteristics.lateral_extent_source == "geographic" for c in cands)
+    assert all(c.characteristics.approx_lateral_extent_m > 0 for c in multi)
+
+
+def test_kmz_georeferenced_traces_count_as_geographic():
+    """
+    KMZ georeferencing writes real lat/lon while `position` keeps what the
+    file itself reported (often projected). The extent must come from the
+    real coordinates, not be discarded because the position kind differs.
+    """
+    from interpretation.anomaly_candidates import find_anomaly_candidates
+    from schemas.spatial import ProjectedPosition
+    from schemas.subterra_record import SensorType, SubterraRecord
+
+    recs = []
+    for t in range(8):
+        for d in range(40):
+            val = 9.0 if (3 <= t <= 5 and 18 <= d <= 20) else 0.0
+            recs.append(SubterraRecord(
+                dataset_id="d", sensor_type=SensorType.GPR,
+                latitude=41.0 + t * 1e-4, longitude=15.0,
+                position=ProjectedPosition(easting=500000.0 + t, northing=4544000.0),
+                depth=round(d * 0.01, 6), signal=[val],
+                metadata={"source_file": "l.SGY", "trace_index": t, "sample_index": d,
+                          "anomaly_reliable": True, "georeferenced_from_kmz": True},
+            ))
+    cands = find_anomaly_candidates(recs, source_file="l.SGY")
+    multi = [c for c in cands if c.evidence.trace_range[1] > c.evidence.trace_range[0]]
+    assert multi
+    assert all(c.characteristics.lateral_extent_source == "geographic" for c in multi)
+    assert all(c.characteristics.approx_lateral_extent_m > 0 for c in multi)
+
+
+def test_unpositioned_lines_still_report_no_extent():
+    """Neither source available means None, not a fabricated zero."""
+    from interpretation.anomaly_candidates import find_anomaly_candidates
+    cands = find_anomaly_candidates(_line_records(geographic=False), source_file="line.SGY")
+    assert cands
+    assert all(c.characteristics.approx_lateral_extent_m is None for c in cands)
+    assert all(c.characteristics.lateral_extent_source is None for c in cands)
+
+
+def test_a_projected_line_without_a_crs_reports_no_extent():
+    """Easting/northing with no declared CRS is not a usable distance source here."""
+    from interpretation.anomaly_candidates import find_anomaly_candidates
+    from schemas.spatial import ProjectedPosition
+    from schemas.subterra_record import SensorType, SubterraRecord
+
+    recs = [
+        SubterraRecord(
+            dataset_id="d", sensor_type=SensorType.GPR, latitude=0.0, longitude=0.0,
+            position=ProjectedPosition(easting=500000.0 + t, northing=4544000.0),
+            depth=round(d * 0.01, 6),
+            signal=[9.0 if (3 <= t <= 5 and 18 <= d <= 20) else 0.0],
+            metadata={"source_file": "p.SGY", "trace_index": t, "sample_index": d,
+                      "anomaly_reliable": True},
+        )
+        for t in range(8) for d in range(40)
+    ]
+    cands = find_anomaly_candidates(recs, source_file="p.SGY")
+    assert cands
+    assert all(c.characteristics.approx_lateral_extent_m is None for c in cands)

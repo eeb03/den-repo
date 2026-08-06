@@ -473,13 +473,26 @@ def build_trace_depth_grid_for_records(
     # georeference_records_by_trace -- so the first record seen per trace suffices.
     trace_latlon = {}
     trace_kind = {}
+    trace_geographic = {}
+    trace_along_track = {}
     for r in sub_records:
-        trace_latlon.setdefault(r.metadata["trace_index"], (r.latitude, r.longitude))
+        t = r.metadata["trace_index"]
+        trace_latlon.setdefault(t, (r.latitude, r.longitude))
         # Whether that (lat, lon) is a real geographic position or the legacy
         # placeholder. Consumers computing real-world distances need to know:
         # a haversine between two placeholders returns 0.0 metres, which is a
         # fabricated measurement rather than a missing one.
-        trace_kind.setdefault(r.metadata["trace_index"], getattr(r.position, "kind", None))
+        kind = getattr(r.position, "kind", None)
+        trace_kind.setdefault(t, kind)
+        # A trace has usable lat/lon either because its own position is
+        # geographic, or because a sidecar track supplied one (KMZ
+        # georeferencing writes real coordinates while `position` keeps what
+        # the file itself reported).
+        trace_geographic.setdefault(
+            t, kind == "geographic" or bool(r.metadata.get("georeferenced_from_kmz")))
+        # Along-track distance, for acquisitions positioned by odometry.
+        trace_along_track.setdefault(
+            t, getattr(r.position, "along_track_m", None) if kind == "odometry" else None)
 
     return {
         "source_file": source_file,
@@ -490,6 +503,8 @@ def build_trace_depth_grid_for_records(
         "trace_lat": [trace_latlon[t][0] for t in trace_ids],
         "trace_lon": [trace_latlon[t][1] for t in trace_ids],
         "trace_position_kind": [trace_kind[t] for t in trace_ids],
+        "trace_geographic": [trace_geographic[t] for t in trace_ids],
+        "trace_along_track": [trace_along_track[t] for t in trace_ids],
     }
 
 
