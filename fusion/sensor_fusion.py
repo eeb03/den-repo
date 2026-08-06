@@ -22,6 +22,7 @@ failure mode this partitioning exists to prevent.
 """
 import math
 from dataclasses import dataclass, field
+from typing import Optional
 
 from schemas.spatial import has_geographic_coordinates
 from schemas.subterra_record import SubterraRecord, SensorType
@@ -110,10 +111,25 @@ def partition_by_spatial_ref(records: list[SubterraRecord]) -> list[SpatialParti
 
 @dataclass
 class FusionSample:
-    center_lat: float
-    center_lon: float
+    """
+    One cluster of co-located records, with a centre expressed in the frame
+    it was clustered in.
+
+    center_lat/center_lon are Optional because a sample clustered in a
+    non-geographic frame genuinely has no latitude. Giving it one to satisfy
+    a NOT NULL column is how a placeholder gets back in.
+    """
     radius_m: float
+    spatial_ref_kind: str = "geographic"
+    center_lat: Optional[float] = None
+    center_lon: Optional[float] = None
+    center_x: Optional[float] = None
+    center_y: Optional[float] = None
     records_by_sensor: dict[str, list[SubterraRecord]] = field(default_factory=dict)
+
+    @property
+    def has_geographic_centre(self) -> bool:
+        return self.center_lat is not None and self.center_lon is not None
 
     @property
     def sensor_types(self) -> list[str]:
@@ -194,7 +210,8 @@ def fuse_datasets(
         center_lat = sum(r.latitude for r in cell_records) / len(cell_records)
         center_lon = sum(r.longitude for r in cell_records) / len(cell_records)
 
-        sample = FusionSample(center_lat=center_lat, center_lon=center_lon, radius_m=radius_m)
+        sample = FusionSample(radius_m=radius_m, spatial_ref_kind="geographic",
+                              center_lat=center_lat, center_lon=center_lon)
         for r in cell_records:
             sample.records_by_sensor.setdefault(r.sensor_type.value, []).append(r)
 

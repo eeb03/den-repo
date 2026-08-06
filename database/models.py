@@ -62,12 +62,28 @@ class DatasetVersion(Base):
 
 
 class FusionSample(Base):
-    """A multimodal fusion sample: multiple datasets matched to one location."""
+    """
+    A multimodal fusion sample: multiple datasets matched to one location.
+
+    The centre is stored in whatever frame the sample was clustered in.
+    center_lat/center_lon were NOT NULL, which meant a sample from any
+    non-geographic frame either could not be persisted at all or had to be
+    given placeholder coordinates -- the exact failure the Position
+    abstraction exists to prevent, reintroduced at the storage layer. They
+    are now nullable, and `spatial_ref_kind` says which pair is meaningful.
+    """
     __tablename__ = "fusion_samples"
 
     id = Column(String, primary_key=True, default=gen_uuid)
-    center_lat = Column(Float, nullable=False)
-    center_lon = Column(Float, nullable=False)
+    #: Which frame this sample's centre lives in: "geographic", "projected",
+    #: "local_cartesian", "odometry". Determines which centre columns apply.
+    spatial_ref_kind = Column(String, nullable=False, default="geographic")
+    #: Populated for geographic samples only.
+    center_lat = Column(Float, nullable=True)
+    center_lon = Column(Float, nullable=True)
+    #: Populated for samples clustered in native units (metres) instead.
+    center_x = Column(Float, nullable=True)
+    center_y = Column(Float, nullable=True)
     radius_m = Column(Float, nullable=False)
     dataset_ids = Column(JSON, default=list)   # list of Dataset.id included in this sample
     sensor_types = Column(JSON, default=list)  # sensors represented

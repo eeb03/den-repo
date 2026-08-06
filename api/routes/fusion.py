@@ -37,8 +37,11 @@ def run_fusion(
             db.add(
                 FusionSampleModel(
                     id=gen_uuid(),
+                    spatial_ref_kind=s.spatial_ref_kind,
                     center_lat=s.center_lat,
                     center_lon=s.center_lon,
+                    center_x=s.center_x,
+                    center_y=s.center_y,
                     radius_m=s.radius_m,
                     dataset_ids=s.dataset_ids,
                     sensor_types=s.sensor_types,
@@ -62,8 +65,11 @@ def run_fusion(
         ],
         "samples": [
             {
+                "spatial_ref_kind": s.spatial_ref_kind,
                 "center_lat": s.center_lat,
                 "center_lon": s.center_lon,
+                "center_x": s.center_x,
+                "center_y": s.center_y,
                 "radius_m": s.radius_m,
                 "sensor_types": s.sensor_types,
                 "dataset_ids": s.dataset_ids,
@@ -81,8 +87,11 @@ def list_fusion_samples(db: Session = Depends(get_db)):
     return [
         {
             "id": s.id,
+            "spatial_ref_kind": s.spatial_ref_kind,
             "center_lat": s.center_lat,
             "center_lon": s.center_lon,
+            "center_x": s.center_x,
+            "center_y": s.center_y,
             "sensor_types": s.sensor_types,
             "dataset_ids": s.dataset_ids,
             "has_ground_truth": s.has_ground_truth,
