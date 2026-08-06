@@ -1,0 +1,77 @@
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
+
+from database.session import get_db
+from database.models import Dataset, FusionSample as FusionSampleModel, gen_uuid
+from database.records_store import load_all_records
+from fusion.sensor_fusion import fuse_datasets, multimodal_only
+
+router = APIRouter()
+
+
+@router.post("/run")
+def run_fusion(
+    dataset_ids: Optional[list[str]] = Query(None, description="Restrict fusion to these dataset IDs; omit for all"),
+    radius_m: Optional[float] = None,
+    multimodal_only_flag: bool = True,
+    persist: bool = True,
+    db: Session = Depends(get_db),
+):
+    """
+    Run spatial sensor fusion across ingested datasets and return (optionally
+    persist) the resulting multimodal training samples.
+    """
+    records = load_all_records(dataset_ids)
+    samples = fuse_datasets(records, radius_m=radius_m)
+    if multimodal_only_flag:
+        samples = multimodal_only(samples)
+
+    if persist:
+        for s in samples:
+            db.add(
+                FusionSampleModel(
+                    id=gen_uuid(),
+                    center_lat=s.center_lat,
+                    center_lon=s.center_lon,
+                    radius_m=s.radius_m,
+                    dataset_ids=s.dataset_ids,
+                    sensor_types=s.sensor_types,
+                    has_ground_truth=s.has_ground_truth,
+                )
+            )
+        db.commit()
+
+    return {
+        "input_record_count": len(records),
+        "fusion_sample_count": len(samples),
+        "samples": [
+            {
+                "center_lat": s.center_lat,
+                "center_lon": s.center_lon,
+                "radius_m": s.radius_m,
+                "sensor_types": s.sensor_types,
+                "dataset_ids": s.dataset_ids,
+                "has_ground_truth": s.has_ground_truth,
+                "record_counts": {k: len(v) for k, v in s.records_by_sensor.items()},
+            }
+            for s in samples
+        ],
+    }
+
+
+@router.get("/samples")
+def list_fusion_samples(db: Session = Depends(get_db)):
+    samples = db.query(FusionSampleModel).all()
+    return [
+        {
+            "id": s.id,
+            "center_lat": s.center_lat,
+            "center_lon": s.center_lon,
+            "sensor_types": s.sensor_types,
+            "dataset_ids": s.dataset_ids,
+            "has_ground_truth": s.has_ground_truth,
+        }
+        for s in samples
+    ]

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Subterra Data Platform — 3D Viewer</title>
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #0b0f14; color: #e6e6e6; }
+  #controls { padding: 14px 18px; background: #11161d; border-bottom: 1px solid #232b35; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  #controls label { font-size: 13px; color: #9aa7b5; }
+  #controls input[type=text] { width: 420px; padding: 6px 8px; background: #1a212a; border: 1px solid #2c3742; color: #e6e6e6; border-radius: 4px; }
+  #controls button { padding: 6px 14px; background: #2f6feb; border: none; color: white; border-radius: 4px; cursor: pointer; }
+  #controls button:hover { background: #4285f4; }
+  #status { font-size: 13px; color: #9aa7b5; }
+  #plot { width: 100vw; height: calc(100vh - 64px); }
+  .slider-group { display: flex; align-items: center; gap: 8px; }
+  input[type=range] { width: 180px; }
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <label>Dataset IDs (comma-separated):
+    <input type="text" id="datasetIds" placeholder="d3dca710-...,e3e432e3-..." />
+  </label>
+  <button onclick="loadDatasets()">Load</button>
+  <div class="slider-group" id="depthSliderGroup" style="display:none;">
+    <label>Depth range:</label>
+    <input type="range" id="depthMin" step="0.01" oninput="applyDepthFilter()" />
+    <input type="range" id="depthMax" step="0.01" oninput="applyDepthFilter()" />
+    <span id="depthLabel"></span>
+  </div>
+  <div class="slider-group">
+    <label>View:</label>
+    <select id="viewMode" onchange="onViewModeChange()">
+      <option value="points">Point cloud</option>
+      <option value="heatmap">Heatmap (top-down)</option>
+      <option value="surface">Surface (elevation-draped)</option>
+    </select>
+  </div>
+  <div class="slider-group" id="focusGroup" style="display:none;">
+    <label>Focus:</label>
+    <select id="focusSelect" onchange="onFocusChange()"></select>
+  </div>
+  <div class="slider-group">
+    <label>Highlight |signal| ≥</label>
+    <input type="number" id="anomalyThreshold" value="0" min="0" step="0.5" style="width:60px;" oninput="onAnomalyThresholdChange()" />
+    <span style="font-size:12px;color:#6b7684;">(0 = show all points; try 2-3 for z-scored/anomaly data)</span>
+  </div>
+  <span id="status"></span>
+</div>
+
+<div id="plot"></div>
+
+<script>
+const API_BASE = window.location.origin + "/api";
+let allTraces = {};   // dataset_id -> {points, sensor_type}
+let depthBounds = { min: 0, max: 1 };
+let refLat = 0, refLon = 0;
+let focusRange = null;  // {x:[lo,hi], y:[lo,hi], z:[lo,hi]} or null for auto
+let lastDepthLo, lastDepthHi;
+let anomalyThreshold = 0;
+let viewMode = "points";
+
+async function fetchDatasetPoints(datasetId) {
+  const resp = await fetch(`${API_BASE}/datasets/${datasetId}/points?max_points=15000`);
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({}));
+    throw new Error(`Dataset ${datasetId}: ${body.detail || resp.statusText}`);
+  }
+  return resp.json();
+}
+
+function zValue(pt) {
+  // Prefer true absolute elevation (surface elevation - depth) when DEM-aligned.
+  if (pt.absolute_elevation_m !== null && pt.absolute_elevation_m !== undefined) {
+    return pt.absolute_elevation_m;
+  }
+  if (pt.depth !== null && pt.depth !== undefined) {
+    return -pt.depth;
+  }
+  if (pt.elevation !== null && pt.elevation !== undefined) {
+    return pt.elevation;
+  }
+  // Last resort: for single-band raster sources (DEM tiles), the pixel
+  // value IS the elevation, but it lands in `signal` rather than
+  // `elevation` since the GeoTIFF converter doesn't know a given raster
+  // represents elevation vs. some other quantity. Without this fallback,
+  // DEM points would all render at z=0 while GPR points sit at their real
+  // 400-700m elevation -- an invisible plot, not an empty one.
+  if (pt.signal !== null && pt.signal !== undefined) {
+    return pt.signal;
+  }
+  return 0;
+}
+
+// Equirectangular approximation: converts lat/lon to local meters relative
+// to a reference point. Needed because raw lon/lat (tiny values, ~0.0001
+// degree spans) and elevation (hundreds of meters) are wildly different
+// units -- plotting them together with aspectmode="data" (true-to-scale
+// proportions) collapses the whole scene into an invisible sliver.
+function toLocalMeters(lat, lon, lat0, lon0) {
+  const dx = (lon - lon0) * 111320 * Math.cos(lat0 * Math.PI / 180);
+  const dy = (lat - lat0) * 110540;
+  return [dx, dy];
+}
+
+async function loadDatasets() {
+  const idsRaw = document.getElementById("datasetIds").value.trim();
+  if (!idsRaw) { setStatus("Enter at least one dataset ID."); return; }
+  const ids = idsRaw.split(",").map(s => s.trim()).filter(Boolean);
+
+  setStatus(`Loading ${ids.length} dataset(s)...`);
+  allTraces = {};
+  let minDepth = Infinity, maxDepth = -Infinity;
+
+  for (const id of ids) {
+    try {
+      const data = await fetchDatasetPoints(id);
+      allTraces[id] = data;
+      for (const pt of data.points) {
+        if (pt.depth !== null && pt.depth !== undefined) {
+          minDepth = Math.min(minDepth, pt.depth);
+          maxDepth = Math.max(maxDepth, pt.depth);
+        }
+      }
+    } catch (e) {
+      setStatus(`Error: ${e.message}`);
+      return;
+    }
+  }
+
+  if (isFinite(minDepth) && isFinite(maxDepth) && minDepth < maxDepth) {
+    depthBounds = { min: minDepth, max: maxDepth };
+    const depthMinEl = document.getElementById("depthMin");
+    const depthMaxEl = document.getElementById("depthMax");
+    depthMinEl.min = minDepth; depthMinEl.max = maxDepth; depthMinEl.value = minDepth;
+    depthMaxEl.min = minDepth; depthMaxEl.max = maxDepth; depthMaxEl.value = maxDepth;
+    document.getElementById("depthSliderGroup").style.display = "flex";
+  } else {
+    document.getElementById("depthSliderGroup").style.display = "none";
+  }
+
+  // Reference point for local-meters conversion: mean lat/lon across every
+  // loaded point, so all datasets share one consistent local coordinate frame.
+  let sumLat = 0, sumLon = 0, n = 0;
+  for (const data of Object.values(allTraces)) {
+    for (const pt of data.points) { sumLat += pt.lat; sumLon += pt.lon; n++; }
+  }
+  refLat = n ? sumLat / n : 0;
+  refLon = n ? sumLon / n : 0;
+
+  populateFocusSelect();
+  render();
+  setStatus(`Loaded ${ids.length} dataset(s), ${Object.values(allTraces).reduce((n, d) => n + d.returned_points, 0)} points shown.`);
+}
+
+function applyDepthFilter() {
+  const lo = parseFloat(document.getElementById("depthMin").value);
+  const hi = parseFloat(document.getElementById("depthMax").value);
+  document.getElementById("depthLabel").textContent = `${lo.toFixed(2)}m – ${hi.toFixed(2)}m`;
+  lastDepthLo = lo; lastDepthHi = hi;
+  render(lo, hi);
+}
+
+function computeBBox(points) {
+  const xs = points.map(pt => toLocalMeters(pt.lat, pt.lon, refLat, refLon)[0]);
+  const ys = points.map(pt => toLocalMeters(pt.lat, pt.lon, refLat, refLon)[1]);
+  const zs = points.map(zValue);
+  return {
+    xmin: Math.min(...xs), xmax: Math.max(...xs),
+    ymin: Math.min(...ys), ymax: Math.max(...ys),
+    zmin: Math.min(...zs), zmax: Math.max(...zs),
+  };
+}
+
+function padRange(v0, v1, frac = 0.15, minPad = 1.0) {
+  const m = Math.max((v1 - v0) * frac, minPad);
+  return [v0 - m, v1 + m];
+}
+
+function percentile(arr, p) {
+  if (arr.length === 0) return 0;
+  const sorted = [...arr].sort((a, b) => a - b);
+  const idx = Math.min(sorted.length - 1, Math.max(0, Math.floor((p / 100) * sorted.length)));
+  return sorted[idx];
+}
+
+function populateFocusSelect() {
+  const select = document.getElementById("focusSelect");
+  select.innerHTML = "";
+
+  const allOpt = document.createElement("option");
+  allOpt.value = "__all__";
+  allOpt.textContent = "All (full extent)";
+  select.appendChild(allOpt);
+
+  let densestId = null, densestCount = -1;
+  for (const [id, data] of Object.entries(allTraces)) {
+    const opt = document.createElement("option");
+    opt.value = id;
+    opt.textContent = `${data.name} (${data.returned_points} pts)`;
+    select.appendChild(opt);
+    if (data.returned_points > densestCount) { densestCount = data.returned_points; densestId = id; }
+  }
+
+  // Default focus to whichever loaded dataset has the most points -- for a
+  // survey + a deliberately-padded DEM tile, that's almost always the
+  // survey itself, which is the thing you actually want filling the view.
+  select.value = densestId || "__all__";
+  document.getElementById("focusGroup").style.display = Object.keys(allTraces).length ? "flex" : "none";
+  setFocusFromSelection();
+}
+
+function onFocusChange() {
+  setFocusFromSelection();
+  render(lastDepthLo, lastDepthHi);
+}
+
+function setFocusFromSelection() {
+  const sel = document.getElementById("focusSelect").value;
+  let points;
+  if (sel === "__all__") {
+    points = Object.values(allTraces).flatMap(d => d.points);
+  } else {
+    points = allTraces[sel] ? allTraces[sel].points : [];
+  }
+  if (points.length === 0) { focusRange = null; return; }
+
+  const bbox = computeBBox(points);
+  focusRange = {
+    x: padRange(bbox.xmin, bbox.xmax),
+    y: padRange(bbox.ymin, bbox.ymax),
+    z: padRange(bbox.zmin, bbox.zmax),
+  };
+}
+
+function onAnomalyThresholdChange() {
+  const val = parseFloat(document.getElementById("anomalyThreshold").value);
+  anomalyThreshold = isFinite(val) ? val : 0;
+  render(lastDepthLo, lastDepthHi);
+}
+
+async function fetchDatasetGrid(datasetId, field, depth) {
+  let url = `${API_BASE}/datasets/${datasetId}/grid?field=${field}&smooth=true&smoothing_window=3`;
+  if (depth !== undefined && depth !== null) url += `&depth=${depth}`;
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({}));
+    throw new Error(`Dataset ${datasetId} grid: ${body.detail || resp.statusText}`);
+  }
+  return resp.json();
+}
+
+function onViewModeChange() {
+  viewMode = document.getElementById("viewMode").value;
+  render(lastDepthLo, lastDepthHi);
+}
+
+async function renderHeatmap() {
+  // Heatmap uses whichever dataset is currently focused (the classic
+  // top-down "depth slice" view -- looking straight down at one layer).
+  const sel = document.getElementById("focusSelect").value;
+  const datasetId = sel === "__all__" ? Object.keys(allTraces)[0] : sel;
+  if (!datasetId) { setStatus("No dataset to render."); return; }
+
+  try {
+    const gridData = await fetchDatasetGrid(datasetId, "signal");
+    const lonMeters = gridData.lon_centers.map(lon => toLocalMeters(gridData.lat_centers[0], lon, refLat, refLon)[0]);
+    const latMeters = gridData.lat_centers.map(lat => toLocalMeters(lat, gridData.lon_centers[0], refLat, refLon)[1]);
+
+    Plotly.newPlot("plot", [{
+      type: "heatmap",
+      x: lonMeters,
+      y: latMeters,
+      z: gridData.grid,
+      colorscale: "Viridis",
+      colorbar: { thickness: 14 },
+      hoverongaps: false,
+    }], {
+      paper_bgcolor: "#0b0f14",
+      plot_bgcolor: "#0b0f14",
+      font: { color: "#e6e6e6" },
+      xaxis: { title: "Easting (m, local)", color: "#9aa7b5" },
+      yaxis: { title: "Northing (m, local)", color: "#9aa7b5", scaleanchor: "x" },
+      margin: { l: 60, r: 20, t: 20, b: 50 },
+      title: { text: `${gridData.name} — depth ${gridData.depth}m`, font: { color: "#e6e6e6", size: 13 } },
+    }, { responsive: true });
+  } catch (e) {
+    setStatus(`Error: ${e.message}`);
+  }
+}
+
+async function renderSurface() {
+  // Surface drapes the signal grid (color) over the elevation grid (shape)
+  // for the focused dataset -- an actual 3D "terrain with data painted on
+  // it" rather than a scattered point cloud.
+  const sel = document.getElementById("focusSelect").value;
+  const datasetId = sel === "__all__" ? Object.keys(allTraces)[0] : sel;
+  if (!datasetId) { setStatus("No dataset to render."); return; }
+
+  try {
+    const signalGrid = await fetchDatasetGrid(datasetId, "signal");
+    let elevGrid;
+    try {
+      elevGrid = await fetchDatasetGrid(datasetId, "absolute_elevation_m", signalGrid.depth);
+    } catch (e) {
+      elevGrid = null; // dataset isn't DEM-aligned -- fall back to a flat surface
+    }
+
+    const lonMeters = signalGrid.lon_centers.map(lon => toLocalMeters(signalGrid.lat_centers[0], lon, refLat, refLon)[0]);
+    const latMeters = signalGrid.lat_centers.map(lat => toLocalMeters(lat, signalGrid.lon_centers[0], refLat, refLon)[1]);
+
+    let zGrid;
+    if (elevGrid && elevGrid.grid.length === signalGrid.grid.length && elevGrid.grid[0].length === signalGrid.grid[0].length) {
+      zGrid = elevGrid.grid.map(row => row.map(v => v ?? 0));
+      setStatus(`Surface: elevation-draped (DEM-aligned), depth ${signalGrid.depth}m.`);
+    } else {
+      zGrid = signalGrid.grid.map(row => row.map(() => 0));
+      setStatus(`Surface: flat (no DEM alignment for this dataset), depth ${signalGrid.depth}m.`);
+    }
+
+    Plotly.newPlot("plot", [{
+      type: "surface",
+      x: lonMeters,
+      y: latMeters,
+      z: zGrid,
+      surfacecolor: signalGrid.grid,
+      colorscale: "Viridis",
+      colorbar: { thickness: 14 },
+    }], {
+      paper_bgcolor: "#0b0f14",
+      plot_bgcolor: "#0b0f14",
+      font: { color: "#e6e6e6" },
+      scene: {
+        xaxis: { title: "Easting (m, local)", color: "#9aa7b5" },
+        yaxis: { title: "Northing (m, local)", color: "#9aa7b5" },
+        zaxis: { title: "Elevation (m)", color: "#9aa7b5" },
+        aspectmode: "data",
+        dragmode: "orbit",
+      },
+      margin: { l: 0, r: 0, t: 36, b: 0 },
+    }, { responsive: true });
+  } catch (e) {
+    setStatus(`Error: ${e.message}`);
+  }
+}
+
+function render(depthLo, depthHi) {
+  if (viewMode === "heatmap") { renderHeatmap(); return; }
+  if (viewMode === "surface") { renderSurface(); return; }
+
+  const traces = [];
+  for (const [id, data] of Object.entries(allTraces)) {
+    let points = data.points;
+    if (depthLo !== undefined && depthHi !== undefined) {
+      points = points.filter(pt => pt.depth === null || pt.depth === undefined || (pt.depth >= depthLo && pt.depth <= depthHi));
+    }
+    if (anomalyThreshold > 0) {
+      points = points.filter(pt => pt.signal !== null && pt.signal !== undefined && Math.abs(pt.signal) >= anomalyThreshold);
+    }
+    if (points.length === 0) continue;
+
+    const signalVals = points.map(pt => pt.signal ?? 0);
+    // Contrast enhancement: clip the colorscale to the 2nd-98th percentile
+    // instead of full min/max, so a couple of extreme outliers don't wash
+    // out the color contrast for everything else.
+    const cmin = percentile(signalVals, 2);
+    const cmax = percentile(signalVals, 98);
+
+    traces.push({
+      type: "scatter3d",
+      mode: "markers",
+      name: `${data.name} (${data.sensor_type})`,
+      x: points.map(pt => toLocalMeters(pt.lat, pt.lon, refLat, refLon)[0]),
+      y: points.map(pt => toLocalMeters(pt.lat, pt.lon, refLat, refLon)[1]),
+      z: points.map(zValue),
+      text: points.map(pt =>
+        `lat: ${pt.lat.toFixed(6)}, lon: ${pt.lon.toFixed(6)}<br>sensor: ${pt.sensor_type}<br>signal: ${pt.signal !== null ? pt.signal.toFixed(3) : "n/a"}<br>depth: ${pt.depth ?? "n/a"}m<br>ground_truth: ${pt.ground_truth}`
+      ),
+      hoverinfo: "text",
+      marker: {
+        size: 2.5,
+        color: signalVals,
+        colorscale: "Viridis",
+        cmin: cmin,
+        cmax: cmax,
+        showscale: traces.length === 0,
+        colorbar: { len: 0.85, y: 0.42, thickness: 14 },
+        opacity: 0.8,
+      },
+    });
+  }
+
+  const scene = {
+    xaxis: { title: "Easting (m, local)", color: "#9aa7b5" },
+    yaxis: { title: "Northing (m, local)", color: "#9aa7b5" },
+    zaxis: { title: "Elevation (m)", color: "#9aa7b5" },
+    aspectmode: "data",
+    dragmode: "orbit",
+  };
+  if (focusRange) {
+    scene.xaxis.range = focusRange.x;
+    scene.yaxis.range = focusRange.y;
+    scene.zaxis.range = focusRange.z;
+  }
+
+  Plotly.newPlot("plot", traces, {
+    paper_bgcolor: "#0b0f14",
+    plot_bgcolor: "#0b0f14",
+    font: { color: "#e6e6e6" },
+    scene: scene,
+    // t:36 leaves room for the modebar (zoom/pan/orbit icons) at the top-right;
+    // without it the legend renders directly on top of those buttons and
+    // swallows clicks meant for them.
+    margin: { l: 0, r: 0, t: 36, b: 0 },
+    legend: { x: 0, y: 0, xanchor: "left", yanchor: "bottom", bgcolor: "rgba(11,15,20,0.7)" },
+  }, { responsive: true, displayModeBar: true });
+}
+
+function setStatus(msg) {
+  document.getElementById("status").textContent = msg;
+}
+
+// Auto-load from ?datasets=id1,id2 in the URL if present
+window.addEventListener("DOMContentLoaded", () => {
+  const params = new URLSearchParams(window.location.search);
+  const datasets = params.get("datasets");
+  if (datasets) {
+    document.getElementById("datasetIds").value = datasets;
+    loadDatasets();
+  }
+});
+</script>
+
+</body>
+</html>

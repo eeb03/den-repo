@@ -1,0 +1,14 @@
+# Secrets
+.env
+
+# OS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Runtime data (downloaded/generated, not source)
+datasets/
+logs/
+*.db
