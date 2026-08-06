@@ -27,14 +27,38 @@ field below was confirmed against the real files.
        2-byte marker 1 (observed 'R'), 2-byte marker 2,
        then (len_rec - 4) / 2 little-endian uint16 samples.
 
-WHAT THE FORMAT DOES NOT CARRY. Verified across every file in the sample:
-no coordinates (FX/AH are 0.000000E+00 throughout), no CRS, and no
-declared time window or sample interval. Consequently this converter emits
-NoPosition and leaves `depth` unset rather than inventing either. The
-sample axis is two-way travel time by construction, but without the
-acquisition software's time window a sample index cannot be converted to
-nanoseconds or to depth, so `sample_interval` is left None and the frame
-says so explicitly.
+TIME AXIS. The acquisition time window IS carried by the file, in the H
+record: 11 little-endian int32s followed by 10 fixed-width "%16.6E" ASCII
+fields (the same "11 integers + 10 ASCII fields" RGPR's readDT()
+documents). Field 2 is the sweep time in SECONDS -- the two-way time window
+of one trace -- and it is repeated at field 3 in every file examined, which
+makes the pair a stable anchor even though other fields shift position
+between format versions. The per-sample interval is the window divided by
+the sample count, and the software's own vertical cell size (field 9) is
+read purely as a cross-check on that.
+
+Confirmed against real files spanning both versions and four sample counts:
+
+    samples  sweep time   interval      cell x n == sweep?
+      256     5 ns        19.53 ps      yes
+      384     7 ns        18.23 ps      yes
+      512    10 / 20 ns   19.53 / 39.06 ps   yes
+     1024    10 ns         9.77 ps      yes
+      512    80 ns (v3)  156.25 ps      NO -- v3 stores half that value
+
+The v3 disagreement is why the interval is DERIVED from the window and
+sample count rather than taken from the stored cell size, with the
+cross-check recorded on the frame instead of silently trusted.
+
+WHAT THE FORMAT DOES NOT CARRY: coordinates (FX/AH are 0.000000E+00
+throughout) and a CRS. Position is therefore NoPosition.
+
+DEPTH IS NOT DERIVED. The H record does contain a propagation velocity, but
+it is whatever the operator configured (3.0e8 m/s -- vacuum -- on one pipe
+line, 1.0e8 m/s on others), not a site measurement. Converting the measured
+time axis to depth on that basis would present an assumed number as a
+measured one, so `depth` is left unset and the configured value is recorded
+as an unverified assumption for a caller to accept or override.
 
 COMPANION FILES. A .dt never stands alone: it lives in a `<date>.ZON`
 directory beside per-line `Ini000N.ini` (acquisition software
@@ -62,6 +86,25 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 MAGIC = b"V"
+#: The H record carries the acquisition geometry: 11 little-endian int32s
+#: followed by 10 fixed-width ASCII fields in "%16.6E" form. Both the count
+#: and the layout match RGPR's documented readDT() ("11 x 4-byte integers +
+#: 10 ASCII fields") and were confirmed against real files spanning both
+#: format versions and four different sample counts.
+_H_INT_COUNT = 11
+_H_ASCII_FIELDS = 10
+_H_ASCII_WIDTH = 16
+#: Index of the sweep time (the acquisition time window, seconds) within the
+#: ASCII block. It is stored TWICE, at 2 and 3, in every file examined --
+#: v3 and v4 alike -- which makes the pair a robust anchor even though other
+#: fields shift position between versions.
+_H_SWEEP_TIME = 2
+_H_SWEEP_TIME_DUP = 3
+#: Propagation velocity the OPERATOR configured (m/s). Not a measurement.
+_H_PROP_VELOCITY = 1
+#: The software's own vertical cell size. Used only as a cross-check.
+_H_Y_CELL = 9
+
 #: Header record codes whose payload is ASCII text worth keeping verbatim.
 _TEXT_CODES = {"I", "C", "AH", "FZ", "FX", "FQ", "FM", "AM", "ATR", "S"}
 #: The record code that terminates the header block; data starts after it.
@@ -76,6 +119,94 @@ _NO_POSITION_REASON = (
 
 class IDSDTParseError(ValueError):
     """Raised when a file is not a readable IDS .dt."""
+
+
+def _parse_acquisition(raw: bytes, len_rec: int) -> dict:
+    """
+    Reads the H record's acquisition block: 11 int32s then 10 ASCII floats.
+
+    Returns {} when the record is absent or unreadable, so the caller can
+    fail loudly instead of proceeding with a fabricated time axis.
+    """
+    h_offset = None
+    for k in range(1, min(len(raw) // max(len_rec, 1), _MAX_HEADER_RECORDS)):
+        if raw[k * len_rec: k * len_rec + 1] == b"H":
+            h_offset = k * len_rec
+            break
+    if h_offset is None:
+        return {}
+
+    body = raw[h_offset + 4: h_offset + len_rec]
+    need = _H_INT_COUNT * 4 + _H_ASCII_FIELDS * _H_ASCII_WIDTH
+    if len(body) < need:
+        return {}
+
+    ints = struct.unpack_from(f"<{_H_INT_COUNT}i", body, 0)
+    block = body[_H_INT_COUNT * 4: need].decode("latin-1", "replace")
+    fields = []
+    for i in range(_H_ASCII_FIELDS):
+        text = block[i * _H_ASCII_WIDTH:(i + 1) * _H_ASCII_WIDTH].strip()
+        try:
+            fields.append(float(text))
+        except ValueError:
+            fields.append(None)
+    return {"h_offset": h_offset, "ints": list(ints), "ascii_fields": fields}
+
+
+#: Widest plausible GPR two-way time window. Real windows are tens of ns;
+#: 1 ms would imply kilometres of penetration and means the field is not a
+#: sweep time at all.
+_MAX_PLAUSIBLE_SWEEP_S = 1e-3
+
+
+def derive_time_axis(acquisition: dict, n_samples: int) -> dict:
+    """
+    Builds the two-way time axis from the H record's acquisition block.
+
+    Raises IDSDTParseError when the window is absent, unparseable, or
+    physically implausible -- an explicit failure is the only acceptable
+    alternative to a fabricated axis, because a wrong time axis silently
+    becomes a wrong depth axis downstream.
+    """
+    fields = (acquisition or {}).get("ascii_fields") or []
+    if len(fields) <= _H_Y_CELL:
+        raise IDSDTParseError(
+            "acquisition H record is missing or truncated, so the time window cannot be "
+            "recovered. Refusing to construct a time axis without it."
+        )
+    sweep = fields[_H_SWEEP_TIME]
+    if sweep is None:
+        raise IDSDTParseError(
+            f"acquisition time window (H record ASCII field {_H_SWEEP_TIME}) is not a number."
+        )
+    if not (0 < sweep <= _MAX_PLAUSIBLE_SWEEP_S):
+        raise IDSDTParseError(
+            f"acquisition time window {sweep!r} s is outside the plausible range for GPR "
+            f"(0, {_MAX_PLAUSIBLE_SWEEP_S}]; refusing to build a time axis from it."
+        )
+    if n_samples <= 0:
+        raise IDSDTParseError(f"cannot build a time axis over {n_samples} samples")
+
+    interval_s = sweep / n_samples
+    stored_cell = fields[_H_Y_CELL]
+    # The file's own cell size should equal window/samples. Where it does not
+    # (observed on v3), the definitional value wins and the disagreement is
+    # reported rather than hidden.
+    cell_agrees = (
+        stored_cell is not None
+        and stored_cell > 0
+        and abs(stored_cell * n_samples - sweep) <= 1e-6 * sweep
+    )
+    duplicate = fields[_H_SWEEP_TIME_DUP]
+    return {
+        "time_window_ns": sweep * 1e9,
+        "sample_interval_ns": interval_s * 1e9,
+        "n_samples": n_samples,
+        "duplicate_field_agrees": duplicate == sweep,
+        "stored_cell_size_s": stored_cell,
+        "stored_cell_size_agrees": cell_agrees,
+        "configured_velocity_m_per_s": fields[_H_PROP_VELOCITY],
+    }
 
 
 def _read_code(raw: bytes, offset: int) -> str:
@@ -135,6 +266,7 @@ def parse_dt(path: str | Path) -> dict:
             f"data is undetermined. The file is truncated or is not an IDS .dt."
         )
 
+    acquisition = _parse_acquisition(raw, len_rec)
     n_samples = (len_rec - 4) // 2
     body = raw[data_start:]
     n_traces = len(body) // len_rec
@@ -148,6 +280,7 @@ def parse_dt(path: str | Path) -> dict:
     return {
         "version": version,
         "len_rec": len_rec,
+        "acquisition": acquisition,
         "header": header,
         "data_start": data_start,
         "n_traces": int(n_traces),
@@ -173,6 +306,9 @@ class IDSDTConverter(BaseConverter):
         parsed = parse_dt(path)
         samples = parsed["samples"]
         n_traces, n_samples = parsed["n_traces"], parsed["n_samples"]
+        # Raises rather than proceeding without a real time axis.
+        time_axis = derive_time_axis(parsed["acquisition"], n_samples)
+        interval_ns = time_axis["sample_interval_ns"]
         frame_id = make_frame_id(dataset_id, path.name)
 
         # One record per (trace, sample), matching SEGYConverter's shape so the
@@ -189,14 +325,16 @@ class IDSDTConverter(BaseConverter):
                     position=position,
                     frame_id=frame_id,
                     elevation=None,
-                    # No time window and no velocity are declared by the format,
-                    # so a depth cannot be derived and is not invented.
+                    # The time axis is measured; depth is NOT, because the
+                    # only velocity available is an operator setting rather
+                    # than a site measurement. See the frame's assumptions.
                     depth=None,
                     signal=[float(row[sample_index])],
                     metadata={
                         "source_file": path.name,
                         "trace_index": trace_index,
                         "sample_index": sample_index,
+                        "two_way_time_ns": sample_index * interval_ns,
                         "position_source": "none",
                         "trace_count": n_traces,
                         "sample_count": n_samples,
@@ -208,10 +346,10 @@ class IDSDTConverter(BaseConverter):
             f"({len(records):,} records), version={parsed['version']}"
         )
         return ConversionResult(records=records, frames=[self._build_frame(
-            path, dataset_id, sensor_type, parsed, frame_id)])
+            path, dataset_id, sensor_type, parsed, frame_id, time_axis)])
 
     def _build_frame(self, path: Path, dataset_id: str, sensor_type: SensorType,
-                     parsed: dict, frame_id: str) -> SurveyFrame:
+                     parsed: dict, frame_id: str, time_axis: dict) -> SurveyFrame:
         header = parsed["header"]
         companions = sorted(
             p.name for p in path.parent.iterdir()
@@ -229,13 +367,27 @@ class IDSDTConverter(BaseConverter):
                 verified=True,
             ),
             Assumption(
-                key="time_axis_unresolved", value="sample index only",
+                key="time_window", value=time_axis["time_window_ns"],
                 basis=(
-                    "The format declares no time window or sample interval, so a sample index "
-                    "cannot be converted to nanoseconds, and without a velocity model it cannot "
-                    "be converted to depth either. record.depth is therefore unset."
+                    f"MEASURED: read from the .dt H record's sweep-time field (ns). "
+                    f"Sample interval {time_axis['sample_interval_ns']:.6g} ns = window / "
+                    f"{time_axis['n_samples']} samples. Duplicate field agrees: "
+                    f"{time_axis['duplicate_field_agrees']}; the file's own vertical cell size "
+                    f"agrees: {time_axis['stored_cell_size_agrees']}."
                 ),
-                verified=True,
+                verified=bool(time_axis["duplicate_field_agrees"]
+                              and time_axis["stored_cell_size_agrees"]),
+            ),
+            Assumption(
+                key="depth_not_derived", value=time_axis["configured_velocity_m_per_s"],
+                basis=(
+                    "The H record carries a propagation velocity, but it is whatever the "
+                    "operator configured (3.0e8 m/s -- vacuum -- on some lines, 1.0e8 m/s on "
+                    "others), not a site measurement. record.depth is therefore left unset: the "
+                    "time axis is measured, a depth built on this value would be assumed, and "
+                    "the two must not be conflated."
+                ),
+                verified=False,
             ),
             Assumption(
                 key="format_specification", value="reverse-engineered",
@@ -265,8 +417,9 @@ class IDSDTConverter(BaseConverter):
                 origin="instrument time-zero at each trace",
                 positive_down=True,
                 n_samples=parsed["n_samples"],
-                # None is the machine-readable "the scale of this axis is unknown".
-                sample_interval=None,
+                sample_interval=time_axis["sample_interval_ns"],
+                # Absent because NO depth conversion was applied -- the axis
+                # is two-way time, and it stays that way.
                 conversion=None,
             ),
             n_positions=parsed["n_traces"],
@@ -284,6 +437,7 @@ class IDSDTConverter(BaseConverter):
                 "zone": header.get("FZ"),
                 "antenna_raw": header.get("ATR"),
                 "channels_raw": header.get("S"),
+                "time_axis": time_axis,
                 "companion_files": companions,
             },
         )
