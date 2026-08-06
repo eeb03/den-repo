@@ -189,10 +189,17 @@ class SpatialRef(BaseModel):
 
 
 class AxisKind(str, Enum):
-    """What the vertical axis of a frame actually measures."""
+    """What the vertical axis of a frame actually measures.
+
+    Time axes are named by the unit the SOURCE reports, not by a canonical
+    unit, so no silent rescaling is implied by the label. Converting a time
+    axis to depth requires a velocity model and is recorded on the frame's
+    VerticalAxis.conversion when (and only when) it has been applied.
+    """
     DEPTH_M = "depth_m"
     TWO_WAY_TIME_NS = "two_way_time_ns"    # GPR
-    TWO_WAY_TIME_S = "two_way_time_s"      # seismic
+    TWO_WAY_TIME_MS = "two_way_time_ms"    # seismic, per SEG-Y rev-1 convention
+    TWO_WAY_TIME_S = "two_way_time_s"
     ELEVATION_M = "elevation_m"            # DEM / point cloud
     NONE = "none"                          # 2D surface measurement
 

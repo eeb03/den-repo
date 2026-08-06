@@ -28,6 +28,15 @@ The acquisition-track mapping supplied separately by the ingestion layer
 api/routes/datasets.py::ingest_zip_from_url) still overwrites latitude/
 longitude as before.
 
+MODALITY. SEG-Y carries GPR and seismic alike, but their vertical axes are
+not interchangeable. This converter used to apply a GPR soil velocity of
+0.1 m/ns to EVERY sensor_type, so ingesting a seismic SEG-Y silently
+produced a depth computed from the wrong physics. Only GPR now gets a depth
+conversion; every other modality keeps its time axis and leaves `depth`
+unset, because converting seismic travel time to depth requires a velocity
+model this platform does not have. Non-GPR SEG-Y is READ but NOT VALIDATED
+-- no real seismic file has been parsed here, and the frame says so.
+
 GPR two-way travel time is commonly written into the SEG-Y binary header's
 "microseconds" sample-interval field pre-scaled by 1000 so it round-trips
 as the correct nanosecond value (confirmed on this dataset: header
@@ -112,6 +121,10 @@ class SEGYConverter(BaseConverter):
         records = []
         trace_positions = []   # one Position per trace, for frame-level summary
 
+        # GPR is the only modality this converter has a depth conversion for.
+        # See _build_frame for what non-GPR modalities get instead.
+        is_gpr = sensor_type == SensorType.GPR
+
         with segyio.open(str(path), "r", ignore_geometry=True) as f:
 
             trace_count = f.tracecount
@@ -172,8 +185,21 @@ class SEGYConverter(BaseConverter):
                 # collapsing the entire trace into a single value.
                 for sample_idx, value in enumerate(trace):
 
-                    two_way_time_ns = float(samples[sample_idx])
-                    depth = (two_way_time_ns * velocity_m_per_ns) / 2.0
+                    sample_time = float(samples[sample_idx])
+                    if is_gpr:
+                        depth = (sample_time * velocity_m_per_ns) / 2.0
+                        axis_metadata = {
+                            "two_way_time_ns": sample_time,
+                            "velocity_m_per_ns": velocity_m_per_ns,
+                        }
+                    else:
+                        # No velocity model exists for this modality, so no
+                        # depth is produced. Fabricating one with a GPR soil
+                        # velocity -- which is what this converter used to do
+                        # for every sensor_type -- would be a wrong number
+                        # presented as a measurement.
+                        depth = None
+                        axis_metadata = {"two_way_time_ms": sample_time}
 
                     record = SubterraRecord(
                         dataset_id=dataset_id,
@@ -190,8 +216,7 @@ class SEGYConverter(BaseConverter):
                             "source_file": path.name,
                             "trace_index": trace_idx,
                             "sample_index": sample_idx,
-                            "two_way_time_ns": two_way_time_ns,
-                            "velocity_m_per_ns": velocity_m_per_ns,
+                            **axis_metadata,
                             "sample_interval": sample_interval,
                             "segy_x": x,
                             "segy_y": y,
@@ -239,22 +264,55 @@ class SEGYConverter(BaseConverter):
                 name=f"SEG-Y trace headers are inconsistent across this line (kinds: {sorted(kinds)})",
             )
 
-        assumptions = [
-            Assumption(
-                key="gpr_velocity", value=velocity_m_per_ns,
-                basis=(
-                    "assumed default (typical near-surface soil, relative permittivity ~9)"
-                    if velocity_m_per_ns == DEFAULT_GPR_VELOCITY_M_PER_NS
-                    else "supplied by caller"
+        is_gpr = sensor_type == SensorType.GPR
+
+        if is_gpr:
+            assumptions = [
+                Assumption(
+                    key="gpr_velocity", value=velocity_m_per_ns,
+                    basis=(
+                        "assumed default (typical near-surface soil, relative permittivity ~9)"
+                        if velocity_m_per_ns == DEFAULT_GPR_VELOCITY_M_PER_NS
+                        else "supplied by caller"
+                    ),
+                    verified=False,
                 ),
-                verified=False,
-            ),
-            Assumption(
-                key="two_way_time_units", value="ns",
-                basis="SEG-Y binary header Interval is pre-scaled by 1000 in this family of files",
-                verified=False,
-            ),
-        ]
+                Assumption(
+                    key="two_way_time_units", value="ns",
+                    basis="SEG-Y binary header Interval is pre-scaled by 1000 in this family of files",
+                    verified=False,
+                ),
+            ]
+        else:
+            assumptions = [
+                Assumption(
+                    key="two_way_time_units", value="ms",
+                    basis=(
+                        "ASSUMED: SEG-Y rev-1 convention, where the binary header Interval is in "
+                        "microseconds and the sample axis is therefore in milliseconds. NOT verified "
+                        "against a real file of this modality."
+                    ),
+                    verified=False,
+                ),
+                Assumption(
+                    key="depth_conversion", value="not applied",
+                    basis=(
+                        "no velocity model is available for this modality, so record.depth is left "
+                        "unset rather than computed. This converter previously applied a GPR soil "
+                        "velocity of 0.1 m/ns to every sensor_type, which produced a wrong depth for "
+                        "anything that is not GPR."
+                    ),
+                    verified=True,
+                ),
+                Assumption(
+                    key="modality_support", value=f"{sensor_type.value} SEG-Y is UNVALIDATED",
+                    basis=(
+                        "no real file of this modality has been parsed and validated; the time axis "
+                        "is read but its units and geometry semantics are unconfirmed"
+                    ),
+                    verified=False,
+                ),
+            ]
 
         # Whether the header gives a genuine per-trace track or one static
         # value repeated -- downstream lateral-extent maths must not treat
@@ -281,18 +339,21 @@ class SEGYConverter(BaseConverter):
             source_file=path.name,
             spatial_ref=ref,
             vertical_axis=VerticalAxis(
-                kind=AxisKind.TWO_WAY_TIME_NS,
-                units="ns",
+                kind=AxisKind.TWO_WAY_TIME_NS if is_gpr else AxisKind.TWO_WAY_TIME_MS,
+                units="ns" if is_gpr else "ms",
                 origin="instrument time-zero at each trace",
                 positive_down=True,
                 n_samples=len(samples),
                 sample_interval=step,
+                # `conversion` is present only when a depth conversion was
+                # actually applied. Its absence is the machine-readable form
+                # of "these records carry time, not depth".
                 conversion={
                     "method": "constant_velocity",
                     "velocity_m_per_ns": velocity_m_per_ns,
                     "formula": "depth_m = two_way_time_ns * velocity_m_per_ns / 2",
                     "target_axis": AxisKind.DEPTH_M.value,
-                },
+                } if is_gpr else None,
             ),
             n_positions=trace_count,
             position_index_name="trace_index",
