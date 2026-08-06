@@ -234,8 +234,17 @@ def records_needing_kmz_fallback(records: list) -> bool:
     """
     if not records:
         return False
-    return not any(getattr(r, "position", None) is not None
-                   and r.position.kind == "geographic" for r in records)
+
+    def header_supplied_a_geographic_view(r) -> bool:
+        pos = getattr(r, "position", None)
+        if pos is not None and pos.kind == "geographic":
+            return True
+        # A projected header position becomes usable once a CRS is declared:
+        # latitude/longitude are then DERIVED from it and must not be replaced.
+        return (r.metadata.get("position_source") == "segy_header"
+                and (r.latitude, r.longitude) != (0.0, 0.0))
+
+    return not any(header_supplied_a_geographic_view(r) for r in records)
 
 
 def georeference_records_by_trace(

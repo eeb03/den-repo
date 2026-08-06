@@ -16,7 +16,7 @@ import json
 from pathlib import Path
 
 from configs.settings import settings
-from schemas.spatial import Assumption, AxisKind, CRSKind, SpatialRef, VerticalAxis
+from schemas.spatial import Assumption, AxisKind, CRSKind, CRSProvenance, SpatialRef, VerticalAxis
 from schemas.subterra_record import SubterraRecord
 from schemas.survey_frame import SurveyFrame, make_frame_id
 
@@ -72,6 +72,7 @@ def synthesize_frames_from_records(records: list[SubterraRecord]) -> list[Survey
         kinds = {r.position.kind for r in recs}
         if kinds == {"geographic"}:
             ref = SpatialRef(kind=CRSKind.GEOGRAPHIC, code="EPSG:4326", horizontal_units="deg",
+                             crs_provenance=CRSProvenance.INFERRED,
                              name="reconstructed from stored record positions")
         elif kinds == {"projected"}:
             ref = SpatialRef(kind=CRSKind.PROJECTED, code=None, horizontal_units="m",

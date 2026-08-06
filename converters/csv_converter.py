@@ -20,7 +20,7 @@ import pandas as pd
 
 from converters.base import BaseConverter, ConversionResult
 from schemas.spatial import (
-    Assumption, AxisKind, CRSKind, SpatialRef, VerticalAxis, crs_kind_for_positions,
+    Assumption, AxisKind, CRSKind, CRSProvenance, SpatialRef, VerticalAxis, crs_kind_for_positions,
 )
 from schemas.subterra_record import SubterraRecord, SensorType
 from schemas.survey_frame import SurveyFrame, make_frame_id
@@ -138,6 +138,8 @@ class CSVConverter(BaseConverter):
             spatial_ref=SpatialRef(
                 kind=kind,
                 code="EPSG:4326" if kind == CRSKind.GEOGRAPHIC else None,
+                crs_provenance=(CRSProvenance.INFERRED if kind == CRSKind.GEOGRAPHIC
+                                else CRSProvenance.NONE),
                 name="latitude/longitude columns; a CSV declares no coordinate system",
                 horizontal_units="deg" if kind == CRSKind.GEOGRAPHIC else "m",
             ),

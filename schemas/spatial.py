@@ -160,6 +160,22 @@ POSITION_KIND_FOR_CRS: dict[CRSKind, PositionKind] = {
 }
 
 
+class CRSProvenance(str, Enum):
+    """
+    WHERE a coordinate reference system came from.
+
+    This distinction is load-bearing. "EPSG:32633" carries very different
+    weight when a file declares it than when an operator asserted it at
+    ingest, and different again when something deduced it. Collapsing the
+    three would make an externally supplied CRS indistinguishable from one
+    the data vouches for.
+    """
+    DECLARED_BY_SOURCE = "declared_by_source"   # the file itself states it
+    SUPPLIED_BY_CALLER = "supplied_by_caller"   # asserted as ingest configuration
+    INFERRED = "inferred"                       # deduced; must carry a justification
+    NONE = "none"                               # no CRS is known
+
+
 class SpatialRef(BaseModel):
     """
     The reference frame a survey line's positions are expressed in.
@@ -172,10 +188,21 @@ class SpatialRef(BaseModel):
     """
     kind: CRSKind
     code: Optional[str] = None            # "EPSG:32633"
+    crs_provenance: CRSProvenance = CRSProvenance.NONE
     name: Optional[str] = None            # human-readable description
     horizontal_units: str = "m"           # "deg" for geographic
     vertical_datum: Optional[str] = None  # "EGM96", "WGS84 ellipsoid", "local ground surface"
     origin_description: Optional[str] = None  # required-in-spirit for engineering/acquisition
+
+    @model_validator(mode="after")
+    def _code_requires_a_provenance(self) -> "SpatialRef":
+        """A CRS with no stated origin is indistinguishable from a guess."""
+        if self.code and self.crs_provenance == CRSProvenance.NONE:
+            raise ValueError(
+                f"SpatialRef.code={self.code!r} was set without a crs_provenance. State whether "
+                "the source declared it, a caller supplied it, or it was inferred."
+            )
+        return self
 
     @model_validator(mode="after")
     def _code_only_for_earth_referenced(self) -> "SpatialRef":

@@ -21,7 +21,7 @@ import numpy as np
 
 from converters.base import BaseConverter, ConversionResult, MissingDependencyError
 from schemas.spatial import (
-    Assumption, AxisKind, CRSKind, GeographicPosition, SpatialRef, VerticalAxis,
+    Assumption, AxisKind, CRSKind, CRSProvenance, GeographicPosition, SpatialRef, VerticalAxis,
 )
 from schemas.subterra_record import SubterraRecord, SensorType
 from schemas.survey_frame import SurveyFrame, make_frame_id
@@ -135,6 +135,8 @@ class GeoTIFFConverter(BaseConverter):
             source_file=path.name,
             spatial_ref=SpatialRef(
                 kind=CRSKind.GEOGRAPHIC, code="EPSG:4326",
+                crs_provenance=(CRSProvenance.DECLARED_BY_SOURCE if ds.crs
+                                else CRSProvenance.INFERRED),
                 name="records reprojected to WGS84 at ingest" if reprojected
                      else "raster is already in WGS84 lon/lat",
                 horizontal_units="deg",

@@ -17,7 +17,8 @@ from fastapi.testclient import TestClient
 from api.main import app
 from database.frames_store import load_frames, save_frames, synthesize_frames_from_records
 from schemas.spatial import (
-    AxisKind, CRSKind, GeographicPosition, ProjectedPosition, SpatialRef, VerticalAxis,
+    AxisKind, CRSKind, CRSProvenance, GeographicPosition, ProjectedPosition, SpatialRef,
+    VerticalAxis,
 )
 from schemas.subterra_record import SensorType, SubterraRecord
 from schemas.survey_frame import SurveyFrame
@@ -43,7 +44,8 @@ def _frame(**kw):
     base = dict(
         frame_id="ds:line", dataset_id="ds", modality=SensorType.GPR,
         source_format="segy", source_file="line.SGY",
-        spatial_ref=SpatialRef(kind=CRSKind.PROJECTED, code="EPSG:32633", horizontal_units="m"),
+        spatial_ref=SpatialRef(kind=CRSKind.PROJECTED, code="EPSG:32633", horizontal_units="m",
+                               crs_provenance=CRSProvenance.SUPPLIED_BY_CALLER),
         vertical_axis=VerticalAxis(kind=AxisKind.TWO_WAY_TIME_NS, units="ns",
                                    origin="time-zero", positive_down=True),
     )
@@ -140,7 +142,8 @@ def test_info_lists_every_ref_when_a_dataset_mixes_them(monkeypatch):
     """A multi-line dataset must not be summarised to one CRS it doesn't have."""
     other = _frame(frame_id="ds:line2", source_file="line2.SGY",
                    spatial_ref=SpatialRef(kind=CRSKind.GEOGRAPHIC, code="EPSG:4326",
-                                          horizontal_units="deg"))
+                                          horizontal_units="deg",
+                                          crs_provenance=CRSProvenance.DECLARED_BY_SOURCE))
     body = _info(monkeypatch, _records(projected=True), [_frame(), other])
     assert body["coordinate_system"] == ["EPSG:32633", "EPSG:4326"]
     assert len(body["survey_frames"]) == 2

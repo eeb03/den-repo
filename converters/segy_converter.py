@@ -53,7 +53,7 @@ from pathlib import Path
 
 from converters.base import BaseConverter, ConversionResult, MissingDependencyError
 from schemas.spatial import (
-    Assumption, AxisKind, CRSKind, GeographicPosition, NoPosition,
+    Assumption, AxisKind, CRSKind, CRSProvenance, GeographicPosition, NoPosition,
     ProjectedPosition, SpatialRef, VerticalAxis,
 )
 from schemas.subterra_record import SubterraRecord, SensorType
@@ -68,6 +68,44 @@ DEFAULT_GPR_VELOCITY_M_PER_NS = 0.1
 _NO_HEADER_POSITION = (
     "SEG-Y trace header SourceX/SourceY are (0, 0); the file carries no trace position"
 )
+
+
+def _parse_declared_crs(crs, path):
+    """
+    Parses a CRS the CALLER declared. Never guesses: an unparseable or
+    ambiguous value fails loudly rather than falling back to some default,
+    because a silently wrong CRS relocates an entire survey.
+    """
+    try:
+        from rasterio.crs import CRS
+    except ImportError as e:
+        raise MissingDependencyError(
+            "rasterio is required to use an explicitly supplied CRS for SEG-Y ingest. "
+            "Install with: pip install rasterio"
+        ) from e
+    if not str(crs).strip():
+        raise ValueError(
+            f"{path.name}: crs was supplied but is empty. Either omit it entirely -- leaving the "
+            f"projected header coordinates preserved but unconvertible -- or give an unambiguous "
+            f"identifier such as 'EPSG:32633'."
+        )
+    try:
+        parsed = CRS.from_user_input(crs)
+    except Exception as e:
+        raise ValueError(
+            f"{path.name}: could not interpret the supplied crs={crs!r}. Supply an unambiguous "
+            f"identifier such as 'EPSG:32633'. SEG-Y declares no CRS of its own, so nothing "
+            f"can be assumed here."
+        ) from e
+    return parsed
+
+
+def _to_wgs84(declared_crs, x: float, y: float) -> tuple[float, float]:
+    """Derives (lat, lon) from projected coordinates using a CRS the caller declared."""
+    from rasterio.warp import transform as rio_transform
+
+    lons, lats = rio_transform(declared_crs, "EPSG:4326", [x], [y])
+    return float(lats[0]), float(lons[0])
 
 
 def _classify_position(x: float, y: float):
@@ -92,12 +130,13 @@ class SEGYConverter(BaseConverter):
         dataset_id: str,
         sensor_type: SensorType,
         velocity_m_per_ns: float = DEFAULT_GPR_VELOCITY_M_PER_NS,
+        crs: str | None = None,
         **kwargs,
     ) -> list[SubterraRecord]:
         """Records only. See `load()` for records plus the file's SurveyFrame."""
         return self.load(
             path, dataset_id=dataset_id, sensor_type=sensor_type,
-            velocity_m_per_ns=velocity_m_per_ns, **kwargs,
+            velocity_m_per_ns=velocity_m_per_ns, crs=crs, **kwargs,
         ).records
 
     def load(
@@ -106,8 +145,17 @@ class SEGYConverter(BaseConverter):
         dataset_id: str,
         sensor_type: SensorType,
         velocity_m_per_ns: float = DEFAULT_GPR_VELOCITY_M_PER_NS,
+        crs: str | None = None,
         **kwargs,
     ) -> ConversionResult:
+        """
+        `crs` is an EXPLICIT declaration by the caller of what SourceX/SourceY
+        are expressed in. SEG-Y has no field for this, so without it the
+        header coordinates are preserved as ProjectedPosition but cannot be
+        turned into latitude/longitude -- and nothing here infers one. When
+        supplied, the native easting/northing remain authoritative and a
+        geographic view is DERIVED from them for the legacy fields.
+        """
 
         try:
             import segyio
@@ -124,6 +172,7 @@ class SEGYConverter(BaseConverter):
         # GPR is the only modality this converter has a depth conversion for.
         # See _build_frame for what non-GPR modalities get instead.
         is_gpr = sensor_type == SensorType.GPR
+        declared_crs = _parse_declared_crs(crs, path) if crs is not None else None
 
         with segyio.open(str(path), "r", ignore_geometry=True) as f:
 
@@ -166,16 +215,22 @@ class SEGYConverter(BaseConverter):
                     x = 0.0
                     y = 0.0
 
-                # Legacy lat/lon, unchanged: only trusted as real WGS84 when
-                # actually in range, else the historical (0.0, 0.0) fallback.
-                # `position` below is what preserves the discarded case.
-                if -90.0 <= y <= 90.0 and -180.0 <= x <= 180.0:
-                    latitude, longitude = y, x
-                else:
-                    latitude, longitude = 0.0, 0.0
-
                 position = _classify_position(x, y)
                 trace_positions.append(position)
+
+                # Legacy lat/lon. Unchanged when no CRS was declared: trusted
+                # as real WGS84 only when actually in range, else the
+                # historical (0.0, 0.0). `position` above preserves the
+                # projected case either way.
+                if -90.0 <= y <= 90.0 and -180.0 <= x <= 180.0:
+                    latitude, longitude = y, x
+                elif declared_crs is not None:
+                    # The caller declared what these coordinates ARE, so a
+                    # geographic view can be DERIVED. Native easting/northing
+                    # stay authoritative in `position`.
+                    latitude, longitude = _to_wgs84(declared_crs, x, y)
+                else:
+                    latitude, longitude = 0.0, 0.0
 
                 sample_interval = f.bin.get(segyio.BinField.Interval, None)
 
@@ -235,6 +290,7 @@ class SEGYConverter(BaseConverter):
                 trace_positions=trace_positions, samples=samples,
                 sample_interval=f.bin.get(segyio.BinField.Interval, None),
                 velocity_m_per_ns=velocity_m_per_ns, trace_count=trace_count,
+                declared_crs=declared_crs, declared_crs_input=crs,
             )
 
         return ConversionResult(records=records, frames=[frame])
@@ -242,21 +298,42 @@ class SEGYConverter(BaseConverter):
     def _build_frame(
         self, path, dataset_id, sensor_type, trace_positions, samples,
         sample_interval, velocity_m_per_ns, trace_count,
+        declared_crs=None, declared_crs_input=None,
     ) -> SurveyFrame:
         """Describes the acquisition line as a whole: CRS, vertical axis, provenance, assumptions."""
         kinds = {p.kind for p in trace_positions}
         if kinds == {"geographic"}:
             ref = SpatialRef(
                 kind=CRSKind.GEOGRAPHIC, code="EPSG:4326",
-                name="SEG-Y SourceX/SourceY, in WGS84 lon/lat range",
+                crs_provenance=(CRSProvenance.SUPPLIED_BY_CALLER if declared_crs is not None
+                                else CRSProvenance.INFERRED),
+                name=(
+                    "SEG-Y SourceX/SourceY, in WGS84 lon/lat range. SEG-Y declares no CRS, so "
+                    "WGS84 is inferred from the values' range unless a caller supplied one."
+                ),
                 horizontal_units="deg",
             )
         elif kinds == {"projected"}:
-            ref = SpatialRef(
-                kind=CRSKind.PROJECTED, code=None,
-                name="SEG-Y SourceX/SourceY easting/northing; SEG-Y declares no CRS for them",
-                horizontal_units="m",
-            )
+            if declared_crs is not None:
+                epsg = declared_crs.to_epsg()
+                ref = SpatialRef(
+                    kind=CRSKind.PROJECTED,
+                    code=f"EPSG:{epsg}" if epsg else declared_crs.to_string(),
+                    crs_provenance=CRSProvenance.SUPPLIED_BY_CALLER,
+                    name=(
+                        f"SEG-Y SourceX/SourceY easting/northing. The FILE DECLARES NO CRS; "
+                        f"{declared_crs_input!r} was supplied externally as ingest configuration "
+                        f"and applies to this dataset only."
+                    ),
+                    horizontal_units="m",
+                )
+            else:
+                ref = SpatialRef(
+                    kind=CRSKind.PROJECTED, code=None,
+                    crs_provenance=CRSProvenance.NONE,
+                    name="SEG-Y SourceX/SourceY easting/northing; SEG-Y declares no CRS for them",
+                    horizontal_units="m",
+                )
         elif kinds == {"none"}:
             ref = SpatialRef(kind=CRSKind.UNKNOWN, name=_NO_HEADER_POSITION)
         else:
@@ -320,6 +397,19 @@ class SEGYConverter(BaseConverter):
         # Whether the header gives a genuine per-trace track or one static
         # value repeated -- downstream lateral-extent maths must not treat
         # the latter as a survey path.
+        if declared_crs is not None:
+            assumptions.append(Assumption(
+                key="crs_supplied_by_caller", value=declared_crs_input,
+                basis=(
+                    "SEG-Y has no field for a coordinate reference system, so this was asserted "
+                    "as ingest configuration for this dataset. It is NOT declared by the file and "
+                    "NOT inferred from the data; nothing generalises it to other datasets. "
+                    "latitude/longitude are derived from it; record.position keeps the native "
+                    "easting/northing."
+                ),
+                verified=False,
+            ))
+
         distinct = {p.model_dump_json() for p in trace_positions}
         if trace_positions:
             assumptions.append(

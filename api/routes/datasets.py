@@ -501,6 +501,11 @@ class IngestZipFromURLRequest(BaseModel):
     apply_preprocessing: bool = True
     preprocessing_mode: str = "trace"
     max_files: int = 20  # safety cap -- large archives can contain hundreds of files
+    # EXPLICIT, dataset-scoped CRS declaration for source formats that carry
+    # coordinates without declaring what they are (SEG-Y SourceX/SourceY).
+    # Never inferred, never defaulted: omitting it leaves projected header
+    # coordinates preserved-but-unconvertible, which is the honest state.
+    crs: Optional[str] = None
 
 
 @router.post("/ingest_zip_from_url")
@@ -574,7 +579,9 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
     for file_path in supported_files:
         try:
             converter = get_converter(file_path)
-            result = converter.load(file_path, dataset_id=dataset_id, sensor_type=req.sensor_type)
+            converter_kwargs = {"crs": req.crs} if req.crs else {}
+            result = converter.load(file_path, dataset_id=dataset_id,
+                                    sensor_type=req.sensor_type, **converter_kwargs)
             records = result.records
             file_frames = result.frames or synthesize_frames_from_records(records)
 

@@ -37,7 +37,7 @@ import numpy as np
 
 from converters.base import BaseConverter, ConversionResult, MissingDependencyError
 from schemas.spatial import (
-    Assumption, AxisKind, CRSKind, GeographicPosition, ProjectedPosition,
+    Assumption, AxisKind, CRSKind, CRSProvenance, GeographicPosition, ProjectedPosition,
     SpatialRef, VerticalAxis, crs_kind_for_positions,
 )
 from schemas.subterra_record import SubterraRecord, SensorType
@@ -243,12 +243,15 @@ class LASConverter(BaseConverter):
             return SpatialRef(
                 kind=kind,
                 code=f"EPSG:{epsg}" if epsg else None,
+                crs_provenance=CRSProvenance.DECLARED_BY_SOURCE,
                 name=crs.to_string(),
                 horizontal_units="deg" if crs.is_geographic else "m",
             )
         return SpatialRef(
             kind=kind,
             code="EPSG:4326" if kind == CRSKind.GEOGRAPHIC else None,
+            crs_provenance=(CRSProvenance.INFERRED if kind == CRSKind.GEOGRAPHIC
+                            else CRSProvenance.NONE),
             name="LAS file declares no coordinate system; coordinates were in WGS84 range",
             horizontal_units="deg" if kind == CRSKind.GEOGRAPHIC else "m",
         )
