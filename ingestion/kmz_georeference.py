@@ -1,11 +1,31 @@
 """
-KMZ-based SEG-Y georeferencing.
+KMZ-based SEG-Y georeferencing -- a FALLBACK for when trace headers carry
+no usable position.
 
-Discovered via direct diagnosis on the INGV/UNISA dataset: this source's
-SEG-Y trace headers (SourceX/SourceY/CDP_X/CDP_Y) carry the SAME static
-placeholder value on every single trace in a file -- there is no real
-per-trace position in the SEG-Y at all. The actual survey-line GPS path is
-in a companion .kmz file, with each KMZ Placemark's <name> matching the
+CORRECTION (measured 2026-08-06). This module previously stated that the
+INGV/UNISA SEG-Y trace headers "carry the SAME static placeholder value on
+every single trace in a file -- there is no real per-trace position in the
+SEG-Y at all". That is FALSE, and the error mattered: it justified
+discarding a real acquisition track.
+
+Reprojecting SourceX/SourceY (UTM zone 33N) to WGS84 and comparing against
+each line's own KMZ polyline gives:
+
+    line            distinct hdr positions   hdr len / KMZ len   mean residual
+    C1T_7,5_0001            67 / 72 traces        17.42 / 17.43 m       0.74 m
+    C1T_7,5_0002            66 / 66 traces        17.89 / 17.89 m       1.22 m
+
+Track lengths agree to ~0.02%, residuals are within GPS accuracy, and the
+mean step (0.245 m and 0.275 m per trace) matches the survey's real trace
+spacing. The headers ARE a genuine per-trace track, and a finer one than
+the KMZ (22 KMZ points describing 72 traces).
+
+Consequently SEG-Y header positions are AUTHORITATIVE where usable, and
+this module is the fallback used when they are absent or cannot be turned
+into a geographic position. See `verify_kmz_direction` for the direction
+check the same comparison makes possible.
+
+The KMZ path remains fully supported: each Placemark's <name> matches the
 corresponding SEG-Y file's filename stem exactly (e.g. "C1T_7,5_0001" for
 C1T_7,5_0001.SGY).
 
