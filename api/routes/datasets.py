@@ -20,7 +20,8 @@ from preprocessing.pipeline import run_pipeline
 from database.records_store import save_records, load_records
 from database.frames_store import save_frames, synthesize_frames_from_records
 from schemas.spatial import Assumption
-from ingestion.downloader import download_file, DownloadError, SUPPORTED_EXTENSIONS
+from ingestion.downloader import download_file, DownloadError
+from converters.registry import supported_extensions
 from preprocessing.dem_alignment import align_records_with_dem
 from configs.settings import settings
 from utils.logger import get_logger
@@ -518,7 +519,7 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
     NONE of the archive's files are supported, this returns a 422 saying
     so explicitly rather than pretending to have ingested something.
     """
-    from ingestion.downloader import extract_zip_and_find_supported_files
+    from ingestion.downloader import scan_archive
 
     filename = req.name or req.url.split("/")[-1].split("?")[0] or "download.zip"
     try:
@@ -527,19 +528,26 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
         raise HTTPException(status_code=502, detail=str(e))
 
     try:
-        supported_files = extract_zip_and_find_supported_files(downloaded_path)
+        scan = scan_archive(downloaded_path)
+        supported_files = scan.supported
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Could not extract zip archive: {e}")
 
     if not supported_files:
-        raise HTTPException(
-            status_code=422,
-            detail=(
+        recognized = scan.unsupported_summary()
+        if recognized:
+            detail = (
+                f"No READABLE files found inside {filename}, but it does contain "
+                f"{sum(recognized.values())} file(s) in recognised formats the platform "
+                f"cannot yet read: {recognized}. An adapter for these does not exist yet. "
+                f"Readable formats: {sorted(supported_extensions())}."
+            )
+        else:
+            detail = (
                 f"No supported files found inside {filename}. SDP currently converts: "
-                f"{sorted(SUPPORTED_EXTENSIONS)}. If this archive contains a proprietary format "
-                f"(e.g. .dt, .rd3), a converter for it doesn't exist yet."
-            ),
-        )
+                f"{sorted(supported_extensions())}."
+            )
+        raise HTTPException(status_code=422, detail=detail)
     if len(supported_files) > req.max_files:
         raise HTTPException(
             status_code=422,
@@ -630,7 +638,13 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
         sensor_type=req.sensor_type.value, original_format=f"zip({len(supported_files)} files)",
         checksum=report.checksum, quality_score=report.quality_score, record_count=report.record_count,
         raw_path=str(downloaded_path), has_ground_truth=has_gt, center_lat=center_lat, center_lon=center_lon,
-        extra_metadata={"validation_issues": report.issues, "files_in_archive": len(supported_files), "per_file_errors": per_file_errors},
+        extra_metadata={
+            "validation_issues": report.issues, "files_in_archive": len(supported_files),
+            "per_file_errors": per_file_errors,
+            # Recognised formats we could not read. Reported rather than
+            # silently dropped, so a partially-ingested archive is visible.
+            "recognized_unsupported": scan.unsupported_summary(),
+        },
     )
     db.add(dataset)
     db.commit()

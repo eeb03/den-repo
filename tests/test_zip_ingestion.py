@@ -2,7 +2,12 @@ import zipfile
 
 import pytest
 
-from ingestion.downloader import extract_zip_and_find_supported_files, SUPPORTED_EXTENSIONS
+from ingestion.downloader import extract_zip_and_find_supported_files
+# The readable-format set now comes from the converter registry, which is its
+# single source of truth; downloader.py no longer keeps a private copy.
+from converters.registry import supported_extensions as _supported_extensions
+
+SUPPORTED_EXTENSIONS = _supported_extensions()
 from converters.registry import get_converter
 from converters.csv_converter import CSVConverter
 from schemas.subterra_record import SensorType
