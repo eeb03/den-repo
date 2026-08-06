@@ -5,7 +5,9 @@ import pytest
 
 from ingestion.kmz_georeference import (
     parse_kmz, resample_path_by_arc_length, find_matching_kmz_files, build_georeference_lookup,
+    georeference_records_by_trace,
 )
+from schemas.subterra_record import SubterraRecord, SensorType
 
 
 @pytest.fixture
@@ -81,3 +83,60 @@ def test_build_georeference_lookup_merges_multiple_kmz_files(tmp_path):
 
     lookup = build_georeference_lookup([p1, p2])
     assert "line_a" in lookup and "line_b" in lookup
+
+
+def _sample_record(trace_index, depth, source_file="C1T_7,5_0001"):
+    return SubterraRecord(
+        dataset_id="kmz-trace-test", sensor_type=SensorType.GPR,
+        latitude=0.0, longitude=0.0, depth=depth, signal=[1.0],
+        metadata={"trace_index": trace_index, "source_file": source_file},
+    )
+
+
+def test_georeference_records_by_trace_shares_one_position_across_samples():
+    """Mirrors SEGYConverter's one-record-per-(trace,depth)-sample shape: 3 traces x 4 depth samples."""
+    records = [_sample_record(trace_index=t, depth=d * 0.1) for t in range(3) for d in range(4)]
+    path = [(15.0, 41.0), (15.001, 41.001), (15.002, 41.002)]
+
+    n_georeferenced = georeference_records_by_trace(records, path)
+
+    assert n_georeferenced == 3
+    by_trace = {}
+    for r in records:
+        by_trace.setdefault(r.metadata["trace_index"], set()).add((r.latitude, r.longitude))
+    assert all(len(coords) == 1 for coords in by_trace.values())  # every sample of a trace shares one position
+    assert all(r.metadata["georeferenced_from_kmz"] for r in records)
+
+
+def test_georeference_records_by_trace_flags_direction_as_unverified():
+    """C3: trace-order-to-KMZ-path-order direction is an assumption, not verified ground truth -- must be visible in metadata."""
+    records = [_sample_record(trace_index=t, depth=0.0) for t in range(3)]
+    georeference_records_by_trace(records, [(15.0, 41.0), (15.01, 41.01)])
+    assert all(r.metadata["kmz_direction_verified"] is False for r in records)
+
+
+def test_georeference_records_by_trace_endpoints_match_path_endpoints():
+    records = [_sample_record(trace_index=t, depth=0.0) for t in range(5)]
+    path = [(15.0, 41.0), (15.01, 41.01)]
+
+    georeference_records_by_trace(records, path)
+
+    first = next(r for r in records if r.metadata["trace_index"] == 0)
+    last = next(r for r in records if r.metadata["trace_index"] == 4)
+    assert abs(first.longitude - 15.0) < 1e-9 and abs(first.latitude - 41.0) < 1e-9
+    assert abs(last.longitude - 15.01) < 1e-9 and abs(last.latitude - 41.01) < 1e-9
+
+
+def test_georeference_records_by_trace_handles_missing_trace_index_as_one_trace_per_record():
+    # a converter that emits one record per full trace (no trace_index metadata) should still work
+    records = [
+        SubterraRecord(dataset_id="d", sensor_type=SensorType.GPR, latitude=0.0, longitude=0.0, signal=[1.0])
+        for _ in range(4)
+    ]
+    n_georeferenced = georeference_records_by_trace(records, [(15.0, 41.0), (15.01, 41.01)])
+    assert n_georeferenced == 4
+    assert len({(r.latitude, r.longitude) for r in records}) == 4
+
+
+def test_georeference_records_by_trace_empty_input():
+    assert georeference_records_by_trace([], [(0.0, 0.0)]) == 0

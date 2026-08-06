@@ -109,3 +109,54 @@ def build_georeference_lookup(kmz_paths: list[Path]) -> dict[str, list[tuple[flo
         except (ValueError, ET.ParseError, zipfile.BadZipFile):
             continue  # not every kmz necessarily has usable placemarks; skip rather than fail the whole ingest
     return lookup
+
+
+def georeference_records_by_trace(records: list, path_coords: list[tuple[float, float]]) -> int:
+    """
+    Assigns real (lat, lon) to `records` from a KMZ acquisition-track
+    polyline, per TRACE rather than per record.
+
+    SEGYConverter emits one record per (trace, depth) SAMPLE -- many
+    records share the same trace_index (see converters/segy_converter.py)
+    -- so the path is resampled to the number of DISTINCT traces (not
+    len(records)) and broadcast across every sample belonging to a trace.
+    Resampling to len(records) directly would treat vertically-stacked
+    depth samples as if they were separate lateral positions.
+
+    UNVERIFIED DIRECTION ASSUMPTION: trace_index is assumed to increase in
+    the SAME direction the KMZ placemark's coordinate list is ordered
+    (i.e. trace 0 <-> the path's first point, the highest trace index <->
+    its last point). Nothing here independently confirms this against a
+    known start/end waypoint -- if the KMZ path were recorded in the
+    opposite direction from SEG-Y trace acquisition, every trace's
+    position would be silently mirrored end-to-end while still passing
+    aggregate checks like total line length. Every georeferenced record is
+    tagged metadata["kmz_direction_verified"]=False to make this
+    assumption visible to downstream consumers rather than leaving it
+    undocumented. This does NOT change the mapping itself -- doing so
+    would require independent ground truth (e.g. a second known waypoint)
+    that isn't available here.
+
+    Mutates `records` in place (sets latitude/longitude and
+    metadata["georeferenced_from_kmz"]=True) and returns the number of
+    distinct traces that were georeferenced. Records without a
+    metadata["trace_index"] are treated as their own single-sample trace
+    (index = their position in the list), so this also works for
+    converters that emit one record per trace.
+    """
+    if not records:
+        return 0
+
+    trace_indices = [r.metadata.get("trace_index", i) for i, r in enumerate(records)]
+    unique_traces = sorted(set(trace_indices))
+    resampled = resample_path_by_arc_length(path_coords, len(unique_traces))
+    coord_by_trace = dict(zip(unique_traces, resampled))
+
+    for r, t_idx in zip(records, trace_indices):
+        lon, lat = coord_by_trace[t_idx]
+        r.latitude = float(lat)
+        r.longitude = float(lon)
+        r.metadata["georeferenced_from_kmz"] = True
+        r.metadata["kmz_direction_verified"] = False
+
+    return len(unique_traces)

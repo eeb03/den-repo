@@ -73,6 +73,12 @@ def run_pipeline(
     inner_window: int = 5,
     outer_window: int = 15,
     min_ring_count: int = 20,
+    trace_inner_window: int = 2,
+    trace_outer_window: int = 6,
+    depth_inner_window: int = 5,
+    depth_outer_window: int = 15,
+    min_trace_ring_count: int = 4,
+    min_depth_ring_count: int = 10,
     dewow_window: int = 15,
     gain_type: str = "linear",
     gain_power: float = 1.0,
@@ -97,7 +103,23 @@ def run_pipeline(
     z-score, computes each point's deviation from its own LOCAL background
     (a ring between inner_window and outer_window around it). This is what
     surfaces a spatially small real target that a whole-dataset z-score
-    would dilute into noise.
+    would dilute into noise. Bins by (lat, lon) per depth layer -- meant
+    for area-covering depth-slice surveys.
+
+    mode="gpr_local_anomaly": the same ring-based local anomaly statistic
+    as "local_anomaly", but indexed by (trace_index, depth) instead of
+    (lat, lon) -- for genuine multi-sample GPR trace data (SEG-Y sourced).
+    A single survey line's points bin into a mostly-empty lat/lon area
+    grid; indexed by their native trace position they form a dense
+    radargram image instead. Uses its OWN independent trace-axis/depth-axis
+    window parameters (trace_inner_window, trace_outer_window,
+    depth_inner_window, depth_outer_window, min_trace_ring_count,
+    min_depth_ring_count) rather than the (lat, lon)-grid's inner_window/
+    outer_window/min_ring_count, because trace and depth spacing are not
+    remotely comparable in scale on real data (e.g. ~0.246 m/trace vs.
+    ~0.0146 m/sample on the real C1T_7,5_0001 line) -- see
+    preprocessing/spatial_grid.py::preprocess_trace_local_anomaly for the
+    full reasoning and how the defaults were derived.
     """
     if mode == "spatial_grid":
         from preprocessing.spatial_grid import preprocess_spatial_grid
@@ -110,6 +132,16 @@ def run_pipeline(
         from preprocessing.spatial_grid import preprocess_spatial_grid_anomaly
         return preprocess_spatial_grid_anomaly(
             records, inner_window=inner_window, outer_window=outer_window, min_ring_count=min_ring_count,
+        )
+
+    if mode == "gpr_local_anomaly":
+        from preprocessing.spatial_grid import preprocess_trace_local_anomaly
+        return preprocess_trace_local_anomaly(
+            records,
+            trace_inner_window=trace_inner_window, trace_outer_window=trace_outer_window,
+            depth_inner_window=depth_inner_window, depth_outer_window=depth_outer_window,
+            min_ring_count=min_ring_count,
+            min_trace_ring_count=min_trace_ring_count, min_depth_ring_count=min_depth_ring_count,
         )
 
     if mode == "gpr_trace_processing":

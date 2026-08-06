@@ -69,6 +69,22 @@ def align_records_with_dem(records: list[SubterraRecord], dem_path: str | Path) 
     record's (lat, lon), and — when the record has a `depth` — stores the
     resulting absolute elevation of the sensed feature
     (surface elevation - depth) in `record.metadata["absolute_elevation_m"]`.
+
+    Two SEPARATE compatibility concerns, only one of which is checked:
+    - HORIZONTAL CRS (checked below): whether the DEM's (lat, lon) grid
+      uses the same coordinate reference system as `record.latitude`/
+      `record.longitude`.
+    - VERTICAL DATUM (NOT checked, NOT converted): whether the DEM's
+      elevation VALUES (e.g. Copernicus GLO-30/COP30's EGM2008 geoid
+      heights) share a common vertical reference with any other elevation
+      source a caller might combine with this one. This function only
+      ever uses ONE elevation source (the DEM itself) internally, so no
+      cross-source vertical mismatch is possible in what it computes
+      today -- but if a second independent elevation source (e.g. a GPS
+      antenna height, typically WGS84 ellipsoidal) is ever combined with
+      `record.elevation` downstream, they must first be reconciled to a
+      common vertical datum; this function has no way to detect or warn
+      about that at the point such a combination happens.
     """
     try:
         import rasterio
@@ -91,8 +107,15 @@ def align_records_with_dem(records: list[SubterraRecord], dem_path: str | Path) 
     if dem_crs and dem_crs.to_epsg() not in (4326, None):
         logger.warning(
             f"DEM CRS is {dem_crs} (not EPSG:4326). align_records_with_dem assumes lat/lon "
-            f"input matches the DEM's coordinate system; reproject the DEM first if this is wrong."
+            f"input matches the DEM's coordinate system; reproject the DEM first if this is wrong. "
+            f"(This is a HORIZONTAL check only -- see the vertical-datum note below.)"
         )
+
+    logger.info(
+        "DEM alignment: vertical datum is NOT validated or converted -- elevation values are used "
+        "as-is from the DEM (e.g. COP30 reports EGM2008 geoid heights, not WGS84 ellipsoidal height). "
+        "If a second elevation source is ever combined with this one, reconcile datums first."
+    )
 
     if not records:
         return records
@@ -105,6 +128,7 @@ def align_records_with_dem(records: list[SubterraRecord], dem_path: str | Path) 
     for r, elev in zip(records, elevations):
         if not np.isnan(elev):
             r.elevation = float(elev)
+            r.metadata["dem_vertical_datum_verified"] = False
             n_aligned += 1
             if r.depth is not None:
                 r.metadata["absolute_elevation_m"] = float(elev) - r.depth

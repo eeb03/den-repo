@@ -57,8 +57,8 @@ def _make_grid_records(n_lat=20, n_lon=20, seed=0):
 def test_preprocess_spatial_grid_anomaly_end_to_end():
     records = preprocess_spatial_grid_anomaly(_make_grid_records())
     assert len(records) == 400
-    # every record should have raw_signal preserved and a reliability flag
-    assert all("raw_signal" in r.metadata for r in records)
+    # every record should have pre_anomaly_signal preserved and a reliability flag
+    assert all("pre_anomaly_signal" in r.metadata for r in records)
     assert all("anomaly_reliable" in r.metadata for r in records)
     # the injected anomaly should end up with a distinctly high |signal| (z-score)
     max_abs_signal = max(abs(r.signal[0]) for r in records)
@@ -69,4 +69,4 @@ def test_run_pipeline_dispatches_to_local_anomaly_mode():
     records = _make_grid_records()
     result = run_pipeline(records, mode="local_anomaly")
     assert len(result) == 400
-    assert all("raw_signal" in r.metadata for r in result)
+    assert all("pre_anomaly_signal" in r.metadata for r in result)

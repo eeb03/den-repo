@@ -36,11 +36,16 @@
       <option value="points">Point cloud</option>
       <option value="heatmap">Heatmap (top-down)</option>
       <option value="surface">Surface (elevation-draped)</option>
+      <option value="bscan">B-scan (trace × depth)</option>
     </select>
   </div>
   <div class="slider-group" id="focusGroup" style="display:none;">
     <label>Focus:</label>
     <select id="focusSelect" onchange="onFocusChange()"></select>
+  </div>
+  <div class="slider-group" id="bscanLineGroup" style="display:none;">
+    <label>Line (source file):</label>
+    <select id="bscanLineSelect" onchange="onBscanLineChange()"></select>
   </div>
   <div class="slider-group">
     <label>Highlight |signal| ≥</label>
@@ -61,6 +66,7 @@ let focusRange = null;  // {x:[lo,hi], y:[lo,hi], z:[lo,hi]} or null for auto
 let lastDepthLo, lastDepthHi;
 let anomalyThreshold = 0;
 let viewMode = "points";
+let bscanSourceFile = null;  // explicitly chosen SEG-Y line for B-scan mode; null = not yet chosen
 
 async function fetchDatasetPoints(datasetId) {
   const resp = await fetch(`${API_BASE}/datasets/${datasetId}/points?max_points=15000`);
@@ -112,6 +118,8 @@ async function loadDatasets() {
 
   setStatus(`Loading ${ids.length} dataset(s)...`);
   allTraces = {};
+  bscanSourceFile = null;  // new datasets loaded -- forget any previously chosen B-scan line
+  document.getElementById("bscanLineGroup").style.display = "none";
   let minDepth = Infinity, maxDepth = -Infinity;
 
   for (const id of ids) {
@@ -214,6 +222,7 @@ function populateFocusSelect() {
 
 function onFocusChange() {
   setFocusFromSelection();
+  bscanSourceFile = null;  // focused dataset changed -- its available source files differ
   render(lastDepthLo, lastDepthHi);
 }
 
@@ -291,6 +300,85 @@ async function renderHeatmap() {
   }
 }
 
+async function fetchDatasetTraceGrid(datasetId, field, sourceFile) {
+  let url = `${API_BASE}/datasets/${datasetId}/trace_grid?field=${field}`;
+  if (sourceFile) url += `&source_file=${encodeURIComponent(sourceFile)}`;
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({}));
+    throw new Error(`Dataset ${datasetId} trace_grid: ${body.detail || resp.statusText}`);
+  }
+  return resp.json();
+}
+
+function populateBscanLineSelect(availableSourceFiles, selected) {
+  const group = document.getElementById("bscanLineGroup");
+  const select = document.getElementById("bscanLineSelect");
+  if (!availableSourceFiles || availableSourceFiles.length <= 1) {
+    group.style.display = "none";
+    return;
+  }
+  group.style.display = "flex";
+  select.innerHTML = "";
+  for (const sf of availableSourceFiles) {
+    const opt = document.createElement("option");
+    opt.value = sf;
+    opt.textContent = sf;
+    select.appendChild(opt);
+  }
+  select.value = selected;
+}
+
+function onBscanLineChange() {
+  bscanSourceFile = document.getElementById("bscanLineSelect").value;
+  renderBscan();
+}
+
+async function renderBscan() {
+  // The radargram/B-scan view: x = position along the survey line (trace
+  // index), y = real physical depth, color = signal/anomaly intensity.
+  // This is what a single survey line actually looks like -- unlike the
+  // lat/lon heatmap, which degenerates for a near-1D line.
+  const sel = document.getElementById("focusSelect").value;
+  const datasetId = sel === "__all__" ? Object.keys(allTraces)[0] : sel;
+  if (!datasetId) { setStatus("No dataset to render."); return; }
+
+  try {
+    // Explicit selection, never a silent pick among multiple lines: the
+    // first fetch (no source_file chosen yet) uses the API's own default
+    // ONLY to discover what's available; if there's more than one line,
+    // the dropdown is shown and the user's choice drives every render after.
+    const gridData = await fetchDatasetTraceGrid(datasetId, "signal", bscanSourceFile);
+    populateBscanLineSelect(gridData.available_source_files, gridData.source_file);
+    bscanSourceFile = gridData.source_file;
+
+    Plotly.newPlot("plot", [{
+      type: "heatmap",
+      x: gridData.trace_indices,
+      y: gridData.depths,
+      z: gridData.grid,
+      colorscale: "Viridis",
+      colorbar: { thickness: 14, title: "signal" },
+      hoverongaps: false,
+    }], {
+      paper_bgcolor: "#0b0f14",
+      plot_bgcolor: "#0b0f14",
+      font: { color: "#e6e6e6" },
+      xaxis: { title: "Trace index (position along survey line)", color: "#9aa7b5" },
+      yaxis: { title: "Depth (m)", color: "#9aa7b5", autorange: "reversed" },
+      margin: { l: 60, r: 20, t: 30, b: 50 },
+      title: { text: `${gridData.name} — ${gridData.source_file} (${gridData.n_traces} traces × ${gridData.n_depths} depths)`, font: { color: "#e6e6e6", size: 13 } },
+    }, { responsive: true });
+
+    const velocityNote = gridData.velocity_m_per_ns != null
+      ? ` | depth assumes ${gridData.velocity_m_per_ns} m/ns (default, not site-calibrated)`
+      : "";
+    setStatus(`B-scan: ${gridData.n_traces} traces × ${gridData.n_depths} depth samples, source_file=${gridData.source_file}.${velocityNote}`);
+  } catch (e) {
+    setStatus(`Error: ${e.message}`);
+  }
+}
+
 async function renderSurface() {
   // Surface drapes the signal grid (color) over the elevation grid (shape)
   // for the focused dataset -- an actual 3D "terrain with data painted on
@@ -349,6 +437,7 @@ async function renderSurface() {
 function render(depthLo, depthHi) {
   if (viewMode === "heatmap") { renderHeatmap(); return; }
   if (viewMode === "surface") { renderSurface(); return; }
+  if (viewMode === "bscan") { renderBscan(); return; }
 
   const traces = [];
   for (const [id, data] of Object.entries(allTraces)) {
@@ -376,7 +465,9 @@ function render(depthLo, depthHi) {
       y: points.map(pt => toLocalMeters(pt.lat, pt.lon, refLat, refLon)[1]),
       z: points.map(zValue),
       text: points.map(pt =>
-        `lat: ${pt.lat.toFixed(6)}, lon: ${pt.lon.toFixed(6)}<br>sensor: ${pt.sensor_type}<br>signal: ${pt.signal !== null ? pt.signal.toFixed(3) : "n/a"}<br>depth: ${pt.depth ?? "n/a"}m<br>ground_truth: ${pt.ground_truth}`
+        `lat: ${pt.lat.toFixed(6)}, lon: ${pt.lon.toFixed(6)}<br>sensor: ${pt.sensor_type}<br>signal: ${pt.signal !== null ? pt.signal.toFixed(3) : "n/a"}<br>depth: ${pt.depth ?? "n/a"}m<br>ground_truth: ${pt.ground_truth}` +
+        (pt.trace_index !== null && pt.trace_index !== undefined ? `<br>trace: ${pt.trace_index}` : "") +
+        (pt.anomaly_reliable === false ? `<br>⚠ low-confidence (edge of survey)` : "")
       ),
       hoverinfo: "text",
       marker: {

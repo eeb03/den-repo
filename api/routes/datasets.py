@@ -187,6 +187,12 @@ def reprocess_dataset(
     inner_window: int = 5,
     outer_window: int = 15,
     min_ring_count: int = 20,
+    trace_inner_window: int = 2,
+    trace_outer_window: int = 6,
+    depth_inner_window: int = 5,
+    depth_outer_window: int = 15,
+    min_trace_ring_count: int = 4,
+    min_depth_ring_count: int = 10,
     dewow_window: int = 15,
     gain_type: str = "linear",
     gain_power: float = 1.0,
@@ -204,10 +210,23 @@ def reprocess_dataset(
     - "local_anomaly": compute each point's deviation from its own local
       background (ring between inner_window and outer_window) instead of
       the whole dataset's statistics — surfaces spatially small real
-      anomalies that a global z-score would dilute into noise.
+      anomalies that a global z-score would dilute into noise. Bins by
+      (lat, lon) — meant for area-covering depth-slice surveys.
+    - "gpr_local_anomaly": the same local-anomaly ring statistic, indexed
+      by (trace_index, depth) instead of (lat, lon) — for real multi-
+      sample SEG-Y trace data, where a single survey line's points would
+      otherwise bin into a mostly-empty lat/lon grid. Uses its OWN
+      trace_inner_window/trace_outer_window/min_trace_ring_count and
+      depth_inner_window/depth_outer_window/min_depth_ring_count instead
+      of inner_window/outer_window/min_ring_count — trace and depth
+      spacing are not comparable in scale (e.g. ~0.246 m/trace vs.
+      ~0.0146 m/sample on the real C1T_7,5_0001 line), so a single
+      isotropic window can't meaningfully flag low-confidence cells on
+      both axes (see preprocessing/spatial_grid.py::preprocess_trace_local_anomaly).
+      See /trace_grid to inspect the result as a radargram-style 2D image.
     - "gpr_trace_processing": classic dewow / background removal / gain,
-      for multi-sample trace data (SEG-Y sourced). No-op on single-value
-      depth-slice data.
+      for multi-sample trace data (SEG-Y sourced). Reconstructs full
+      traces from per-sample records via trace_index/depth when needed.
     """
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     if not dataset:
@@ -220,6 +239,9 @@ def reprocess_dataset(
     records = run_pipeline(
         records, mode=preprocessing_mode, smoothing_window=smoothing_window, normalize=normalize,
         inner_window=inner_window, outer_window=outer_window, min_ring_count=min_ring_count,
+        trace_inner_window=trace_inner_window, trace_outer_window=trace_outer_window,
+        depth_inner_window=depth_inner_window, depth_outer_window=depth_outer_window,
+        min_trace_ring_count=min_trace_ring_count, min_depth_ring_count=min_depth_ring_count,
         dewow_window=dewow_window, gain_type=gain_type, gain_power=gain_power,
         background_removal_enabled=background_removal_enabled, dewow_enabled=dewow_enabled, gain_enabled=gain_enabled,
     )
@@ -523,7 +545,7 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
     per_file_errors = []
     georeferenced_count = 0
 
-    from ingestion.kmz_georeference import find_matching_kmz_files, build_georeference_lookup, resample_path_by_arc_length
+    from ingestion.kmz_georeference import find_matching_kmz_files, build_georeference_lookup, georeference_records_by_trace
     kmz_files = find_matching_kmz_files(supported_files[0].parent.parent if supported_files else downloaded_path.parent)
     # search from the extraction root, not just alongside the data files -- KMZ often sits in the same
     # subdirectory as its SEG-Y files, but walk up to be safe about sibling directory layouts
@@ -541,23 +563,10 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
             # If this file's SEG-Y header coordinates are unusable, map
             # positions from a matching KMZ placemark instead -- this
             # source's SourceX/SourceY are projected (UTM-scale) values,
-            # not real per-trace GPS. SEGYConverter emits one RECORD per
-            # SAMPLE (many records per trace), so the path must be
-            # resampled to the number of distinct TRACES and then
-            # broadcast across each trace's sample records -- resampling
-            # to len(records) directly would treat vertically-stacked
-            # depth samples as if they were separate lateral positions.
+            # not real per-trace GPS.
             stem = file_path.stem
             if stem in kmz_lookup and len(records) > 0:
-                trace_indices = [r.metadata.get("trace_index", i) for i, r in enumerate(records)]
-                unique_traces = sorted(set(trace_indices))
-                path_coords = resample_path_by_arc_length(kmz_lookup[stem], len(unique_traces))
-                coord_by_trace = dict(zip(unique_traces, path_coords))
-                for r, t_idx in zip(records, trace_indices):
-                    lon, lat = coord_by_trace[t_idx]
-                    r.latitude = float(lat)
-                    r.longitude = float(lon)
-                    r.metadata["georeferenced_from_kmz"] = True
+                georeference_records_by_trace(records, kmz_lookup[stem])
                 georeferenced_count += 1
 
             all_records.extend(records)
@@ -691,6 +700,8 @@ def get_dataset_points(dataset_id: str, max_points: int = 20000, db: Session = D
             "signal": r.signal[0] if r.signal else None,
             "sensor_type": r.sensor_type.value,
             "ground_truth": r.ground_truth.value,
+            "trace_index": (r.metadata or {}).get("trace_index"),
+            "anomaly_reliable": (r.metadata or {}).get("anomaly_reliable"),
         }
         for r in records
     ]
@@ -766,6 +777,74 @@ def get_dataset_grid(
         "lat_centers": lat_centers.tolist(),
         "lon_centers": lon_centers.tolist(),
         "grid": grid_json,
+    }
+
+
+@router.get("/{dataset_id}/trace_grid")
+def get_dataset_trace_grid(
+    dataset_id: str,
+    source_file: Optional[str] = None,
+    field: str = "signal",
+    db: Session = Depends(get_db),
+):
+    """
+    Returns one survey line's data as a dense (depth x trace) 2D grid --
+    the radargram/B-scan view -- for genuine multi-sample GPR trace data
+    (SEG-Y sourced, one record per sample). Unlike /grid (lat/lon-binned,
+    meant for area-covering depth-slice surveys), this indexes by each
+    trace's native position along the survey line, so a single-line
+    survey renders as a dense image instead of a mostly-empty lat/lon
+    raster. Also returns each trace's (lat, lon) so a caller can
+    georeference any column. field="signal" (default), "elevation", or
+    "absolute_elevation_m". source_file selects which line when a dataset
+    holds several -- omit it to get the densest line PLUS the full
+    "available_source_files" list, so a caller (e.g. the viewer) can offer
+    an explicit choice instead of silently only ever showing one line.
+    """
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    records = load_records(dataset_id)
+    if not records:
+        raise HTTPException(status_code=404, detail="No stored records found for this dataset")
+
+    from preprocessing.spatial_grid import build_trace_depth_grid_for_records
+    try:
+        result = build_trace_depth_grid_for_records(records, source_file=source_file, field=field)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    grid_json = [[(None if (v is None or (isinstance(v, float) and math.isnan(v))) else float(v)) for v in row] for row in result["grid"].tolist()]
+
+    # Surface the depth-axis velocity assumption (SEGYConverter's
+    # depth = two_way_time_ns * velocity_m_per_ns / 2) rather than leaving
+    # it implicit -- it's a default, not a site calibration (see
+    # converters/segy_converter.py::DEFAULT_GPR_VELOCITY_M_PER_NS).
+    velocity_values = {
+        r.metadata["velocity_m_per_ns"] for r in records
+        if r.metadata.get("source_file") == result["source_file"] and "velocity_m_per_ns" in r.metadata
+    }
+    velocity_assumption = sorted(velocity_values)[0] if len(velocity_values) == 1 else (sorted(velocity_values) or None)
+
+    return {
+        "dataset_id": dataset_id,
+        "name": dataset.name,
+        "field": field,
+        "source_file": result["source_file"],
+        "available_source_files": result["available_source_files"],
+        "n_depths": len(result["depths"]),
+        "n_traces": len(result["trace_indices"]),
+        "depths": result["depths"],
+        "trace_indices": result["trace_indices"],
+        "trace_lat": result["trace_lat"],
+        "trace_lon": result["trace_lon"],
+        "grid": grid_json,
+        "velocity_m_per_ns": velocity_assumption,
+        "velocity_note": (
+            "Depth axis derived from two-way travel time using this assumed constant EM velocity "
+            "(m/ns) -- a default, NOT calibrated for this specific site's soil conditions. Real "
+            "depth could differ substantially if true velocity differs."
+        ) if velocity_assumption is not None else None,
     }
 
 

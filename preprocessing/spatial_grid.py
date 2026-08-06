@@ -117,8 +117,48 @@ def _normalize_2d(grid: np.ndarray) -> np.ndarray:
     return (grid - mean) / std
 
 
+def _as_row_col_window(window: int | tuple[int, int]) -> tuple[int, int]:
+    """Normalizes a window spec to (row_window, col_window). A bare int applies the same window to both axes (the existing isotropic behavior); a (row, col) tuple allows axis-specific windows for anisotropic grids (e.g. GPR trace x depth, where depth resolution is far finer than trace spacing)."""
+    if isinstance(window, (tuple, list)):
+        if len(window) != 2:
+            raise ValueError(f"window tuple must have exactly 2 elements (row, col), got {window}")
+        return int(window[0]), int(window[1])
+    return int(window), int(window)
+
+
+def _axis_ring_counts(n: int, inner_window: int, outer_window: int) -> np.ndarray:
+    """
+    1D ring neighbor count along ONE axis of length n (every position
+    assumed valid) -- how many real neighbors fall in [outer] minus
+    [inner] window around each position, correctly truncated at that
+    axis's own edges.
+
+    This exists because the JOINT 2D ring_count in `_local_anomaly_grid`
+    is a product of both axes' extents: on a strongly anisotropic grid
+    (e.g. a GPR radargram with hundreds of depth samples but only a few
+    dozen traces), abundant depth-direction neighbors mathematically
+    backfill the joint count even when a cell is genuinely starved of
+    TRACE-direction neighbors (near the true edges of the survey line) --
+    verified empirically: on the real 482x72 C1T_7,5_0001 grid shape, no
+    min_ring_count up to 200+ ever flags the true leftmost/rightmost trace
+    columns, because the depth axis alone supplies hundreds of valid
+    neighbors regardless of how truncated the trace axis is. A per-axis
+    marginal count decouples the two, so trace-direction scarcity can't be
+    masked by depth-direction abundance (or vice versa).
+    """
+    ones = np.ones(n)
+    outer = _box_filter_1d(ones, outer_window, axis=0)
+    inner = _box_filter_1d(ones, inner_window, axis=0)
+    return outer - inner
+
+
 def _local_anomaly_grid(
-    grid: np.ndarray, inner_window: int = 5, outer_window: int = 15, min_ring_count: int = 20
+    grid: np.ndarray,
+    inner_window: int | tuple[int, int] = 5,
+    outer_window: int | tuple[int, int] = 15,
+    min_ring_count: int = 20,
+    min_row_ring_count: int | None = None,
+    min_col_ring_count: int | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Local (ring-based) anomaly z-score: for each cell, estimates the
@@ -132,19 +172,32 @@ def _local_anomaly_grid(
     rather than producing a spuriously large or small z-score from too
     few samples.
 
+    inner_window/outer_window accept a bare int (isotropic, same window on
+    both axes -- the original behavior, used by the (lat, lon) area-survey
+    "local_anomaly" mode) OR a (row, col) tuple for axis-specific windows.
+
+    min_row_ring_count/min_col_ring_count (optional, default None = no
+    effect on existing callers): additional reliability checks based on
+    each axis's OWN marginal neighbor count in isolation -- see
+    `_axis_ring_counts` for why the joint min_ring_count alone can't
+    detect axis-specific edge starvation on a strongly anisotropic grid.
+
     Returns (z_scores, unreliable_mask).
     """
-    def box_sum_count(g, window):
+    inner_row, inner_col = _as_row_col_window(inner_window)
+    outer_row, outer_col = _as_row_col_window(outer_window)
+
+    def box_sum_count(g, window_row, window_col):
         mask = (~np.isnan(g)).astype(float)
         filled = np.nan_to_num(g, nan=0.0)
         filled_sq = filled ** 2
-        counts = _box_filter_1d(_box_filter_1d(mask, window, 0), window, 1)
-        sums = _box_filter_1d(_box_filter_1d(filled, window, 0), window, 1)
-        sums_sq = _box_filter_1d(_box_filter_1d(filled_sq, window, 0), window, 1)
+        counts = _box_filter_1d(_box_filter_1d(mask, window_row, 0), window_col, 1)
+        sums = _box_filter_1d(_box_filter_1d(filled, window_row, 0), window_col, 1)
+        sums_sq = _box_filter_1d(_box_filter_1d(filled_sq, window_row, 0), window_col, 1)
         return sums, sums_sq, counts
 
-    s_out, sq_out, c_out = box_sum_count(grid, outer_window)
-    s_in, sq_in, c_in = box_sum_count(grid, inner_window)
+    s_out, sq_out, c_out = box_sum_count(grid, outer_row, outer_col)
+    s_in, sq_in, c_in = box_sum_count(grid, inner_row, inner_col)
     ring_sum, ring_sumsq, ring_count = s_out - s_in, sq_out - sq_in, c_out - c_in
 
     with np.errstate(invalid="ignore", divide="ignore"):
@@ -153,6 +206,14 @@ def _local_anomaly_grid(
         std = np.sqrt(var)
 
     unreliable = (ring_count < min_ring_count) | (std == 0) | np.isnan(std)
+
+    if min_row_ring_count is not None:
+        row_ring_counts = _axis_ring_counts(grid.shape[0], inner_row, outer_row)
+        unreliable = unreliable | (row_ring_counts[:, None] < min_row_ring_count)
+    if min_col_ring_count is not None:
+        col_ring_counts = _axis_ring_counts(grid.shape[1], inner_col, outer_col)
+        unreliable = unreliable | (col_ring_counts[None, :] < min_col_ring_count)
+
     mean_safe = np.where(unreliable, np.nan, mean)
     std_safe = np.where(unreliable, np.nan, std)
     with np.errstate(invalid="ignore"):
@@ -174,11 +235,12 @@ def preprocess_spatial_grid_anomaly(
     pipe, a void) from being diluted into noise by a global z-score
     computed across an entire large survey.
 
-    Overwrites record.signal with the anomaly z-score; the original raw
-    value and background stats are preserved in metadata for reference.
-    Records whose grid cell had too few background neighbors (edges of the
-    survey) get metadata["anomaly_reliable"]=False rather than a
-    potentially misleading extreme value.
+    Overwrites record.signal with the anomaly z-score. Records whose grid
+    cell had too few background neighbors (edges of the survey) get
+    metadata["anomaly_reliable"]=False rather than a potentially
+    misleading extreme value. metadata["pre_anomaly_signal"] preserves the
+    value as it was immediately before this step (not necessarily the
+    original raw sensor reading, if earlier preprocessing already ran).
     """
     if not records:
         return records
@@ -214,7 +276,7 @@ def preprocess_spatial_grid_anomaly(
             raw_val = records[row.idx].signal[0] if records[row.idx].signal else None
             z_val = z_df.at[row.lat_bin, row.lon_bin]
             is_unreliable = bool(unreliable_df.at[row.lat_bin, row.lon_bin])
-            records[row.idx].metadata["raw_signal"] = raw_val
+            records[row.idx].metadata["pre_anomaly_signal"] = raw_val
             records[row.idx].metadata["anomaly_reliable"] = not is_unreliable
             records[row.idx].signal = [float(z_val)] if pd.notna(z_val) else [0.0]
 
@@ -224,6 +286,204 @@ def preprocess_spatial_grid_anomaly(
         f"({n_reliable} reliable, inner_window={inner_window}, outer_window={outer_window})"
     )
     return records
+
+
+def _trace_depth_grid(records: list[SubterraRecord], field: str = "signal") -> tuple[np.ndarray, list, list]:
+    """
+    Pivots records sharing metadata["trace_index"] + real `depth` into a
+    dense (n_depths x n_traces) 2D array -- the native radargram/B-scan
+    structure for ONE GPR survey line. Unlike the (lat, lon)-binned grid
+    `build_grid_for_records`/`preprocess_spatial_grid*` use (built for
+    area-covering depth-slice surveys), this is always fully dense: every
+    trace shares the exact same depth axis by construction (see
+    SEGYConverter), so there are no missing cells the way binning a
+    handful of line-transect points into a lat/lon area grid would produce.
+
+    Internal building block shared by `preprocess_trace_local_anomaly`
+    (mutates records) and `build_trace_depth_grid_for_records` (read-only,
+    for API/visualization).
+    """
+    def get_value(r: SubterraRecord):
+        if field == "signal":
+            return r.signal[0] if r.signal else np.nan
+        if field == "elevation":
+            return r.elevation if r.elevation is not None else np.nan
+        if field == "absolute_elevation_m":
+            return (r.metadata or {}).get("absolute_elevation_m", np.nan)
+        raise ValueError(f"Unknown field '{field}'")
+
+    trace_ids = sorted({r.metadata["trace_index"] for r in records})
+    depths = sorted({round(r.depth, 6) for r in records})
+    trace_pos = {t: i for i, t in enumerate(trace_ids)}
+    depth_pos = {d: i for i, d in enumerate(depths)}
+
+    grid = np.full((len(depths), len(trace_ids)), np.nan)
+    for r in records:
+        grid[depth_pos[round(r.depth, 6)], trace_pos[r.metadata["trace_index"]]] = get_value(r)
+
+    return grid, trace_ids, depths
+
+
+def _group_by_source_file(records: list[SubterraRecord]) -> dict[str, list[SubterraRecord]]:
+    """Groups records by metadata['source_file'] -- trace_index is only unique WITHIN one file's acquisition, so multi-line datasets (a zip of several .sgy lines) must be processed independently per line."""
+    by_file: dict[str, list[SubterraRecord]] = {}
+    for r in records:
+        by_file.setdefault(r.metadata.get("source_file", ""), []).append(r)
+    return by_file
+
+
+def preprocess_trace_local_anomaly(
+    records: list[SubterraRecord],
+    trace_inner_window: int = 2,
+    trace_outer_window: int = 6,
+    depth_inner_window: int = 5,
+    depth_outer_window: int = 15,
+    min_ring_count: int = 20,
+    min_trace_ring_count: int = 4,
+    min_depth_ring_count: int = 10,
+) -> list[SubterraRecord]:
+    """
+    LOCAL anomaly z-score for genuine multi-sample GPR trace data (SEG-Y
+    sourced, one record per (trace, depth) sample) -- the trace-aware
+    counterpart to `preprocess_spatial_grid_anomaly`.
+
+    A single (or few) survey LINE(s) make a poor (lat, lon) "area": at any
+    one depth, a handful-to-hundreds of trace positions strung along a
+    line bin into a mostly-EMPTY 2D lat/lon raster, starving the ring
+    background estimate. Indexed by (trace_index, depth) instead, the same
+    data is a fully dense, physically meaningful 2D image (a radargram),
+    so this reuses the exact same `_local_anomaly_grid` ring statistic --
+    only the axes differ, not the anomaly math (no second implementation).
+
+    Trace and depth axes get INDEPENDENT window parameters rather than one
+    isotropic window, because they are not remotely comparable in scale on
+    real data: on the real C1T_7,5_0001 line, depth spacing is ~0.0146
+    m/sample vs. ~0.246 m/trace (~17x). Reusing one square window sized for
+    a (lat, lon) area grid made the reliability check meaningless here: the
+    joint ring_count is a PRODUCT of both axes' extents, so on this
+    72-trace-wide, 482-depth-tall grid the abundant depth axis backfills
+    the joint count even when a cell is genuinely starved of TRACE
+    neighbors -- verified empirically, no min_ring_count up to 200+ ever
+    flagged the true leftmost/rightmost trace columns. min_trace_ring_count
+    / min_depth_ring_count check each axis's OWN marginal neighbor count in
+    isolation (see `_axis_ring_counts`), so trace-direction edge scarcity
+    can no longer be masked by depth-direction abundance. Defaults were
+    derived from and verified against the real 482x72 grid shape: with
+    (trace_inner=2, trace_outer=6), the trace-axis marginal count plateaus
+    to its interior value of 4 by the 4th trace in from either end, so
+    min_trace_ring_count=4 flags exactly the 3 outermost traces on each
+    side as unreliable; with (depth_inner=5, depth_outer=15), the
+    depth-axis marginal count plateaus to 10 by the 7th sample, so
+    min_depth_ring_count=10 flags the 7 shallowest/deepest samples.
+
+    Datasets spanning multiple source files (several survey lines in one
+    zip) are processed independently per file, since trace_index is only
+    unique within one file's acquisition.
+
+    Same convention as `preprocess_spatial_grid_anomaly`: overwrites
+    record.signal with the z-score, preserves the pre-this-step value in
+    metadata["pre_anomaly_signal"], and flags low-confidence cells (too
+    few ring neighbors -- e.g. near a trace/depth edge) via
+    metadata["anomaly_reliable"]=False rather than a misleading extreme
+    value.
+    """
+    if not records:
+        return records
+
+    by_file = _group_by_source_file(records)
+    n_lines_processed = 0
+
+    for file_key, sub_records in by_file.items():
+        if any(r.metadata.get("trace_index") is None or r.depth is None for r in sub_records):
+            logger.warning(
+                f"preprocess_trace_local_anomaly: records for '{file_key or '(no source_file)'}' are "
+                f"missing trace_index/depth metadata -- not genuine multi-sample GPR trace data, skipping."
+            )
+            continue
+
+        grid, trace_ids, depths = _trace_depth_grid(sub_records, field="signal")
+        trace_pos = {t: i for i, t in enumerate(trace_ids)}
+        depth_pos = {d: i for i, d in enumerate(depths)}
+
+        z_grid, unreliable_grid = _local_anomaly_grid(
+            grid,
+            inner_window=(depth_inner_window, trace_inner_window),
+            outer_window=(depth_outer_window, trace_outer_window),
+            min_ring_count=min_ring_count,
+            min_row_ring_count=min_depth_ring_count,
+            min_col_ring_count=min_trace_ring_count,
+        )
+
+        for r in sub_records:
+            di = depth_pos[round(r.depth, 6)]
+            ti = trace_pos[r.metadata["trace_index"]]
+            raw_val = r.signal[0] if r.signal else None
+            z_val = z_grid[di, ti]
+            is_unreliable = bool(unreliable_grid[di, ti])
+            r.metadata["pre_anomaly_signal"] = raw_val
+            r.metadata["anomaly_reliable"] = not is_unreliable
+            r.metadata["trace_depth_grid_shape"] = [len(depths), len(trace_ids)]
+            r.signal = [float(z_val)] if np.isfinite(z_val) else [0.0]
+
+        n_lines_processed += 1
+
+    n_reliable = sum(1 for r in records if r.metadata.get("anomaly_reliable"))
+    logger.info(
+        f"preprocess_trace_local_anomaly: processed {n_lines_processed} survey line(s), {len(records)} records "
+        f"({n_reliable} reliable, trace_window=({trace_inner_window},{trace_outer_window}), "
+        f"depth_window=({depth_inner_window},{depth_outer_window}))"
+    )
+    return records
+
+
+def build_trace_depth_grid_for_records(
+    records: list[SubterraRecord], source_file: str | None = None, field: str = "signal"
+) -> dict:
+    """
+    Read-only counterpart to `build_grid_for_records`, indexed by
+    (trace_index, depth) instead of (lat, lon) -- the radargram/B-scan
+    view for ONE GPR survey line, dense with no missing cells (unlike
+    binning a line-transect's points into a lat/lon area grid). Also
+    returns each trace's (lat, lon) so a caller can georeference any
+    column of the grid.
+
+    `source_file` selects which survey line when a dataset holds several
+    (defaults to whichever has the most records if not given -- callers
+    that need to let a user choose explicitly should first inspect the
+    returned "available_source_files" list rather than relying on this
+    default, since which file is "densest" isn't necessarily the one a
+    user wants to inspect).
+    """
+    if not records:
+        raise ValueError("No records provided.")
+
+    by_file = _group_by_source_file(records)
+    available_source_files = sorted(by_file.keys())
+    if source_file is None:
+        source_file = max(by_file, key=lambda k: len(by_file[k]))
+    sub_records = by_file.get(source_file)
+    if not sub_records:
+        raise ValueError(f"No records found for source_file={source_file!r}. Available: {available_source_files}")
+    if any(r.metadata.get("trace_index") is None or r.depth is None for r in sub_records):
+        raise ValueError("Records are missing trace_index/depth metadata -- not genuine multi-sample GPR trace data.")
+
+    grid, trace_ids, depths = _trace_depth_grid(sub_records, field=field)
+
+    # Every sample of a trace shares one (lat, lon) -- see SEGYConverter /
+    # georeference_records_by_trace -- so the first record seen per trace suffices.
+    trace_latlon = {}
+    for r in sub_records:
+        trace_latlon.setdefault(r.metadata["trace_index"], (r.latitude, r.longitude))
+
+    return {
+        "source_file": source_file,
+        "available_source_files": available_source_files,
+        "grid": grid,
+        "trace_indices": trace_ids,
+        "depths": depths,
+        "trace_lat": [trace_latlon[t][0] for t in trace_ids],
+        "trace_lon": [trace_latlon[t][1] for t in trace_ids],
+    }
 
 
 def build_grid_for_records(
