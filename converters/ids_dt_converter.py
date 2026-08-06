@@ -263,9 +263,22 @@ def derive_along_track(acquisition: dict) -> tuple[dict | None, str | None]:
     }, None
 
 
-def validate_velocity(velocity) -> tuple[float | None, str | None]:
+#: Where the plausible-velocity bounds come from, per format. The numbers are
+#: physical (the upper bound is the speed of light) but the justification is
+#: not, so each converter states its own rather than borrowing IDS's.
+_IDS_BOUNDS_BASIS = (
+    "the IDS software's own MinPropVel/MaxPropVel limits; the upper bound is "
+    "the speed of light"
+)
+
+
+def validate_velocity(velocity, bounds_basis: str = _IDS_BOUNDS_BASIS) -> tuple[float | None, str | None]:
     """
     Validates a CALLER-SUPPLIED propagation velocity in m/ns.
+
+    Shared with MALAConverter -- the physics and the failure modes are
+    identical -- with `bounds_basis` naming where the bounds come from so
+    neither format's error message claims the other's provenance.
 
     Returns (velocity, None) when usable, or (None, reason) when not. A
     rejected velocity never becomes a depth axis: the caller gets depth=None
@@ -284,9 +297,7 @@ def validate_velocity(velocity) -> tuple[float | None, str | None]:
         return None, (
             f"velocity {v} m/ns is outside the physically plausible range "
             f"[{MIN_VELOCITY_M_PER_NS}, {MAX_VELOCITY_M_PER_NS}] m/ns "
-            f"(the IDS software's own MinPropVel/MaxPropVel limits; the upper "
-            f"bound is the speed of light). Note the expected unit is m/ns, "
-            f"not cm/ns."
+            f"({bounds_basis}). Note the expected unit is m/ns, not cm/ns."
         )
     return v, None
 

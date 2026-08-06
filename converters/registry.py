@@ -23,6 +23,7 @@ from converters.segy_converter import SEGYConverter
 from converters.las_converter import LASConverter
 from converters.geotiff_converter import GeoTIFFConverter
 from converters.ids_dt_converter import IDSDTConverter
+from converters.mala_converter import MALAConverter
 
 _CONVERTERS: list[BaseConverter] = [
     CSVConverter(),
@@ -30,6 +31,7 @@ _CONVERTERS: list[BaseConverter] = [
     LASConverter(),
     GeoTIFFConverter(),
     IDSDTConverter(),
+    MALAConverter(),
 ]
 
 #: Formats we can NAME but not yet read. Being listed here is a promise that
@@ -38,8 +40,14 @@ _CONVERTERS: list[BaseConverter] = [
 #: a real file of that format has parsed and validated.
 KNOWN_UNSUPPORTED_FORMATS: dict[str, str] = {
     ".dt_info": "IDS GeoRadar sidecar",
-    ".rd3": "MALA RAMAC (proprietary GPR)",
-    ".rad": "MALA RAMAC header sidecar",
+    # MALA sidecars. Named, not independently convertible: a .rad alone has no
+    # samples and a .rd3 alone has no geometry, so the PAIR is the unit. Same
+    # convention as .dt_info above.
+    ".rad": "MALA RAMAC header sidecar (read with its .rd3/.rd7)",
+    ".cor": "MALA RAMAC GNSS sidecar (read with its .rd3/.rd7)",
+    ".mrk": "MALA RAMAC marker sidecar (not read)",
+    ".add": "MALA RAMAC display-settings sidecar (not read)",
+    ".em": "MALA RAMAC sidecar (not read)",
     ".dzt": "GSSI (proprietary GPR)",
     ".dzx": "GSSI sidecar",
     ".sgd": "Sensors & Software (proprietary GPR)",

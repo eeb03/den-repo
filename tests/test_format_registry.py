@@ -59,12 +59,16 @@ def test_downloader_derives_from_registry_rather_than_a_private_copy():
 # --- recognised-but-unreadable formats ---
 
 def test_known_unsupported_formats_are_named_not_silently_skipped():
-    # .dt itself is now READABLE (see tests/test_ids_dt_converter.py); its
-    # sidecar and the other vendors' formats are still name-only.
+    # .dt and .rd3 are now READABLE (tests/test_ids_dt_converter.py,
+    # tests/test_mala_converter.py). Their SIDECARS stay name-only -- a .rad
+    # alone has no samples and a .dt_info alone has no traces -- and GSSI and
+    # Sensors & Software remain unread entirely.
     assert describe_unsupported("survey.dt") is None
+    assert describe_unsupported("line.rd3") is None
     assert describe_unsupported("survey.dt_info") == "IDS GeoRadar sidecar"
-    assert describe_unsupported("line.rd3").startswith("MALA")
+    assert describe_unsupported("line.rad").startswith("MALA")
     assert describe_unsupported("scan.dzt").startswith("GSSI")
+    assert describe_unsupported("scan.sgd").startswith("Sensors")
     assert describe_unsupported("readme.txt") is None
 
 
@@ -77,7 +81,8 @@ def test_no_unsupported_format_is_also_claimed_as_supported():
     ("a.csv", "supported"),
     ("a.SGY", "supported"),
     ("a.dt", "supported"),
-    ("a.rd3", "recognized_unsupported"),
+    ("a.rd3", "supported"),
+    ("a.rad", "recognized_unsupported"),
     ("a.dzt", "recognized_unsupported"),
     ("a.txt", "unknown"),
     ("noext", "unknown"),
@@ -119,11 +124,11 @@ def test_scan_archive_separates_supported_from_recognised_unsupported(tmp_path):
 
 def test_scan_archive_of_only_proprietary_files_reports_them(tmp_path):
     """The case that used to look identical to an empty archive."""
-    path = _zip(tmp_path, ["a.dzt", "b.dzt", "c.rd3"])
+    path = _zip(tmp_path, ["a.dzt", "b.dzt", "c.sgd"])
     scan = scan_archive(path, extract_to=tmp_path / "out")
     assert scan.supported == []
     assert scan.unsupported_summary() == {
-        "GSSI (proprietary GPR)": 2, "MALA RAMAC (proprietary GPR)": 1,
+        "GSSI (proprietary GPR)": 2, "Sensors & Software (proprietary GPR)": 1,
     }
 
 

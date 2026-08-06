@@ -6,8 +6,9 @@ The machine-readable source of truth is
 this document is generated from the same facts and should be updated with it.
 
 **Inventory date:** 2026-08-07 · **Total on disk: 2.65 GB**
-**Updated 2026-08-07:** little-endian SEG-Y implemented; `4tu-nl-utility`
-moves from blocked to fully ingestible (759/759 files).
+**Updated 2026-08-07:** little-endian SEG-Y and MALÅ `.rd3`/`.rad`
+implemented. `4tu-nl-utility` (759/759) and `hillside-lancaster` (321/321)
+are fully ingestible; `tu1208-ifsttar` reads 27 of its 67 radargrams.
 
 Each entry describes **what is actually on disk**, which is not always what
 the publisher's record describes — `guangzhou-ids` is a 2.9 MB subset of a
@@ -112,7 +113,8 @@ extraction; 4TU additionally nests 13 inner ZIPs that are also extracted.
 | **Number of files** | 110 |
 | **CRS** | **None.** A local site grid is implied but is not recorded in any file. Subterra asserts no EPSG. |
 | **Survey geometry** | **67 native radargrams** (64 unique stems, 3 in two formats) across 5 material zones — GNEISS0-20, GNEISS14-20, LIMESTONE, MULTI-LAYER, SILT. Frequencies 200/250/270/350/400/500/600/800/900 MHz. Three vendors: GSSI, MALÅ, IDS. |
-| **Supported phases** | **`IDSDTConverter` — works unchanged on the 12 `.DT` files** · `converters/registry` multi-vendor dispatch · future `.dzt` and `.rd3` readers |
+| **Supported phases** | ✅ `IDSDTConverter` (12 `.DT`, unchanged) · ✅ `MALAConverter` (15 `.rd3`) · `converters/registry` multi-vendor dispatch · future `.dzt` reader |
+| **Ingestion** | **27 of 67 native radargrams read** — 12 IDS + 15 MALÅ (14,401 traces, 7,599,781 samples, 0 failures). 40 GSSI `.DZT` await a reader. |
 | **Benchmark role** | Multi-vendor format coverage and cross-instrument consistency over a controlled site. |
 
 **Identity: verified 2026-08-07.** The paper's abstract (OpenAlex API)
@@ -150,14 +152,18 @@ one field day 09:40→15:07)**, 2017 GSSI SIR-4000 (14 files).
 | **Number of files** | 1,926 |
 | **CRS** | **EPSG:27700 declared for the plot corners only**, tabulated in the description PDF with elevations in m aOD (ODN). Per-trace positions are **local grid only** — all 321 `.cor` GNSS files are 0 bytes. Provenance would be `supplied_by_caller`. |
 | **Survey geometry** | 6 plots, 321 lines, **two orthogonal directions per plot** on a **≈0.4 m grid**. 0.019011 m trace spacing, 336 samples, 66.335 ns window, distance-triggered measuring wheel. Plots HE and HF additionally at 250 and 800 MHz. 4 surveyed control points per plot. |
-| **Supported phases** | future `.rd3`/`.rad` MALÅ reader · `OdometryPosition` · `LocalCartesianPosition` · `Assumption` |
+| **Supported phases** | ✅ `MALAConverter` (`.rd3`/`.rad`) · `OdometryPosition` · `LocalCartesianPosition` · `Assumption` |
+| **Ingestion** | **321/321 files read, 0 failures.** 174,811 traces, 55,567,032 samples. Antennas 250 MHz ×27, 500 ×273, 800 ×21. Time windows 22.17–78.63 ns, sample intervals 0.077–0.328 ns. All traces `OdometryPosition`. |
 | **Benchmark role** | MALÅ format coverage; local-grid acquisition with surveyed control points. |
 
 **Limitations**
 
-- **No reader exists.** `.rd3` is in `KNOWN_UNSUPPORTED_FORMATS`; ingestion
-  is blocked until a MALÅ converter is written.
-- **No satellite positioning of any kind** — every `.cor` is 0 bytes.
+- ~~No reader exists.~~ **Resolved** by `converters/mala_converter.py`.
+- **No satellite positioning of any kind** — every `.cor` is 0 bytes. The
+  converter treats this as an ABSENCE in the survey (recorded as a
+  `gnss_absent` frame assumption), not a read failure.
+- **No depth without a caller-supplied velocity.** The `.rad` carries no
+  site velocity, so `depth` stays `None` by default — there is no fallback.
 - Promoting local coordinates to EPSG:27700 requires a **2D similarity or
   affine tie**. `ingestion/geo_tie.py` interpolates against `along_track_m`
   only. **Not implemented, by instruction.**
@@ -214,12 +220,12 @@ Capability → which datasets can exercise it, given what is on disk today.
 | SEG-Y ingestion (big-endian) | `ingv-unisa` | ✅ working |
 | SEG-Y ingestion (**little-endian**) | `4tu-nl-utility` (759 files) | ✅ **working** |
 | IDS `.dt` ingestion | `guangzhou-ids`, `tu1208-ifsttar` | ✅ working, now on two instruments |
-| MALÅ `.rd3`/`.rad` ingestion | `hillside-lancaster` (321), `tu1208-ifsttar` (15) | ❌ **converter gap** |
+| MALÅ `.rd3`/`.rad` ingestion | `hillside-lancaster` (321), `tu1208-ifsttar` (15) | ✅ **working** |
 | GSSI `.dzt` ingestion | `tu1208-ifsttar` (40) | ❌ converter gap |
 | `GeographicPosition` | `4tu-nl-utility`, `ingv-unisa` | ✅ |
 | `ProjectedPosition` | `ingv-unisa` | ⚠️ no *declared* CRS anywhere on disk |
 | `OdometryPosition` | `guangzhou-ids`, `hillside-lancaster` | ✅ |
-| `LocalCartesianPosition` | `hillside-lancaster` | ⚠️ needs a line-spacing assumption |
+| `LocalCartesianPosition` | `hillside-lancaster` | ⚠️ reader exists; x/y needs a declared line spacing |
 | `NoPosition` | `4tu-nl-utility` (43 files) | ✅ |
 | `CRSProvenance.NONE` | `4tu-nl-utility`, `tu1208-ifsttar` | ✅ |
 | GeoTie (along-track) | — | ⚠️ no dataset on disk supplies along-track control points |
@@ -229,9 +235,9 @@ Capability → which datasets can exercise it, given what is on disk today.
 | Excavated ground truth | `4tu-nl-utility` | ⚠️ present but **without coordinates** |
 | Controlled-site ground truth | `tu1208-ifsttar` | ⚠️ target inventory unverified |
 | Tunnels | — | ❌ in the Guangzhou record, not in the local subset |
-| 3D reconstruction | `hillside-lancaster` (0.4 m orthogonal grids) | ⚠️ blocked on the MALÅ reader |
-| Multi-frequency comparison | `hillside-lancaster` (250/500/800), `tu1208-ifsttar` (200–900) | ⚠️ blocked on readers |
-| Multi-vendor consistency | `tu1208-ifsttar` | ⚠️ 1 of 3 vendors readable today |
+| 3D reconstruction | `hillside-lancaster` (0.4 m orthogonal grids) | ✅ readable; x/y needs a declared line spacing |
+| Multi-frequency comparison | `hillside-lancaster` (250/500/800), `tu1208-ifsttar` (200–900) | ✅ readable |
+| Multi-vendor consistency | `tu1208-ifsttar` | ⚠️ **2 of 3** vendors readable (IDS, MALÅ) |
 
 ### What Tier 1 changed
 
@@ -253,10 +259,11 @@ a genuine `NoPosition` population; two datasets that declare no CRS.
 
 1. ~~**Little-endian SEG-Y**~~ — **done.** `converters/segy_endian.py`;
    759/759 files ingest.
-2. **MALÅ `.rd3`/`.rad`** — unblocks 336 files across two independent
-   sites. `.rad` is plain-text `KEY:value`, `.rd3` is raw int16.
-3. **GSSI `.dzt`** — unblocks 40 files; `readgssi.m` in the TU1208 archive
-   is a reference implementation of the header layout.
+2. ~~**MALÅ `.rd3`/`.rad`**~~ — **done.** `converters/mala_converter.py`;
+   336/336 files ingest across two independent sites.
+3. **GSSI `.dzt`** — the last converter gap. Unblocks 40 files and completes
+   three-vendor coverage of the TU1208 controlled site; `readgssi.m` in that
+   archive documents the header layout.
 
 ### Unsupported SEG-Y variants that remain
 

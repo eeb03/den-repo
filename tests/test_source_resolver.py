@@ -93,11 +93,11 @@ def test_an_archive_is_extracted_and_resolved(tmp_path):
 
 def test_an_archive_of_only_proprietary_files_says_so(tmp_path):
     """Distinguishable from an archive holding nothing of interest."""
-    path = _zip(tmp_path, ["a.dzt", "b.dzt", "c.rd3"])
+    path = _zip(tmp_path, ["a.dzt", "b.dzt", "c.sgd"])
     result = resolve(path, extract_to=tmp_path / "out")
     assert result.sources == []
     assert result.unsupported_summary() == {
-        "GSSI (proprietary GPR)": 2, "MALA RAMAC (proprietary GPR)": 1,
+        "GSSI (proprietary GPR)": 2, "Sensors & Software (proprietary GPR)": 1,
     }
 
 

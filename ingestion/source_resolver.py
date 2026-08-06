@@ -29,7 +29,8 @@ logger = get_logger(__name__)
 
 #: Sidecars identified by sharing a primary file's stem. Each carries header
 #: or positioning information that is meaningless without its primary.
-STEM_SIDECAR_EXTENSIONS = {".dt_info", ".rad", ".dzx", ".dzg", ".hdr", ".prj", ".aux.xml"}
+STEM_SIDECAR_EXTENSIONS = {".dt_info", ".rad", ".cor", ".mrk", ".add", ".em",
+                           ".dzx", ".dzg", ".hdr", ".prj", ".aux.xml"}
 
 #: Sidecars that describe a whole ACQUISITION rather than one file, and so
 #: attach to every source they could plausibly belong to. A .kmz holds the
