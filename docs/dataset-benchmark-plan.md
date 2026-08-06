@@ -144,16 +144,16 @@ untestable. It is not a ranking of scientific quality.
 **Official source** GPR Group of Guangzhou University (Prof. Hai Liu and team).
 **Download** https://zenodo.org/records/14637589 — DOI [10.5281/zenodo.14637589](https://doi.org/10.5281/zenodo.14637589)
 **License** CC-BY-4.0.
-**Size** 3.8 GB (`Data Set.zip`). The record cites 8.4 TB total data volume; the published archive is the 3.8 GB subset. **Already downloaded to `datasets/raw/zenodo/14637589/`.**
+**Size** 3.8 GB (`Data Set.zip`), 4,572 members. **Only a 2.9 MB subset is local.** `datasets/raw/zenodo/14637589/` holds **10 `.dt` files** in three acquisition directories — `pipe/2020wate`, `pipe/1030`, `rebar/yangben` — fetched by HTTP Range against the archive's central directory, per `PROVENANCE.json`. **No tunnel data is held locally.**
 **Formats** Raw `.dt`, IDS GeoRadar proprietary — decoded by `converters/ids_dt_converter.py`.
 **CRS** None. Positioning is wheel odometry only.
-**Survey geometry** 674 `.dt` files. Three tunnels (Liangjiaying, Pingdingshan, Niujianzi), pipelines at University Town Guangzhou, rebar in a Foshan residential area.
+**Survey geometry** The published record covers three tunnels (Liangjiaying, Pingdingshan, Niujianzi), pipelines at University Town Guangzhou, and rebar in a Foshan residential area. **Locally: pipelines and rebar only.**
 **Preprocessing required** Already implemented, including the acquisition time axis recovered from the H record and cross-checked against `Ini000N.ini`. Depth requires a caller-supplied velocity.
 **GeoTie available** No control points published. Odometry is terminal for this dataset.
 **True 3D reconstruction** No — single lines, no cross-line geometry.
 **Capabilities validated** `IDSDTConverter`; `OdometryPosition`; caller-supplied velocity and the measured-time / assumed-velocity / derived-depth separation; `AxisKind.TWO_WAY_TIME_NS`; **tunnels** as a target class.
-**Strengths** Already local and already working. The only tunnel data found. Covers three distinct target types.
-**Weaknesses** No ground-truth annotations confirmed in the record. No coordinates of any kind, so it can never participate in fusion. Velocity must be asserted by the caller, so all depths are derived.
+**Strengths** The local subset already works end to end. The published record is the only tunnel GPR data found in this survey.
+**Weaknesses** No ground-truth annotations confirmed in the record. No coordinates of any kind, so it can never participate in fusion. Velocity must be asserted by the caller, so all depths are derived. **Tunnel coverage requires the full 3.8 GB download** — it is a record-level capability, not a local one.
 
 ### 7. INGV-UNISA SEG-Y + KMZ
 
@@ -247,7 +247,7 @@ untestable. It is not a ranking of scientific quality.
 | Multiple parallel lines | ✅ | #5 (0.06–0.12 m spacing), #3 (11 lines) |
 | Buried utilities | ✅ | #1 (trench-verified), #3 (emplaced), #6 |
 | Archaeological targets | ✅ | #5, #4 |
-| Tunnels | ✅ | #6 — three tunnels |
+| Tunnels | ⚠️ | #6 covers three tunnels **in the published record**; the local 2.9 MB subset holds none. Needs the full 3.8 GB. |
 | UXO | ❌ | **no open GPR UXO dataset found**; #12 is EMI and gated |
 | Pipes | ✅ | #1, #3, #6 |
 | Ground-truth annotations | ⚠️ | #1 trenches (but **no coordinates**), #3 emplaced targets; #5 is interpretation |

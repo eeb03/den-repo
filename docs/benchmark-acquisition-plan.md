@@ -176,8 +176,15 @@ git — CMU-GPR is non-commercial and NSGeophysics is unlicensed.
 
 ## Tier 0 — already local, 0 new bytes
 
-INGV-UNISA SEG-Y + KMZ, and the Guangzhou IDS `.dt` archive
-(`datasets/raw/zenodo/14637589/`).
+INGV-UNISA SEG-Y + KMZ, and a **2.9 MB, 10-file subset** of the Guangzhou
+IDS `.dt` archive (`datasets/raw/zenodo/14637589/`, `pipe` + `rebar` only).
+
+**Correction to the previous plan**, which described Guangzhou as "already
+downloaded, 3.8 GB, 674 files". That described the *published record*, not
+what is on disk. The local holding is a range-fetched subset recorded in
+`PROVENANCE.json` (2,927,533 bytes transferred against a 3,784,747,664-byte
+archive). **It contains no tunnel data.** If tunnels are wanted as a target
+class, that is a new ~3.8 GB Tier 2 download, not an existing asset.
 
 These are the **regression gate**, not a benchmark: shapes 482×72 / 482×66,
 depth 0→7.04665 m at 0.01465, z_std 0.904066 / 0.845445, |z|max 4.273256 /
