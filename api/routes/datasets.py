@@ -763,9 +763,18 @@ def get_dataset_points(dataset_id: str, max_points: int = 20000, db: Session = D
             "ground_truth": r.ground_truth.value,
             "trace_index": (r.metadata or {}).get("trace_index"),
             "anomaly_reliable": (r.metadata or {}).get("anomaly_reliable"),
+            # What kind of position this point actually has, and where it came
+            # from. "lat"/"lon" above are the legacy view and may be the (0,0)
+            # placeholder; these two say whether that is a real position.
+            "position_kind": r.position.kind,
+            "position_source": (r.metadata or {}).get("position_source"),
         }
         for r in records
     ]
+
+    position_kinds: dict[str, int] = {}
+    for pnt in points:
+        position_kinds[pnt["position_kind"]] = position_kinds.get(pnt["position_kind"], 0) + 1
 
     return {
         "dataset_id": dataset_id,
@@ -773,6 +782,7 @@ def get_dataset_points(dataset_id: str, max_points: int = 20000, db: Session = D
         "sensor_type": dataset.sensor_type,
         "total_records": total,
         "returned_points": len(points),
+        "position_kinds": position_kinds,
         "points": points,
     }
 
@@ -887,6 +897,22 @@ def get_dataset_trace_grid(
     }
     velocity_assumption = sorted(velocity_values)[0] if len(velocity_values) == 1 else (sorted(velocity_values) or None)
 
+    # This line's own acquisition frame: CRS, vertical axis and the
+    # assumptions behind them. Reconstructed for datasets ingested before
+    # frames existed rather than reported as absent.
+    all_frames = load_frames(dataset_id) or synthesize_frames_from_records(records)
+    match = next((f for f in all_frames if f.source_file == result["source_file"]), None)
+    line_frame = None
+    if match is not None:
+        line_frame = {
+            "frame_id": match.frame_id,
+            "source_format": match.source_format,
+            "modality": match.modality.value,
+            "spatial_ref": match.spatial_ref.model_dump(mode="json"),
+            "vertical_axis": match.vertical_axis.model_dump(mode="json"),
+            "assumptions": [a.model_dump(mode="json") for a in match.assumptions],
+        }
+
     return {
         "dataset_id": dataset_id,
         "name": dataset.name,
@@ -899,6 +925,11 @@ def get_dataset_trace_grid(
         "trace_indices": result["trace_indices"],
         "trace_lat": result["trace_lat"],
         "trace_lon": result["trace_lon"],
+        # Whether each trace's (lat, lon) is a real geographic position or the
+        # legacy placeholder -- a caller georeferencing a column needs to know
+        # before treating those numbers as a location.
+        "trace_position_kind": result.get("trace_position_kind"),
+        "survey_frame": line_frame,
         "grid": grid_json,
         "velocity_m_per_ns": velocity_assumption,
         "velocity_note": (

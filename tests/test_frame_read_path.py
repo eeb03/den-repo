@@ -165,3 +165,96 @@ def test_info_surfaces_frame_assumptions(monkeypatch):
     assumptions = body["survey_frames"][0]["assumptions"]
     assert assumptions[0]["key"] == "gpr_velocity"
     assert assumptions[0]["verified"] is False
+
+
+# --- provenance also reaches /points and /trace_grid -------------------------
+#
+# /info was the first consumer; a caller plotting points or georeferencing a
+# radargram column needs the same information, otherwise it has no way to tell
+# a real coordinate from the legacy (0, 0) placeholder.
+
+def _endpoint(monkeypatch, url, records, frames):
+    import api.routes.datasets as mod
+
+    class _Row:
+        id, name, sensor_type, original_format = "ds", "d", "gpr", "segy"
+        source = license = None
+        record_count, quality_score, has_ground_truth = len(records), 1.0, False
+        extra_metadata = {}
+
+    class _Q:
+        def filter(self, *a): return self
+        def first(self): return _Row()
+
+    class _DB:
+        def query(self, *a): return _Q()
+
+    monkeypatch.setattr(mod, "load_records", lambda _id: records)
+    monkeypatch.setattr(mod, "load_frames", lambda _id: frames)
+    app.dependency_overrides[mod.get_db] = lambda: _DB()
+    try:
+        return TestClient(app).get(url).json()
+    finally:
+        app.dependency_overrides.clear()
+
+
+def _trace_records(n_traces=6, n_depths=30, geographic=False):
+    from schemas.spatial import GeographicPosition, NoPosition
+    recs = []
+    for t in range(n_traces):
+        for d in range(n_depths):
+            pos = (GeographicPosition(lat=41.0 + t * 1e-4, lon=15.0 + t * 1e-4)
+                   if geographic else NoPosition(reason="headers are (0, 0)"))
+            recs.append(SubterraRecord(
+                dataset_id="ds", sensor_type=SensorType.GPR,
+                latitude=41.0 + t * 1e-4 if geographic else 0.0,
+                longitude=15.0 + t * 1e-4 if geographic else 0.0,
+                position=pos, frame_id="ds:line", depth=round(d * 0.01, 6), signal=[1.0],
+                metadata={"source_file": "line.SGY", "trace_index": t, "sample_index": d,
+                          "velocity_m_per_ns": 0.1,
+                          "position_source": "segy_header" if geographic else "none"},
+            ))
+    return recs
+
+
+def test_points_endpoint_reports_position_kind_per_record(monkeypatch):
+    body = _endpoint(monkeypatch, "/api/datasets/ds/points", _records(projected=True), [_frame()])
+    assert all(p["position_kind"] == "projected" for p in body["points"])
+    assert body["position_kinds"] == {"projected": 4}
+
+
+def test_points_endpoint_reports_position_source(monkeypatch):
+    body = _endpoint(monkeypatch, "/api/datasets/ds/points", _records(projected=True), [_frame()])
+    assert all(p["position_source"] == "segy_header" for p in body["points"])
+
+
+def test_points_endpoint_distinguishes_placeholder_from_real_coordinates(monkeypatch):
+    """(0,0) in lat/lon must be identifiable as 'no position', not a location."""
+    body = _endpoint(monkeypatch, "/api/datasets/ds/points", _trace_records(geographic=False),
+                     [_frame()])
+    assert body["position_kinds"] == {"none": len(body["points"])}
+    assert all(p["lat"] == 0.0 and p["position_kind"] == "none" for p in body["points"])
+
+
+def test_trace_grid_reports_the_lines_survey_frame(monkeypatch):
+    body = _endpoint(monkeypatch, "/api/datasets/ds/trace_grid",
+                     _trace_records(geographic=True), [_frame()])
+    frame = body["survey_frame"]
+    assert frame is not None
+    assert frame["spatial_ref"]["code"] == "EPSG:32633"
+    assert frame["vertical_axis"]["kind"] == "two_way_time_ns"
+
+
+def test_trace_grid_reports_per_trace_position_kind(monkeypatch):
+    body = _endpoint(monkeypatch, "/api/datasets/ds/trace_grid",
+                     _trace_records(geographic=False), [_frame()])
+    assert set(body["trace_position_kind"]) == {"none"}
+    assert len(body["trace_position_kind"]) == body["n_traces"]
+
+
+def test_trace_grid_falls_back_to_a_reconstructed_frame(monkeypatch):
+    body = _endpoint(monkeypatch, "/api/datasets/ds/trace_grid",
+                     _trace_records(geographic=True), [])
+    assert body["survey_frame"] is not None
+    keys = [a["key"] for a in body["survey_frame"]["assumptions"]]
+    assert "frame_reconstructed" in keys
