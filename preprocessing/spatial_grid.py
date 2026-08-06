@@ -246,14 +246,24 @@ def preprocess_spatial_grid_anomaly(
     if not records:
         return records
 
+    # (lat, lon) binning is only meaningful for geographic records. Others are
+    # left out of the grid entirely rather than binned at a missing
+    # coordinate, and keep their original index so the results still scatter
+    # back onto the right record.
     rows = [
         {
             "idx": i, "lat": r.latitude, "lon": r.longitude,
             "depth": round(r.depth, 6) if r.depth is not None else 0.0,
             "value": r.signal[0] if r.signal else np.nan,
         }
-        for i, r in enumerate(records)
+        for i, r in enumerate(records) if has_geographic_coordinates(r)
     ]
+    if not rows:
+        logger.warning(
+            f"preprocess_spatial_grid_anomaly: none of the {len(records)} record(s) carry a "
+            f"geographic position, so no (lat, lon) grid can be built -- skipping."
+        )
+        return records
     df = pd.DataFrame(rows)
     if df["value"].isna().all():
         logger.warning("preprocess_spatial_grid_anomaly: no scalar signal values found; skipping.")
@@ -538,8 +548,13 @@ def build_grid_for_records(
             "depth": round(r.depth, 6) if r.depth is not None else 0.0,
             "value": get_value(r),
         }
-        for r in records
+        for r in records if has_geographic_coordinates(r)
     ]
+    if not rows:
+        raise ValueError(
+            "No record carries a geographic position, so no (lat, lon) grid can be built. "
+            "Use /trace_grid for line data indexed by trace, or supply a CRS at ingest."
+        )
     df = pd.DataFrame(rows)
 
     available_depths = df["depth"].unique()
@@ -598,8 +613,14 @@ def preprocess_spatial_grid(
             "depth": round(r.depth, 6) if r.depth is not None else 0.0,
             "value": r.signal[0] if r.signal else np.nan,
         }
-        for i, r in enumerate(records)
+        for i, r in enumerate(records) if has_geographic_coordinates(r)
     ]
+    if not rows:
+        logger.warning(
+            f"preprocess_spatial_grid: none of the {len(records)} record(s) carry a geographic "
+            f"position, so no (lat, lon) raster can be built -- skipping."
+        )
+        return records
     df = pd.DataFrame(rows)
 
     if df["value"].isna().all():

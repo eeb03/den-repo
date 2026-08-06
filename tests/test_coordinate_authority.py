@@ -46,13 +46,28 @@ def test_geographic_header_position_does_not_need_the_kmz_fallback():
     assert records_needing_kmz_fallback(recs) is False
 
 
-def test_kmz_never_overwrites_a_header_derived_position():
-    """The core guarantee: `position` is the file's, always."""
+def test_kmz_sets_a_geographic_position_and_keeps_the_header_values():
+    """
+    M3: `position` is the single source of spatial truth, so a KMZ track --
+    which IS a real geographic position -- sets it. The file's own header
+    coordinates are not lost; SEGYConverter keeps them in metadata.
+    """
     recs = _records(lambda t: ProjectedPosition(easting=501134.0 + t, northing=4544705.0 + t))
-    before = [(r.position.easting, r.position.northing) for r in recs]
+    for r in recs:
+        r.metadata["segy_x"], r.metadata["segy_y"] = r.position.easting, r.position.northing
+    before = [(r.metadata["segy_x"], r.metadata["segy_y"]) for r in recs]
+
     georeference_records_by_trace(recs, TRACK)
-    assert [(r.position.easting, r.position.northing) for r in recs] == before
-    assert all(r.position.kind == PositionKind.PROJECTED for r in recs)
+
+    assert all(r.position.kind == PositionKind.GEOGRAPHIC for r in recs)
+    assert [(r.metadata["segy_x"], r.metadata["segy_y"]) for r in recs] == before
+    assert all(r.metadata["position_source"] == "kmz_fallback" for r in recs)
+
+
+def test_kmz_only_runs_when_the_headers_could_not_supply_a_position():
+    """The guard, not the mutation, is what protects header authority."""
+    usable = _records(lambda t: GeographicPosition(lat=41.0 + t * 1e-4, lon=15.0))
+    assert records_needing_kmz_fallback(usable) is False
 
 
 # --- when the header cannot supply one, the KMZ is used ---

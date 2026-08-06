@@ -271,8 +271,13 @@ def _characterize_cluster(
         centroid_col_idx = max(0, min(n_traces - 1, int(round(shape_feats["centroid_col"]))))
     else:
         centroid_col_idx = (col_min + col_max) // 2
-    centroid_lat = float(trace_lat[centroid_col_idx])
-    centroid_lon = float(trace_lon[centroid_col_idx])
+    # A centroid position exists only when the spanned traces do. Both fields
+    # are Optional precisely so an un-georeferenced line reports no centroid
+    # rather than a coordinate it does not have.
+    centroid_source_lat = trace_lat[centroid_col_idx]
+    centroid_source_lon = trace_lon[centroid_col_idx]
+    centroid_lat = float(centroid_source_lat) if centroid_source_lat is not None else None
+    centroid_lon = float(centroid_source_lon) if centroid_source_lon is not None else None
 
     reliable_flags, kmz_flags, dem_flags, velocities, elevations = [], [], [], set(), []
     for row, col in zip(ys.tolist(), xs.tolist()):

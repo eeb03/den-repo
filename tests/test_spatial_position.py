@@ -106,7 +106,7 @@ def test_explicit_position_overrides_legacy_derivation():
              position=ProjectedPosition(easting=501134.03, northing=4544705.58))
     assert r.position.kind == PositionKind.PROJECTED
     assert r.position.easting == 501134.03
-    assert (r.latitude, r.longitude) == (0.0, 0.0)  # legacy view untouched
+    assert (r.latitude, r.longitude) == (0.0, 0.0)  # explicit values are honoured as given
 
 
 def test_stored_records_without_position_still_load():

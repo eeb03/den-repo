@@ -187,7 +187,7 @@ def test_no_geographic_coordinates_are_fabricated(result):
     geographic: the format has no lat/lon and none is invented.
     """
     assert all(r.position.kind == PositionKind.ODOMETRY for r in result.records[:200])
-    assert (result.records[0].latitude, result.records[0].longitude) == (0.0, 0.0)
+    assert (result.records[0].latitude, result.records[0].longitude) == (None, None)
 
 
 def test_no_crs_is_invented(result):

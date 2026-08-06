@@ -158,7 +158,7 @@ class TestSegyFrame:
         assert r.position.kind == PositionKind.PROJECTED
         assert r.position.easting == pytest.approx(501134.03, abs=0.01)
         assert r.position.northing == pytest.approx(4544705.58, abs=0.01)
-        assert (r.latitude, r.longitude) == (0.0, 0.0)  # legacy view unchanged
+        assert (r.latitude, r.longitude) == (None, None)  # M3: no placeholder
 
     def test_frame_declares_projected_crs_without_inventing_an_epsg_code(self, result):
         ref = result.frames[0].spatial_ref

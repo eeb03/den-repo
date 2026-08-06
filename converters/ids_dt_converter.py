@@ -452,7 +452,9 @@ class IDSDTConverter(BaseConverter):
                 records.append(SubterraRecord(
                     dataset_id=dataset_id,
                     sensor_type=sensor_type,
-                    latitude=0.0, longitude=0.0,   # legacy view; `position` is the truth
+                    # No geographic position exists for this format, so the
+                    # legacy view is left unset rather than fabricated.
+                    latitude=None, longitude=None,
                     position=position,
                     frame_id=frame_id,
                     elevation=None,

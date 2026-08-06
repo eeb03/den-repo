@@ -11,7 +11,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from schemas.spatial import GeographicPosition, NoPosition, Position
+from schemas.spatial import GeographicPosition, NoPosition, Position, PositionKind
 
 
 class SensorType(str, Enum):
@@ -53,6 +53,10 @@ LEGACY_PLACEHOLDER_REASON = (
     "position was representable; not an actual position"
 )
 
+#: Used when a caller supplies neither coordinates nor a position. Absence is
+#: recorded as a declaration rather than left as an unset field.
+NO_COORDINATES_SUPPLIED = "no coordinates or position were supplied for this sample"
+
 
 class SubterraRecord(BaseModel):
     """One sensor observation in the unified format.
@@ -63,19 +67,29 @@ class SubterraRecord(BaseModel):
     horizontal position" is something a converter declares deliberately
     rather than something that happens by omission.
 
-    `latitude`/`longitude` are RETAINED UNCHANGED for backward
-    compatibility: every existing consumer (fusion, validators, DEM
-    alignment, the API, ~40 test construction sites) still reads them, and
-    this milestone does not change their values or their required-ness. A
-    later milestone makes them optional and derives them from `position`.
-    Until then they are the legacy view and `position` is the truth; when
-    they disagree, `position` wins.
+    `latitude`/`longitude` are now a DERIVED VIEW of `position`, not an
+    independent field, and they are optional. They are populated only when
+    the sample genuinely has a geographic position; a projected, odometry,
+    or unpositioned sample leaves them None rather than carrying the (0.0,
+    0.0) placeholder converters used to invent to satisfy a required field.
+
+    That placeholder was not harmless. It made "at 0N 0E" and "position
+    unknown" the same value, produced a fabricated 0.0 m lateral extent in
+    the evidence tier, and clustered every unpositioned dataset together off
+    the coast of Africa during fusion. Two separate bugs in one session
+    traced back to code trying to tell the two apart after the fact.
+
+    Compatibility runs BOTH ways, so existing code keeps working:
+    constructing a record with latitude/longitude derives the matching
+    GeographicPosition, and constructing one with a GeographicPosition fills
+    latitude/longitude in. Only non-geographic samples see None -- which is
+    the point.
     """
 
     dataset_id: str = Field(..., description="Parent dataset identifier")
     sensor_type: SensorType
-    latitude: float = Field(..., ge=-90, le=90)
-    longitude: float = Field(..., ge=-180, le=180)
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
     position: Position = Field(
         ...,
         description="Explicit spatial position; auto-derived from latitude/longitude when not supplied",
@@ -108,11 +122,32 @@ class SubterraRecord(BaseModel):
         mislabelled; that is open ocean, and any converter that knows
         better sets `position` explicitly and bypasses this entirely.
         """
-        if not isinstance(data, dict) or data.get("position") is not None:
+        if not isinstance(data, dict):
             return data
+        position = data.get("position")
+
+        if position is not None:
+            # position -> latitude/longitude, so consumers that still read the
+            # legacy fields keep working for geographic data.
+            if data.get("latitude") is None and data.get("longitude") is None:
+                kind = (position.get("kind") if isinstance(position, dict)
+                        else getattr(position, "kind", None))
+                if kind == PositionKind.GEOGRAPHIC:
+                    lat = (position.get("lat") if isinstance(position, dict)
+                           else position.lat)
+                    lon = (position.get("lon") if isinstance(position, dict)
+                           else position.lon)
+                    data = dict(data)
+                    data["latitude"], data["longitude"] = lat, lon
+            return data
+
+        # latitude/longitude -> position, for callers that supply only the
+        # legacy fields.
         lat, lon = data.get("latitude"), data.get("longitude")
         if lat is None or lon is None:
-            return data  # let the normal required-field error surface
+            data = dict(data)
+            data["position"] = NoPosition(reason=NO_COORDINATES_SUPPLIED)
+            return data
         try:
             lat_f, lon_f = float(lat), float(lon)
         except (TypeError, ValueError):

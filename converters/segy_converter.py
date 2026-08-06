@@ -218,10 +218,11 @@ class SEGYConverter(BaseConverter):
                 position = _classify_position(x, y)
                 trace_positions.append(position)
 
-                # Legacy lat/lon. Unchanged when no CRS was declared: trusted
-                # as real WGS84 only when actually in range, else the
-                # historical (0.0, 0.0). `position` above preserves the
-                # projected case either way.
+                # latitude/longitude are a DERIVED VIEW of the position, and
+                # are left unset when there is no geographic position to
+                # derive them from. The (0.0, 0.0) placeholder this used to
+                # write made "no position" indistinguishable from a real
+                # coordinate in the Gulf of Guinea.
                 if -90.0 <= y <= 90.0 and -180.0 <= x <= 180.0:
                     latitude, longitude = y, x
                 elif declared_crs is not None:
@@ -230,7 +231,7 @@ class SEGYConverter(BaseConverter):
                     # stay authoritative in `position`.
                     latitude, longitude = _to_wgs84(declared_crs, x, y)
                 else:
-                    latitude, longitude = 0.0, 0.0
+                    latitude, longitude = None, None
 
                 sample_interval = f.bin.get(segyio.BinField.Interval, None)
 

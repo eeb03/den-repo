@@ -447,7 +447,7 @@ def test_kmz_georeferenced_traces_count_as_geographic():
     real coordinates, not be discarded because the position kind differs.
     """
     from interpretation.anomaly_candidates import find_anomaly_candidates
-    from schemas.spatial import ProjectedPosition
+    from schemas.spatial import GeographicPosition
     from schemas.subterra_record import SensorType, SubterraRecord
 
     recs = []
@@ -457,10 +457,13 @@ def test_kmz_georeferenced_traces_count_as_geographic():
             recs.append(SubterraRecord(
                 dataset_id="d", sensor_type=SensorType.GPR,
                 latitude=41.0 + t * 1e-4, longitude=15.0,
-                position=ProjectedPosition(easting=500000.0 + t, northing=4544000.0),
+                # KMZ georeferencing sets a geographic position (M3); the
+                # header easting/northing survive in metadata.
+                position=GeographicPosition(lat=41.0 + t * 1e-4, lon=15.0),
                 depth=round(d * 0.01, 6), signal=[val],
                 metadata={"source_file": "l.SGY", "trace_index": t, "sample_index": d,
-                          "anomaly_reliable": True, "georeferenced_from_kmz": True},
+                          "anomaly_reliable": True, "georeferenced_from_kmz": True,
+                          "segy_x": 500000.0 + t, "segy_y": 4544000.0},
             ))
     cands = find_anomaly_candidates(recs, source_file="l.SGY")
     multi = [c for c in cands if c.evidence.trace_range[1] > c.evidence.trace_range[0]]

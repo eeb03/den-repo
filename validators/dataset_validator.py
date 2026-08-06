@@ -6,6 +6,7 @@ and an overall quality score.
 import math
 from pathlib import Path
 
+from schemas.spatial import PositionKind
 from schemas.subterra_record import SubterraRecord, DatasetQualityReport
 from utils.checksum import sha256_of_file
 from utils.logger import get_logger
@@ -31,16 +32,25 @@ def validate_dataset(
         )
 
     missing_coords = 0
+    no_position = 0
     missing_timestamps = 0
     missing_depth = 0
     invalid_signal = 0
     out_of_bounds = 0
 
     for r in records:
-        if r.latitude == 0.0 and r.longitude == 0.0:
-            missing_coords += 1
-        if not (-90 <= r.latitude <= 90 and -180 <= r.longitude <= 180):
-            out_of_bounds += 1
+        # A record without geographic coordinates is only a DEFECT when it
+        # claims to have them. A projected, odometry, or deliberately
+        # unpositioned sample is complete as it stands, and used to be
+        # penalised for carrying the (0, 0) placeholder it was forced to
+        # invent.
+        if r.position.kind == PositionKind.GEOGRAPHIC:
+            if r.latitude is None or r.longitude is None:
+                missing_coords += 1
+            elif not (-90 <= r.latitude <= 90 and -180 <= r.longitude <= 180):
+                out_of_bounds += 1
+        elif r.position.kind == PositionKind.NONE:
+            no_position += 1
         if r.timestamp is None:
             missing_timestamps += 1
         if r.depth is None:
@@ -51,7 +61,14 @@ def validate_dataset(
     if out_of_bounds:
         issues.append(f"{out_of_bounds} record(s) have out-of-bounds coordinates.")
     if missing_coords:
-        issues.append(f"{missing_coords} record(s) have null-island (0,0) coordinates — likely missing data.")
+        issues.append(
+            f"{missing_coords} record(s) declare a geographic position but carry no coordinates."
+        )
+    if no_position == n:
+        issues.append(
+            "No record carries a horizontal position. This is legitimate for formats that "
+            "provide none (e.g. IDS .dt), but such a dataset cannot be georeferenced or fused."
+        )
     if invalid_signal:
         issues.append(f"{invalid_signal} record(s) contain NaN/Inf signal values.")
 

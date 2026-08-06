@@ -180,6 +180,8 @@ def fuse_datasets(
     deg_per_m = 1 / 111_000  # rough approximation, fine for clustering purposes
     cell_size = radius_m * deg_per_m
 
+    # Every record here passed has_geographic_coordinates, so latitude and
+    # longitude are populated by the schema's position bridge.
     buckets: dict[tuple[int, int], list[SubterraRecord]] = {}
     for r in geographic:
         key = (int(r.latitude / cell_size), int(r.longitude / cell_size))

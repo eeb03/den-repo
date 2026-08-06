@@ -47,7 +47,8 @@ def test_without_a_crs_projected_headers_are_preserved(without_crs):
 def test_without_a_crs_no_geographic_coordinates_are_produced(without_crs):
     """The honest state: we hold the position but cannot say where on Earth it is."""
     r = without_crs.records[0]
-    assert (r.latitude, r.longitude) == (0.0, 0.0)
+    # M3: unset, not the (0.0, 0.0) placeholder this used to invent.
+    assert (r.latitude, r.longitude) == (None, None)
 
 
 def test_without_a_crs_the_frame_declares_none_and_invents_nothing(without_crs):
@@ -145,14 +146,15 @@ def test_kmz_fallback_still_needed_when_no_crs_was_supplied(without_crs):
     assert records_needing_kmz_fallback(without_crs.records[:100]) is True
 
 
-def test_kmz_does_not_overwrite_crs_derived_coordinates(with_crs):
-    from ingestion.kmz_georeference import georeference_records_by_trace
-    recs = [r.model_copy(deep=True) for r in with_crs.records[:100]]
-    before = [(r.latitude, r.longitude) for r in recs]
-    # The route guards on records_needing_kmz_fallback; assert the guard holds.
+def test_kmz_is_not_applied_once_a_crs_makes_the_headers_usable(with_crs):
+    """
+    The GUARD is what protects a CRS-derived position, not any property of
+    the KMZ routine itself: since M3 that routine legitimately promotes
+    `position` to geographic, so the protection has to be in not calling it.
+    """
     from ingestion.kmz_georeference import records_needing_kmz_fallback
+
+    recs = [r.model_copy(deep=True) for r in with_crs.records[:100]]
     assert records_needing_kmz_fallback(recs) is False
-    # And that positions survive even if it were called directly.
-    georeference_records_by_trace(recs, [(15.0, 41.0), (15.01, 41.01)])
     assert all(r.position.kind == PositionKind.PROJECTED for r in recs)
-    assert before != [(r.latitude, r.longitude) for r in recs]  # only the legacy view moved
+    assert all(r.latitude is not None for r in recs)   # derived from the declared CRS

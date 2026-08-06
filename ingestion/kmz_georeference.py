@@ -242,7 +242,7 @@ def records_needing_kmz_fallback(records: list) -> bool:
         # A projected header position becomes usable once a CRS is declared:
         # latitude/longitude are then DERIVED from it and must not be replaced.
         return (r.metadata.get("position_source") == "segy_header"
-                and (r.latitude, r.longitude) != (0.0, 0.0))
+                and r.latitude is not None and r.longitude is not None)
 
     return not any(header_supplied_a_geographic_view(r) for r in records)
 
@@ -282,9 +282,13 @@ def georeference_records_by_trace(
     their own single-sample trace (index = their position in the list), so
     this also works for converters that emit one record per trace.
 
-    NOTE this sets latitude/longitude only. `record.position` is left
-    untouched, so a header-derived position is never overwritten by the
-    fallback -- see `records_needing_kmz_fallback`.
+    Sets `record.position` to a GeographicPosition as well as the legacy
+    latitude/longitude, because a KMZ track IS a real geographic position
+    and `position` is the platform's single source of spatial truth. The
+    file's own header coordinates are not lost: SEGYConverter keeps them in
+    metadata["segy_x"]/["segy_y"]. This fallback only runs when the headers
+    could not yield a geographic position in the first place -- see
+    `records_needing_kmz_fallback`.
     """
     if not records:
         return 0
@@ -294,10 +298,13 @@ def georeference_records_by_trace(
     resampled = resample_path_by_arc_length(path_coords, len(unique_traces))
     coord_by_trace = dict(zip(unique_traces, resampled))
 
+    from schemas.spatial import GeographicPosition
+
     for r, t_idx in zip(records, trace_indices):
         lon, lat = coord_by_trace[t_idx]
         r.latitude = float(lat)
         r.longitude = float(lon)
+        r.position = GeographicPosition(lat=float(lat), lon=float(lon))
         r.metadata["georeferenced_from_kmz"] = True
         r.metadata["position_source"] = "kmz_fallback"
         r.metadata["kmz_direction_verified"] = bool(direction.verified) if direction else False

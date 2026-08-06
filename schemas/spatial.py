@@ -295,17 +295,16 @@ def has_geographic_coordinates(record) -> bool:
     True when a record's latitude/longitude are REAL, not the legacy
     placeholder.
 
-    Two ways that happens, and both count: the record's own position is
-    geographic, or a sidecar track supplied one. KMZ georeferencing writes
-    real coordinates while `position` keeps what the file itself reported
-    (projected, for SEG-Y), so keying on `position.kind` alone would discard
-    perfectly good coordinates -- a mistake made twice before this helper
-    existed, in lateral-extent measurement and in fusion partitioning.
+    This is now simply "is the position geographic". It was briefly more
+    than that: KMZ georeferencing used to write real coordinates while
+    leaving `position` reporting what the file itself said, so a second
+    check on metadata was needed to avoid discarding perfectly good
+    coordinates -- a mistake made twice, in lateral-extent measurement and
+    in fusion partitioning. KMZ now sets the position too, so there is one
+    source of truth and no second check.
     """
     pos = getattr(record, "position", None)
-    if pos is not None and getattr(pos, "kind", None) == PositionKind.GEOGRAPHIC:
-        return True
-    return bool((getattr(record, "metadata", None) or {}).get("georeferenced_from_kmz"))
+    return pos is not None and getattr(pos, "kind", None) == PositionKind.GEOGRAPHIC
 
 
 def assert_position_matches_ref(position: Position, ref: SpatialRef) -> None:

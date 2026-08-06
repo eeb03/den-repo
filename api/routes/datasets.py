@@ -19,7 +19,7 @@ from validators.dataset_validator import validate_dataset
 from preprocessing.pipeline import run_pipeline
 from database.records_store import save_records, load_records
 from database.frames_store import load_frames, save_frames, synthesize_frames_from_records
-from schemas.spatial import Assumption
+from schemas.spatial import Assumption, has_geographic_coordinates
 from ingestion.downloader import download_file, DownloadError
 from converters.registry import supported_extensions
 from preprocessing.dem_alignment import align_records_with_dem
@@ -29,6 +29,21 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+
+def _geographic_centre(records) -> tuple[Optional[float], Optional[float]]:
+    """
+    Mean position of the records that HAVE one, or (None, None).
+
+    Averaging over records without coordinates used to drag the centre
+    toward null island; a dataset with no geographic position now reports
+    no centre at all, which is the truth.
+    """
+    positioned = [r for r in records if has_geographic_coordinates(r)]
+    if not positioned:
+        return None, None
+    return (sum(r.latitude for r in positioned) / len(positioned),
+            sum(r.longitude for r in positioned) / len(positioned))
 
 
 def _run_ingest_pipeline(
@@ -83,8 +98,7 @@ def _run_ingest_pipeline(
     # from the records so every dataset has frame coverage from ingest onward.
     save_frames(dataset_id, frames or synthesize_frames_from_records(records))
 
-    center_lat = sum(r.latitude for r in records) / len(records) if records else None
-    center_lon = sum(r.longitude for r in records) / len(records) if records else None
+    center_lat, center_lon = _geographic_centre(records)
     has_gt = any(r.ground_truth.value != "none" for r in records)
 
     dataset = Dataset(
@@ -643,8 +657,7 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
     save_records(dataset_id, all_records)
     save_frames(dataset_id, all_frames)
 
-    center_lat = sum(r.latitude for r in all_records) / len(all_records) if all_records else None
-    center_lon = sum(r.longitude for r in all_records) / len(all_records) if all_records else None
+    center_lat, center_lon = _geographic_centre(all_records)
     has_gt = any(r.ground_truth.value != "none" for r in all_records)
 
     dataset = Dataset(
@@ -977,18 +990,23 @@ def get_dataset_info(dataset_id: str, db: Session = Depends(get_db)):
     if not records:
         raise HTTPException(status_code=404, detail="No stored records found for this dataset")
 
-    lats = [r.latitude for r in records]
-    lons = [r.longitude for r in records]
-    lat_span_m = (max(lats) - min(lats)) * 110540
-    # longitude-to-meters depends on latitude; use the dataset's mean latitude
-    mean_lat = sum(lats) / len(lats)
-    lon_span_m = (max(lons) - min(lons)) * 111320 * math.cos(math.radians(mean_lat))
-
     from preprocessing.spatial_grid import _compute_grid_dims, list_available_depths
-    n_lat, n_lon = _compute_grid_dims(np.array(lats), np.array(lons), len(records))
-    resolution_m = None
-    if n_lat > 1 and n_lon > 1:
-        resolution_m = round(min(lat_span_m / n_lat, lon_span_m / n_lon), 3)
+
+    # Survey extent and grid resolution are lat/lon-derived, so they exist
+    # only for records that HAVE a geographic position. A dataset with none
+    # reports null rather than a fabricated zero-sized survey.
+    positioned = [r for r in records if has_geographic_coordinates(r)]
+    lat_span_m = lon_span_m = resolution_m = None
+    if positioned:
+        lats = [r.latitude for r in positioned]
+        lons = [r.longitude for r in positioned]
+        lat_span_m = (max(lats) - min(lats)) * 110540
+        # longitude-to-meters depends on latitude; use the dataset's mean latitude
+        mean_lat = sum(lats) / len(lats)
+        lon_span_m = (max(lons) - min(lons)) * 111320 * math.cos(math.radians(mean_lat))
+        n_lat, n_lon = _compute_grid_dims(np.array(lats), np.array(lons), len(positioned))
+        if n_lat > 1 and n_lon > 1:
+            resolution_m = round(min(lat_span_m / n_lat, lon_span_m / n_lon), 3)
 
     # Processing steps actually applied, if any -- pulled from record metadata
     # rather than assumed.
@@ -1040,7 +1058,9 @@ def get_dataset_info(dataset_id: str, db: Session = Depends(get_db)):
         "coordinate_system": declared_refs[0] if len(declared_refs) == 1 else declared_refs,
         "position_sources": position_sources,
         "survey_frames": frame_summaries,
-        "survey_area_m": {"lat_span": round(lat_span_m, 1), "lon_span": round(lon_span_m, 1)},
+        "survey_area_m": ({"lat_span": round(lat_span_m, 1), "lon_span": round(lon_span_m, 1)}
+                          if lat_span_m is not None else None),
+        "geographic_record_count": len(positioned),
         "grid_resolution_m": resolution_m,
         "depth_layers": list_available_depths(records),
         "processing_applied": processing_applied,

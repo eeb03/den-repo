@@ -322,10 +322,10 @@ def test_all_registered_converters_emit_at_least_one_frame_and_link_records(samp
 # Until that is done, ingest keeps BOTH sources and reconciles neither. The
 # tests below pin that contract so it cannot drift silently.
 
-def test_kmz_georeferencing_does_not_overwrite_the_header_derived_position():
+def test_kmz_georeferencing_promotes_the_position_and_keeps_header_values():
     """
-    Applying the KMZ track updates latitude/longitude ONLY. `position` keeps
-    what the file itself reported. Neither source silently wins.
+    M3: a KMZ track is a real geographic position, so it sets `position`.
+    The header easting/northing survive in metadata rather than being lost.
     """
     from ingestion.kmz_georeference import georeference_records_by_trace
     from schemas.subterra_record import SubterraRecord
@@ -342,14 +342,15 @@ def test_kmz_georeferencing_does_not_overwrite_the_header_derived_position():
         for t in range(4) for s in range(2)
     ]
     before = [(r.position.easting, r.position.northing) for r in records]
+    for r, (e, n) in zip(records, before):
+        r.metadata["segy_x"], r.metadata["segy_y"] = e, n
 
     georeference_records_by_trace(records, [(15.0, 41.0), (15.01, 41.01)])
 
-    # latitude/longitude now come from the KMZ track...
-    assert all(r.latitude != 0.0 and r.longitude != 0.0 for r in records)
-    # ...while position still reports what the file said.
-    assert [(r.position.easting, r.position.northing) for r in records] == before
-    assert all(r.position.kind == PositionKind.PROJECTED for r in records)
+    assert all(r.latitude is not None and r.longitude is not None for r in records)
+    assert all(r.position.kind == PositionKind.GEOGRAPHIC for r in records)
+    # the file's own coordinates are preserved, not discarded
+    assert [(r.metadata["segy_x"], r.metadata["segy_y"]) for r in records] == before
 
 
 def test_the_discrepancy_is_recordable_as_an_unresolved_assumption():

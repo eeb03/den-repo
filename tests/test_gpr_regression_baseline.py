@@ -35,11 +35,16 @@ from schemas.subterra_record import SensorType
 
 DATA = Path("datasets/downloads/multiline_C1T_0001_0002_extracted")
 
-#: Record fields added since the pre-M1 baseline. Excluded from the
-#: record-equality digest so this test asserts "everything else is
-#: byte-identical". Each entry is provenance, never a scientific value.
-#:   position, frame_id  -- M1, explicit spatial representation
-NEW_FIELDS = {"position", "frame_id"}
+#: Record fields that legitimately differ from the pre-M1 baseline, excluded
+#: from the record-equality digest so it still asserts "everything else is
+#: byte-identical". None is a scientific value.
+#:   position, frame_id      M1, explicit spatial representation
+#:   latitude, longitude     M3, now a DERIVED VIEW of position. These lines
+#:                           have no geographic position, so instead of the
+#:                           (0.0, 0.0) placeholder they are None. Their new
+#:                           values are pinned explicitly by
+#:                           test_legacy_coordinates_are_no_longer_placeholders.
+NEW_FIELDS = {"position", "frame_id", "latitude", "longitude"}
 
 #: Metadata keys added since the pre-M1 baseline, likewise excluded and
 #: likewise provenance-only:
@@ -60,7 +65,7 @@ BASELINE = {
         "depth_min": 0.0,
         "depth_max": 7.04665,
         "depth_step": 0.01465,
-        "record_digest": "a6f5b1b6dda38c4824de4ee4feba3f52471a7f0a3ef2f1ca0e1cb7ca3ce189f0",
+        "record_digest": "23845e0ac91ed18706c68444d51e229e406b556c5ec511e10d9c4c5445fb71e9",
         "raw_digest": "02213b1a146f6461776fbb13da641a07b2a5a950673da43f6f3a3fc308538071",
         "processed_digest": "50d897735cd69fa0837d525ee27516f7de45f453ff991a408715c3775eb6e84e",
         "z_digest": "270dda2739a89d9c902c8ae1fec8d9af1b9fdb99b10fed6595ee77b0b6fb8329",
@@ -82,7 +87,7 @@ BASELINE = {
         "depth_min": 0.0,
         "depth_max": 7.04665,
         "depth_step": 0.01465,
-        "record_digest": "baf8e4e4490f1d80dbba9a0acd12c9c329a755b6632a64487506f6c7ad595aee",
+        "record_digest": "2027a323af0a84a465cdf3649088e6ce1551c4d59ab3a45b33cafb25c1d0a93f",
         "raw_digest": "c66ee5e112add821c08dc8c2bcc09a4df43af1e58376b40ad29bc90ba84691de",
         "processed_digest": "d7d9743ea3c48fe5fd81c4710199ab03f0a706909046bf9ed80e5a117a4d2cdf",
         "z_digest": "b311572febb6408206f7b3db66d138b9d3507d5c99276bd4fb21c2ecff5e9ca8",
@@ -160,7 +165,14 @@ def line(request):
 
 
 def test_record_fields_unchanged_apart_from_new_ones(line):
-    """Every pre-existing record field is byte-identical to the pre-M1 baseline."""
+    """
+    Every pre-existing record field is byte-identical to the pre-M1 baseline.
+
+    The pinned digest was RECOMPUTED from the pre-M1 tree (commit 4b9ff0e)
+    with the same exclusions this test applies, so it still compares against
+    genuine pre-M1 output -- it is not a value regenerated from current code
+    to make the test pass.
+    """
     assert line["record_digest"] == line["exp"]["record_digest"]
 
 
@@ -233,10 +245,18 @@ def test_source_file_attribution_unchanged(line):
     assert {c.evidence.source_file for c in line["candidates"]} == {exp["file"]}
 
 
-def test_legacy_coordinates_unchanged(line):
-    """latitude/longitude keep their pre-M1 values, including the (0,0) fallback."""
+def test_legacy_coordinates_are_no_longer_placeholders(line):
+    """
+    M3: these lines carry no geographic position, so latitude/longitude are
+    unset rather than the (0.0, 0.0) placeholder they used to invent. The
+    real header coordinates remain, as a projected position.
+    """
+    from schemas.spatial import PositionKind
+
     for r in line["records"][:100]:
-        assert (r.latitude, r.longitude) == (0.0, 0.0)
+        assert (r.latitude, r.longitude) == (None, None)
+        assert r.position.kind == PositionKind.PROJECTED
+        assert r.metadata["segy_x"] and r.metadata["segy_y"]
 
 
 # --- named-line candidate counts, the second half of the regression gate ---

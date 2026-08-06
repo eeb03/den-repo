@@ -46,7 +46,8 @@ from fusion.sensor_fusion import (           # noqa: E402
     SpatialPartition, non_fusable_partitions, partition_by_spatial_ref,
 )
 from schemas.spatial import (                # noqa: E402
-    LocalCartesianPosition, NoPosition, OdometryPosition, ProjectedPosition,
+    GeographicPosition, LocalCartesianPosition, NoPosition, OdometryPosition,
+    ProjectedPosition,
 )
 
 
@@ -162,10 +163,12 @@ def test_kmz_georeferenced_records_are_fusable():
     from schemas.spatial import has_geographic_coordinates
 
     gpr = SubterraRecord(
-        dataset_id="ds_gpr", sensor_type=SensorType.GPR,
-        latitude=41.05, longitude=15.01, signal=[1.0],
-        position=ProjectedPosition(easting=501134.0, northing=4544705.0),
-        metadata={"georeferenced_from_kmz": True},
+        dataset_id="ds_gpr", sensor_type=SensorType.GPR, signal=[1.0],
+        # M3: KMZ georeferencing sets a geographic position; the header
+        # easting/northing survive in metadata.
+        position=GeographicPosition(lat=41.05, lon=15.01),
+        metadata={"georeferenced_from_kmz": True,
+                  "segy_x": 501134.0, "segy_y": 4544705.0},
     )
     seismic = _rec("ds_seismic", SensorType.SEISMIC, 41.05, 15.01)
 
