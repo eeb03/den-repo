@@ -524,7 +524,7 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
     NONE of the archive's files are supported, this returns a 422 saying
     so explicitly rather than pretending to have ingested something.
     """
-    from ingestion.downloader import scan_archive
+    from ingestion.source_resolver import resolve
 
     filename = req.name or req.url.split("/")[-1].split("?")[0] or "download.zip"
     try:
@@ -533,8 +533,8 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
         raise HTTPException(status_code=502, detail=str(e))
 
     try:
-        scan = scan_archive(downloaded_path)
-        supported_files = scan.supported
+        scan = resolve(downloaded_path)
+        supported_files = [s.primary for s in scan.sources]
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Could not extract zip archive: {e}")
 
@@ -565,13 +565,12 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
     per_file_errors = []
     georeferenced_count = 0
 
-    from ingestion.kmz_georeference import (find_matching_kmz_files, build_georeference_lookup,
+    from ingestion.kmz_georeference import (build_georeference_lookup,
                                             georeference_records_by_trace, records_needing_kmz_fallback)
-    kmz_files = find_matching_kmz_files(supported_files[0].parent.parent if supported_files else downloaded_path.parent)
-    # search from the extraction root, not just alongside the data files -- KMZ often sits in the same
-    # subdirectory as its SEG-Y files, but walk up to be safe about sibling directory layouts
-    if not kmz_files:
-        kmz_files = find_matching_kmz_files(downloaded_path.parent)
+    # Sidecars come from source resolution, which attaches a .kmz to every
+    # SEG-Y it could belong to. This replaces a hardcoded two-attempt
+    # directory search that only ever ran on this one endpoint.
+    kmz_files = scan.acquisition_sidecars
     kmz_lookup = build_georeference_lookup(kmz_files) if kmz_files else {}
     if kmz_lookup:
         logger.info(f"ingest_zip_from_url: found {len(kmz_files)} KMZ file(s) with {len(kmz_lookup)} named path(s) for georeferencing")
