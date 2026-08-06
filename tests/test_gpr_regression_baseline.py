@@ -39,12 +39,14 @@ DATA = Path("datasets/downloads/multiline_C1T_0001_0002_extracted")
 #: from the record-equality digest so it still asserts "everything else is
 #: byte-identical". None is a scientific value.
 #:   position, frame_id      M1, explicit spatial representation
+#:   registered_position     GeoTie, additive registration (None here: these
+#:                           lines carry no tie)
 #:   latitude, longitude     M3, now a DERIVED VIEW of position. These lines
 #:                           have no geographic position, so instead of the
 #:                           (0.0, 0.0) placeholder they are None. Their new
 #:                           values are pinned explicitly by
 #:                           test_legacy_coordinates_are_no_longer_placeholders.
-NEW_FIELDS = {"position", "frame_id", "latitude", "longitude"}
+NEW_FIELDS = {"position", "registered_position", "frame_id", "latitude", "longitude"}
 
 #: Metadata keys added since the pre-M1 baseline, likewise excluded and
 #: likewise provenance-only:

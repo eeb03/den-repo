@@ -94,6 +94,14 @@ class SubterraRecord(BaseModel):
         ...,
         description="Explicit spatial position; auto-derived from latitude/longitude when not supplied",
     )
+    registered_position: Optional[Position] = Field(
+        None,
+        description=(
+            "Where a GeoTie REGISTERS this sample, when one has been supplied. Additive: "
+            "`position` keeps the acquisition's own coordinate untouched, so registration "
+            "can be re-done, corrected, or discarded without data loss."
+        ),
+    )
     frame_id: Optional[str] = Field(
         None, description="SurveyFrame this sample belongs to (schemas/survey_frame.py)"
     )

@@ -31,7 +31,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-from schemas.spatial import Assumption, SpatialRef, VerticalAxis
+from schemas.spatial import Assumption, GeoTie, SpatialRef, VerticalAxis
 from schemas.subterra_record import SensorType
 
 
@@ -73,6 +73,15 @@ class SurveyFrame(BaseModel):
     vertical_axis: VerticalAxis
     n_positions: Optional[int] = None         # traces / stations / pixels
     position_index_name: str = "index"        # "trace_index" | "station" | "pixel"
+
+    # --- how this frame relates to the Earth, when it does not on its own ---
+    #: Absent means the frame is not georeferenced, which is a legitimate
+    #: terminal state -- not a gap waiting to be filled with a guess.
+    geo_tie: Optional[GeoTie] = None
+    #: What `registered_position` is expressed in, once a tie has been
+    #: applied. `spatial_ref` above continues to describe the ACQUISITION's
+    #: own coordinates; the two coexist rather than one replacing the other.
+    registered_spatial_ref: Optional[SpatialRef] = None
 
     # --- what we had to assume to produce any of the above ---
     assumptions: list[Assumption] = Field(default_factory=list)

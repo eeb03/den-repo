@@ -290,12 +290,124 @@ def crs_kind_for_positions(kinds) -> CRSKind:
     return CRSKind.UNKNOWN
 
 
+class ControlPoint(BaseModel):
+    """
+    One asserted correspondence between a frame-local coordinate and a real
+    geographic one -- a surveyed line end, a GNSS fix taken at a known
+    along-track distance, a mapped waypoint.
+    """
+    along_track_m: float
+    lat: float = Field(..., ge=-90, le=90)
+    lon: float = Field(..., ge=-180, le=180)
+    label: Optional[str] = None
+
+
+class GeoTie(BaseModel):
+    """
+    The ONLY sanctioned route from a frame with no Earth reference to a
+    geographic one.
+
+    An odometry frame knows how far along its line each trace sits and
+    nothing else; a local cartesian frame knows even less. Neither can be
+    placed on Earth from its own contents, and guessing is exactly what the
+    Position abstraction exists to prevent. A GeoTie is somebody ASSERTING
+    the correspondence, with their name on it.
+
+    Positions derived through a tie are geographic, but they are DERIVED --
+    the same distinction depth-from-velocity carries. `apply_geo_tie` marks
+    every record it touches so a consumer can tell a tied position from a
+    measured one.
+
+    `rms_residual_m` is how well the control points agree with a straight
+    line. It is None for a two-point tie, because two points define a line
+    and cannot disagree with it -- reporting 0.0 there would imply a
+    verification that did not happen.
+    """
+    method: str                      # "endpoints" | "control_points"
+    control_points: list[ControlPoint]
+    supplied_by: str                 # who asserted this, and on what authority
+    #: The ONE acquisition line this tie was surveyed for. A tie describes
+    #: how a single line's along-track axis meets the Earth; applying it to
+    #: another line would be inventing that line's geometry.
+    applies_to: Optional[str] = None
+    rms_residual_m: Optional[float] = None
+    max_residual_m: Optional[float] = None
+    verified: bool = False
+    notes: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _needs_two_distinct_points(self) -> "GeoTie":
+        if len(self.control_points) < 2:
+            raise ValueError(
+                "a GeoTie needs at least two control points; one point fixes a location "
+                "but not the line's bearing, so nothing can be interpolated from it"
+            )
+        distances = [c.along_track_m for c in self.control_points]
+        if len(set(distances)) < len(distances):
+            raise ValueError(
+                f"control points must sit at distinct along-track distances, got {distances}"
+            )
+        return self
+
+    @property
+    def span_m(self) -> float:
+        d = [c.along_track_m for c in self.control_points]
+        return max(d) - min(d)
+
+
+#: The three ways a record can come to have a spatial position. Keeping them
+#: distinct is the whole point of registration being additive.
+POSITION_NATIVE = "native"          # the acquisition's own coordinate
+POSITION_REGISTERED = "registered"  # placed on Earth by a supplied GeoTie
+POSITION_DERIVED = "derived"        # computed from a native position + a declared CRS
+
+
+def effective_position(record):
+    """
+    The position downstream work should use: the registered one when a tie
+    has been applied, otherwise the acquisition's own.
+
+    Never discards the native coordinate -- it stays on `record.position`,
+    and `position_provenance` says which of the two this returned.
+    """
+    registered = getattr(record, "registered_position", None)
+    return registered if registered is not None else getattr(record, "position", None)
+
+
+def position_provenance(record) -> str:
+    """
+    Whether a record's effective position is native, registered, or derived.
+
+    A consumer that treats a registered position as if it were surveyed is
+    making exactly the mistake this distinction exists to prevent.
+    """
+    if getattr(record, "registered_position", None) is not None:
+        return POSITION_REGISTERED
+    pos = getattr(record, "position", None)
+    kind = getattr(pos, "kind", None)
+    # A geographic view computed from projected coordinates plus a declared
+    # CRS is derived, not observed.
+    if kind == PositionKind.PROJECTED and getattr(record, "latitude", None) is not None:
+        return POSITION_DERIVED
+    return POSITION_NATIVE
+
+
 def has_geographic_coordinates(record) -> bool:
     """
     True when a record's latitude/longitude are REAL, not the legacy
     placeholder.
 
-    This is now simply "is the position geographic". It was briefly more
+    Judged on the EFFECTIVE position, so a line registered by a GeoTie
+    counts -- its registered position is geographic even though its native
+    one is odometry.
+
+    Deliberately strict otherwise: a projected position is not geographic
+    even when a declared CRS has produced latitude/longitude for it. Widening
+    this to "has non-None lat/lon" immediately mis-classified records built
+    with an explicit (0.0, 0.0), which is the exact failure mode this whole
+    abstraction exists to prevent.
+
+    This is otherwise simply "is the position geographic". It was briefly more
     than that: KMZ georeferencing used to write real coordinates while
     leaving `position` reporting what the file itself said, so a second
     check on metadata was needed to avoid discarding perfectly good
@@ -303,7 +415,7 @@ def has_geographic_coordinates(record) -> bool:
     in fusion partitioning. KMZ now sets the position too, so there is one
     source of truth and no second check.
     """
-    pos = getattr(record, "position", None)
+    pos = effective_position(record)
     return pos is not None and getattr(pos, "kind", None) == PositionKind.GEOGRAPHIC
 
 
