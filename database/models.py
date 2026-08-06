@@ -85,6 +85,10 @@ class FusionSample(Base):
     center_x = Column(Float, nullable=True)
     center_y = Column(Float, nullable=True)
     radius_m = Column(Float, nullable=False)
+    #: How many member records reached this centre through a CRS transform
+    #: rather than carrying a geographic coordinate of their own. Non-zero
+    #: means the centre is only as trustworthy as the CRS that was declared.
+    n_reprojected = Column(Integer, nullable=False, default=0)
     dataset_ids = Column(JSON, default=list)   # list of Dataset.id included in this sample
     sensor_types = Column(JSON, default=list)  # sensors represented
     has_ground_truth = Column(Boolean, default=False)

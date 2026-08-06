@@ -129,7 +129,8 @@ def test_migration_detects_an_outdated_table(tmp_path, monkeypatch):
     monkeypatch.setattr(mig, "engine", engine)
 
     state = mig.inspect_table()
-    assert state["missing_columns"] == ["spatial_ref_kind", "center_x", "center_y"]
+    assert state["missing_columns"] == [
+        "spatial_ref_kind", "center_x", "center_y", "n_reprojected"]
     assert state["still_not_null"] == ["center_lat", "center_lon"]
     # SQLite cannot drop NOT NULL, so that is reported rather than emitted
     assert all("DROP NOT NULL" not in sql for sql in mig.plan(state))

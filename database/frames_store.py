@@ -41,6 +41,21 @@ def load_frames(dataset_id: str) -> list[SurveyFrame]:
         return [SurveyFrame.model_validate(d) for d in json.load(f)]
 
 
+def load_frames_for(dataset_ids) -> list[SurveyFrame]:
+    """
+    Every stored frame for these datasets, in one list.
+
+    Datasets that predate frames contribute nothing rather than raising --
+    the caller sees fewer frames, which downgrades capability (a projected
+    frame cannot be reprojected without its declared CRS) but never produces
+    a wrong answer.
+    """
+    frames: list[SurveyFrame] = []
+    for dataset_id in sorted(set(dataset_ids)):
+        frames.extend(load_frames(dataset_id))
+    return frames
+
+
 def frames_by_id(frames: list[SurveyFrame]) -> dict[str, SurveyFrame]:
     return {fr.frame_id: fr for fr in frames}
 

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from database.session import get_db
 from database.models import Dataset, FusionSample as FusionSampleModel, gen_uuid
+from database.frames_store import load_frames_for
 from database.records_store import load_all_records
 from fusion.sensor_fusion import fuse_datasets, multimodal_only, non_fusable_partitions
 
@@ -24,11 +25,15 @@ def run_fusion(
     persist) the resulting multimodal training samples.
     """
     records = load_all_records(dataset_ids)
-    samples = fuse_datasets(records, radius_m=radius_m)
+    # Frames carry the declared CRS, so a projected survey can be reprojected
+    # into the geographic frame and fused with it. Without them, projected
+    # records stay excluded -- which is the honest outcome, not a failure.
+    frames = load_frames_for(r.dataset_id for r in records)
+    samples = fuse_datasets(records, radius_m=radius_m, frames=frames)
     # Records fusion could not place. Reported rather than silently absent:
     # an odometry or un-georeferenced dataset simply has no spatial
     # relationship to a geographic one until someone supplies a tie.
-    excluded = non_fusable_partitions(records)
+    excluded = non_fusable_partitions(records, frames=frames)
     if multimodal_only_flag:
         samples = multimodal_only(samples)
 
@@ -46,6 +51,7 @@ def run_fusion(
                     dataset_ids=s.dataset_ids,
                     sensor_types=s.sensor_types,
                     has_ground_truth=s.has_ground_truth,
+                    n_reprojected=s.n_reprojected,
                 )
             )
         db.commit()
@@ -74,6 +80,7 @@ def run_fusion(
                 "sensor_types": s.sensor_types,
                 "dataset_ids": s.dataset_ids,
                 "has_ground_truth": s.has_ground_truth,
+                "n_reprojected": s.n_reprojected,
                 "record_counts": {k: len(v) for k, v in s.records_by_sensor.items()},
             }
             for s in samples

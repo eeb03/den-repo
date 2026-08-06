@@ -40,6 +40,7 @@ NEW_COLUMNS = {
     "spatial_ref_kind": "VARCHAR",
     "center_x": "DOUBLE PRECISION",
     "center_y": "DOUBLE PRECISION",
+    "n_reprojected": "INTEGER DEFAULT 0",
 }
 NULLABLE_COLUMNS = ("center_lat", "center_lon")
 
