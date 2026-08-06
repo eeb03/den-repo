@@ -323,3 +323,58 @@ def test_no_dem_alignment_yields_none_elevation_not_error():
     assert len(candidates) == 1
     assert candidates[0].characteristics.centroid_elevation_m is None
     assert candidates[0].confidence.dem_vertical_datum_verified is None
+
+
+# --- lateral extent must not be fabricated ------------------------------------
+#
+# Before this, `approx_lateral_extent_m` was haversine_m over the candidate's
+# edge traces unconditionally. On an un-georeferenced line every record holds
+# the legacy (0, 0) placeholder, so the haversine returned exactly 0.0 metres
+# -- a fabricated measurement in the EVIDENCE tier, indistinguishable from a
+# genuinely zero-width candidate.
+
+def _line_records(source_file="line.SGY", geographic=True, n_traces=8, n_depths=40):
+    from schemas.spatial import GeographicPosition, NoPosition
+    from schemas.subterra_record import SensorType, SubterraRecord
+
+    recs = []
+    for t in range(n_traces):
+        for d in range(n_depths):
+            # a compact multi-trace anomaly near the middle of the grid
+            val = 9.0 if (3 <= t <= 5 and 18 <= d <= 20) else 0.0
+            pos = (GeographicPosition(lat=41.0 + t * 1e-4, lon=15.0 + t * 1e-4)
+                   if geographic else NoPosition(reason="no header position"))
+            recs.append(SubterraRecord(
+                dataset_id="d", sensor_type=SensorType.GPR,
+                latitude=41.0 + t * 1e-4 if geographic else 0.0,
+                longitude=15.0 + t * 1e-4 if geographic else 0.0,
+                position=pos, depth=round(d * 0.01, 6), signal=[val],
+                metadata={"source_file": source_file, "trace_index": t,
+                          "sample_index": d, "anomaly_reliable": True},
+            ))
+    return recs
+
+
+def test_lateral_extent_is_none_when_traces_are_not_geographic():
+    from interpretation.anomaly_candidates import find_anomaly_candidates
+    cands = find_anomaly_candidates(_line_records(geographic=False), source_file="line.SGY")
+    assert cands, "fixture should produce at least one candidate"
+    assert all(c.characteristics.approx_lateral_extent_m is None for c in cands)
+
+
+def test_lateral_extent_is_measured_when_traces_are_geographic():
+    from interpretation.anomaly_candidates import find_anomaly_candidates
+    cands = find_anomaly_candidates(_line_records(geographic=True), source_file="line.SGY")
+    assert cands
+    multi = [c for c in cands if c.evidence.trace_range[1] > c.evidence.trace_range[0]]
+    assert multi, "fixture should produce a multi-trace candidate"
+    assert all(c.characteristics.approx_lateral_extent_m > 0 for c in multi)
+
+
+def test_zero_extent_still_means_a_single_trace_not_missing_data():
+    """0.0 and None must stay distinguishable."""
+    from interpretation.anomaly_candidates import find_anomaly_candidates
+    cands = find_anomaly_candidates(_line_records(geographic=True), source_file="line.SGY")
+    single = [c for c in cands if c.evidence.trace_range[1] == c.evidence.trace_range[0]]
+    for c in single:
+        assert c.characteristics.approx_lateral_extent_m == 0.0

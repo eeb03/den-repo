@@ -90,7 +90,7 @@ class AnomalyCharacteristics(BaseModel):
     area_cells: float
     continuity_across_traces: float       # fraction of the spanned trace columns that have >=1 supporting cell
     continuity_across_depth: float        # fraction of the spanned depth rows that have >=1 supporting cell
-    approx_lateral_extent_m: Optional[float] = None   # haversine between the candidate's edge traces' real positions
+    approx_lateral_extent_m: Optional[float] = None   # haversine between the candidate's edge traces' real positions; None when they are not geographic
     approx_depth_extent_m: float
     centroid_lat: Optional[float] = None
     centroid_lon: Optional[float] = None
@@ -196,6 +196,7 @@ def _characterize_cluster(
     depths: list,
     trace_lat: list,
     trace_lon: list,
+    trace_position_kind: list | None,
     cell_index: dict,
     source_file: str,
     dataset_id: str,
@@ -231,9 +232,25 @@ def _characterize_cluster(
     bbox_w = col_max - col_min + 1
     anomaly_class, note = _classify_shape(elongation, compactness, bbox_h, bbox_w)
 
-    lat0, lon0 = trace_lat[col_min], trace_lon[col_min]
-    lat1, lon1 = trace_lat[col_max], trace_lon[col_max]
-    approx_lateral_extent_m = haversine_m(lat0, lon0, lat1, lon1) if col_max > col_min else 0.0
+    # Lateral extent is only measurable when the spanned traces carry REAL
+    # geographic positions. Before this check, un-georeferenced lines (whose
+    # legacy lat/lon are the (0,0) placeholder) reported
+    # haversine_m(0,0, 0,0) = exactly 0.0 metres -- a fabricated measurement
+    # sitting in the evidence tier, indistinguishable from a genuinely
+    # zero-width candidate. None means "not derivable", which is the truth.
+    endpoints_geographic = (
+        trace_position_kind is not None
+        and trace_position_kind[col_min] == "geographic"
+        and trace_position_kind[col_max] == "geographic"
+    )
+    if not endpoints_geographic:
+        approx_lateral_extent_m = None
+    elif col_max > col_min:
+        lat0, lon0 = trace_lat[col_min], trace_lon[col_min]
+        lat1, lon1 = trace_lat[col_max], trace_lon[col_max]
+        approx_lateral_extent_m = haversine_m(lat0, lon0, lat1, lon1)
+    else:
+        approx_lateral_extent_m = 0.0
     approx_depth_extent_m = float(depth_range[1] - depth_range[0])
 
     if shape_feats:
@@ -337,6 +354,7 @@ def find_anomaly_candidates(
     depths = grid_result["depths"]
     trace_lat = grid_result["trace_lat"]
     trace_lon = grid_result["trace_lon"]
+    trace_position_kind = grid_result.get("trace_position_kind")
     dataset_id = sub_records[0].dataset_id
 
     cell_index = {(r.metadata["trace_index"], round(r.depth, 6)): r for r in sub_records}
@@ -354,7 +372,7 @@ def find_anomaly_candidates(
         candidates.append(
             _characterize_cluster(
                 cluster_mask, grid, label_id, threshold, min_cells,
-                trace_ids, depths, trace_lat, trace_lon, cell_index,
+                trace_ids, depths, trace_lat, trace_lon, trace_position_kind, cell_index,
                 source_file, dataset_id,
             )
         )

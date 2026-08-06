@@ -472,8 +472,14 @@ def build_trace_depth_grid_for_records(
     # Every sample of a trace shares one (lat, lon) -- see SEGYConverter /
     # georeference_records_by_trace -- so the first record seen per trace suffices.
     trace_latlon = {}
+    trace_kind = {}
     for r in sub_records:
         trace_latlon.setdefault(r.metadata["trace_index"], (r.latitude, r.longitude))
+        # Whether that (lat, lon) is a real geographic position or the legacy
+        # placeholder. Consumers computing real-world distances need to know:
+        # a haversine between two placeholders returns 0.0 metres, which is a
+        # fabricated measurement rather than a missing one.
+        trace_kind.setdefault(r.metadata["trace_index"], getattr(r.position, "kind", None))
 
     return {
         "source_file": source_file,
@@ -483,6 +489,7 @@ def build_trace_depth_grid_for_records(
         "depths": depths,
         "trace_lat": [trace_latlon[t][0] for t in trace_ids],
         "trace_lon": [trace_latlon[t][1] for t in trace_ids],
+        "trace_position_kind": [trace_kind[t] for t in trace_ids],
     }
 
 
