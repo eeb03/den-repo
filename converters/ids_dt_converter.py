@@ -153,6 +153,14 @@ def _parse_acquisition(raw: bytes, len_rec: int) -> dict:
     return {"h_offset": h_offset, "ints": list(ints), "ascii_fields": fields}
 
 
+#: Bounds for a caller-supplied EM propagation velocity, in m/ns. These are
+#: NOT invented: the IDS acquisition software records its own permitted range
+#: in Ini000N.ini as "MaxPropVel = 30 / MinPropVel = 1" under the comment
+#: ";; cm/ns", i.e. 0.01-0.30 m/ns. The upper bound is also the speed of
+#: light, so anything above it is unphysical regardless of provenance.
+MIN_VELOCITY_M_PER_NS = 0.01
+MAX_VELOCITY_M_PER_NS = 0.30
+
 #: Widest plausible GPR two-way time window. Real windows are tens of ns;
 #: 1 ms would imply kilometres of penetration and means the field is not a
 #: sweep time at all.
@@ -207,6 +215,45 @@ def derive_time_axis(acquisition: dict, n_samples: int) -> dict:
         "stored_cell_size_agrees": cell_agrees,
         "configured_velocity_m_per_s": fields[_H_PROP_VELOCITY],
     }
+
+
+def validate_velocity(velocity) -> tuple[float | None, str | None]:
+    """
+    Validates a CALLER-SUPPLIED propagation velocity in m/ns.
+
+    Returns (velocity, None) when usable, or (None, reason) when not. A
+    rejected velocity never becomes a depth axis: the caller gets depth=None
+    and the reason is logged and recorded on the frame, so a mistyped value
+    is discoverable rather than silently producing physical-looking numbers.
+    """
+    if velocity is None:
+        return None, "no velocity supplied"
+    try:
+        v = float(velocity)
+    except (TypeError, ValueError):
+        return None, f"velocity {velocity!r} is not a number"
+    if v != v or v in (float("inf"), float("-inf")):
+        return None, f"velocity {velocity!r} is not finite"
+    if not (MIN_VELOCITY_M_PER_NS <= v <= MAX_VELOCITY_M_PER_NS):
+        return None, (
+            f"velocity {v} m/ns is outside the physically plausible range "
+            f"[{MIN_VELOCITY_M_PER_NS}, {MAX_VELOCITY_M_PER_NS}] m/ns "
+            f"(the IDS software's own MinPropVel/MaxPropVel limits; the upper "
+            f"bound is the speed of light). Note the expected unit is m/ns, "
+            f"not cm/ns."
+        )
+    return v, None
+
+
+def two_way_time_to_depth(two_way_time_ns: float, velocity_m_per_ns: float) -> float:
+    """
+    Standard constant-velocity conversion, identical to the one SEGYConverter
+    applies: the pulse travels to the reflector and back, so one-way depth is
+    half the round-trip path.
+
+        depth_m = two_way_time_ns * velocity_m_per_ns / 2
+    """
+    return two_way_time_ns * velocity_m_per_ns / 2.0
 
 
 def _read_code(raw: bytes, offset: int) -> str:
@@ -296,12 +343,24 @@ class IDSDTConverter(BaseConverter):
     supported_extensions = (".dt",)
 
     def convert(self, path, dataset_id: str, sensor_type: SensorType = SensorType.GPR,
-                **kwargs) -> list[SubterraRecord]:
+                velocity_m_per_ns: float | None = None, **kwargs) -> list[SubterraRecord]:
         """Records only. See `load()` for records plus the file's SurveyFrame."""
-        return self.load(path, dataset_id=dataset_id, sensor_type=sensor_type, **kwargs).records
+        return self.load(path, dataset_id=dataset_id, sensor_type=sensor_type,
+                         velocity_m_per_ns=velocity_m_per_ns, **kwargs).records
 
     def load(self, path, dataset_id: str, sensor_type: SensorType = SensorType.GPR,
-             **kwargs) -> ConversionResult:
+             velocity_m_per_ns: float | None = None, **kwargs) -> ConversionResult:
+        """
+        `velocity_m_per_ns` is an EXPLICIT declaration by the caller of the
+        electromagnetic propagation velocity to use for time-to-depth
+        conversion. The dataset does not supply a usable one -- the value in
+        its header is an operator display setting, not a site measurement --
+        so without this argument `depth` stays None and the records carry
+        only the measured time axis.
+
+        Supplying it derives depth as `two_way_time_ns * velocity / 2`. The
+        result is ASSUMED, not measured, and is labelled as such throughout.
+        """
         path = Path(path)
         parsed = parse_dt(path)
         samples = parsed["samples"]
@@ -310,6 +369,13 @@ class IDSDTConverter(BaseConverter):
         time_axis = derive_time_axis(parsed["acquisition"], n_samples)
         interval_ns = time_axis["sample_interval_ns"]
         frame_id = make_frame_id(dataset_id, path.name)
+
+        velocity, velocity_rejected = validate_velocity(velocity_m_per_ns)
+        if velocity_rejected and velocity_m_per_ns is not None:
+            logger.warning(
+                f"IDSDTConverter: {path.name}: {velocity_rejected}. Depth will NOT be derived; "
+                f"records keep the measured time axis only."
+            )
 
         # One record per (trace, sample), matching SEGYConverter's shape so the
         # existing trace/depth tooling sees a familiar structure.
@@ -325,16 +391,20 @@ class IDSDTConverter(BaseConverter):
                     position=position,
                     frame_id=frame_id,
                     elevation=None,
-                    # The time axis is measured; depth is NOT, because the
-                    # only velocity available is an operator setting rather
-                    # than a site measurement. See the frame's assumptions.
-                    depth=None,
+                    # Depth exists ONLY when the caller supplied a velocity.
+                    # The measured time axis below is preserved either way.
+                    depth=(two_way_time_to_depth(sample_index * interval_ns, velocity)
+                           if velocity is not None else None),
                     signal=[float(row[sample_index])],
                     metadata={
                         "source_file": path.name,
                         "trace_index": trace_index,
                         "sample_index": sample_index,
                         "two_way_time_ns": sample_index * interval_ns,
+                        **({"velocity_m_per_ns": velocity,
+                            "velocity_source": "supplied_by_caller",
+                            "depth_is_velocity_derived": True}
+                           if velocity is not None else {}),
                         "position_source": "none",
                         "trace_count": n_traces,
                         "sample_count": n_samples,
@@ -346,10 +416,40 @@ class IDSDTConverter(BaseConverter):
             f"({len(records):,} records), version={parsed['version']}"
         )
         return ConversionResult(records=records, frames=[self._build_frame(
-            path, dataset_id, sensor_type, parsed, frame_id, time_axis)])
+            path, dataset_id, sensor_type, parsed, frame_id, time_axis,
+            velocity, velocity_rejected)])
+
+    @staticmethod
+    def _depth_assumption(velocity, velocity_rejected, time_axis) -> Assumption:
+        """States, in the data, whether a depth axis exists and on whose authority."""
+        if velocity is not None:
+            return Assumption(
+                key="depth_conversion", value=velocity,
+                basis=(
+                    f"SUPPLIED BY CALLER: depth was derived as two_way_time_ns * {velocity} / 2 "
+                    f"(m/ns). This velocity was NOT recovered from the dataset -- the file's own "
+                    f"header value ({time_axis['configured_velocity_m_per_s']} m/s) is an operator "
+                    f"display setting, not a site measurement. The resulting depth is ASSUMED, "
+                    f"not measured; the measured two-way time axis is preserved alongside it."
+                ),
+                verified=False,
+            )
+        reason = velocity_rejected or "no velocity supplied"
+        return Assumption(
+            key="depth_not_derived", value=time_axis["configured_velocity_m_per_s"],
+            basis=(
+                f"record.depth is unset because {reason}. The H record does carry a propagation "
+                f"velocity, but it is whatever the operator configured (3.0e8 m/s -- vacuum -- on "
+                f"some lines, 1.0e8 m/s on others), not a site measurement, so it is not applied. "
+                f"Supply velocity_m_per_ns explicitly to derive depth."
+            ),
+            verified=False,
+        )
 
     def _build_frame(self, path: Path, dataset_id: str, sensor_type: SensorType,
-                     parsed: dict, frame_id: str, time_axis: dict) -> SurveyFrame:
+                     parsed: dict, frame_id: str, time_axis: dict,
+                     velocity: float | None = None,
+                     velocity_rejected: str | None = None) -> SurveyFrame:
         header = parsed["header"]
         companions = sorted(
             p.name for p in path.parent.iterdir()
@@ -378,17 +478,7 @@ class IDSDTConverter(BaseConverter):
                 verified=bool(time_axis["duplicate_field_agrees"]
                               and time_axis["stored_cell_size_agrees"]),
             ),
-            Assumption(
-                key="depth_not_derived", value=time_axis["configured_velocity_m_per_s"],
-                basis=(
-                    "The H record carries a propagation velocity, but it is whatever the "
-                    "operator configured (3.0e8 m/s -- vacuum -- on some lines, 1.0e8 m/s on "
-                    "others), not a site measurement. record.depth is therefore left unset: the "
-                    "time axis is measured, a depth built on this value would be assumed, and "
-                    "the two must not be conflated."
-                ),
-                verified=False,
-            ),
+            self._depth_assumption(velocity, velocity_rejected, time_axis),
             Assumption(
                 key="format_specification", value="reverse-engineered",
                 basis=(
@@ -412,15 +502,23 @@ class IDSDTConverter(BaseConverter):
                 name=_NO_POSITION_REASON,
             ),
             vertical_axis=VerticalAxis(
+                # The axis this frame MEASURES is always two-way time. When a
+                # velocity was supplied, `conversion` records the derived
+                # depth; its absence means no depth exists.
                 kind=AxisKind.TWO_WAY_TIME_NS,
                 units="ns",
                 origin="instrument time-zero at each trace",
                 positive_down=True,
                 n_samples=parsed["n_samples"],
                 sample_interval=time_axis["sample_interval_ns"],
-                # Absent because NO depth conversion was applied -- the axis
-                # is two-way time, and it stays that way.
-                conversion=None,
+                conversion=({
+                    "method": "constant_velocity",
+                    "velocity_m_per_ns": velocity,
+                    "velocity_source": "supplied_by_caller",
+                    "formula": "depth_m = two_way_time_ns * velocity_m_per_ns / 2",
+                    "target_axis": AxisKind.DEPTH_M.value,
+                    "derived_not_measured": True,
+                } if velocity is not None else None),
             ),
             n_positions=parsed["n_traces"],
             position_index_name="trace_index",

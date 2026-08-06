@@ -388,3 +388,103 @@ def test_a_file_whose_time_axis_cannot_be_built_does_not_ingest(tmp_path):
     broken.write_bytes(bytes(raw))
     with pytest.raises(IDSDTParseError):
         IDSDTConverter().load(broken, dataset_id="ds", sensor_type=SensorType.GPR)
+
+
+# --- caller-supplied velocity: the ONLY route to a depth axis -----------------
+#
+# The dataset supplies no usable velocity (its header value is an operator
+# display setting), so depth exists only when a caller asserts one. These
+# tests pin that a depth axis can never appear without that assertion, and
+# that the measured time axis survives the conversion either way.
+
+TEST_VELOCITY = 0.1          # m/ns; a caller-supplied TEST value, not from the data
+
+
+def _load(velocity=None):
+    return IDSDTConverter().load(FIXTURE, dataset_id="ds", sensor_type=SensorType.GPR,
+                                 velocity_m_per_ns=velocity)
+
+
+def test_without_a_velocity_there_is_no_depth(result):
+    assert all(r.depth is None for r in result.records)
+    assert result.frames[0].vertical_axis.conversion is None
+    a = result.frames[0].assumption("depth_not_derived")
+    assert a is not None and "no velocity supplied" in a.basis
+
+
+def test_a_supplied_velocity_derives_depth(result):
+    with_v = _load(TEST_VELOCITY)
+    assert all(r.depth is not None for r in with_v.records)
+    # depth = twt * v / 2, the same relation SEGYConverter applies
+    for r in with_v.records[:200]:
+        assert r.depth == pytest.approx(r.metadata["two_way_time_ns"] * TEST_VELOCITY / 2)
+
+
+def test_depth_matches_the_expected_physical_scale():
+    """10 ns window at 0.1 m/ns is a 0.5 m one-way profile."""
+    with_v = _load(TEST_VELOCITY)
+    trace0 = [r for r in with_v.records if r.metadata["trace_index"] == 0]
+    assert trace0[0].depth == 0.0
+    assert max(r.depth for r in trace0) == pytest.approx(
+        (EXPECTED_WINDOW_NS - EXPECTED_INTERVAL_NS) * TEST_VELOCITY / 2)
+    assert max(r.depth for r in trace0) < 0.5
+
+
+def test_the_measured_time_axis_survives_the_conversion(result):
+    """Depth is added alongside the time axis, never in place of it."""
+    with_v = _load(TEST_VELOCITY)
+    assert [r.metadata["two_way_time_ns"] for r in with_v.records] == \
+           [r.metadata["two_way_time_ns"] for r in result.records]
+    assert with_v.frames[0].vertical_axis.kind == AxisKind.TWO_WAY_TIME_NS
+    assert with_v.frames[0].vertical_axis.sample_interval == pytest.approx(EXPECTED_INTERVAL_NS)
+
+
+def test_records_mark_depth_as_caller_derived():
+    r = _load(TEST_VELOCITY).records[0]
+    assert r.metadata["velocity_m_per_ns"] == TEST_VELOCITY
+    assert r.metadata["velocity_source"] == "supplied_by_caller"
+    assert r.metadata["depth_is_velocity_derived"] is True
+
+
+def test_frame_records_the_conversion_as_derived_not_measured():
+    f = _load(TEST_VELOCITY).frames[0]
+    conv = f.vertical_axis.conversion
+    assert conv["velocity_source"] == "supplied_by_caller"
+    assert conv["derived_not_measured"] is True
+    assert conv["formula"] == "depth_m = two_way_time_ns * velocity_m_per_ns / 2"
+    a = f.assumption("depth_conversion")
+    assert a is not None and a.verified is False
+    assert "SUPPLIED BY CALLER" in a.basis and "NOT recovered from the dataset" in a.basis
+
+
+@pytest.mark.parametrize("bad", [0.0, -0.1, 100, 0.001, 0.5, "abc", float("nan"), float("inf")])
+def test_an_invalid_velocity_never_produces_depth(bad):
+    """Rejected input keeps depth=None rather than fabricating a physical axis."""
+    out = _load(bad)
+    assert all(r.depth is None for r in out.records[:100])
+    assert out.frames[0].vertical_axis.conversion is None
+    assert out.frames[0].assumption("depth_conversion") is None
+
+
+def test_an_invalid_velocity_is_reported_not_silently_dropped():
+    a = _load(100).frames[0].assumption("depth_not_derived")
+    assert a is not None
+    assert "outside the physically plausible range" in a.basis
+    assert "m/ns, not cm/ns" in a.basis      # the likely unit mistake is named
+
+
+def test_velocity_bounds_come_from_the_instrument_software():
+    from converters.ids_dt_converter import (
+        MAX_VELOCITY_M_PER_NS, MIN_VELOCITY_M_PER_NS, validate_velocity,
+    )
+    # Ini000N.ini records "MaxPropVel = 30 / MinPropVel = 1" under ";; cm/ns"
+    assert (MIN_VELOCITY_M_PER_NS, MAX_VELOCITY_M_PER_NS) == (0.01, 0.30)
+    assert validate_velocity(0.01)[0] == 0.01
+    assert validate_velocity(0.30)[0] == 0.30
+    assert validate_velocity(0.3001)[0] is None      # faster than light
+
+
+def test_convert_accepts_the_velocity_too():
+    recs = IDSDTConverter().convert(FIXTURE, dataset_id="ds", sensor_type=SensorType.GPR,
+                                    velocity_m_per_ns=TEST_VELOCITY)
+    assert all(r.depth is not None for r in recs[:100])
