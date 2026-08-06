@@ -18,7 +18,7 @@ from converters.base import MissingDependencyError
 from validators.dataset_validator import validate_dataset
 from preprocessing.pipeline import run_pipeline
 from database.records_store import save_records, load_records
-from database.frames_store import save_frames, synthesize_frames_from_records
+from database.frames_store import load_frames, save_frames, synthesize_frames_from_records
 from schemas.spatial import Assumption
 from ingestion.downloader import download_file, DownloadError
 from converters.registry import supported_extensions
@@ -937,6 +937,35 @@ def get_dataset_info(dataset_id: str, db: Session = Depends(get_db)):
     sample_with_processing = next((r for r in records if "processing_applied" in r.metadata), None)
     processing_applied = sample_with_processing.metadata.get("processing_applied") if sample_with_processing else None
 
+    # Acquisition provenance, read from the dataset's SurveyFrames. Datasets
+    # ingested before frames existed have none stored, so reconstruct from
+    # the records rather than reporting nothing.
+    frames = load_frames(dataset_id) or synthesize_frames_from_records(records)
+    frame_summaries = [
+        {
+            "frame_id": f.frame_id,
+            "source_file": f.source_file,
+            "source_format": f.source_format,
+            "modality": f.modality.value,
+            "modality_source": f.modality_source,
+            "n_positions": f.n_positions,
+            "position_index_name": f.position_index_name,
+            "spatial_ref": f.spatial_ref.model_dump(mode="json"),
+            "vertical_axis": f.vertical_axis.model_dump(mode="json"),
+            "assumptions": [a.model_dump(mode="json") for a in f.assumptions],
+        }
+        for f in frames
+    ]
+    # Where each record's position actually came from, counted rather than
+    # assumed. Replaces the previous hardcoded CRS claim below.
+    position_sources: dict[str, int] = {}
+    for r in records:
+        key = r.metadata.get("position_source") or r.position.kind
+        position_sources[str(key)] = position_sources.get(str(key), 0) + 1
+    declared_refs = sorted({
+        (f.spatial_ref.code or f.spatial_ref.kind.value) for f in frames
+    })
+
     return {
         "dataset_id": dataset_id,
         "name": dataset.name,
@@ -947,7 +976,12 @@ def get_dataset_info(dataset_id: str, db: Session = Depends(get_db)):
         "record_count": dataset.record_count,
         "quality_score": dataset.quality_score,
         "has_ground_truth": dataset.has_ground_truth,
-        "coordinate_system": "EPSG:4326 (WGS84 lat/lon)",
+        # Reported from the dataset's own frames. This previously asserted a
+        # hardcoded "EPSG:4326 (WGS84 lat/lon)" that was never checked
+        # against the data.
+        "coordinate_system": declared_refs[0] if len(declared_refs) == 1 else declared_refs,
+        "position_sources": position_sources,
+        "survey_frames": frame_summaries,
         "survey_area_m": {"lat_span": round(lat_span_m, 1), "lon_span": round(lon_span_m, 1)},
         "grid_resolution_m": resolution_m,
         "depth_layers": list_available_depths(records),
