@@ -6,7 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from database.session import init_db
-from api.routes import datasets, fusion, benchmark, sources, training, provenance
+from api.routes import (datasets, fusion, benchmark, sources, training,
+                        provenance, labels)
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -40,6 +41,7 @@ app.add_middleware(
 
 app.include_router(datasets.router, prefix="/api/datasets", tags=["datasets"])
 app.include_router(provenance.router, prefix="/api/provenance", tags=["provenance"])
+app.include_router(labels.router, prefix="/api/labels", tags=["labels"])
 app.include_router(fusion.router, prefix="/api/fusion", tags=["fusion"])
 app.include_router(benchmark.router, prefix="/api/benchmark", tags=["benchmark"])
 app.include_router(sources.router, prefix="/api/sources", tags=["sources"])
