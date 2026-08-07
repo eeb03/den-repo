@@ -68,3 +68,18 @@ def viewer():
     """
     html_path = Path(__file__).resolve().parent.parent / "visualization" / "viewer.html"
     return html_path.read_text()
+
+
+@app.get("/client", response_class=HTMLResponse, tags=["system"])
+def thin_client():
+    """
+    Thin client over the Subterra APIs: map, radargram, selection resolution,
+    labels, objects and overlay composition.
+
+    Deliberately thin -- it holds no identity logic and no spatial maths. Which
+    views can show a selection is answered by /api/views/resolve, and anything
+    the API cannot place is listed rather than plotted. See docs/thin-client.md.
+    """
+    html_path = (Path(__file__).resolve().parent.parent
+                 / "visualization" / "thin_client.html")
+    return html_path.read_text()
