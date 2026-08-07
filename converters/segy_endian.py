@@ -78,6 +78,7 @@ _BH_FORMAT = 24       # bytes 3225-3226
 # adapter's dicts use the same integers and `header.get(TraceField.SourceX)`
 # resolves without segyio being involved.
 BIN_INTERVAL, BIN_SAMPLES, BIN_FORMAT = 3217, 3221, 3225
+TF_RECV_ELEVATION, TF_SOURCE_SURFACE_ELEVATION = 41, 45
 TF_SCALAR, TF_SOURCE_X, TF_SOURCE_Y = 71, 73, 77
 TF_GROUP_X, TF_GROUP_Y = 81, 85
 TF_SCALAR_TRACE_HEADER = 69
@@ -335,6 +336,8 @@ class LittleEndianSegyFile:
         i32 = lambda o: struct.unpack(s + "i", raw[o:o + 4])[0]      # noqa: E731
         i16 = lambda o: struct.unpack(s + "h", raw[o:o + 2])[0]      # noqa: E731
         return {
+            TF_RECV_ELEVATION: i32(40),
+            TF_SOURCE_SURFACE_ELEVATION: i32(44),
             TF_SCALAR_TRACE_HEADER: i16(68),
             TF_SCALAR: i16(70),
             TF_SOURCE_X: i32(72),

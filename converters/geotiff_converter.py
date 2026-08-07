@@ -33,7 +33,7 @@ import numpy as np
 from converters.base import BaseConverter, ConversionResult, MissingDependencyError
 from schemas.spatial import (
     Assumption, AxisKind, CRSKind, CRSProvenance, GeographicPosition, ProjectedPosition,
-    SpatialRef, VerticalAxis,
+    SpatialRef, VerticalAxis, VerticalDatum,
 )
 from schemas.subterra_record import SubterraRecord, SensorType
 from schemas.survey_frame import SurveyFrame, make_frame_id
@@ -53,10 +53,12 @@ class GeoTIFFConverter(BaseConverter):
         sensor_type: SensorType,
         stride: int = 10,
         reproject: bool = True,
+        vertical_datum: str | None = None,
     ) -> list[SubterraRecord]:
         """Records only. See `load()` for records plus the raster's SurveyFrame."""
         return self.load(path, dataset_id=dataset_id, sensor_type=sensor_type,
-                         stride=stride, reproject=reproject).records
+                         stride=stride, reproject=reproject,
+                         vertical_datum=vertical_datum).records
 
     def load(
         self,
@@ -65,6 +67,7 @@ class GeoTIFFConverter(BaseConverter):
         sensor_type: SensorType,
         stride: int = 10,
         reproject: bool = True,
+        vertical_datum: str | None = None,
         **kwargs,
     ) -> ConversionResult:
         """
@@ -72,6 +75,11 @@ class GeoTIFFConverter(BaseConverter):
         WGS84 at ingest. `reproject=False` keeps the raster's own projected
         coordinates and declares its native CRS on the frame, leaving any
         transform to the fusion layer where it is labelled derived.
+
+        `vertical_datum` is an EXPLICIT caller declaration of what the band
+        values are measured from. GeoTIFF has no field for it -- AHN's NAP is
+        documented by PDOK and absent from the file -- so without this the
+        frame states no datum and absolute elevation stays uncomputable.
         """
         try:
             import rasterio
@@ -135,14 +143,14 @@ class GeoTIFFConverter(BaseConverter):
             frame = self._build_frame(
                 path=path, dataset_id=dataset_id, sensor_type=sensor_type, ds=ds,
                 stride=stride, reprojected=reprojected, n_records=len(records),
-                reproject=reproject,
+                reproject=reproject, vertical_datum=vertical_datum,
             )
 
         logger.info(f"GeoTIFFConverter: sampled {len(records)} points from {path.name} (stride={stride})")
         return ConversionResult(records=records, frames=[frame])
 
     def _build_frame(self, path, dataset_id, sensor_type, ds, stride, reprojected,
-                     n_records, reproject=True):
+                     n_records, reproject=True, vertical_datum=None):
         """
         The frame's spatial_ref describes what the RECORDS hold, which after
         eager reprojection is EPSG:4326. The raster's native CRS -- the thing
@@ -205,6 +213,14 @@ class GeoTIFFConverter(BaseConverter):
                 origin="raster band 1 value",
                 positive_down=False,
                 n_samples=1,
+                # Absent unless the caller declares it: the raster carries no
+                # vertical CRS, no band units and no band description.
+                vertical_datum=VerticalDatum(
+                    code=vertical_datum,
+                    provenance=CRSProvenance.SUPPLIED_BY_CALLER,
+                    name=("asserted as ingest configuration; the GeoTIFF declares no "
+                          "vertical CRS, band unit or band description"),
+                ) if vertical_datum else None,
             ),
             n_positions=n_records,
             position_index_name="pixel",
