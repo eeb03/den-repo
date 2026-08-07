@@ -18,7 +18,10 @@ from converters.base import MissingDependencyError
 from validators.dataset_validator import validate_dataset
 from preprocessing.pipeline import run_pipeline
 from database.records_store import save_records, load_records
-from ingestion.downloader import download_file, DownloadError, SUPPORTED_EXTENSIONS
+from database.frames_store import load_frames, save_frames, synthesize_frames_from_records
+from schemas.spatial import Assumption, has_geographic_coordinates
+from ingestion.downloader import download_file, DownloadError
+from converters.registry import supported_extensions
 from preprocessing.dem_alignment import align_records_with_dem
 from configs.settings import settings
 from utils.logger import get_logger
@@ -26,6 +29,21 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 router = APIRouter()
+
+
+def _geographic_centre(records) -> tuple[Optional[float], Optional[float]]:
+    """
+    Mean position of the records that HAVE one, or (None, None).
+
+    Averaging over records without coordinates used to drag the centre
+    toward null island; a dataset with no geographic position now reports
+    no centre at all, which is the truth.
+    """
+    positioned = [r for r in records if has_geographic_coordinates(r)]
+    if not positioned:
+        return None, None
+    return (sum(r.latitude for r in positioned) / len(positioned),
+            sum(r.longitude for r in positioned) / len(positioned))
 
 
 def _run_ingest_pipeline(
@@ -63,7 +81,8 @@ def _run_ingest_pipeline(
     dataset_id = gen_uuid()
 
     try:
-        records = converter.convert(raw_path, dataset_id=dataset_id, sensor_type=sensor_type, **(converter_kwargs or {}))
+        result = converter.load(raw_path, dataset_id=dataset_id, sensor_type=sensor_type, **(converter_kwargs or {}))
+        records, frames = result.records, result.frames
     except MissingDependencyError as e:
         raise HTTPException(status_code=501, detail=str(e))
     except Exception as e:
@@ -75,9 +94,11 @@ def _run_ingest_pipeline(
         records = run_pipeline(records, mode=preprocessing_mode)
 
     save_records(dataset_id, records)
+    # Converters not yet migrated to load() return no frames; reconstruct one
+    # from the records so every dataset has frame coverage from ingest onward.
+    save_frames(dataset_id, frames or synthesize_frames_from_records(records))
 
-    center_lat = sum(r.latitude for r in records) / len(records) if records else None
-    center_lon = sum(r.longitude for r in records) / len(records) if records else None
+    center_lat, center_lon = _geographic_centre(records)
     has_gt = any(r.ground_truth.value != "none" for r in records)
 
     dataset = Dataset(
@@ -494,6 +515,11 @@ class IngestZipFromURLRequest(BaseModel):
     apply_preprocessing: bool = True
     preprocessing_mode: str = "trace"
     max_files: int = 20  # safety cap -- large archives can contain hundreds of files
+    # EXPLICIT, dataset-scoped CRS declaration for source formats that carry
+    # coordinates without declaring what they are (SEG-Y SourceX/SourceY).
+    # Never inferred, never defaulted: omitting it leaves projected header
+    # coordinates preserved-but-unconvertible, which is the honest state.
+    crs: Optional[str] = None
 
 
 @router.post("/ingest_zip_from_url")
@@ -512,7 +538,7 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
     NONE of the archive's files are supported, this returns a 422 saying
     so explicitly rather than pretending to have ingested something.
     """
-    from ingestion.downloader import extract_zip_and_find_supported_files
+    from ingestion.source_resolver import resolve
 
     filename = req.name or req.url.split("/")[-1].split("?")[0] or "download.zip"
     try:
@@ -521,19 +547,26 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
         raise HTTPException(status_code=502, detail=str(e))
 
     try:
-        supported_files = extract_zip_and_find_supported_files(downloaded_path)
+        scan = resolve(downloaded_path)
+        supported_files = [s.primary for s in scan.sources]
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Could not extract zip archive: {e}")
 
     if not supported_files:
-        raise HTTPException(
-            status_code=422,
-            detail=(
+        recognized = scan.unsupported_summary()
+        if recognized:
+            detail = (
+                f"No READABLE files found inside {filename}, but it does contain "
+                f"{sum(recognized.values())} file(s) in recognised formats the platform "
+                f"cannot yet read: {recognized}. An adapter for these does not exist yet. "
+                f"Readable formats: {sorted(supported_extensions())}."
+            )
+        else:
+            detail = (
                 f"No supported files found inside {filename}. SDP currently converts: "
-                f"{sorted(SUPPORTED_EXTENSIONS)}. If this archive contains a proprietary format "
-                f"(e.g. .dt, .rd3), a converter for it doesn't exist yet."
-            ),
-        )
+                f"{sorted(supported_extensions())}."
+            )
+        raise HTTPException(status_code=422, detail=detail)
     if len(supported_files) > req.max_files:
         raise HTTPException(
             status_code=422,
@@ -542,15 +575,16 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
 
     dataset_id = gen_uuid()
     all_records = []
+    all_frames = []
     per_file_errors = []
     georeferenced_count = 0
 
-    from ingestion.kmz_georeference import find_matching_kmz_files, build_georeference_lookup, georeference_records_by_trace
-    kmz_files = find_matching_kmz_files(supported_files[0].parent.parent if supported_files else downloaded_path.parent)
-    # search from the extraction root, not just alongside the data files -- KMZ often sits in the same
-    # subdirectory as its SEG-Y files, but walk up to be safe about sibling directory layouts
-    if not kmz_files:
-        kmz_files = find_matching_kmz_files(downloaded_path.parent)
+    from ingestion.kmz_georeference import (build_georeference_lookup,
+                                            georeference_records_by_trace, records_needing_kmz_fallback)
+    # Sidecars come from source resolution, which attaches a .kmz to every
+    # SEG-Y it could belong to. This replaces a hardcoded two-attempt
+    # directory search that only ever ran on this one endpoint.
+    kmz_files = scan.acquisition_sidecars
     kmz_lookup = build_georeference_lookup(kmz_files) if kmz_files else {}
     if kmz_lookup:
         logger.info(f"ingest_zip_from_url: found {len(kmz_files)} KMZ file(s) with {len(kmz_lookup)} named path(s) for georeferencing")
@@ -558,18 +592,52 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
     for file_path in supported_files:
         try:
             converter = get_converter(file_path)
-            records = converter.convert(file_path, dataset_id=dataset_id, sensor_type=req.sensor_type)
+            converter_kwargs = {"crs": req.crs} if req.crs else {}
+            result = converter.load(file_path, dataset_id=dataset_id,
+                                    sensor_type=req.sensor_type, **converter_kwargs)
+            records = result.records
+            file_frames = result.frames or synthesize_frames_from_records(records)
 
-            # If this file's SEG-Y header coordinates are unusable, map
-            # positions from a matching KMZ placemark instead -- this
-            # source's SourceX/SourceY are projected (UTM-scale) values,
-            # not real per-trace GPS.
+            # SEG-Y header positions are AUTHORITATIVE where usable: they
+            # were measured to be a real per-trace acquisition track
+            # matching the KMZ to ~1 m (see ingestion/kmz_georeference.py).
+            # KMZ is the FALLBACK, applied only when the headers cannot
+            # supply a geographic position -- it never overwrites one.
+            #
+            # Either way this sets latitude/longitude only; `record.position`
+            # always keeps what the file itself reported.
             stem = file_path.stem
-            if stem in kmz_lookup and len(records) > 0:
+            needs_fallback = records_needing_kmz_fallback(records)
+            if stem in kmz_lookup and len(records) > 0 and needs_fallback:
                 georeference_records_by_trace(records, kmz_lookup[stem])
                 georeferenced_count += 1
+                for fr in file_frames:
+                    fr.assumptions.append(Assumption(
+                        key="position_source",
+                        value="kmz_fallback",
+                        basis=(
+                            "the file's own headers did not yield a geographic position "
+                            "(absent, or projected with no declared CRS), so latitude/longitude "
+                            "were taken from the matching KMZ track. record.position still holds "
+                            "the header-derived position where one exists."
+                        ),
+                        verified=True,
+                    ))
+            elif len(records) > 0:
+                for fr in file_frames:
+                    fr.assumptions.append(Assumption(
+                        key="position_source",
+                        value="segy_header",
+                        basis=(
+                            "the file's own trace headers supplied a usable geographic position; "
+                            "KMZ georeferencing was NOT applied and did not overwrite it"
+                            + ("" if stem in kmz_lookup else " (no matching KMZ placemark either)")
+                        ),
+                        verified=True,
+                    ))
 
             all_records.extend(records)
+            all_frames.extend(file_frames)
         except MissingDependencyError as e:
             per_file_errors.append(f"{file_path.name}: {e}")
         except Exception as e:
@@ -587,9 +655,9 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
         all_records = run_pipeline(all_records, mode=req.preprocessing_mode)
 
     save_records(dataset_id, all_records)
+    save_frames(dataset_id, all_frames)
 
-    center_lat = sum(r.latitude for r in all_records) / len(all_records) if all_records else None
-    center_lon = sum(r.longitude for r in all_records) / len(all_records) if all_records else None
+    center_lat, center_lon = _geographic_centre(all_records)
     has_gt = any(r.ground_truth.value != "none" for r in all_records)
 
     dataset = Dataset(
@@ -597,7 +665,13 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
         sensor_type=req.sensor_type.value, original_format=f"zip({len(supported_files)} files)",
         checksum=report.checksum, quality_score=report.quality_score, record_count=report.record_count,
         raw_path=str(downloaded_path), has_ground_truth=has_gt, center_lat=center_lat, center_lon=center_lon,
-        extra_metadata={"validation_issues": report.issues, "files_in_archive": len(supported_files), "per_file_errors": per_file_errors},
+        extra_metadata={
+            "validation_issues": report.issues, "files_in_archive": len(supported_files),
+            "per_file_errors": per_file_errors,
+            # Recognised formats we could not read. Reported rather than
+            # silently dropped, so a partially-ingested archive is visible.
+            "recognized_unsupported": scan.unsupported_summary(),
+        },
     )
     db.add(dataset)
     db.commit()
@@ -702,9 +776,25 @@ def get_dataset_points(dataset_id: str, max_points: int = 20000, db: Session = D
             "ground_truth": r.ground_truth.value,
             "trace_index": (r.metadata or {}).get("trace_index"),
             "anomaly_reliable": (r.metadata or {}).get("anomaly_reliable"),
+            # What kind of position this point actually has, and where it came
+            # from. "lat"/"lon" above are the legacy view and may be the (0,0)
+            # placeholder; these say whether that is a real position.
+            "position_kind": r.position.kind,
+            "position_source": (r.metadata or {}).get("position_source"),
+            # Distance along the survey line, for acquisitions positioned by a
+            # wheel encoder rather than by GNSS. This is the ONLY coordinate an
+            # odometry dataset has, so without it such a line cannot be plotted
+            # at all. None for every other position kind.
+            "along_track_m": getattr(r.position, "along_track_m", None),
         }
         for r in records
     ]
+
+    position_kinds: dict[str, int] = {}
+    for pnt in points:
+        position_kinds[pnt["position_kind"]] = position_kinds.get(pnt["position_kind"], 0) + 1
+    along = [p["along_track_m"] for p in points if p["along_track_m"] is not None]
+    along_track_extent_m = (max(along) - min(along)) if along else None
 
     return {
         "dataset_id": dataset_id,
@@ -712,6 +802,8 @@ def get_dataset_points(dataset_id: str, max_points: int = 20000, db: Session = D
         "sensor_type": dataset.sensor_type,
         "total_records": total,
         "returned_points": len(points),
+        "position_kinds": position_kinds,
+        "along_track_extent_m": along_track_extent_m,
         "points": points,
     }
 
@@ -780,6 +872,12 @@ def get_dataset_grid(
     }
 
 
+def _along_track_extent(values) -> Optional[float]:
+    """Length of the survey line in metres, or None when it is not positioned."""
+    known = [v for v in (values or []) if v is not None]
+    return (max(known) - min(known)) if known else None
+
+
 @router.get("/{dataset_id}/trace_grid")
 def get_dataset_trace_grid(
     dataset_id: str,
@@ -826,6 +924,22 @@ def get_dataset_trace_grid(
     }
     velocity_assumption = sorted(velocity_values)[0] if len(velocity_values) == 1 else (sorted(velocity_values) or None)
 
+    # This line's own acquisition frame: CRS, vertical axis and the
+    # assumptions behind them. Reconstructed for datasets ingested before
+    # frames existed rather than reported as absent.
+    all_frames = load_frames(dataset_id) or synthesize_frames_from_records(records)
+    match = next((f for f in all_frames if f.source_file == result["source_file"]), None)
+    line_frame = None
+    if match is not None:
+        line_frame = {
+            "frame_id": match.frame_id,
+            "source_format": match.source_format,
+            "modality": match.modality.value,
+            "spatial_ref": match.spatial_ref.model_dump(mode="json"),
+            "vertical_axis": match.vertical_axis.model_dump(mode="json"),
+            "assumptions": [a.model_dump(mode="json") for a in match.assumptions],
+        }
+
     return {
         "dataset_id": dataset_id,
         "name": dataset.name,
@@ -838,6 +952,18 @@ def get_dataset_trace_grid(
         "trace_indices": result["trace_indices"],
         "trace_lat": result["trace_lat"],
         "trace_lon": result["trace_lon"],
+        # Whether each trace's (lat, lon) is a real geographic position or the
+        # legacy placeholder -- a caller georeferencing a column needs to know
+        # before treating those numbers as a location.
+        "trace_position_kind": result.get("trace_position_kind"),
+        "trace_geographic": result.get("trace_geographic"),
+        # Distance of each trace along its own survey line. For an odometry
+        # acquisition this is the real horizontal axis of the radargram: the
+        # grid's columns are evenly spaced in trace index, not in metres, so a
+        # caller plotting distance needs these values rather than the indices.
+        "trace_along_track": result.get("trace_along_track"),
+        "along_track_extent_m": _along_track_extent(result.get("trace_along_track")),
+        "survey_frame": line_frame,
         "grid": grid_json,
         "velocity_m_per_ns": velocity_assumption,
         "velocity_note": (
@@ -864,23 +990,57 @@ def get_dataset_info(dataset_id: str, db: Session = Depends(get_db)):
     if not records:
         raise HTTPException(status_code=404, detail="No stored records found for this dataset")
 
-    lats = [r.latitude for r in records]
-    lons = [r.longitude for r in records]
-    lat_span_m = (max(lats) - min(lats)) * 110540
-    # longitude-to-meters depends on latitude; use the dataset's mean latitude
-    mean_lat = sum(lats) / len(lats)
-    lon_span_m = (max(lons) - min(lons)) * 111320 * math.cos(math.radians(mean_lat))
-
     from preprocessing.spatial_grid import _compute_grid_dims, list_available_depths
-    n_lat, n_lon = _compute_grid_dims(np.array(lats), np.array(lons), len(records))
-    resolution_m = None
-    if n_lat > 1 and n_lon > 1:
-        resolution_m = round(min(lat_span_m / n_lat, lon_span_m / n_lon), 3)
+
+    # Survey extent and grid resolution are lat/lon-derived, so they exist
+    # only for records that HAVE a geographic position. A dataset with none
+    # reports null rather than a fabricated zero-sized survey.
+    positioned = [r for r in records if has_geographic_coordinates(r)]
+    lat_span_m = lon_span_m = resolution_m = None
+    if positioned:
+        lats = [r.latitude for r in positioned]
+        lons = [r.longitude for r in positioned]
+        lat_span_m = (max(lats) - min(lats)) * 110540
+        # longitude-to-meters depends on latitude; use the dataset's mean latitude
+        mean_lat = sum(lats) / len(lats)
+        lon_span_m = (max(lons) - min(lons)) * 111320 * math.cos(math.radians(mean_lat))
+        n_lat, n_lon = _compute_grid_dims(np.array(lats), np.array(lons), len(positioned))
+        if n_lat > 1 and n_lon > 1:
+            resolution_m = round(min(lat_span_m / n_lat, lon_span_m / n_lon), 3)
 
     # Processing steps actually applied, if any -- pulled from record metadata
     # rather than assumed.
     sample_with_processing = next((r for r in records if "processing_applied" in r.metadata), None)
     processing_applied = sample_with_processing.metadata.get("processing_applied") if sample_with_processing else None
+
+    # Acquisition provenance, read from the dataset's SurveyFrames. Datasets
+    # ingested before frames existed have none stored, so reconstruct from
+    # the records rather than reporting nothing.
+    frames = load_frames(dataset_id) or synthesize_frames_from_records(records)
+    frame_summaries = [
+        {
+            "frame_id": f.frame_id,
+            "source_file": f.source_file,
+            "source_format": f.source_format,
+            "modality": f.modality.value,
+            "modality_source": f.modality_source,
+            "n_positions": f.n_positions,
+            "position_index_name": f.position_index_name,
+            "spatial_ref": f.spatial_ref.model_dump(mode="json"),
+            "vertical_axis": f.vertical_axis.model_dump(mode="json"),
+            "assumptions": [a.model_dump(mode="json") for a in f.assumptions],
+        }
+        for f in frames
+    ]
+    # Where each record's position actually came from, counted rather than
+    # assumed. Replaces the previous hardcoded CRS claim below.
+    position_sources: dict[str, int] = {}
+    for r in records:
+        key = r.metadata.get("position_source") or r.position.kind
+        position_sources[str(key)] = position_sources.get(str(key), 0) + 1
+    declared_refs = sorted({
+        (f.spatial_ref.code or f.spatial_ref.kind.value) for f in frames
+    })
 
     return {
         "dataset_id": dataset_id,
@@ -892,8 +1052,15 @@ def get_dataset_info(dataset_id: str, db: Session = Depends(get_db)):
         "record_count": dataset.record_count,
         "quality_score": dataset.quality_score,
         "has_ground_truth": dataset.has_ground_truth,
-        "coordinate_system": "EPSG:4326 (WGS84 lat/lon)",
-        "survey_area_m": {"lat_span": round(lat_span_m, 1), "lon_span": round(lon_span_m, 1)},
+        # Reported from the dataset's own frames. This previously asserted a
+        # hardcoded "EPSG:4326 (WGS84 lat/lon)" that was never checked
+        # against the data.
+        "coordinate_system": declared_refs[0] if len(declared_refs) == 1 else declared_refs,
+        "position_sources": position_sources,
+        "survey_frames": frame_summaries,
+        "survey_area_m": ({"lat_span": round(lat_span_m, 1), "lon_span": round(lon_span_m, 1)}
+                          if lat_span_m is not None else None),
+        "geographic_record_count": len(positioned),
         "grid_resolution_m": resolution_m,
         "depth_layers": list_available_depths(records),
         "processing_applied": processing_applied,

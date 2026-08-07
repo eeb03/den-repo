@@ -22,12 +22,33 @@ def test_validate_perfect_dataset_scores_high():
     assert report.issues == []
 
 
-def test_validate_flags_null_island():
+def test_a_dataset_with_no_horizontal_position_is_reported_not_penalised():
+    """
+    M3 inverts this test's original premise. It used to assert that (0, 0)
+    coordinates were "null-island, likely missing data" and cost half the
+    quality score. But (0, 0) was a PLACEHOLDER converters were forced to
+    invent, and a format that genuinely provides no position (IDS .dt) is
+    complete as it stands. Absence is now reported as a fact about the
+    dataset, not scored as a defect.
+    """
     records = [_rec(latitude=0.0, longitude=0.0) for _ in range(5)]
     report = validate_dataset(records, dataset_id="ds1")
-    assert report.missing_coordinates == 5
-    assert any("null-island" in issue for issue in report.issues)
-    assert report.quality_score < 0.6
+    assert report.missing_coordinates == 0
+    assert any("No record carries a horizontal position" in i for i in report.issues)
+    assert report.quality_score > 0.6
+
+
+def test_a_dataset_claiming_geographic_coordinates_without_them_is_flagged():
+    """The real defect: declaring a geographic position and not having one."""
+    from schemas.spatial import GeographicPosition
+    records = [_rec(latitude=41.0, longitude=15.0) for _ in range(4)]
+    for r in records[:2]:
+        r.position = GeographicPosition(lat=41.0, lon=15.0)
+        r.latitude = None
+        r.longitude = None
+    report = validate_dataset(records, dataset_id="ds1")
+    assert report.missing_coordinates == 2
+    assert any("carry no coordinates" in issue for issue in report.issues)
 
 
 def test_validate_empty_dataset():

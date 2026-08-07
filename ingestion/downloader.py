@@ -8,6 +8,7 @@ OpenTopography catalog browsing, etc.) are a Phase 2 item — see
 ingestion/sources.py for the registry stub that they plug into.
 """
 import time
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import requests
@@ -23,18 +24,41 @@ class DownloadError(RuntimeError):
     pass
 
 
-SUPPORTED_EXTENSIONS = {".csv", ".xyz", ".tsv", ".sgy", ".segy", ".las", ".laz", ".tif", ".tiff"}
+def _is_real_data_file(p: Path) -> bool:
+    """Excludes macOS AppleDouble sidecars -- Finder metadata that shares the
+    real file's extension but contains none of its data."""
+    return p.is_file() and not p.name.startswith("._") and "__MACOSX" not in p.parts
 
 
-def extract_zip_and_find_supported_files(zip_path: str | Path, extract_to: str | Path | None = None) -> list[Path]:
+@dataclass
+class ArchiveScan:
+    """What an archive actually contains, classified rather than filtered.
+
+    `recognized_unsupported` exists because silently dropping proprietary
+    files made a zip of IDS GeoRadar .dt data indistinguishable from a zip
+    with nothing of interest in it. Callers can now say which it is.
     """
-    Extracts a zip archive and returns every contained file (recursively,
-    including subdirectories) whose extension has a registered converter.
-    Files with no matching converter (e.g. proprietary .dt format, .txt
-    readmes, preview images) are silently skipped -- callers should check
-    for an empty result and report that clearly rather than assume success.
+    extract_dir: Path
+    supported: list[Path] = field(default_factory=list)
+    recognized_unsupported: list[tuple[Path, str]] = field(default_factory=list)
+
+    def unsupported_summary(self) -> dict[str, int]:
+        """{format description: file count} for the recognised-but-unreadable files."""
+        counts: dict[str, int] = {}
+        for _path, description in self.recognized_unsupported:
+            counts[description] = counts.get(description, 0) + 1
+        return counts
+
+
+def scan_archive(zip_path: str | Path, extract_to: str | Path | None = None) -> ArchiveScan:
+    """
+    Extracts a zip archive and classifies every file inside it (recursively)
+    against the converter registry -- the single source of truth for what
+    the platform can read.
     """
     import zipfile
+
+    from converters.registry import classify_file
 
     zip_path = Path(zip_path)
     extract_to = Path(extract_to) if extract_to else zip_path.parent / f"{zip_path.stem}_extracted"
@@ -43,15 +67,27 @@ def extract_zip_and_find_supported_files(zip_path: str | Path, extract_to: str |
     with zipfile.ZipFile(zip_path) as zf:
         zf.extractall(extract_to)
 
-    found = sorted(
-        p for p in extract_to.rglob("*")
-        if p.is_file()
-        and p.suffix.lower() in SUPPORTED_EXTENSIONS
-        and not p.name.startswith("._")  # macOS AppleDouble sidecar files -- Finder metadata,
-        and "__MACOSX" not in p.parts     # not real data, despite sharing the real file's extension
+    scan = ArchiveScan(extract_dir=extract_to)
+    for p in sorted(extract_to.rglob("*")):
+        if not _is_real_data_file(p):
+            continue
+        classification, detail = classify_file(p)
+        if classification == "supported":
+            scan.supported.append(p)
+        elif classification == "recognized_unsupported":
+            scan.recognized_unsupported.append((p, detail))
+
+    logger.info(
+        f"scan_archive: {zip_path.name} -> {len(scan.supported)} supported file(s), "
+        f"{len(scan.recognized_unsupported)} recognised-but-unsupported "
+        f"({scan.unsupported_summary() or 'none'})"
     )
-    logger.info(f"extract_zip_and_find_supported_files: {zip_path.name} -> {len(found)} supported file(s) found")
-    return found
+    return scan
+
+
+def extract_zip_and_find_supported_files(zip_path: str | Path, extract_to: str | Path | None = None) -> list[Path]:
+    """Backward-compatible view over `scan_archive`: supported files only."""
+    return scan_archive(zip_path, extract_to).supported
 
 
 def download_file(

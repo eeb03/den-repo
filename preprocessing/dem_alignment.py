@@ -18,6 +18,7 @@ from pathlib import Path
 import numpy as np
 
 from converters.base import MissingDependencyError
+from schemas.spatial import has_geographic_coordinates
 from schemas.subterra_record import SubterraRecord
 from utils.logger import get_logger
 
@@ -120,12 +121,29 @@ def align_records_with_dem(records: list[SubterraRecord], dem_path: str | Path) 
     if not records:
         return records
 
-    lats = np.array([r.latitude for r in records])
-    lons = np.array([r.longitude for r in records])
+    # A DEM lookup needs a real geographic position. Records without one are
+    # skipped rather than sampled at a placeholder coordinate.
+    positioned = [r for r in records if has_geographic_coordinates(r)]
+    if not positioned:
+        logger.warning(
+            f"DEM alignment: none of the {len(records)} record(s) carry a geographic "
+            f"position, so no elevation can be looked up. Nothing was changed."
+        )
+        return records
+    if len(positioned) < len(records):
+        logger.warning(
+            f"DEM alignment: {len(records) - len(positioned)} of {len(records)} record(s) "
+            f"have no geographic position and were skipped."
+        )
+    records_to_align = positioned
+    lats = np.array([r.latitude for r in records_to_align])
+    lons = np.array([r.longitude for r in records_to_align])
     elevations = sample_dem_bilinear(band, transform, lats, lons)
 
     n_aligned = 0
-    for r, elev in zip(records, elevations):
+    # zip against the FILTERED list: `elevations` was sampled from it, so
+    # zipping against `records` would assign one record's elevation to another.
+    for r, elev in zip(records_to_align, elevations):
         if not np.isnan(elev):
             r.elevation = float(elev)
             r.metadata["dem_vertical_datum_verified"] = False

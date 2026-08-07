@@ -16,6 +16,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from schemas.spatial import has_geographic_coordinates
 from schemas.subterra_record import SubterraRecord
 from utils.logger import get_logger
 
@@ -245,14 +246,24 @@ def preprocess_spatial_grid_anomaly(
     if not records:
         return records
 
+    # (lat, lon) binning is only meaningful for geographic records. Others are
+    # left out of the grid entirely rather than binned at a missing
+    # coordinate, and keep their original index so the results still scatter
+    # back onto the right record.
     rows = [
         {
             "idx": i, "lat": r.latitude, "lon": r.longitude,
             "depth": round(r.depth, 6) if r.depth is not None else 0.0,
             "value": r.signal[0] if r.signal else np.nan,
         }
-        for i, r in enumerate(records)
+        for i, r in enumerate(records) if has_geographic_coordinates(r)
     ]
+    if not rows:
+        logger.warning(
+            f"preprocess_spatial_grid_anomaly: none of the {len(records)} record(s) carry a "
+            f"geographic position, so no (lat, lon) grid can be built -- skipping."
+        )
+        return records
     df = pd.DataFrame(rows)
     if df["value"].isna().all():
         logger.warning("preprocess_spatial_grid_anomaly: no scalar signal values found; skipping.")
@@ -472,8 +483,22 @@ def build_trace_depth_grid_for_records(
     # Every sample of a trace shares one (lat, lon) -- see SEGYConverter /
     # georeference_records_by_trace -- so the first record seen per trace suffices.
     trace_latlon = {}
+    trace_kind = {}
+    trace_geographic = {}
+    trace_along_track = {}
     for r in sub_records:
-        trace_latlon.setdefault(r.metadata["trace_index"], (r.latitude, r.longitude))
+        t = r.metadata["trace_index"]
+        trace_latlon.setdefault(t, (r.latitude, r.longitude))
+        # Whether that (lat, lon) is a real geographic position or the legacy
+        # placeholder. Consumers computing real-world distances need to know:
+        # a haversine between two placeholders returns 0.0 metres, which is a
+        # fabricated measurement rather than a missing one.
+        kind = getattr(r.position, "kind", None)
+        trace_kind.setdefault(t, kind)
+        trace_geographic.setdefault(t, has_geographic_coordinates(r))
+        # Along-track distance, for acquisitions positioned by odometry.
+        trace_along_track.setdefault(
+            t, getattr(r.position, "along_track_m", None) if kind == "odometry" else None)
 
     return {
         "source_file": source_file,
@@ -483,6 +508,9 @@ def build_trace_depth_grid_for_records(
         "depths": depths,
         "trace_lat": [trace_latlon[t][0] for t in trace_ids],
         "trace_lon": [trace_latlon[t][1] for t in trace_ids],
+        "trace_position_kind": [trace_kind[t] for t in trace_ids],
+        "trace_geographic": [trace_geographic[t] for t in trace_ids],
+        "trace_along_track": [trace_along_track[t] for t in trace_ids],
     }
 
 
@@ -520,8 +548,13 @@ def build_grid_for_records(
             "depth": round(r.depth, 6) if r.depth is not None else 0.0,
             "value": get_value(r),
         }
-        for r in records
+        for r in records if has_geographic_coordinates(r)
     ]
+    if not rows:
+        raise ValueError(
+            "No record carries a geographic position, so no (lat, lon) grid can be built. "
+            "Use /trace_grid for line data indexed by trace, or supply a CRS at ingest."
+        )
     df = pd.DataFrame(rows)
 
     available_depths = df["depth"].unique()
@@ -580,8 +613,14 @@ def preprocess_spatial_grid(
             "depth": round(r.depth, 6) if r.depth is not None else 0.0,
             "value": r.signal[0] if r.signal else np.nan,
         }
-        for i, r in enumerate(records)
+        for i, r in enumerate(records) if has_geographic_coordinates(r)
     ]
+    if not rows:
+        logger.warning(
+            f"preprocess_spatial_grid: none of the {len(records)} record(s) carry a geographic "
+            f"position, so no (lat, lon) raster can be built -- skipping."
+        )
+        return records
     df = pd.DataFrame(rows)
 
     if df["value"].isna().all():
