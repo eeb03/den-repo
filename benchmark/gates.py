@@ -84,8 +84,30 @@ OPEN_QUESTIONS: tuple[OpenQuestion, ...] = (
 )
 
 
+# --------------------------------------------------------------------------
+# 4TU real-world utility benchmark
+#
+# A different corpus with a different blocker. BAM is blocked on an unverified
+# ORIGIN; 4TU is blocked on the absence of coordinates altogether -- the
+# publisher removed them to protect utility locations. Activity-level scoring
+# is available; anything that matches a candidate to a utility is not.
+# --------------------------------------------------------------------------
+
+OBJECT_LEVEL_STATUS = BLOCKED
+OBJECT_LEVEL_BLOCKED_REASON = (
+    "4TU publishes no trench coordinates, so no candidate can be matched to a utility"
+)
+ACTIVITY_LEVEL_STATUS = RESOLVED
+
+FOURTU_OPEN_QUESTIONS: tuple["OpenQuestion", ...] = ()  # populated below
+
+
 class LocalizationBlocked(RuntimeError):
     """Raised when something asks for a result the evidence cannot support."""
+
+
+class ObjectLevelBlocked(RuntimeError):
+    """Raised when a metric needs a candidate-to-target match that cannot exist."""
 
 
 def require_localization_evidence(what: str = "localisation scoring") -> None:
@@ -104,6 +126,65 @@ def require_localization_evidence(what: str = "localisation scoring") -> None:
             f"depend on the absolute origin. See "
             f"docs/external-gpr-benchmark-acquisition.md section 9."
         )
+
+
+FOURTU_OPEN_QUESTIONS = (
+    OpenQuestion(
+        id="trench-coordinates",
+        statement=(
+            "The publisher removed geospatial information from the ground truth "
+            "to preserve utility-location confidentiality. No candidate can be "
+            "matched to a particular utility."
+        ),
+        blocks="per-object precision/recall, IoU, detection distance, positional F1",
+        resolution_route="author contact (University of Twente); a confidentiality decision, not an omission",
+    ),
+    OpenQuestion(
+        id="trench-is-a-subset-of-the-survey",
+        statement=(
+            "'Amount of utilities' counts what the TRIAL TRENCH found. A trench "
+            "is a small excavation inside a much larger surveyed area, so a "
+            "utility under a survey line but outside the trench is absent from "
+            "the truth and present in the ground."
+        ),
+        blocks="calling an unmatched detector response a false positive",
+        resolution_route="trench extents, which are not published",
+    ),
+    OpenQuestion(
+        id="attested-zero-population-is-small",
+        statement=(
+            "Only a handful of activities report a trench count of zero, which "
+            "is too few to carry a stable rate."
+        ),
+        blocks="a false-alarm RATE on real-world ground",
+        resolution_route="more zero-utility trenches, or another real-world corpus",
+    ),
+)
+
+
+def require_object_level_evidence(what: str = "object-level scoring") -> None:
+    """
+    Call before any metric that matches a candidate to a specific utility.
+
+    Activity-level scoring must never call this: counting candidates per
+    activity needs no coordinates and is legitimately available.
+    """
+    if OBJECT_LEVEL_STATUS != RESOLVED:
+        unresolved = ", ".join(q.id for q in FOURTU_OPEN_QUESTIONS if q.status != RESOLVED)
+        raise ObjectLevelBlocked(
+            f"{what} is {OBJECT_LEVEL_STATUS}: {OBJECT_LEVEL_BLOCKED_REASON}. "
+            f"Unresolved: {unresolved}. "
+            f"Activity-level scoring remains available. See "
+            f"docs/4tu-utility-benchmark.md."
+        )
+
+
+FOURTU_SCOPE_STATEMENT = (
+    "4TU results are activity-level only. No candidate is matched to a utility, "
+    "and no positional or depth accuracy is measured. An unmatched detector "
+    "response is not necessarily a false alarm, because the trial trench covers "
+    "only part of the surveyed ground."
+)
 
 
 #: The sentence that must accompany any reported BAM number. Kept here, in

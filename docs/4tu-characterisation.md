@@ -143,6 +143,17 @@ The join is **LocationID only**. 4TU withholds trench coordinates for confidenti
 
 4TU contains **no control or background activity**: every survey was walked where a trench was planned. A false-alarm rate cannot be measured from it.
 
+> **Correction, 2026-08-08 (utility-benchmark milestone).** The sentence above
+> is **too strong**. No activity was *chosen* as background, but the
+> `Amount of utilities` field — defined in `Codebook.pdf` as "The number of
+> utilities found. Integer value." — reports **0 for 7 activities**, which is a
+> positive statement that the trench found nothing rather than a blank. There
+> **is** a negative population; it is small. The conclusion is unchanged, but
+> the reason is "7 activities are too few for a rate", not "there is no
+> negative ground". The reasoning above was about the blank
+> `Utility discipline` field, which is a different field with a different
+> meaning. See [`4tu-utility-benchmark.md`](4tu-utility-benchmark.md).
+
 ## 11. Threshold sensitivity
 
 | threshold | candidates | vs default |
