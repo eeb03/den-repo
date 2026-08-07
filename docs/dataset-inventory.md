@@ -6,6 +6,9 @@ The machine-readable source of truth is
 this document is generated from the same facts and should be updated with it.
 
 **Inventory date:** 2026-08-07 · **Total on disk: 2.65 GB**
+**Tier 2.1 added:** AHN DTM 0.5 m subset (0.5 MB) — the first dataset with a
+**declared projected CRS**, and the one that moves cross-CRS fusion from
+fixture-tested to data-tested.
 **Updated 2026-08-07:** little-endian SEG-Y, MALÅ `.rd3`/`.rad` and GSSI
 `.dzt` implemented. **All three Tier 1 datasets are fully ingestible** —
 `4tu-nl-utility` 759/759, `hillside-lancaster` 321/321, `tu1208-ifsttar`
@@ -31,6 +34,7 @@ per-file CRC32.
 | T1 | `hillside-lancaster` | Hillside GPR (Lancaster) | **CC-BY-4.0** | 80.4 MB | 200.4 MB | acquired |
 | T0 | `guangzhou-ids` | Guangzhou IDS `.dt` — **subset** | CC-BY-4.0 | 2.9 MB | 4.9 MB | **partial** |
 | T0 | `ingv-unisa` | INGV-UNISA Site 1 | **UNVERIFIED** | — | 119.6 MB | local |
+| **T2** | `ahn-dtm-05m` | AHN DTM 0.5 m — subset over 4TU project 01 | **CC0-1.0** | 0.5 MB | 0.5 MB | acquired |
 
 On-disk exceeds download because archives are kept alongside their
 extraction; 4TU additionally nests 13 inner ZIPs that are also extracted.
@@ -212,6 +216,50 @@ undetectable at |z|≥3.
 
 ---
 
+## T2.1 · `ahn-dtm-05m`
+
+| | |
+|---|---|
+| **Name** | Actueel Hoogtebestand Nederland — Digital Terrain Model (DTM) 0,5 m, Cloud Optimized GeoTIFF |
+| **Source** | PDOK / Rijkswaterstaat · [ATOM feed](https://service.pdok.nl/rws/ahn/atom/dtm_05m.xml) · [product page](https://www.pdok.nl/introductie/-/article/actueel-hoogtebestand-nederland-ahn) |
+| **License** | **CC0-1.0**, read from the `<rights>` element of the ATOM feed itself |
+| **Download size** | **527,232 B** — a windowed COG read over HTTP. The source tile `M_34FN2` is 316,538,944 B and was **never downloaded in full**. |
+| **On-disk size** | 0.5 MB |
+| **File formats** | `.tif` ×1 (float32, 0.5 m, tiled COG) |
+| **CRS** | **EPSG:28992 (Amersfoort / RD New), `declared_by_source`** — stated independently in three places: the COG file, the ATOM feed `<category>`, and the tile index. **Nothing inferred.** |
+| **Vertical datum** | NAP — **PDOK documentation only, not declared in the GeoTIFF.** The frame's vertical origin stays "raster band 1 value" and claims no datum. |
+| **Spatial extent** | RD X 254 962.8–255 241.3, Y 473 228.0–473 459.0 (557 × 462 px). Elevation 27.374–32.549 m NAP; 194,822 of 257,334 cells valid. |
+| **Benchmark role** | First declared projected CRS on disk; exercises `ingestion/crs_transform.py` and cross-CRS fusion on real data. |
+
+**How compatibility was established** — from declared CRS and measured
+extent, *not* from both datasets being Dutch. The GPR extent of 4TU project
+01 was computed from real SEG-Y trace headers (WGS84 lat 52.23847–52.23961,
+lon 6.85149–6.85461), transformed to EPSG:28992 (X 255 012.8–255 228.5,
+Y 473 277.9–473 409.0), and matched against the official tile index, which
+returned **exactly one** covering tile. The GPR extent lies wholly inside
+the AHN subset.
+
+**Validated fusion result**
+
+| | Without frames | With frames |
+|---|---|---|
+| AHN records placed | 0 (excluded, "declares no CRS") | all |
+| Multimodal `gpr`+`lidar` samples | **0** | **2** |
+| Members | — | 65 LiDAR + 190,976 GPR |
+| `n_reprojected` | — | 65 — every LiDAR member, none of the GPR |
+
+**Limitations**
+
+- **DTM only** — ground-classified returns resampled to a raster, not the
+  LAZ point cloud.
+- The vertical datum is external documentation, not file metadata.
+- Covers **project 01 only**; the other 12 sites each need their own window.
+- **Surface elevation cannot yet be related to GPR depth.** That needs both
+  a velocity and a common vertical reference, and neither is established —
+  the GPR time axis starts at instrument time-zero, not the ground surface.
+
+---
+
 ## Roadmap coverage
 
 Capability → which datasets can exercise it, given what is on disk today.
@@ -224,15 +272,16 @@ Capability → which datasets can exercise it, given what is on disk today.
 | MALÅ `.rd3`/`.rad` ingestion | `hillside-lancaster` (321), `tu1208-ifsttar` (15) | ✅ **working** |
 | GSSI `.dzt` ingestion | `tu1208-ifsttar` (40) | ✅ **working** |
 | `GeographicPosition` | `4tu-nl-utility`, `ingv-unisa` | ✅ |
-| `ProjectedPosition` | `ingv-unisa` | ⚠️ no *declared* CRS anywhere on disk |
+| `ProjectedPosition` | `ahn-dtm-05m`, `ingv-unisa` | ✅ AHN declares EPSG:28992 |
 | `OdometryPosition` | `guangzhou-ids`, `hillside-lancaster` | ✅ |
 | `LocalCartesianPosition` | `hillside-lancaster` | ⚠️ reader exists; x/y needs a declared line spacing |
 | `NoPosition` | `4tu-nl-utility` (43 files) | ✅ |
 | `CRSProvenance.NONE` | `4tu-nl-utility`, `tu1208-ifsttar` | ✅ |
 | GeoTie (along-track) | — | ⚠️ no dataset on disk supplies along-track control points |
 | GeoTie (**2D corners**) | `hillside-lancaster` | ❌ **not implemented, by instruction** |
-| **Cross-CRS fusion** | — | ❌ **no dataset on disk has a declared projected CRS** — still fixture-only |
-| LiDAR / DEM / orthophoto | — | ❌ Tier 2 (AHN, Copernicus) |
+| **Cross-CRS fusion** | `ahn-dtm-05m` + `4tu-nl-utility` | ✅ **working on real data** — 2 multimodal samples, 65 reprojected members |
+| Declared projected CRS | `ahn-dtm-05m` (EPSG:28992) | ✅ **working** |
+| LiDAR / DEM / orthophoto | `ahn-dtm-05m` | ⚠️ DTM raster only — no point cloud, orthophoto or imagery |
 | Excavated ground truth | `4tu-nl-utility` | ⚠️ present but **without coordinates** |
 | Controlled-site ground truth | `tu1208-ifsttar` | ⚠️ target inventory unverified |
 | Tunnels | — | ❌ in the Guangzhou record, not in the local subset |
