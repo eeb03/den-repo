@@ -6,9 +6,10 @@ The machine-readable source of truth is
 this document is generated from the same facts and should be updated with it.
 
 **Inventory date:** 2026-08-07 · **Total on disk: 2.65 GB**
-**Updated 2026-08-07:** little-endian SEG-Y and MALÅ `.rd3`/`.rad`
-implemented. `4tu-nl-utility` (759/759) and `hillside-lancaster` (321/321)
-are fully ingestible; `tu1208-ifsttar` reads 27 of its 67 radargrams.
+**Updated 2026-08-07:** little-endian SEG-Y, MALÅ `.rd3`/`.rad` and GSSI
+`.dzt` implemented. **All three Tier 1 datasets are fully ingestible** —
+`4tu-nl-utility` 759/759, `hillside-lancaster` 321/321, `tu1208-ifsttar`
+**67/67 across all three vendors**. Every converter gap is now closed.
 
 Each entry describes **what is actually on disk**, which is not always what
 the publisher's record describes — `guangzhou-ids` is a 2.9 MB subset of a
@@ -113,8 +114,8 @@ extraction; 4TU additionally nests 13 inner ZIPs that are also extracted.
 | **Number of files** | 110 |
 | **CRS** | **None.** A local site grid is implied but is not recorded in any file. Subterra asserts no EPSG. |
 | **Survey geometry** | **67 native radargrams** (64 unique stems, 3 in two formats) across 5 material zones — GNEISS0-20, GNEISS14-20, LIMESTONE, MULTI-LAYER, SILT. Frequencies 200/250/270/350/400/500/600/800/900 MHz. Three vendors: GSSI, MALÅ, IDS. |
-| **Supported phases** | ✅ `IDSDTConverter` (12 `.DT`, unchanged) · ✅ `MALAConverter` (15 `.rd3`) · `converters/registry` multi-vendor dispatch · future `.dzt` reader |
-| **Ingestion** | **27 of 67 native radargrams read** — 12 IDS + 15 MALÅ (14,401 traces, 7,599,781 samples, 0 failures). 40 GSSI `.DZT` await a reader. |
+| **Supported phases** | ✅ `IDSDTConverter` (12 `.DT`) · ✅ `MALAConverter` (15 `.rd3`) · ✅ `GSSIConverter` (40 `.dzt`) · `converters/registry` multi-vendor dispatch |
+| **Ingestion** | **67 of 67 native radargrams read, 0 failures — all three vendors.** GSSI alone: 40 files, 85,795 traces, 65,427,456 samples; bit depths 8/16/32 (×3/×23/×14); 18 distance-triggered, 22 time-triggered; windows 60–110 ns. |
 | **Benchmark role** | Multi-vendor format coverage and cross-instrument consistency over a controlled site. |
 
 **Identity: verified 2026-08-07.** The paper's abstract (OpenAlex API)
@@ -221,7 +222,7 @@ Capability → which datasets can exercise it, given what is on disk today.
 | SEG-Y ingestion (**little-endian**) | `4tu-nl-utility` (759 files) | ✅ **working** |
 | IDS `.dt` ingestion | `guangzhou-ids`, `tu1208-ifsttar` | ✅ working, now on two instruments |
 | MALÅ `.rd3`/`.rad` ingestion | `hillside-lancaster` (321), `tu1208-ifsttar` (15) | ✅ **working** |
-| GSSI `.dzt` ingestion | `tu1208-ifsttar` (40) | ❌ converter gap |
+| GSSI `.dzt` ingestion | `tu1208-ifsttar` (40) | ✅ **working** |
 | `GeographicPosition` | `4tu-nl-utility`, `ingv-unisa` | ✅ |
 | `ProjectedPosition` | `ingv-unisa` | ⚠️ no *declared* CRS anywhere on disk |
 | `OdometryPosition` | `guangzhou-ids`, `hillside-lancaster` | ✅ |
@@ -237,7 +238,7 @@ Capability → which datasets can exercise it, given what is on disk today.
 | Tunnels | — | ❌ in the Guangzhou record, not in the local subset |
 | 3D reconstruction | `hillside-lancaster` (0.4 m orthogonal grids) | ✅ readable; x/y needs a declared line spacing |
 | Multi-frequency comparison | `hillside-lancaster` (250/500/800), `tu1208-ifsttar` (200–900) | ✅ readable |
-| Multi-vendor consistency | `tu1208-ifsttar` | ⚠️ **2 of 3** vendors readable (IDS, MALÅ) |
+| Multi-vendor consistency | `tu1208-ifsttar` | ✅ **all 3 vendors** readable; 67/67 radargrams |
 
 ### What Tier 1 changed
 
@@ -261,9 +262,12 @@ a genuine `NoPosition` population; two datasets that declare no CRS.
    759/759 files ingest.
 2. ~~**MALÅ `.rd3`/`.rad`**~~ — **done.** `converters/mala_converter.py`;
    336/336 files ingest across two independent sites.
-3. **GSSI `.dzt`** — the last converter gap. Unblocks 40 files and completes
-   three-vendor coverage of the TU1208 controlled site; `readgssi.m` in that
-   archive documents the header layout.
+3. ~~**GSSI `.dzt`**~~ — **done.** `converters/gssi_converter.py`; 40/40 files
+   ingest and three-vendor coverage of the controlled site is complete.
+
+**All converter gaps are now closed.** Every `.sgy`, `.dt`, `.rd3` and
+`.dzt` file on disk ingests: 1,167 files, 749,315 traces. What remains is
+not a reader problem — see the roadmap section below.
 
 ### Unsupported SEG-Y variants that remain
 

@@ -23,6 +23,7 @@ from converters.segy_converter import SEGYConverter
 from converters.las_converter import LASConverter
 from converters.geotiff_converter import GeoTIFFConverter
 from converters.ids_dt_converter import IDSDTConverter
+from converters.gssi_converter import GSSIConverter
 from converters.mala_converter import MALAConverter
 
 _CONVERTERS: list[BaseConverter] = [
@@ -32,6 +33,7 @@ _CONVERTERS: list[BaseConverter] = [
     GeoTIFFConverter(),
     IDSDTConverter(),
     MALAConverter(),
+    GSSIConverter(),
 ]
 
 #: Formats we can NAME but not yet read. Being listed here is a promise that
@@ -48,10 +50,10 @@ KNOWN_UNSUPPORTED_FORMATS: dict[str, str] = {
     ".mrk": "MALA RAMAC marker sidecar (not read)",
     ".add": "MALA RAMAC display-settings sidecar (not read)",
     ".em": "MALA RAMAC sidecar (not read)",
-    ".dzt": "GSSI (proprietary GPR)",
-    ".dzx": "GSSI sidecar",
+    # GSSI sidecars. Neither carries samples, so the .dzt is the unit.
+    ".dzx": "GSSI XML sidecar (read with its .dzt)",
+    ".dzg": "GSSI GNSS sidecar (read with its .dzt)",
     ".sgd": "Sensors & Software (proprietary GPR)",
-    ".dzg": "GSSI GPS sidecar",
 }
 
 
