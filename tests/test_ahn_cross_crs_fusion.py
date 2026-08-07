@@ -29,7 +29,7 @@ from fusion.sensor_fusion import (
 from schemas.spatial import CRSKind, CRSProvenance
 from schemas.subterra_record import SensorType
 
-AHN = Path("datasets/raw/pdok_ahn/dtm_05m/AHN_DTM_05m_M_34FN2_4tu_site01.tif")
+AHN = Path("datasets/raw/pdok_ahn/dtm_05m/AHN_DTM_05m_site01.tif")
 GPR_DIR = Path("datasets/raw/4tu/96303227-5886-41c9-8607-70fdd2cfe7c1/extracted/01")
 
 REAL_AHN = pytest.mark.skipif(not AHN.exists(), reason="AHN subset not present locally")

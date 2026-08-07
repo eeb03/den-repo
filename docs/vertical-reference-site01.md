@@ -4,6 +4,20 @@ Investigation date 2026-08-07. **Conclusion: outcome C — a vertical
 registration step is required.** No absolute Z is computed, and nothing in
 the code produces one.
 
+> **Correction, 2026-08-07 (multi-site milestone).** The residual figures
+> first published here were measured against a *truncated* AHN window —
+> one tile, where site 01 actually spans two. Re-measured against the
+> complete window (24,013 traces instead of 18,299) the residual is
+> **−0.508 m, sd 0.163**, with a per-activity spread of **0.260 m**, not the
+> 1.761 m originally reported. The corrected table is below; the superseded
+> one is kept collapsed beneath it, so the correction is visible.
+> **The conclusion is unchanged, but the reasoning is different**: the
+> offset now looks *systematic*, which points more strongly toward a shared
+> datum, not less. What blocks the conclusion is no longer "the offset
+> varies unexplainably" but "no source declares a datum, the −0.51 m
+> constant is unexplained, and the depth axis still starts at instrument
+> time-zero."
+
 ## What AHN actually provides
 
 | | |
@@ -43,42 +57,56 @@ AHN ground surface        (measured, ground-classified, datum NAP by documentati
 absolute elevation        ← NOT AVAILABLE
 ```
 
-## The measurement that decided it
+## The measurement (corrected)
 
-18,299 site-01 traces fall on a valid AHN cell. Comparing the GPR
-byte-41 elevation with AHN at the same coordinates:
+**24,013** site-01 traces fall on a valid AHN cell in the complete window.
 
 | | |
 |---|---|
-| GPR elevation | 27.373 – 29.331 m (mean 28.859) |
-| AHN at same xy | 27.658 – 30.179 m (mean 29.558) |
-| **Residual** | **−0.699 m mean, sd 0.408 m** |
-
-Sub-metre agreement with an independent NAP surface is strong evidence that
-the GPR elevation *is* an orthometric height in NAP. It is not a
-declaration, and the per-activity breakdown is why that distinction matters:
+| **Overall residual** | **−0.508 m mean, sd 0.163 m** |
 
 | Activity | Traces | GPR z̄ | AHN z̄ | residual | sd |
 |---|---|---|---|---|---|
-| 01.1 | 1150 | 28.395 | 27.964 | **+0.431** | 0.174 |
-| 01.2 | 1881 | 28.972 | 29.885 | −0.913 | 0.209 |
-| 01.3 | 3045 | 29.181 | 29.883 | −0.701 | 0.065 |
-| 01.4 | 650 | 28.303 | 29.633 | **−1.330** | 0.275 |
-| 01.5 | 2089 | 28.455 | 29.644 | −1.189 | 0.155 |
-| 01.6 | 2089 | 28.482 | 29.397 | −0.914 | 0.090 |
-| 01.7 | 2496 | 29.097 | 29.489 | −0.392 | 0.060 |
-| 01.8 | 2323 | 28.973 | 29.581 | −0.608 | 0.040 |
-| 01.9 | 2576 | 29.040 | 29.735 | −0.696 | 0.214 |
+| 01.1 | 3684 | 28.398 | 28.859 | −0.461 | 0.031 |
+| 01.2 | 2254 | 28.948 | 29.406 | −0.458 | 0.106 |
+| 01.3 | 3045 | 29.181 | 29.688 | −0.507 | 0.079 |
+| 01.4 | 3466 | 28.219 | 28.921 | −0.703 | 0.324 |
+| 01.5 | 1937 | 28.456 | 28.898 | −0.442 | 0.034 |
+| 01.6 | 2089 | 28.482 | 28.985 | −0.503 | 0.096 |
+| 01.7 | 2496 | 29.097 | 29.587 | −0.489 | 0.049 |
+| 01.8 | 2323 | 28.973 | 29.441 | −0.468 | 0.037 |
+| 01.9 | 2719 | 29.043 | 29.507 | −0.464 | 0.116 |
 
-**Within** an activity the residual is tight (sd 0.040–0.275 m). **Between**
-activities its mean spans +0.431 to −1.330 m — a **1.761 m spread**.
+Per-activity means span **−0.442 to −0.703 m — a 0.260 m spread**. The
+residual is **systematic**, not erratic.
 
-A fixed antenna height would be constant. This is not. Candidate causes —
-terrain change on an active construction site between the AHN flight and the
-survey, a different pole or cart setup per activity, GNSS vertical error
-under obstruction, a different geoid model in the receiver — are **not
-distinguishable from the available data**, and the AHN epoch is unknown, so
-the construction-change hypothesis cannot even be tested.
+<details>
+<summary>Superseded measurement (truncated one-tile window, 18,299 traces)</summary>
+
+Residual −0.699 m, sd 0.408; per-activity means +0.431 to −1.330 m, a
+1.761 m spread. That spread was largely an artefact of sampling activities
+against partial coverage and nodata at the window edge, and the inference
+drawn from it — "this cannot be a fixed offset" — does not survive complete
+coverage.
+</details>
+
+### Why this still does not establish a datum
+
+Sub-metre, systematic agreement with an independent NAP surface is **strong
+evidence** that the GPR elevation is an orthometric height in NAP. It is
+still not a declaration, and three things remain open:
+
+1. **No source declares it.** Not the SEG-Y, not the readme, not the
+   codebook. Evidence is not provenance.
+2. **The −0.51 m constant is unexplained.** An antenna-height correction
+   applied by the operator, terrain change between the AHN flight and the
+   survey, and a geoid-model difference in the receiver would all produce a
+   systematic offset of roughly this size. Nothing in the data distinguishes
+   them, and the AHN epoch is unpublished so the terrain-change hypothesis
+   cannot even be tested.
+3. **Its sign is the wrong way round for the obvious explanation.** A GNSS
+   antenna carried above the ground would sit *above* the surface; this sits
+   0.51 m below it.
 
 Declaring a datum on this basis would be inventing provenance.
 

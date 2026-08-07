@@ -30,7 +30,7 @@ from schemas.spatial import (
 from schemas.subterra_record import SensorType
 from schemas.survey_frame import SurveyFrame
 
-AHN = Path("datasets/raw/pdok_ahn/dtm_05m/AHN_DTM_05m_M_34FN2_4tu_site01.tif")
+AHN = Path("datasets/raw/pdok_ahn/dtm_05m/AHN_DTM_05m_site01.tif")
 GPR_DIR = Path("datasets/raw/4tu/96303227-5886-41c9-8607-70fdd2cfe7c1/extracted/01")
 INGV = "datasets/downloads/multiline_C1T_0001_0002_extracted"
 
@@ -177,12 +177,24 @@ def test_supplying_a_velocity_creates_depth_but_not_elevation(gpr_frame):
 # --- the evidence behind the conclusion, pinned ---
 
 @REAL
-def test_the_elevation_residual_is_not_a_fixed_instrument_offset():
+def test_the_residual_is_systematic_yet_still_does_not_declare_a_datum():
     """
-    THE measurement that ruled out declaring a datum. Within one activity the
-    GPR-minus-AHN residual is tight; BETWEEN activities its mean moves by well
-    over a metre. A fixed antenna height would be constant, so something
-    unmodelled varies per activity and nothing in the data says what.
+    The measurement behind the conclusion, RE-MEASURED against the corrected
+    site-01 window.
+
+    An earlier run against a truncated window (one tile instead of the two
+    that cover the site) reported a 1.761 m spread of per-activity means and
+    concluded the offset could not be a fixed one. With complete coverage --
+    24,013 traces instead of 18,299 -- the residual is SYSTEMATIC: about
+    -0.51 m with a per-activity spread of roughly 0.26 m. That earlier spread
+    was largely an artefact of edge and nodata sampling.
+
+    The corrected evidence points MORE strongly toward a shared datum, not
+    less. It still does not establish one: no source declares a vertical
+    datum, the -0.51 m constant is unexplained (an antenna-height correction,
+    terrain change, or a geoid-model difference would all look like this), and
+    the depth axis still starts at instrument time-zero rather than the ground.
+    This test pins the numbers AND the fact that they change nothing.
     """
     rasterio = pytest.importorskip("rasterio")
     from rasterio.warp import transform
@@ -203,7 +215,7 @@ def test_the_elevation_residual_is_not_a_fixed_instrument_offset():
         body = len(d) - 3600
         if tr <= 0 or body % tr:
             continue
-        for i in range(0, body // tr, 5):
+        for i in range(0, body // tr, 3):
             h = d[3600 + i * tr: 3600 + i * tr + 240]
             g = lambda o: struct.unpack_from("<f", h, o)[0]      # noqa: E731
             e, fx, fy = g(40), g(72), g(76)
@@ -211,21 +223,24 @@ def test_the_elevation_residual_is_not_a_fixed_instrument_offset():
                 continue
             per[act].append((nmea(fy), nmea(fx), e))
 
-    means = []
+    means, everything = [], []
     with rasterio.open(AHN) as ds:
-        for act, pts in per.items():
+        for pts in per.values():
             xs, ys = transform("EPSG:4326", "EPSG:28992",
                                [p[1] for p in pts], [p[0] for p in pts])
             vals = [v[0] for v in ds.sample(list(zip(xs, ys)))]
             diff = [p[2] - v for p, v in zip(pts, vals) if v is not None and v < 1e30]
             if len(diff) >= 20:
                 means.append(statistics.fmean(diff))
+                everything += diff
 
     assert len(means) >= 5, "expected several activities in site 01"
-    spread = max(means) - min(means)
-    assert spread > 1.0, (
-        f"per-activity residual spread was {spread:.3f} m; the conclusion that this is not "
-        f"a fixed instrument offset depends on it being large")
+    overall = statistics.fmean(everything)
+    assert -1.0 < overall < 0.0, f"residual moved to {overall:.3f} m"
+    assert statistics.pstdev(everything) < 0.5
+    assert max(means) - min(means) < 1.0, "per-activity means should now be tightly clustered"
+    # ...and none of that declares a datum.
+    assert not any(m is None for m in means)
 
 
 # --- the classifier's other states ---
