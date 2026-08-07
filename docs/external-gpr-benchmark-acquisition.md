@@ -322,7 +322,21 @@ dataset held with target ground truth at all, and its limitations are bounded
 and written down. What it can support today is detection scoring and a
 false-alarm rate; what it cannot yet support is millimetre localisation scoring.
 
-## 10. Status of each candidate
+## 10. Detection scoring is now implemented
+
+The ingestion path and detection/false-alarm scoring were built on top of this
+acquisition — see **[`bam-benchmark-detection.md`](bam-benchmark-detection.md)**
+for the pipeline, the matching rule and the measured results.
+
+Headline: over all 161 lines, the existing detector reaches **recall 0.065 /
+precision 0.135 (1.5 GHz)** and **recall 0.093 / precision 0.147 (2.6 GHz)**,
+and fires **2.79 / 1.70 times per line** on the attested-empty control. That is
+a poor result, consistent with the previously measured width saturation of the
+ring z-score, and **no threshold was changed in response to it**.
+
+Localisation scoring is blocked in code, for the reason recorded in §9.
+
+## 11. Status of each candidate
 
 | Dataset | Tier | Status |
 |---|---|---|

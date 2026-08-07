@@ -59,7 +59,7 @@ from interpretation.anomaly_candidates import (
 from preprocessing.spatial_grid import (
     build_trace_depth_grid_for_records, preprocess_trace_local_anomaly,
 )
-from preprocessing.spatial_grid import _local_anomaly_grid
+from preprocessing.spatial_grid import anomaly_grid_from_traces
 from preprocessing.trace_processing import (
     apply_gain, background_removal, dewow, process_gpr_traces,
 )
@@ -200,11 +200,9 @@ def anomaly_grid_arraywise(path: Path) -> np.ndarray:
     needs the per-cell records. Activities processed this way are marked
     `processing_mode="arraywise"` and their reduced detail is reported.
     """
-    grid = processed_trace_array(path).T  # (n_depths, n_traces), as _trace_depth_grid builds
-    z_grid, _unreliable = _local_anomaly_grid(
-        grid, inner_window=(5, 2), outer_window=(15, 6),
-        min_ring_count=20, min_row_ring_count=10, min_col_ring_count=4)
-    return z_grid
+    # The pipeline itself now lives in preprocessing.spatial_grid so the
+    # benchmark harness runs the identical code rather than a second copy.
+    return anomaly_grid_from_traces(read_trace_array(path)[0])
 
 
 def characterise_file_arraywise(path: Path, velocity: float) -> dict:
