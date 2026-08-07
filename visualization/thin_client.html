@@ -1,0 +1,404 @@
+<meta charset="utf-8">
+<title>Subterra thin client</title>
+<!--
+  A deliberately thin client over the existing Subterra APIs.
+
+  DESIGN RULES, enforced by review and by tests/test_thin_client.py:
+
+  * No identity logic lives here. Selecting anything builds a Selection from
+    identifiers the API already gave us and POSTs it to /api/views/resolve;
+    which views can show it is the BACKEND's answer, not this page's.
+  * Nothing is plotted that has no geographic position. Unplaced objects and
+    labels go to an explicit "not on the map" list with their reason.
+  * No Z is invented. The 3D and depth-slice panels render the API's
+    `reason` and `missing` verbatim.
+  * No new dependencies. Plotly is already used by visualization/viewer.html;
+    scattergeo needs no token and no tile server.
+  * Empty, unpositioned, unavailable, unassociated and error are five
+    DIFFERENT states and are rendered differently.
+-->
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 13px/1.45 system-ui, sans-serif; margin: 0; display: grid;
+         grid-template-columns: 300px 1fr 340px; grid-template-rows: 100vh; }
+  aside { overflow-y: auto; padding: 12px; border-right: 1px solid #8884; }
+  #right { border-right: 0; border-left: 1px solid #8884; }
+  main { display: grid; grid-template-rows: 1fr 1fr; min-width: 0; }
+  .panel { min-height: 0; position: relative; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+       opacity: .7; margin: 14px 0 6px; }
+  h2:first-child { margin-top: 0; }
+  .item { padding: 5px 7px; border: 1px solid #8883; border-radius: 5px;
+          margin-bottom: 4px; cursor: pointer; }
+  .item:hover { border-color: #6af; }
+  .item.sel { border-color: #6af; background: #6af2; }
+  .item.unplaced { cursor: default; border-style: dashed; opacity: .8; }
+  .tag { display: inline-block; font-size: 10px; padding: 1px 5px;
+         border-radius: 3px; border: 1px solid currentColor; margin-right: 4px; }
+  .measured { color: #2a7; } .derived { color: #b83; }
+  .inferred { color: #86b; } .assumed, .unavailable { color: #a55; }
+  .supplied_by_caller, .declared_by_source { color: #479; }
+  .state { padding: 10px; border: 1px dashed #8886; border-radius: 6px;
+           margin: 8px 0; font-size: 12px; }
+  .state.error { border-color: #c55; color: #c55; }
+  .state.unavailable { border-color: #a85; }
+  .reason { opacity: .8; font-size: 11px; margin-top: 3px; }
+  .missing { font-size: 11px; opacity: .75; margin-top: 3px; }
+  .missing li { margin-left: 14px; }
+  select, button { font: inherit; width: 100%; margin-bottom: 6px; }
+  code { font-size: 11px; }
+</style>
+
+<aside id="left">
+  <h2>Dataset</h2>
+  <select id="dataset"></select>
+  <div id="datasetState"></div>
+
+  <h2>Layers <span id="layerCount" class="tag"></span></h2>
+  <div id="layers"></div>
+
+  <h2>Objects <span id="objectCount" class="tag"></span></h2>
+  <div id="objects"></div>
+
+  <h2>Labels <span id="labelCount" class="tag"></span></h2>
+  <div id="labels"></div>
+
+  <h2>Not on the map</h2>
+  <div id="unplaced"></div>
+</aside>
+
+<main>
+  <div class="panel"><div id="map" style="width:100%;height:100%"></div></div>
+  <div class="panel">
+    <div id="radargram" style="width:100%;height:100%"></div>
+    <div id="radargramState" style="padding:10px"></div>
+  </div>
+</main>
+
+<aside id="right">
+  <h2>Selection</h2>
+  <div id="selection"><div class="state">Nothing selected.</div></div>
+  <h2>Views</h2>
+  <div id="views"></div>
+  <h2>Overlay composition</h2>
+  <div id="composition"></div>
+</aside>
+
+<script>
+const $ = id => document.getElementById(id);
+let state = { dataset: null, objects: [], labels: [], layers: [],
+              selection: null, mapPoints: [] };
+
+const esc = s => String(s ?? "").replace(/[<>&]/g, c =>
+  ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
+
+/** Every fetch returns {ok, data, status} so callers can tell 404 (no data)
+ *  from 409 (data cannot support it) from a genuine error. */
+async function api(path, opts) {
+  try {
+    const r = await fetch(path, opts);
+    const body = r.headers.get("content-type")?.includes("json")
+      ? await r.json() : await r.text();
+    return { ok: r.ok, status: r.status, data: body };
+  } catch (e) {
+    return { ok: false, status: 0, data: String(e) };
+  }
+}
+
+function stateBox(kind, title, detail, missing) {
+  const m = (missing || []).length
+    ? `<ul class="missing">${missing.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
+  return `<div class="state ${kind}"><b>${esc(title)}</b>` +
+         (detail ? `<div class="reason">${esc(detail)}</div>` : "") + m + `</div>`;
+}
+
+/* ---------------- loading ---------------- */
+
+async function loadDatasets() {
+  const r = await api("/api/datasets/");
+  if (!r.ok) { $("datasetState").innerHTML =
+      stateBox("error", "Could not list datasets", `HTTP ${r.status}`); return; }
+  if (!r.data.length) { $("datasetState").innerHTML =
+      stateBox("", "No datasets ingested", "Nothing to display."); return; }
+  $("dataset").innerHTML = r.data
+    .map(d => `<option value="${esc(d.id)}">${esc(d.name || d.id)}</option>`).join("");
+  $("dataset").onchange = () => loadDataset($("dataset").value);
+  loadDataset(r.data[0].id);
+}
+
+async function loadDataset(id) {
+  state = { dataset: id, objects: [], labels: [], layers: [],
+            selection: null, mapPoints: [] };
+  $("datasetState").innerHTML = "";
+  await Promise.all([loadLayers(id), loadObjects(id), loadLabels(id)]);
+  renderLists(); renderMap(); renderComposition();
+  $("selection").innerHTML = `<div class="state">Nothing selected.</div>`;
+  $("views").innerHTML = "";
+  $("radargramState").innerHTML = stateBox("", "No radargram selected",
+    "Select an object, label or map point.");
+}
+
+async function loadLayers(id) {
+  const r = await api(`/api/overlays/${encodeURIComponent(id)}/layers`);
+  state.layers = r.ok ? (r.data.layers || []) : [];
+  state.layersError = r.ok ? null : r;
+}
+async function loadObjects(id) {
+  const r = await api(`/api/objects/${encodeURIComponent(id)}`);
+  state.objects = r.ok ? (r.data.objects || []) : [];
+}
+async function loadLabels(id) {
+  const r = await api(`/api/labels/${encodeURIComponent(id)}`);
+  state.labels = r.ok ? (r.data.labels || []) : [];
+}
+
+/* ---------------- lists ---------------- */
+
+const isGeographic = p => p && p.kind === "geographic";
+
+function renderLists() {
+  $("layerCount").textContent = state.layers.length;
+  $("objectCount").textContent = state.objects.length;
+  $("labelCount").textContent = state.labels.length;
+
+  $("layers").innerHTML = state.layers.length ? state.layers.map(l => {
+    const e = l.extent || {};
+    const prov = e.wgs84_provenance || "unavailable";
+    return `<div class="item" title="${esc(e.wgs84_basis || "")}">
+      <span class="tag ${prov}">${esc(prov)}</span>${esc(l.modality)}
+      <div class="reason">${esc(l.layer_id)} · native ${esc(e.native_kind)}
+      ${e.native_crs ? esc(e.native_crs) : "(no CRS declared)"}</div></div>`;
+  }).join("") : stateBox("", "No layers", "This dataset has no survey frames.");
+
+  const placedObj = state.objects.filter(o => isGeographic(o.position));
+  $("objects").innerHTML = placedObj.length ? placedObj.map(o =>
+    `<div class="item" data-kind="object" data-id="${esc(o.id)}">
+      <span class="tag ${esc(o.position_provenance)}">${esc(o.status)}</span>
+      <code>${esc(o.id)}</code>
+      <div class="reason">${o.member_count ?? (o.members || []).length} member(s)</div>
+    </div>`).join("")
+    : stateBox("", "No placed objects",
+        state.objects.length ? "All objects lack a geographic position — see below."
+                             : "No objects have been resolved for this dataset.");
+
+  const placedLab = state.labels.filter(l => isGeographic(l.position));
+  $("labels").innerHTML = placedLab.length ? placedLab.map(l =>
+    `<div class="item" data-kind="label" data-id="${esc(l.id)}">
+      <span class="tag ${esc(l.provenance)}">${esc(l.kind)}</span>${esc(l.value)}
+      <div class="reason">${esc(l.source?.kind)}:${esc(l.source?.name)}
+      ${l.confidence == null ? "· no confidence stated"
+                             : "· confidence " + l.confidence}</div></div>`).join("")
+    : stateBox("", "No placed labels",
+        state.labels.length ? "All labels are attached to targets rather than coordinates."
+                            : "No labels for this dataset.");
+
+  // Unplaced: available, listed, explicitly NOT on the map.
+  const unplaced = [
+    ...state.objects.filter(o => !isGeographic(o.position))
+        .map(o => ({ t: "object", id: o.id, why: o.position?.reason })),
+    ...state.labels.filter(l => !isGeographic(l.position))
+        .map(l => ({ t: "label", id: l.id, why: l.position?.reason })),
+  ];
+  $("unplaced").innerHTML = unplaced.length ? unplaced.map(u =>
+    `<div class="item unplaced"><span class="tag unavailable">${esc(u.t)}</span>
+      <code>${esc(u.id)}</code>
+      <div class="reason">${esc(u.why || "no geographic position")}</div></div>`).join("")
+    : stateBox("", "Nothing unplaced", "Every object and label has a position.");
+}
+
+/* ---------------- map ---------------- */
+
+function renderMap() {
+  const pts = [
+    ...state.objects.filter(o => isGeographic(o.position)).map(o => ({
+      kind: "object", id: o.id, lat: o.position.lat, lon: o.position.lon,
+      prov: o.position_provenance || "derived", text: `${o.status} ${o.id}` })),
+    ...state.labels.filter(l => isGeographic(l.position)).map(l => ({
+      kind: "label", id: l.id, lat: l.position.lat, lon: l.position.lon,
+      prov: l.provenance || "supplied_by_caller", text: `${l.kind}: ${l.value}` })),
+  ];
+  state.mapPoints = pts;
+  if (!pts.length) {
+    Plotly.purge("map");
+    $("map").innerHTML = stateBox("", "Nothing to plot",
+      "No object or label in this dataset has a geographic position. " +
+      "Unplaced items are listed on the left and remain available through the API.");
+    return;
+  }
+  // One trace per provenance class, so measured and derived are visually distinct.
+  const byProv = {};
+  pts.forEach((p, i) => (byProv[p.prov] ||= []).push({ ...p, i }));
+  const traces = Object.entries(byProv).map(([prov, group]) => ({
+    type: "scattergeo", mode: "markers", name: prov,
+    lat: group.map(p => p.lat), lon: group.map(p => p.lon),
+    text: group.map(p => `${p.text}<br>position: ${prov}`),
+    customdata: group.map(p => [p.kind, p.id]),
+    marker: { size: 9, symbol: prov === "measured" ? "circle" : "diamond" },
+  }));
+  const lats = pts.map(p => p.lat), lons = pts.map(p => p.lon);
+  const pad = 0.004;
+  Plotly.react("map", traces, {
+    margin: { t: 26, l: 0, r: 0, b: 0 },
+    title: { text: "Map — marker shape shows position provenance", font: { size: 12 } },
+    geo: { scope: "world", resolution: 50, showland: true, showcountries: true,
+           lataxis: { range: [Math.min(...lats) - pad, Math.max(...lats) + pad] },
+           lonaxis: { range: [Math.min(...lons) - pad, Math.max(...lons) + pad] } },
+    legend: { orientation: "h", y: -0.05 },
+  }, { displayModeBar: false });
+
+  $("map").on("plotly_click", ev => {
+    const [kind, id] = ev.points[0].customdata;
+    select(kind, id);
+  });
+}
+
+/* ---------------- selection ---------------- */
+
+/** Builds the view-independent Selection from what the API already told us.
+ *  No identity is computed here. */
+function buildSelection(kind, id) {
+  if (kind === "object") {
+    const o = state.objects.find(x => x.id === id);
+    if (!o) return null;
+    const m = (o.members || [])[0] || {};
+    return { kind: "object", dataset_id: state.dataset, selection_id: o.id,
+             frame_id: m.frame_id ?? null, source_file: m.source_file ?? null,
+             trace_index: m.trace_index ?? null, position: o.position };
+  }
+  const l = state.labels.find(x => x.id === id);
+  if (!l) return null;
+  const t = l.target || {};
+  return { kind: "label", dataset_id: state.dataset, selection_id: l.id,
+           frame_id: t.frame_id ?? null, source_file: t.source_file ?? null,
+           trace_range: t.trace_range ?? null, position: l.position };
+}
+
+async function select(kind, id) {
+  document.querySelectorAll(".item.sel").forEach(e => e.classList.remove("sel"));
+  document.querySelector(`.item[data-kind="${kind}"][data-id="${CSS.escape(id)}"]`)
+    ?.classList.add("sel");
+
+  const selection = buildSelection(kind, id);
+  if (!selection) {
+    $("selection").innerHTML = stateBox("error", "Unknown selection", id); return;
+  }
+  state.selection = selection;
+  $("selection").innerHTML =
+    `<div class="item sel"><b>${esc(kind)}</b> <code>${esc(id)}</code>
+      <div class="reason">frame ${esc(selection.frame_id || "—")}
+      · trace ${esc(selection.trace_index ?? "—")}</div></div>`;
+
+  // The BACKEND decides which views can show this.
+  const r = await api("/api/views/resolve", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ selection }),
+  });
+  if (!r.ok) {
+    $("views").innerHTML = stateBox("error", "Could not resolve selection",
+      `HTTP ${r.status}`); return;
+  }
+  renderViews(r.data);
+  highlightOnMap(id);
+  const rg = r.data.views.find(v => v.view === "radargram");
+  if (rg?.resolved) loadRadargram(rg.coordinates);
+  else $("radargramState").innerHTML = Plotly.purge("radargram") ||
+    stateBox("unavailable", "Radargram unavailable", rg?.reason, rg?.missing);
+}
+
+function renderViews(res) {
+  $("views").innerHTML = res.views.map(v => v.resolved
+    ? `<div class="state"><b>${esc(v.view)}</b> <span class="tag measured">resolved</span>
+        <div class="reason"><code>${esc(JSON.stringify(v.coordinates))}</code></div></div>`
+    : stateBox("unavailable", `${v.view} — unavailable`, v.reason, v.missing)
+  ).join("");
+}
+
+function highlightOnMap(id) {
+  const idx = state.mapPoints.findIndex(p => p.id === id);
+  if (idx < 0) return;                       // unplaced: nothing to highlight
+  const p = state.mapPoints[idx];
+  Plotly.relayout("map", {
+    "geo.lataxis.range": [p.lat - 0.001, p.lat + 0.001],
+    "geo.lonaxis.range": [p.lon - 0.001, p.lon + 0.001],
+  });
+}
+
+/* ---------------- radargram ---------------- */
+
+async function loadRadargram(coords) {
+  $("radargramState").innerHTML = "";
+  const q = new URLSearchParams({ field: "signal" });
+  if (coords.source_file) q.set("source_file", coords.source_file);
+  const r = await api(
+    `/api/datasets/${encodeURIComponent(state.dataset)}/trace_grid?${q}`);
+  if (!r.ok) {
+    Plotly.purge("radargram");
+    $("radargramState").innerHTML = r.status === 404
+      ? stateBox("", "No radar data", "This dataset has no trace grid.")
+      : stateBox("error", "Could not load radargram", `HTTP ${r.status}`);
+    return;
+  }
+  const g = r.data;
+  if (!g.grid?.length) {
+    Plotly.purge("radargram");
+    $("radargramState").innerHTML = stateBox("", "Empty radargram",
+      "The line returned no samples."); return;
+  }
+  const vertical = g.depths ? "depth (m, derived from an assumed velocity)"
+                            : "sample index";
+  Plotly.react("radargram", [{
+    type: "heatmap", z: g.grid, x: g.trace_indices, y: g.depths || undefined,
+    colorscale: "RdBu", reversescale: true, showscale: false,
+  }], {
+    margin: { t: 26, l: 52, r: 6, b: 34 },
+    title: { text: `Radargram — ${g.source_file || ""} · y = ${vertical}`,
+             font: { size: 12 } },
+    xaxis: { title: { text: "trace_index", font: { size: 10 } } },
+    yaxis: { autorange: "reversed", title: { text: vertical, font: { size: 10 } } },
+  }, { displayModeBar: false });
+
+  // radargram -> map: clicking a trace re-selects via the same identity path.
+  $("radargram").on("plotly_click", ev => {
+    const trace = ev.points[0].x;
+    const hit = state.objects.find(o => (o.members || []).some(
+      m => m.source_file === g.source_file && m.trace_index === trace));
+    if (hit) select("object", hit.id);
+  });
+}
+
+/* ---------------- overlay composition ---------------- */
+
+async function renderComposition() {
+  if (!state.dataset) return;
+  const r = await api("/api/overlays/compose", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ datasets: [state.dataset] }),
+  });
+  if (!r.ok) {
+    $("composition").innerHTML = r.status === 404
+      ? stateBox("", "No layers to compose", "This dataset has no frames.")
+      : stateBox("error", "Composition failed", `HTTP ${r.status}`);
+    return;
+  }
+  const c = r.data;
+  const cls = c.spatial_relationship === "not_relatable" ? "unavailable" : "";
+  $("composition").innerHTML =
+    stateBox(cls, c.spatial_relationship, c.spatial_basis) +
+    (c.vertical_relationship
+      ? stateBox("unavailable", `vertical: ${c.vertical_relationship.kind}`,
+          c.vertical_relationship.absolute_elevation_available
+            ? "absolute elevation available"
+            : "absolute elevation NOT available",
+          c.vertical_relationship.missing)
+      : "") +
+    (c.notes || []).map(n => `<div class="reason">• ${esc(n)}</div>`).join("");
+}
+
+document.addEventListener("click", ev => {
+  const item = ev.target.closest(".item[data-kind]");
+  if (item) select(item.dataset.kind, item.dataset.id);
+});
+
+loadDatasets();
+</script>

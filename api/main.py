@@ -6,7 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from database.session import init_db
-from api.routes import datasets, fusion, benchmark, sources, training
+from api.routes import (datasets, fusion, benchmark, sources, training,
+                        provenance, labels, overlays, objects, views,
+                        exports)
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -39,6 +41,12 @@ app.add_middleware(
 )
 
 app.include_router(datasets.router, prefix="/api/datasets", tags=["datasets"])
+app.include_router(provenance.router, prefix="/api/provenance", tags=["provenance"])
+app.include_router(labels.router, prefix="/api/labels", tags=["labels"])
+app.include_router(overlays.router, prefix="/api/overlays", tags=["overlays"])
+app.include_router(objects.router, prefix="/api/objects", tags=["objects"])
+app.include_router(views.router, prefix="/api/views", tags=["views"])
+app.include_router(exports.router, prefix="/api/exports", tags=["exports"])
 app.include_router(fusion.router, prefix="/api/fusion", tags=["fusion"])
 app.include_router(benchmark.router, prefix="/api/benchmark", tags=["benchmark"])
 app.include_router(sources.router, prefix="/api/sources", tags=["sources"])
@@ -59,4 +67,19 @@ def viewer():
     subsurface view.
     """
     html_path = Path(__file__).resolve().parent.parent / "visualization" / "viewer.html"
+    return html_path.read_text()
+
+
+@app.get("/client", response_class=HTMLResponse, tags=["system"])
+def thin_client():
+    """
+    Thin client over the Subterra APIs: map, radargram, selection resolution,
+    labels, objects and overlay composition.
+
+    Deliberately thin -- it holds no identity logic and no spatial maths. Which
+    views can show a selection is answered by /api/views/resolve, and anything
+    the API cannot place is listed rather than plotted. See docs/thin-client.md.
+    """
+    html_path = (Path(__file__).resolve().parent.parent
+                 / "visualization" / "thin_client.html")
     return html_path.read_text()

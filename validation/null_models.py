@@ -21,6 +21,24 @@ TRACE-ORDER PERMUTATION (`trace_permutation`)
     `assert_trace_permutation_equivalence` proves that rather than assuming
     it, so the cheap form can be used with confidence.
 
+    CAUTION, measured 2026-08-07 on the 4TU corpus: this null INFLATES the
+    candidate count rather than providing a false-alarm floor, for the same
+    reason documented below for `lateral_permutation`. Trace order is not
+    incidental in a dense survey -- it carries the lateral coherence the ring
+    background depends on. Measured on one radargram from each corpus:
+
+        corpus  trace spacing  adjacent-trace corr  null/observed candidates
+        4TU     0.02 m         0.958                10.6x
+        INGV    0.246 m        0.522                 2.6x
+
+    The inflation scales with how much coherence there is to destroy. So a
+    one-sided p-value from this null answers "is the observed count higher
+    than an incoherent version of itself", which for real data is essentially
+    always no -- p = 1.0 is the expected result and is NOT evidence about the
+    detector. Use this null for statistics that are invariant to the ring
+    background's quality (component width, contiguous runs), not for raw
+    candidate counts.
+
 PER-DEPTH LATERAL PERMUTATION (`lateral_permutation`)
     Independently permutes values across traces within each depth row,
     preserving each row's marginal exactly and destroying ALL lateral

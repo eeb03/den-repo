@@ -231,6 +231,56 @@ class AxisKind(str, Enum):
     NONE = "none"                          # 2D surface measurement
 
 
+class VerticalDatum(BaseModel):
+    """
+    What a vertical coordinate is measured FROM.
+
+    Separate from `SpatialRef` because the horizontal and vertical references
+    of a dataset are declared independently and are routinely both present,
+    both absent, or one of each. AHN is the clean example: it declares
+    EPSG:28992 horizontally in three places and declares NOTHING vertically --
+    the file has no VERT_CS, no band units, no band description.
+
+    ABSENCE IS THE DEFAULT AND IT MEANS UNDECLARED. A vertical coordinate
+    whose datum nobody stated cannot be compared with one from another
+    source, however similar the numbers look. `code` may only be set with a
+    provenance that says who set it.
+    """
+    code: Optional[str] = None          # "NAP", "EPSG:5709", "ODN", ...
+    provenance: CRSProvenance = CRSProvenance.NONE
+    name: str = ""
+
+    @model_validator(mode="after")
+    def _code_requires_provenance(self):
+        if self.code and self.provenance == CRSProvenance.NONE:
+            raise ValueError(
+                f"vertical datum code {self.code!r} was set with provenance NONE. A datum "
+                f"nobody declared is not a datum; either record who declared it or leave "
+                f"the code unset."
+            )
+        return self
+
+
+class VerticalRelationshipKind(str, Enum):
+    """
+    How a subsurface depth axis relates to a surface elevation model.
+
+    The four states are kept distinct because collapsing them is how a
+    fabricated Z coordinate gets born.
+    """
+    #: Both vertical references are declared and compatible, and the depth
+    #: axis origin is tied to the surface: absolute elevation is computable.
+    ABSOLUTE_ELEVATION = "absolute_elevation"
+    #: Depth below the acquisition surface is known; the surface's own
+    #: elevation is not usable to anchor it.
+    RELATIVE_DEPTH_ONLY = "relative_depth_only"
+    #: The pieces exist but a declaration or tie is missing. What is missing
+    #: is enumerated, so the gap is actionable rather than mysterious.
+    REGISTRATION_REQUIRED = "registration_required"
+    #: No relationship can be established from the available data.
+    UNRELATED = "unrelated"
+
+
 class VerticalAxis(BaseModel):
     """
     The vertical/time axis of a survey line, and how a stored `depth` was
@@ -248,6 +298,10 @@ class VerticalAxis(BaseModel):
     n_samples: Optional[int] = None
     sample_interval: Optional[float] = None
     conversion: Optional[dict[str, Any]] = None  # {"method": "constant_velocity", ...}
+    #: What the axis is measured FROM, when anyone has said. Absent means
+    #: UNDECLARED -- which is the honest state for every dataset held so far,
+    #: and the reason absolute elevation cannot be computed for any of them.
+    vertical_datum: Optional[VerticalDatum] = None
 
 
 class Assumption(BaseModel):

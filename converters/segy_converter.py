@@ -212,6 +212,7 @@ class SEGYConverter(BaseConverter):
         # GPR is the only modality this converter has a depth conversion for.
         # See _build_frame for what non-GPR modalities get instead.
         is_gpr = sensor_type == SensorType.GPR
+        any_elevation = False
         declared_crs = _parse_declared_crs(crs, path) if crs is not None else None
 
         # ONE record-building path for both byte orders. LittleEndianSegyFile
@@ -289,6 +290,36 @@ class SEGYConverter(BaseConverter):
                     position = _classify_position(x, y)
                 trace_positions.append(position)
 
+                # ACQUISITION ELEVATION. Read only under the ieee_nmea
+                # declaration, because it is the same vendor deviation: bytes
+                # 41-44 and 45-48 hold IEEE floats where SEG-Y specifies
+                # scaled integers. The default path is untouched -- the INGV
+                # lines DO populate these fields as standard scaled integers
+                # (482.88 m via ElevationScalar -100), and reading them there
+                # would change pinned records.
+                #
+                # NO DATUM IS CLAIMED. The file declares none, and the two
+                # values differ by a constant 43.948 m, which is consistent
+                # with an orthometric/ellipsoidal pair but is not a
+                # declaration. See fusion/vertical_reference.py.
+                elevation = None
+                if coordinate_encoding == "ieee_nmea":
+                    ev = int32_as_float32(
+                        header.get(segyio.TraceField.ReceiverGroupElevation, 0), byte_order)
+                    if math.isfinite(ev) and ev != 0.0:
+                        elevation = float(ev)
+                        any_elevation = True
+                        eh = int32_as_float32(
+                            header.get(segyio.TraceField.SourceSurfaceElevation, 0), byte_order)
+                        if math.isfinite(eh) and eh != 0.0:
+                            elevation_second = float(eh)
+                        else:
+                            elevation_second = None
+                    else:
+                        elevation_second = None
+                else:
+                    elevation_second = None
+
                 # latitude/longitude are a DERIVED VIEW of the position, and
                 # are left unset when there is no geographic position to
                 # derive them from. The (0.0, 0.0) placeholder this used to
@@ -336,7 +367,7 @@ class SEGYConverter(BaseConverter):
                         longitude=longitude,
                         position=position,
                         frame_id=make_frame_id(dataset_id, path.name),
-                        elevation=None,
+                        elevation=elevation,
                         depth=depth,
                         signal=[float(value)],
                         sensor_type=sensor_type,
@@ -349,6 +380,12 @@ class SEGYConverter(BaseConverter):
                             "sample_interval": sample_interval,
                             "segy_x": x,
                             "segy_y": y,
+                            **({"acquisition_elevation_m": elevation,
+                                "acquisition_elevation_datum": "UNDECLARED",
+                                "acquisition_elevation_source": "segy_receiver_group_elevation"}
+                               if elevation is not None else {}),
+                            **({"segy_source_surface_elevation_m": elevation_second}
+                               if elevation_second is not None else {}),
                             "position_source": (
                                 "segy_header" if position.kind != "none" else "none"
                             ),
@@ -367,6 +404,7 @@ class SEGYConverter(BaseConverter):
                 declared_crs=declared_crs, declared_crs_input=crs,
                 byte_order=byte_order, endian_evidence=endian_evidence,
                 coordinate_encoding=coordinate_encoding,
+                has_elevation=any_elevation,
             )
 
         return ConversionResult(records=records, frames=[frame])
@@ -376,6 +414,7 @@ class SEGYConverter(BaseConverter):
         sample_interval, velocity_m_per_ns, trace_count,
         declared_crs=None, declared_crs_input=None,
         byte_order=BIG, endian_evidence=None, coordinate_encoding="int32_scaled",
+        has_elevation=False,
     ) -> SurveyFrame:
         """Describes the acquisition line as a whole: CRS, vertical axis, provenance, assumptions."""
         kinds = {p.kind for p in trace_positions}
@@ -527,6 +566,20 @@ class SEGYConverter(BaseConverter):
                     f"cannot declare this -- the bytes are identical either way -- so it was "
                     f"asserted as ingest configuration for this dataset and generalises to "
                     f"nothing else. Under 'ieee_nmea' the SEG-Y coordinate scalar is NOT applied."
+                ),
+                verified=False,
+            ))
+
+        if has_elevation:
+            assumptions.append(Assumption(
+                key="acquisition_elevation_datum", value=None,
+                basis=(
+                    "the trace headers carry a per-trace acquisition elevation, but the file "
+                    "declares NO vertical datum for it and neither the dataset readme nor its "
+                    "codebook mentions one. The two elevation fields differ by a constant "
+                    "43.948 m, which is consistent with an orthometric/ellipsoidal pair for "
+                    "the Netherlands -- consistent with, not a declaration of. record.elevation "
+                    "therefore carries the number without claiming what it is measured from."
                 ),
                 verified=False,
             ))
