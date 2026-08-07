@@ -7,7 +7,8 @@ from fastapi.responses import HTMLResponse
 
 from database.session import init_db
 from api.routes import (datasets, fusion, benchmark, sources, training,
-                        provenance, labels, overlays)
+                        provenance, labels, overlays, objects, views,
+                        exports)
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -43,6 +44,9 @@ app.include_router(datasets.router, prefix="/api/datasets", tags=["datasets"])
 app.include_router(provenance.router, prefix="/api/provenance", tags=["provenance"])
 app.include_router(labels.router, prefix="/api/labels", tags=["labels"])
 app.include_router(overlays.router, prefix="/api/overlays", tags=["overlays"])
+app.include_router(objects.router, prefix="/api/objects", tags=["objects"])
+app.include_router(views.router, prefix="/api/views", tags=["views"])
+app.include_router(exports.router, prefix="/api/exports", tags=["exports"])
 app.include_router(fusion.router, prefix="/api/fusion", tags=["fusion"])
 app.include_router(benchmark.router, prefix="/api/benchmark", tags=["benchmark"])
 app.include_router(sources.router, prefix="/api/sources", tags=["sources"])
