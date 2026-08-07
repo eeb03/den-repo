@@ -49,7 +49,7 @@ untestable. It is not a ranking of scientific quality.
 | 5 | [Roman Republican Cities (ADS)](#5-beneath-the-surface-of-roman-republican-cities-ads) | UNVERIFIED | ADS Terms | Raw SEG-Y at 0.06–0.12 m line spacing — genuine 3D reconstruction. |
 | 6 | [Guangzhou IDS `.dt`](#6-guangzhou-gpr-dataset-ids-dt) | 3.8 GB | CC-BY-4.0 | **Already local.** Tunnels, pipelines, rebar. Odometry. |
 | 7 | [INGV-UNISA SEG-Y + KMZ](#7-ingv-unisa-segy--kmz) | local | see notes | **Already local.** The pinned regression baseline. |
-| 8 | [CMU-GPR](#8-cmu-gpr) | ~12 GB | CC-BY-NC-SA | Odometry + total-station truth, but NC license and 12 GB for one capability. |
+| 8 | [CMU-GPR](#8-cmu-gpr) | **15.5 GB** | CC-BY-NC-SA | Odometry + total-station *robot-pose* truth. **No target truth at all.** NC license. See [`cmugpr-acquisition-assessment.md`](cmugpr-acquisition-assessment.md). |
 | 9 | [Copernicus DEM / Sentinel-2](#9-copernicus-dem-and-sentinel-2) | AOI-clipped | free/open | Global DEM and satellite fill-in for any AOI. |
 | 10 | [NSGeophysics/GPRdata](#10-nsgeophysicsgprdata) | 59 MB | **none** | Superseded for GSSI by #3; unique only for 2 Sensors & Software `.dt1`. Unlicensed. |
 | 11 | [Morocco utilities/voids](#11-morocco-subsurface-utilities-and-voids) | small | none stated | Annotated **images**, not traces. ML labels, not geophysics. |
@@ -167,6 +167,17 @@ untestable. It is not a ranking of scientific quality.
 **Weaknesses** No ground truth. Establishes false-alarm rates only, and — per the ring z-score width-saturation result — broad coherent targets are structurally undetectable at |z|≥3 in this data.
 
 ### 8. CMU-GPR
+
+> **Superseded in three places by
+> [`cmugpr-acquisition-assessment.md`](cmugpr-acquisition-assessment.md)
+> (2026-08-07), which read the repository's own data-format figure and both
+> papers.** (a) The size is **15.5 GB**, not ≈12 GB. (b) **GeoTie is not
+> available**: `ControlPoint` requires lat/lon, and all three sites are
+> GPS-denied *indoor* environments, so there is no geographic coordinate to
+> tie to — the `geotie_along_track` gap stays open. (c) Revisitation is
+> declared **within** a sequence only; the *Correlated Sequences* column is
+> empty for every row, and all ground-truthed sequences come from a single
+> 98-minute session on 2021-02-11.
 
 **Official source** Robot Perception Lab, Carnegie Mellon University.
 **Download** https://github.com/rpl-cmu/CMU-GPR-Dataset (per-sequence Google Drive links).

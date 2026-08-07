@@ -148,6 +148,26 @@ gap:
   caller can assert what PDOK documents. Recorded as
   `SUPPLIED_BY_CALLER`, never `declared_by_source`.
 
+## The associated publication was checked, and does not declare it either
+
+**2026-08-07.** The one authoritative source not previously examined was the
+dataset's companion article — ter Huurne et al., *Ground penetrating radar at
+work: a realistic perspective on utility surveying in the Netherlands through a
+comprehensive ground-truth dataset*, **Data in Brief 54 (2024) 110329**,
+[10.1016/j.dib.2024.110329](https://doi.org/10.1016/j.dib.2024.110329).
+
+It contains **no occurrence** of *coordinate system*, *coordinate reference
+system*, *RD*, *Rijksdriehoek*, *EPSG*, *WGS84*, *NAP*, *Normaal Amsterdams
+Peil*, *datum*, *geoid*, *ellipsoid*, or *antenna height*. It states only that
+a "GNSS RTK receiver" recorded "geodetic locations in the x, y, and z axes",
+and — for the trench records — that "geospatial information has been omitted to
+preserve data and utility location confidentiality".
+
+**Consequence: the vertical datum cannot be resolved from documentation.**
+Every published source has now been exhausted. The remaining routes are author
+contact (University of Twente) or an independent control measurement. Until one
+of those succeeds, outcome C stands and no absolute Z is computable.
+
 ## What remains unknown
 
 - The vertical datum of the GPR elevations — evidence points to NAP, no
@@ -156,4 +176,6 @@ gap:
 - The air-path offset between instrument time-zero and the ground.
 - The AHN acquisition epoch, hence whether the terrain changed between the
   two surveys.
-- Which of those explains the 1.761 m per-activity spread.
+- Which of those explains the **0.260 m** per-activity spread. (This line
+  previously said 1.761 m — a leftover from the superseded truncated-window
+  measurement corrected at the top of this document.)

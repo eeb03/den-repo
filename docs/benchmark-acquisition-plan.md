@@ -171,7 +171,7 @@ time-slice ZIPs; if so, this changes.
 
 | Dataset | Size | Storage | License | Phases validated | Value | Preprocessing |
 |---|---|---|---|---|---|---|
-| **CMU-GPR** | ~12 GB (15 seq.) | 12–24 GB | CC-BY-**NC**-SA — blocks commercial use | `OdometryPosition` at scale · along-track `GeoTie` · repeat-pass consistency | Low-moderate. Along-track GeoTie is already covered by Guangzhou; traces are CSV, so it advances no native format. | Low (CSV) |
+| **CMU-GPR** | **15.5 GB** (11 GT seq. + 3 aggregates + 3 odometry-only) | a 469 MB two-sequence subset suffices | CC-BY-**NC**-SA — blocks commercial use, and **ShareAlike propagates to derived artifacts** | `OdometryPosition` at scale · **measured** `LocalCartesianPosition` · within-sequence repeat observation. **Not** `GeoTie` — see the assessment | Moderate for one capability nothing else offers (repeat observation with independent positional truth); **no target ground truth at all**. | Low (CSV) |
 | **NSGeophysics/GPRdata** | 59 MB | 0.1 GB | **None declared** — no redistribution rights | Sensors & Software `.dt1`/`.hd` reader only | **Superseded for GSSI by T1.2.** Unique value now: 2 `.dt1` files. | Low |
 | **Sentinel-2** | AOI | < 1 GB | Copernicus free-and-open | Satellite modality in `SensorType` | Deferred — no satellite modality is built | Low |
 | **Morocco utilities/voids** | Small | < 0.1 GB | None declared | Image-domain detection only | Low — annotated B-scan images, no traces, no coordinates | N/A |
