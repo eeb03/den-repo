@@ -17,6 +17,8 @@ import { SpatialRefStatus } from '@/components/subterra/data-status'
 import { SelectionPane } from './selection-pane'
 import { SpatialPanes } from './spatial-panes'
 import { DatasetSummaryPane } from './dataset-summary-pane'
+import { DatasetSwitcher } from './dataset-switcher'
+import { ProvenancePane } from './provenance-pane'
 import {
   useLabels,
   useLayers,
@@ -61,7 +63,11 @@ export function DatasetWorkspace({ datasetId }: { datasetId: string }) {
 
   return (
     <>
-      <AppHeader title="Dataset workspace" subtitle={datasetId} />
+      <AppHeader
+        title="Dataset workspace"
+        subtitle={datasetId}
+        actions={<DatasetSwitcher datasetId={datasetId} />}
+      />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 p-3 lg:grid-cols-[18rem_minmax(0,1fr)] xl:grid-cols-[18rem_minmax(0,1fr)_21rem]">
         {/* ------------------------------ left ------------------------------ */}
@@ -245,6 +251,8 @@ export function DatasetWorkspace({ datasetId }: { datasetId: string }) {
 
             <SectionLabel count={unplaced.length}>Not on the map</SectionLabel>
             {(objects.data || labels.data) && <NotOnMap items={unplaced} />}
+
+            <ProvenancePane datasetId={datasetId} />
           </PanelBody>
         </Panel>
 
