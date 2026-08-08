@@ -8,11 +8,14 @@
 __pycache__/
 *.pyc
 
-# Runtime data (downloaded/generated, not source)
-datasets/
-logs/
+# Runtime data (downloaded/generated, not source).
+# Anchored to the repository root: unanchored, `datasets/` also matched any
+# nested directory of that name and silently excluded frontend source under
+# frontend/app/(workspace)/datasets/.
+/datasets/
+/logs/
 *.db
 
 # Characterisation artifacts: regenerable from the corpus via
 # scripts/characterise_4tu.py; the 14 MB JSON is not source.
-artifacts/
+/artifacts/
