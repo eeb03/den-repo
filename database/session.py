@@ -12,9 +12,19 @@ Base = declarative_base()
 
 
 def init_db():
-    """Create all tables. Call once at startup (idempotent)."""
+    """
+    Create all tables, then apply pending schema migrations. Idempotent.
+
+    `create_all` only ever creates MISSING tables -- it cannot add a column to
+    one that already exists. Anything of that kind lives in
+    database/migrations.py and runs here, after the tables exist so a migration
+    can reference them.
+    """
     from database import models  # noqa: F401 - register models on Base
+    from database.migrations import run_migrations
+
     Base.metadata.create_all(bind=engine)
+    run_migrations(engine)
 
 
 @contextmanager

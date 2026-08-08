@@ -13,11 +13,50 @@ def gen_uuid() -> str:
     return str(uuid.uuid4())
 
 
+class User(Base):
+    """
+    A platform account. THE TABLE EXISTS; AUTHENTICATION DOES NOT.
+
+    This is deliberately schema-only. Nothing creates a row, nothing reads one,
+    and no request is associated with a user, because the platform has no login
+    and inventing an identity to fill a column would be worse than leaving it
+    empty -- it would make every dataset look owned by someone who does not
+    exist, and later make it impossible to tell real ownership from the
+    placeholder.
+
+    It is created now so that ownership can be added to `datasets` while the
+    table is empty and the change is free. Adding a foreign key to a populated
+    table, after users exist, means deciding retroactively who owns data that
+    was uploaded by nobody -- a question with no correct answer.
+
+    No password column is present, and that is intentional too: the credential
+    model (password hash, OIDC subject, API token) is a decision for the
+    authentication task, and guessing at it here would bake in a choice that
+    task should make.
+    """
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    #: Login identifier. Unique so the constraint exists before any row does.
+    email = Column(String, nullable=False, unique=True, index=True)
+    display_name = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    datasets = relationship("Dataset", back_populates="owner")
+
+
 class Dataset(Base):
     """Metadata registry entry — one row per ingested dataset."""
     __tablename__ = "datasets"
 
     id = Column(String, primary_key=True, default=gen_uuid)
+    #: Who uploaded this. NULL means "uploaded before ownership existed, or by
+    #: an unauthenticated caller" -- which is every row today. It is nullable
+    #: on purpose: the platform is still single-user, and a NOT NULL column
+    #: would force a fabricated owner onto historical data. Nothing reads this
+    #: yet and no request sets it; see docs/ownership-schema.md.
+    owner_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     name = Column(String, nullable=False, index=True)
     source = Column(String, nullable=True)          # e.g. "Zenodo", "USGS"
     source_url = Column(String, nullable=True)
@@ -45,6 +84,7 @@ class Dataset(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     versions = relationship("DatasetVersion", back_populates="dataset", cascade="all, delete-orphan")
+    owner = relationship("User", back_populates="datasets")
 
 
 class ImportJob(Base):
@@ -67,8 +107,9 @@ class ImportJob(Base):
 
     OWNERSHIP. `owner_id` is nullable and unenforced. It exists so that the
     import path is not the thing that has to be retrofitted when authentication
-    lands. The same column is deliberately NOT yet added to Dataset: see
-    docs/import-jobs.md for why that one needs a migration first.
+    lands. `Dataset` now carries the matching column, added to existing
+    databases by database/migrations.py -- `create_all` cannot alter a table
+    that already exists. See docs/ownership-schema.md.
     """
     __tablename__ = "import_jobs"
 
@@ -100,7 +141,10 @@ class ImportJob(Base):
     error_stage = Column(String, nullable=True)
     error_message = Column(Text, nullable=True)
 
-    owner_id = Column(String, nullable=True, index=True)
+    #: Who started this import. Nullable and unset for the same reason as
+    #: Dataset.owner_id: there is no authentication, so there is no identity to
+    #: record. It became a real foreign key once the users table existed.
+    owner_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     started_at = Column(DateTime, nullable=True)

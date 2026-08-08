@@ -24,6 +24,7 @@ from ingestion.downloader import download_file, DownloadError
 from converters.registry import supported_extensions
 from preprocessing.dem_alignment import align_records_with_dem
 from configs.settings import settings
+from jobs import storage
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -166,9 +167,23 @@ async def ingest_dataset(
     Conversion Engine" + "Dataset Validator" + "Metadata Database" wired
     together.
     """
-    raw_path = settings.raw_dir / file.filename
-    with open(raw_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+    # SECURITY. This previously wrote to `settings.raw_dir / file.filename`
+    # with the client's filename unmodified, so a name like
+    # `../../../etc/evil.csv` escaped the raw directory and a repeated name
+    # silently overwrote an earlier upload.
+    #
+    # The fix REUSES the storage helper the async import path already uses
+    # rather than adding a second sanitiser that could drift from it: the
+    # filename is reduced to one safe component, the bytes land in a directory
+    # named for a server-generated id (so a collision is unrepresentable), and
+    # a partial write is never renamed into place. The original filename is
+    # kept only as the dataset's display name, never as a path.
+    try:
+        raw_path, _, _ = storage.save_upload(gen_uuid(), file.filename, file.file)
+    except storage.EmptyUpload as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except storage.UploadTooLarge as exc:
+        raise HTTPException(status_code=413, detail=str(exc))
 
     return _run_ingest_pipeline(
         raw_path, sensor_type, name or file.filename, db,
