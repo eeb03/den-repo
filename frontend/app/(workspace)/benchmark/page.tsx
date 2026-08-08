@@ -1,49 +1,62 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { AppHeader } from '@/components/shell/app-header'
-import { Panel, PanelBody, PanelHeader } from '@/components/subterra/panel'
 import { QueryState } from '@/components/subterra/query-state'
 import { StateBox } from '@/components/subterra/state-box'
-import {
-  BlockedGate,
-  OpenQuestions,
-  ScopeStatement,
-} from '@/components/subterra/gate-status'
-import { useBenchmarkArtifact, useBenchmarkArtifacts } from '@/hooks/use-subterra'
-import { formatCount } from '@/lib/format'
-import type { BenchmarkArtifact } from '@/types/subterra'
+import { BamPanel } from '@/components/benchmark/bam-panel'
+import { FourTuPanel } from '@/components/benchmark/fourtu-panel'
+import { useBenchmarkArtifacts } from '@/hooks/use-subterra'
 
 /**
- * Benchmark workspace.
+ * Benchmark workspace — BAM and 4TU side by side.
  *
- * Reads `GET /api/benchmark/artifacts`, which serves the scoring artifacts
- * verbatim. NOTHING on this page recomputes, rescales, rounds or
- * reinterprets a figure: every number rendered is `String(value)` of what
- * the artifact holds, so a reader sees the recorded value and not a
- * presentation of it.
+ * THIS IS NOT A SCOREBOARD. The two benchmarks measure different things on
+ * different material, one of them is a null result, and neither is a target
+ * to be improved by the page. They are shown together because the same
+ * detector produced both and the same suspected mechanism runs through
+ * both, not so that a reader can average them.
  *
- * Gate statuses are rendered as they are stored. BAM localisation is
- * BLOCKED on an unverified absolute origin and 4TU object-level scoring is
- * BLOCKED on absent trench coordinates; both are shown prominently, with
- * the scope statement that `benchmark/gates.py` keeps in code precisely so
- * that a report cannot be written without it.
+ * Accordingly there is no combined score anywhere, no ranking, no
+ * pass/fail, no progress indicator, and no comparison of a BAM figure with
+ * a 4TU figure. Every number is `String()` of what the artifact holds.
  */
 export default function BenchmarkPage() {
   const { data, error, isLoading } = useBenchmarkArtifacts()
-  const [selected, setSelected] = useState<string | null>(null)
+  const [bamSelected, setBamSelected] = useState<string | null>(null)
 
-  const artifacts = data?.artifacts ?? []
-  const active = selected ?? artifacts[0]?.name ?? null
+  const artifacts = useMemo(() => data?.artifacts ?? [], [data])
+
+  const bamArtifacts = useMemo(
+    () => artifacts.filter((a) => a.group === 'bam'),
+    [artifacts],
+  )
+
+  /**
+   * Prefer a full-scan BAM report over the 20-line probe. Selection is by
+   * filename because that is what the artifact listing carries; the panel
+   * still checks lines_processed against lines_available and labels a
+   * partial run as partial, so this preference is a convenience and not the
+   * thing that keeps a partial run from being mistaken for a full one.
+   */
+  const defaultBam = useMemo(() => {
+    const full = bamArtifacts.find((a) => !a.filename.includes('probe'))
+    return full?.name ?? bamArtifacts[0]?.name ?? null
+  }, [bamArtifacts])
+
+  const fourTu = useMemo(
+    () => artifacts.find((a) => a.name === '4tu/benchmark')?.name ?? null,
+    [artifacts],
+  )
 
   return (
     <>
       <AppHeader
         title="Benchmark"
-        subtitle="Evaluation results, shown exactly as the platform records them"
+        subtitle="Frozen baseline — shown exactly as the scoring runs recorded it"
       />
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
-        <div className="mx-auto max-w-4xl space-y-3">
+        <div className="mx-auto max-w-[110rem] space-y-3">
           <QueryState
             isLoading={isLoading}
             error={error}
@@ -52,41 +65,31 @@ export default function BenchmarkPage() {
             skeletonRows={3}
           />
 
-          {data && artifacts.length === 0 && (
-            <StateBox
-              kind="empty"
-              title="No benchmark artifacts have been generated"
-              detail={
-                data.note ??
-                'Artifacts are produced by the scoring scripts under scripts/ and are regenerable. None is present.'
-              }
-            />
-          )}
-
-          {artifacts.length > 0 && (
+          {data && (
             <>
-              <nav className="flex flex-wrap gap-1.5" aria-label="Artifacts">
-                {artifacts.map((entry) => (
-                  <button
-                    key={entry.name}
-                    type="button"
-                    onClick={() => setSelected(entry.name)}
-                    aria-current={entry.name === active ? 'true' : undefined}
-                    className={`rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${
-                      entry.name === active
-                        ? 'border-primary/50 bg-primary/10 text-foreground'
-                        : 'border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
-                    }`}
-                  >
-                    <span className="font-mono">{entry.name}</span>
-                    <span className="ml-1.5 text-[10px] text-muted-foreground">
-                      {(entry.size_bytes / 1024).toFixed(0)} kB
-                    </span>
-                  </button>
-                ))}
-              </nav>
+              <OpenQuestionBanner />
 
-              {active && <ArtifactView name={active} />}
+              {artifacts.length === 0 ? (
+                <StateBox
+                  kind="empty"
+                  title="No benchmark artifacts have been generated"
+                  detail={
+                    data.note ??
+                    'Artifacts are produced by the scoring scripts under scripts/ and are regenerable. None is present.'
+                  }
+                />
+              ) : (
+                <div className="grid items-start gap-3 xl:grid-cols-2">
+                  <BamPanel
+                    artifacts={bamArtifacts}
+                    selected={bamSelected ?? defaultBam}
+                    onSelect={setBamSelected}
+                  />
+                  <FourTuPanel name={fourTu} />
+                </div>
+              )}
+
+              <NoAggregateNote />
             </>
           )}
         </div>
@@ -95,215 +98,47 @@ export default function BenchmarkPage() {
   )
 }
 
-function ArtifactView({ name }: { name: string }) {
-  const { data, error, isLoading } = useBenchmarkArtifact(name)
-
-  return (
-    <>
-      <QueryState
-        isLoading={isLoading}
-        error={error}
-        absenceTitle="Artifact unavailable"
-        errorTitle="Could not load the artifact"
-        skeletonRows={4}
-      />
-      {data && <ArtifactBody name={name} artifact={data} />}
-    </>
-  )
-}
-
-function ArtifactBody({
-  name,
-  artifact,
-}: {
-  name: string
-  artifact: BenchmarkArtifact
-}) {
-  const gates = [
-    {
-      label: 'Localisation scoring',
-      status: artifact.localization_status,
-      reason: artifact.localization_blocked_reason,
-    },
-    {
-      label: 'Object-level scoring',
-      status: artifact.object_level_status,
-      reason: artifact.object_level_blocked_reason,
-    },
-    {
-      label: 'Activity-level scoring',
-      status: artifact.activity_level_status,
-      reason: null,
-    },
-  ].filter((g) => g.status)
-
-  return (
-    <div className="space-y-3">
-      <Panel>
-        <PanelHeader
-          title={artifact.benchmark ?? name}
-          action={
-            <span className="font-mono text-[11px] text-muted-foreground">
-              {name}
-            </span>
-          }
-        />
-        <PanelBody className="space-y-3">
-          {artifact.scope && <ScopeStatement scope={artifact.scope} />}
-
-          {gates.length > 0 && (
-            <div className="space-y-2">
-              {gates.map((gate) => (
-                <BlockedGate
-                  key={gate.label}
-                  label={gate.label}
-                  status={gate.status as string}
-                  reason={gate.reason}
-                />
-              ))}
-            </div>
-          )}
-
-          {(artifact.threshold !== undefined ||
-            artifact.parameters_changed_for_this_benchmark) && (
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {artifact.threshold !== undefined && (
-                <>
-                  Detector run at threshold{' '}
-                  <span className="tabular font-mono text-foreground">
-                    {String(artifact.threshold)}
-                  </span>
-                  {artifact.min_cells !== undefined && (
-                    <>
-                      , min_cells{' '}
-                      <span className="tabular font-mono text-foreground">
-                        {String(artifact.min_cells)}
-                      </span>
-                    </>
-                  )}
-                  .{' '}
-                </>
-              )}
-              {artifact.parameters_changed_for_this_benchmark && (
-                <>
-                  Parameters changed for this benchmark:{' '}
-                  <span className="font-mono text-foreground">
-                    {String(artifact.parameters_changed_for_this_benchmark)}
-                  </span>
-                  .
-                </>
-              )}
-            </p>
-          )}
-        </PanelBody>
-      </Panel>
-
-      {artifact.detection && (
-        <Panel>
-          <PanelHeader title="Detection" />
-          <PanelBody>
-            <MetricGrid source={artifact.detection} />
-          </PanelBody>
-        </Panel>
-      )}
-
-      {artifact.score && (
-        <Panel>
-          <PanelHeader title="Score" />
-          <PanelBody>
-            <MetricGrid source={artifact.score} />
-          </PanelBody>
-        </Panel>
-      )}
-
-      {artifact.open_questions && artifact.open_questions.length > 0 && (
-        <Panel>
-          <PanelHeader
-            title="Open questions"
-            count={artifact.open_questions.length}
-          />
-          <PanelBody>
-            <p className="mb-2 text-xs leading-relaxed text-muted-foreground">
-              Unresolved evidence questions, carried forward verbatim so they
-              cannot be quietly dropped.
-            </p>
-            <OpenQuestions questions={artifact.open_questions} />
-          </PanelBody>
-        </Panel>
-      )}
-
-      {artifact.provenance && (
-        <Panel>
-          <PanelHeader title="Provenance" />
-          <PanelBody>
-            <MetricGrid source={artifact.provenance} />
-          </PanelBody>
-        </Panel>
-      )}
-
-      {artifact.grid && (
-        <Panel>
-          <PanelHeader title="Grid" />
-          <PanelBody>
-            <MetricGrid source={artifact.grid} />
-          </PanelBody>
-        </Panel>
-      )}
-    </div>
-  )
-}
-
 /**
- * Renders an artifact section as label/value rows.
+ * The question the baseline exists to answer.
  *
- * Scalars are printed with `String(value)` — no rounding, no percentage
- * conversion, no unit inference. A recall of 0.06521739130434782 is shown
- * as recorded; presenting it as "6.5%" would be a transformation of a
- * scientific result, however harmless it looks.
- *
- * Nested objects are shown as formatted JSON rather than being flattened or
- * summarised, so nothing is dropped on the way to the screen.
+ * Stated at the top so the page reads as evidence about a failure
+ * mechanism rather than as a scorecard someone is trying to move.
  */
-function MetricGrid({ source }: { source: Record<string, unknown> }) {
-  const entries = Object.entries(source)
+function OpenQuestionBanner() {
   return (
-    <dl className="space-y-1">
-      {entries.map(([key, value]) => {
-        const isScalar =
-          value === null || ['string', 'number', 'boolean'].includes(typeof value)
-        return (
-          <div
-            key={key}
-            className="grid grid-cols-[minmax(0,14rem)_1fr] gap-3 border-b border-border/60 py-1.5 last:border-0"
-          >
-            <dt className="font-mono text-[11px] leading-relaxed text-muted-foreground">
-              {key}
-            </dt>
-            <dd className="min-w-0 text-xs leading-relaxed text-foreground">
-              {isScalar ? (
-                <span className="tabular font-mono break-all">
-                  {value === null ? 'null' : String(value)}
-                </span>
-              ) : Array.isArray(value) && value.every((v) => typeof v === 'string') ? (
-                <span className="font-mono break-all">
-                  {(value as string[]).join(', ')}
-                </span>
-              ) : (
-                <details>
-                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                    {Array.isArray(value)
-                      ? `${formatCount(value.length)} entries`
-                      : `${formatCount(Object.keys(value as object).length)} fields`}
-                  </summary>
-                  <pre className="mt-1.5 max-h-64 overflow-auto rounded border border-border bg-background/60 p-2 font-mono text-[10px] leading-relaxed">
-                    {JSON.stringify(value, null, 2)}
-                  </pre>
-                </details>
-              )}
-            </dd>
-          </div>
-        )
-      })}
-    </dl>
+    <section className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+      <h2 className="text-[11px] font-medium uppercase tracking-[0.08em] text-primary">
+        The open question
+      </h2>
+      <p className="mt-1.5 max-w-4xl text-sm leading-relaxed text-foreground">
+        Does an estimator designed to address the measured width-saturation
+        failure produce genuinely better subsurface detection{' '}
+        <span className="text-primary">at matched false-alarm rate</span>?
+      </p>
+      <p className="mt-1.5 max-w-4xl text-xs leading-relaxed text-muted-foreground">
+        Both benchmarks below are the <span className="text-foreground">frozen
+        baseline</span> against which that question would be answered. They
+        record where the current detector stands and the evidence for the
+        suspected mechanism. Nothing here claims the problem is solved, and a
+        higher number is not the goal — a recall improvement bought by
+        responding more often is not an improvement at all, which is why the
+        false-alarm control travels with the detection figures.
+      </p>
+    </section>
+  )
+}
+
+function NoAggregateNote() {
+  return (
+    <p className="max-w-4xl text-[11px] leading-relaxed text-muted-foreground">
+      <span className="text-foreground">No combined score is shown, and none
+      should be computed.</span>{' '}
+      BAM measures detection against complete truth on a controlled concrete
+      specimen; 4TU measures activity-level candidate density against
+      trial-trench truth that covers only part of the surveyed ground. They
+      have different units, different truth completeness and different scope
+      boundaries. Averaging them would produce a number that describes neither
+      and licenses claims about both.
+    </p>
   )
 }
