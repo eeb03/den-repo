@@ -13,9 +13,14 @@ screen is sample or placeholder data.
 
 ## Running
 
+The package manager is pinned via `packageManager: pnpm@9.15.4`. The pnpm on
+`PATH` may be older (a v9 lockfile needs pnpm ≥ 9), so invoke it through
+corepack:
+
 ```bash
-npm install
-npm run dev        # http://localhost:3000
+corepack enable            # once
+corepack pnpm install
+corepack pnpm dev          # http://localhost:3000
 ```
 
 The backend is expected at `http://localhost:8000` (see the repository
@@ -23,9 +28,9 @@ README). The existing `/viewer` and `/client` pages are untouched and remain
 fully functional; the workspace header links to both.
 
 ```bash
-npm run typecheck  # tsc --noEmit
-npm run lint       # eslint .
-npm run build      # next build -- fails on a real type error
+corepack pnpm typecheck    # tsc --noEmit
+corepack pnpm lint         # eslint .
+corepack pnpm build        # next build -- fails on a real type error
 ```
 
 ## Relationship to the two existing UIs
@@ -87,7 +92,7 @@ and, in most cases, a Python test that enforces it.
 | `typescript.ignoreBuildErrors: true` | removed | the correctness rules above live in the type system; suppressing type errors would defeat them |
 | `@vercel/analytics` | removed | a local scientific tool should not beacon to a third party |
 | `next/font/google` (Geist) | system font stack | keeps the build hermetic — no network fetch at build time |
-| pnpm + `lockfileVersion 9.0` | npm + `package-lock.json` | the installed pnpm is 8.15.1 and cannot read a v9 lockfile |
+| pnpm, version unpinned | pnpm pinned via `packageManager` | the pnpm on `PATH` is 8.15.1 and cannot read a v9 lockfile; corepack supplies 9.15.4 reproducibly |
 | Recharts | not installed | nothing charts yet, and Plotly already serves the platform's visualisation |
 | `Scan` / `Sensor` / `SystemHealth` / `Operator` types | not ported | the platform ingests files, not live instruments; it has no job lifecycle, telemetry or auth |
 
