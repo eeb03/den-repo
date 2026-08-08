@@ -6,10 +6,24 @@ mathematics and all scientific judgement.
 
 ## Status
 
-Phase 2 (shell). The routes, layout, design system and honesty primitives
-exist; **no API adapter is wired yet**, so every panel renders an explicit
-"not connected" state naming the endpoint that will fill it. Nothing on
-screen is sample or placeholder data.
+The adapters are wired to the live FastAPI backend, the dataset workspace and
+the benchmark page render real data, and the existing Plotly viewer is
+embedded. Nothing on screen is sample or placeholder data.
+
+Verified in a real browser against `0daa3e7` — all six datasets held, plus the
+legacy `/viewer` and `/client`, with no page errors and no failed requests. See
+`../docs/browser-verification.md` for what that pass did and did not cover.
+
+Not done yet:
+
+- **The marketing landing page.** `app/page.tsx` redirects `/` to `/datasets`
+  until the v0 design's claims have been checked against what the platform
+  actually does.
+- **UI for four backend route groups** — `exports`, `fusion`, `sources`,
+  `training`. The adapter covers datasets, objects, labels, overlays, views,
+  provenance, trace_grid and benchmark.
+- **Large datasets are slow.** The 157k-record workspace page needs ~75 s to
+  settle; the cause is measured and recorded in the browser-verification doc.
 
 ## Running
 
@@ -41,9 +55,10 @@ corepack pnpm build        # next build -- fails on a real type error
 | `/client` (`visualization/thin_client.html`) | The thin client. **The information-architecture reference for this app.** |
 | `frontend/` (this) | The same information architecture in the Subterra design language. |
 
-This app does not replace either. Visualisation will be integrated by
-embedding the existing implementation before any React port is considered,
-so that no scientific calculation is duplicated in TypeScript.
+This app does not replace either. Visualisation is integrated **by embedding**
+the existing implementation rather than porting it, so that no scientific
+calculation is duplicated in TypeScript. A React port stays off the table until
+parity is demonstrated.
 
 ## The rules this codebase is built around
 
