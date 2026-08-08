@@ -1,14 +1,16 @@
 /**
- * The spatial-view embed gate.
+ * The embedded spatial viewer.
  *
- * `GET /api/datasets/{id}/points` reports `lat: 0.0, lon: 0.0` for a record
- * whose `position_kind` is `"none"`, and `visualization/viewer.html` plots
- * coordinates as given without filtering on that field. Embedding the
- * viewer for an unpositioned dataset would therefore draw every record at
- * null island and label it as a measured location.
+ * The honesty guarantee for unpositioned data lives in
+ * `visualization/viewer.html`, which filters on `position_kind` and reports
+ * how many records it excluded -- pinned by
+ * `tests/test_viewer_positions.py`. This component therefore does NOT
+ * re-decide whether the viewer may be shown; duplicating that judgement
+ * would give one question two answers, and gating the embed would also
+ * hide the B-scan, which works fine without coordinates.
  *
- * These tests pin the guard that prevents that. They are the reason the
- * embed reads `geographic_record_count` before rendering an iframe.
+ * What these tests pin is the part this component does own: telling the
+ * operator, before they wonder, that the scene will be empty and why.
  */
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -55,46 +57,33 @@ function info(overrides: Partial<DatasetInfo>): DatasetInfo {
 }
 
 function setInfo(value: DatasetInfo) {
-  mockUseDatasetInfo.mockReturnValue({
-    data: value,
-    error: null,
-    isLoading: false,
-  })
+  mockUseDatasetInfo.mockReturnValue({ data: value, error: null, isLoading: false })
 }
 
-describe('a dataset with no positioned records is never embedded', () => {
-  it('renders no iframe at all', () => {
+describe('an unpositioned dataset is embedded, with the reason stated up front', () => {
+  it('warns that nothing can be placed, and names the position sources', () => {
     setInfo(info({ geographic_record_count: 0 }))
     const { container } = render(<EmbeddedViewer datasetId="ds" />)
-    expect(container.querySelector('iframe')).toBeNull()
+    expect(container.querySelector('[data-unpositioned-notice]')).toBeTruthy()
+    expect(screen.getByText(/No positioned records\./i)).toBeTruthy()
+    expect(container.textContent).toMatch(/none: 10,727/)
   })
 
-  it('explains why, naming null island as the thing being avoided', () => {
+  it('says the B-scan still works, so a usable view is not written off', () => {
     setInfo(info({ geographic_record_count: 0 }))
     const { container } = render(<EmbeddedViewer datasetId="ds" />)
-    expect(screen.getByText(/no positioned records/i)).toBeTruthy()
-    expect(container.textContent).toMatch(/null island/i)
-    expect(container.textContent).toMatch(/position sources: none 10,727/i)
+    expect(container.textContent).toMatch(/B-scan is indexed by trace and depth/i)
   })
 
-  it('states what is missing rather than implying a bug', () => {
-    setInfo(info({ geographic_record_count: 0 }))
-    render(<EmbeddedViewer datasetId="ds" />)
-    expect(
-      screen.getByText(/a geographic position on the records, or a GeoTie/i),
-    ).toBeTruthy()
-  })
-
-  it('shows the unpositioned state, not the empty or error state', () => {
+  it('still embeds the viewer, which reports the exclusion itself', () => {
     setInfo(info({ geographic_record_count: 0 }))
     const { container } = render(<EmbeddedViewer datasetId="ds" />)
-    expect(container.querySelector('[data-state-kind="unpositioned"]')).toBeTruthy()
-    expect(container.querySelector('[data-state-kind="error"]')).toBeNull()
+    expect(container.querySelector('iframe')).toBeTruthy()
   })
 })
 
-describe('a dataset with positioned records is embedded', () => {
-  it('renders the viewer iframe scoped to that dataset', () => {
+describe('a positioned dataset shows no warning', () => {
+  it('embeds without the notice', () => {
     setInfo(
       info({
         dataset_id: 'd3dca710',
@@ -105,43 +94,48 @@ describe('a dataset with positioned records is embedded', () => {
       }),
     )
     const { container } = render(<EmbeddedViewer datasetId="d3dca710" />)
-    const iframe = container.querySelector('iframe')
-    expect(iframe).toBeTruthy()
-    expect(iframe!.getAttribute('src')).toContain('/viewer?datasets=d3dca710')
+    expect(container.querySelector('[data-unpositioned-notice]')).toBeNull()
+    expect(container.querySelector('iframe')!.getAttribute('src')).toContain(
+      '/viewer?datasets=d3dca710',
+    )
   })
 
-  it('sandboxes the embed to only what it needs', () => {
+  it('a partially positioned dataset is treated as positioned', () => {
+    // The backend decides; the UI invents no coverage threshold.
+    setInfo(
+      info({
+        geographic_record_count: 1,
+        record_count: 10727,
+        position_sources: { geographic: 1, none: 10726 },
+      }),
+    )
+    const { container } = render(<EmbeddedViewer datasetId="ds" />)
+    expect(container.querySelector('[data-unpositioned-notice]')).toBeNull()
+    expect(container.querySelector('iframe')).toBeTruthy()
+  })
+})
+
+describe('the embed is constrained and withheld until the answer is known', () => {
+  it('sandboxes the iframe to only what it needs', () => {
     setInfo(info({ geographic_record_count: 100 }))
-    const iframe = render(<EmbeddedViewer datasetId="ds" />).container.querySelector(
-      'iframe',
-    )!
-    const sandbox = iframe.getAttribute('sandbox') ?? ''
+    const sandbox =
+      render(<EmbeddedViewer datasetId="ds" />)
+        .container.querySelector('iframe')!
+        .getAttribute('sandbox') ?? ''
     expect(sandbox).toContain('allow-scripts')
-    // withheld on purpose
     expect(sandbox).not.toContain('allow-forms')
     expect(sandbox).not.toContain('allow-popups')
     expect(sandbox).not.toContain('allow-top-navigation')
   })
-})
 
-describe('the gate reads the backend, not a local guess', () => {
-  it('a partially positioned dataset is still embedded', () => {
-    // The backend decides; the UI does not invent a coverage threshold.
-    setInfo(
-      info({ geographic_record_count: 1, record_count: 10727, position_sources: { geographic: 1, none: 10726 } }),
-    )
+  it('renders nothing embeddable while loading', () => {
+    mockUseDatasetInfo.mockReturnValue({ data: null, error: null, isLoading: true })
     expect(
       render(<EmbeddedViewer datasetId="ds" />).container.querySelector('iframe'),
-    ).toBeTruthy()
+    ).toBeNull()
   })
 
-  it('withholds the embed while the answer is still loading', () => {
-    mockUseDatasetInfo.mockReturnValue({ data: null, error: null, isLoading: true })
-    const { container } = render(<EmbeddedViewer datasetId="ds" />)
-    expect(container.querySelector('iframe')).toBeNull()
-  })
-
-  it('withholds the embed when the answer could not be fetched', () => {
+  it('renders an error, not an embed, when the answer could not be fetched', () => {
     mockUseDatasetInfo.mockReturnValue({
       data: null,
       error: new Error('boom'),

@@ -77,6 +77,28 @@ async function fetchDatasetPoints(datasetId) {
   return resp.json();
 }
 
+// Only records that actually carry a geographic position may be placed on
+// the map.
+//
+// `/points` returns lat/lon 0.0 for a record whose position is absent, and
+// says so per point via `position_kind`. That is a deliberate contract, not
+// a bug: tests/test_frame_read_path.py pins it as "(0,0) in lat/lon must be
+// identifiable as 'no position', not a location". This page previously
+// ignored the field and plotted the placeholder, which put every
+// unpositioned record at null island and labelled it as a measurement.
+//
+// Excluded records are counted rather than silently dropped -- an empty
+// plot and a plot with a third of its data missing must not look alike.
+//
+// Scope: this affects only the views that PLACE a point on Earth (the point
+// cloud, and the bounding boxes derived from it). The B-scan is indexed by
+// trace and depth, carries no coordinate, and is untouched. The heatmap and
+// surface go through /grid, which already refuses a dataset with no
+// geographic position.
+function geographicPoints(data) {
+  return data.points.filter(pt => pt.position_kind === "geographic");
+}
+
 function zValue(pt) {
   // Prefer true absolute elevation (surface elevation - depth) when DEM-aligned.
   if (pt.absolute_elevation_m !== null && pt.absolute_elevation_m !== undefined) {
@@ -125,6 +147,9 @@ async function loadDatasets() {
   for (const id of ids) {
     try {
       const data = await fetchDatasetPoints(id);
+      // Split once, here, so every placing view reads the same filtered set.
+      data.geoPoints = geographicPoints(data);
+      data.excludedNoPosition = data.points.length - data.geoPoints.length;
       allTraces[id] = data;
       for (const pt of data.points) {
         if (pt.depth !== null && pt.depth !== undefined) {
@@ -150,17 +175,28 @@ async function loadDatasets() {
   }
 
   // Reference point for local-meters conversion: mean lat/lon across every
-  // loaded point, so all datasets share one consistent local coordinate frame.
+  // POSITIONED point, so all datasets share one consistent local coordinate
+  // frame. Averaging the 0.0 placeholders in would drag the origin toward
+  // null island and shift every real point away from where it was measured.
   let sumLat = 0, sumLon = 0, n = 0;
   for (const data of Object.values(allTraces)) {
-    for (const pt of data.points) { sumLat += pt.lat; sumLon += pt.lon; n++; }
+    for (const pt of data.geoPoints) { sumLat += pt.lat; sumLon += pt.lon; n++; }
   }
   refLat = n ? sumLat / n : 0;
   refLon = n ? sumLon / n : 0;
 
   populateFocusSelect();
   render();
-  setStatus(`Loaded ${ids.length} dataset(s), ${Object.values(allTraces).reduce((n, d) => n + d.returned_points, 0)} points shown.`);
+
+  const plotted = Object.values(allTraces).reduce((t, d) => t + d.geoPoints.length, 0);
+  const excluded = Object.values(allTraces).reduce((t, d) => t + d.excludedNoPosition, 0);
+  const excludedNote = excluded
+    ? ` ${excluded} record(s) carry no geographic position and are NOT plotted `
+      + `(the API reports lat/lon 0.0 for these; they are not located at 0,0).`
+    : "";
+  setStatus(
+    `Loaded ${ids.length} dataset(s), ${plotted} positioned point(s) shown.${excludedNote}`
+  );
 }
 
 function applyDepthFilter() {
@@ -203,18 +239,25 @@ function populateFocusSelect() {
   allOpt.textContent = "All (full extent)";
   select.appendChild(allOpt);
 
+  // Counts here are POSITIONED points, because focusing is a geographic
+  // operation: a dataset with a million unpositioned records contributes
+  // nothing to any extent, and labelling it as the largest would send the
+  // default focus to a dataset that cannot be shown at all.
   let densestId = null, densestCount = -1;
   for (const [id, data] of Object.entries(allTraces)) {
     const opt = document.createElement("option");
     opt.value = id;
-    opt.textContent = `${data.name} (${data.returned_points} pts)`;
+    const n = data.geoPoints.length;
+    opt.textContent = n === data.returned_points
+      ? `${data.name} (${n} pts)`
+      : `${data.name} (${n} of ${data.returned_points} pts positioned)`;
     select.appendChild(opt);
-    if (data.returned_points > densestCount) { densestCount = data.returned_points; densestId = id; }
+    if (n > densestCount) { densestCount = n; densestId = id; }
   }
 
-  // Default focus to whichever loaded dataset has the most points -- for a
-  // survey + a deliberately-padded DEM tile, that's almost always the
-  // survey itself, which is the thing you actually want filling the view.
+  // Default focus to whichever loaded dataset has the most positioned points
+  // -- for a survey + a deliberately-padded DEM tile, that's almost always
+  // the survey itself, which is the thing you actually want filling the view.
   select.value = densestId || "__all__";
   document.getElementById("focusGroup").style.display = Object.keys(allTraces).length ? "flex" : "none";
   setFocusFromSelection();
@@ -230,10 +273,11 @@ function setFocusFromSelection() {
   const sel = document.getElementById("focusSelect").value;
   let points;
   if (sel === "__all__") {
-    points = Object.values(allTraces).flatMap(d => d.points);
+    points = Object.values(allTraces).flatMap(d => d.geoPoints);
   } else {
-    points = allTraces[sel] ? allTraces[sel].points : [];
+    points = allTraces[sel] ? allTraces[sel].geoPoints : [];
   }
+  // A bounding box over unpositioned records would be a box around (0,0).
   if (points.length === 0) { focusRange = null; return; }
 
   const bbox = computeBBox(points);
@@ -441,7 +485,8 @@ function render(depthLo, depthHi) {
 
   const traces = [];
   for (const [id, data] of Object.entries(allTraces)) {
-    let points = data.points;
+    // Positioned records only -- see geographicPoints().
+    let points = data.geoPoints;
     if (depthLo !== undefined && depthHi !== undefined) {
       points = points.filter(pt => pt.depth === null || pt.depth === undefined || (pt.depth >= depthLo && pt.depth <= depthHi));
     }
@@ -481,6 +526,23 @@ function render(depthLo, depthHi) {
         opacity: 0.8,
       },
     });
+  }
+
+  // "Nothing positioned to plot" and "nothing loaded" are different states.
+  // Say which one this is, rather than leaving an empty scene to be read as
+  // either -- or, worse, as a rendering failure.
+  if (traces.length === 0 && Object.keys(allTraces).length > 0) {
+    const excluded = Object.values(allTraces)
+      .reduce((t, d) => t + d.excludedNoPosition, 0);
+    Plotly.purge("plot");
+    setStatus(
+      excluded
+        ? `Nothing to plot: all ${excluded} loaded record(s) carry no geographic `
+          + `position, so none can be placed. They remain available through the API, `
+          + `and the B-scan view still works because it is indexed by trace, not by coordinate.`
+        : "Nothing to plot: no point survived the current depth/anomaly filters."
+    );
+    return;
   }
 
   const scene = {

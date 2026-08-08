@@ -3,7 +3,6 @@
 import { ExternalLink } from 'lucide-react'
 import { API_BASE } from '@/services/api'
 import { QueryState } from '@/components/subterra/query-state'
-import { StateBox } from '@/components/subterra/state-box'
 import { useDatasetInfo } from '@/hooks/use-subterra'
 import { formatCount } from '@/lib/format'
 
@@ -18,18 +17,22 @@ import { formatCount } from '@/lib/format'
  * page already own, which is exactly the kind of divergence that produces
  * two different answers to the same question.
  *
- * WHY IT IS GATED. `GET /api/datasets/{id}/points` returns `lat: 0.0,
- * lon: 0.0` for records whose `position_kind` is `"none"`, and the viewer
- * plots what it is given without filtering on that field. For a dataset
- * whose records carry no position, embedding it unguarded would draw every
- * point at null island and label it `lat: 0.000000, lon: 0.000000` -- a
- * fabricated location, and precisely the failure the platform is built to
- * prevent.
+ * ON UNPOSITIONED DATASETS. `GET /api/datasets/{id}/points` returns
+ * `lat: 0.0, lon: 0.0` for records whose `position_kind` is `"none"` -- a
+ * documented placeholder, not a location. The viewer now filters on that
+ * field and reports how many records it excluded, so an unpositioned
+ * dataset renders as an explained empty scene rather than a cloud of
+ * points at null island.
  *
- * So the embed is shown only when the backend confirms the dataset has
- * geographically positioned records. Otherwise this renders the reason.
- * The guard reads `geographic_record_count`, which the backend computes;
- * it is not a judgement made here.
+ * Because the viewer states that itself, this component does NOT gate the
+ * embed. Two reasons: duplicating the judgement would give the same
+ * question two answers that can drift apart, and gating would also hide
+ * the B-scan, which is indexed by trace and depth and works perfectly well
+ * for a dataset with no coordinates at all.
+ *
+ * What it does add is context the viewer has no way to know it should
+ * give: a banner naming the position sources, so the empty scene is
+ * expected rather than surprising.
  */
 export function EmbeddedViewer({ datasetId }: { datasetId: string }) {
   const { data, error, isLoading } = useDatasetInfo(datasetId)
@@ -50,57 +53,55 @@ export function EmbeddedViewer({ datasetId }: { datasetId: string }) {
 
   if (!data) return null
 
-  if (data.geographic_record_count === 0) {
-    return (
-      <div className="flex h-full w-full items-center justify-center p-5">
-        <div className="w-full max-w-lg">
-          <StateBox
-            kind="unpositioned"
-            title="No positioned records — nothing can be plotted"
-            detail={
-              `None of this dataset's ${formatCount(data.record_count)} records carries a geographic position ` +
-              `(position sources: ${Object.entries(data.position_sources ?? {})
-                .map(([k, n]) => `${k} ${formatCount(n)}`)
-                .join(', ')}). ` +
-              `The spatial viewer is not embedded here, because the points endpoint reports 0.0 / 0.0 for an ` +
-              `absent position and the viewer plots coordinates as given — which would place every record at ` +
-              `null island and label it as a measured location.`
-            }
-            missing={[
-              'a geographic position on the records, or a GeoTie that supplies one',
-            ]}
-          />
-        </div>
-      </div>
-    )
-  }
-
   const src = `${API_BASE}/viewer?datasets=${encodeURIComponent(datasetId)}`
+  const unpositioned = data.geographic_record_count === 0
 
   return (
-    <div className="relative h-full w-full">
-      <iframe
-        key={datasetId}
-        src={src}
-        title={`Subterra 3D viewer — ${data.name}`}
-        className="h-full w-full border-0 bg-background"
-        /*
-         * The viewer is first-party, served by the same FastAPI app, and
-         * needs scripts to run. It is sandboxed to withhold everything it
-         * does not need: no forms, no popups, no top-level navigation.
-         */
-        sandbox="allow-scripts allow-same-origin"
-        loading="lazy"
-      />
-      <a
-        href={src}
-        target="_blank"
-        rel="noreferrer"
-        className="absolute right-2 top-2 inline-flex items-center gap-1.5 rounded-lg border border-border bg-card/90 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur transition-colors hover:text-foreground"
-      >
-        Open full viewer
-        <ExternalLink className="size-3" aria-hidden />
-      </a>
+    <div className="flex h-full w-full flex-col">
+      {unpositioned && (
+        <div
+          data-unpositioned-notice
+          className="subterra-hatch shrink-0 border-b border-prov-unavailable/40 px-3.5 py-2"
+        >
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            <span className="font-medium text-foreground">
+              No positioned records.
+            </span>{' '}
+            None of this dataset&rsquo;s {formatCount(data.record_count)} records
+            carries a geographic position (
+            {Object.entries(data.position_sources ?? {})
+              .map(([kind, n]) => `${kind}: ${formatCount(n)}`)
+              .join(', ')}
+            ), so the point cloud, heatmap and surface views have nothing to
+            place and will report that. The B-scan is indexed by trace and
+            depth and is unaffected.
+          </p>
+        </div>
+      )}
+      <div className="relative min-h-0 flex-1">
+        <iframe
+          key={datasetId}
+          src={src}
+          title={`Subterra 3D viewer — ${data.name}`}
+          className="h-full w-full border-0 bg-background"
+          /*
+           * The viewer is first-party, served by the same FastAPI app, and
+           * needs scripts to run. It is sandboxed to withhold everything it
+           * does not need: no forms, no popups, no top-level navigation.
+           */
+          sandbox="allow-scripts allow-same-origin"
+          loading="lazy"
+        />
+        <a
+          href={src}
+          target="_blank"
+          rel="noreferrer"
+          className="absolute right-2 top-2 inline-flex items-center gap-1.5 rounded-lg border border-border bg-card/90 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur transition-colors hover:text-foreground"
+        >
+          Open full viewer
+          <ExternalLink className="size-3" aria-hidden />
+        </a>
+      </div>
     </div>
   )
 }
