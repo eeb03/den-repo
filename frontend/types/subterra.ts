@@ -224,15 +224,25 @@ export interface DatasetSummary {
   quality_score: number | null
   record_count: number | null
   has_ground_truth: boolean | null
+  /**
+   * The dataset's own centre, when it has one. Null for a dataset whose
+   * records carry no geographic position -- which is the case for most of
+   * the corpus held today, and must not be filled in.
+   */
   center_lat: number | null
   center_lon: number | null
-  version: string | null
+  version: number | null
   created_at: string | null
 }
 
 export interface SpatialRefSummary {
   kind: string
   code?: string | null
+  crs_provenance?: ProvenanceClass | string | null
+  name?: string | null
+  horizontal_units?: string | null
+  vertical_datum?: string | null
+  origin_description?: string | null
   [key: string]: unknown
 }
 
@@ -311,10 +321,12 @@ export interface SubsurfaceObject {
 
 /** Response envelope of `GET /api/objects/{dataset_id}`. */
 export interface ObjectsResponse {
+  dataset_id: string
   objects: SubsurfaceObject[]
   count: number
   /** How many carry a geographic position. The rest must not be plotted. */
   placed: number
+  by_status?: Record<string, number>
   note?: string
 }
 
@@ -347,9 +359,17 @@ export interface SemanticLabel {
 }
 
 export interface LabelsResponse {
+  dataset_id: string
   labels: SemanticLabel[]
-  count?: number
-  summary?: Record<string, unknown>
+  summary?: {
+    count: number
+    by_kind: Record<string, number>
+    by_processing_stage: Record<string, number>
+    by_source: Record<string, number>
+    ground_truth_count: number
+    provenance: unknown
+  }
+  note?: string
 }
 
 /* -------------------------------- overlays -------------------------------- */
@@ -357,32 +377,87 @@ export interface LabelsResponse {
 export interface LayerExtent {
   native_kind?: string | null
   native_crs?: string | null
+  wgs84_min_lat?: number | null
+  wgs84_max_lat?: number | null
+  wgs84_min_lon?: number | null
+  wgs84_max_lon?: number | null
+  /** Null when the layer has no positions to take an extent from. */
   wgs84_provenance?: ProvenanceClass | null
   wgs84_basis?: string | null
+  n_positions_sampled?: number
   [key: string]: unknown
 }
 
 export interface OverlayLayer {
   layer_id: string
+  dataset_id: string
+  frame_id: string
   modality: string
+  source_format?: string | null
+  spatial_ref: SpatialRefSummary
   extent: LayerExtent
+  provenance?: QuantityProvenance[]
+}
+
+export interface LayersResponse {
+  dataset_id: string
+  layer_count: number
+  layers: OverlayLayer[]
 }
 
 /**
  * Result of `POST /api/overlays/compose`.
  *
  * `spatial_relationship: 'not_relatable'` is a real answer meaning the
- * layers must not be drawn together.
+ * layers must not be drawn together, and `unplaceable_layers` names the
+ * ones that cannot be placed at all. Neither is an error.
  */
 export interface Composition {
+  layers: OverlayLayer[]
   spatial_relationship: string
   spatial_basis: string
+  unplaceable_layers?: string[]
   vertical_relationship?: {
     kind: string
     absolute_elevation_available: boolean
     missing: string[]
   } | null
+  suggested_view?: string | null
   notes?: string[]
+}
+
+/* ------------------------------- provenance ------------------------------- */
+
+export interface FrameProvenance {
+  frame_id: string
+  source_file: string | null
+  modality: string
+  source_format: string | null
+  provenance: (QuantityProvenance & { source?: string })[]
+}
+
+export interface FrameProvenanceResponse {
+  dataset_id: string
+  frame_count: number
+  frames: FrameProvenance[]
+}
+
+/* -------------------------------- radargram ------------------------------- */
+
+/**
+ * `GET /api/datasets/{id}/trace_grid`.
+ *
+ * `depths` is present only when a propagation velocity was supplied at
+ * ingest. When it is absent the vertical axis is a sample index and must be
+ * labelled as one -- it is not a depth.
+ */
+export interface TraceGrid {
+  grid: number[][]
+  trace_indices: number[]
+  depths?: number[] | null
+  source_file?: string | null
+  field?: string
+  [key: string]: unknown
 }
 
 /* -------------------------------- benchmark ------------------------------- */
@@ -404,4 +479,46 @@ export interface BenchmarkRun {
   model_name: string
   dataset_id: string | null
   metrics: Record<string, number | null>
+}
+
+/** One entry of `GET /api/benchmark/artifacts`. */
+export interface BenchmarkArtifactEntry {
+  name: string
+  group: string
+  filename: string
+  size_bytes: number
+}
+
+export interface BenchmarkArtifactsResponse {
+  artifacts: BenchmarkArtifactEntry[]
+  count: number
+  note?: string
+}
+
+/**
+ * A scoring artifact, as stored.
+ *
+ * Typed loosely on purpose. The artifact is the scoring script's output and
+ * this UI is a reader of it: narrowing it to a fixed interface here would
+ * silently drop any field a future scoring run adds, and dropping a field
+ * from a scientific result is exactly the failure mode to avoid. The known
+ * keys are declared for convenience; everything else passes through.
+ */
+export interface BenchmarkArtifact {
+  benchmark?: string
+  scope?: string
+  localization_status?: GateStatus
+  localization_blocked_reason?: string
+  object_level_status?: GateStatus
+  object_level_blocked_reason?: string
+  activity_level_status?: GateStatus
+  open_questions?: string[]
+  threshold?: number
+  min_cells?: number
+  parameters_changed_for_this_benchmark?: string
+  detection?: Record<string, unknown>
+  score?: Record<string, unknown>
+  provenance?: Record<string, unknown>
+  grid?: Record<string, unknown>
+  [key: string]: unknown
 }
