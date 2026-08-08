@@ -1,0 +1,173 @@
+{
+  "$comment": [
+    "Target ground truth for BAM concrete specimen Pk266, and the negative-control",
+    "specimen Pk050.",
+    "",
+    "PROVENANCE CLASS: transcribed_from_publication. These numbers were NOT read",
+    "from any file in the data repository -- the repository (doi:10.7910/DVN/FCMUJQ)",
+    "contains radar data and trace coordinates only, and no target geometry file of",
+    "any kind. Every value below was typed in by hand from the two published",
+    "sources named in `sources`, and each carries the source it came from.",
+    "",
+    "Nothing here is measured by Subterra, derived by Subterra, or inferred.",
+    "Where the two published sources disagree, BOTH are recorded and the",
+    "disagreement is stated rather than resolved -- see `open_questions`."
+  ],
+  "schema_version": 1,
+  "transcribed_utc": "2026-08-08T00:20:00+00:00",
+  "provenance_class": "transcribed_from_publication",
+
+  "sources": {
+    "data_repository": {
+      "doi": "10.7910/DVN/FCMUJQ",
+      "title": "Ground-Penetrating Radar Data (Pulse-Echo Mode) Acquired with 1.5 GHz and 2.6 GHz Antennas on Concrete Step Specimens Containing Embedded Objects",
+      "authors": ["Grohmann, Maria", "Maack, Stefan", "Niederleithinger, Ernst", "Wöstmann, Jens"],
+      "publisher": "Harvard Dataverse",
+      "publication_date": "2026-04-22",
+      "licence": "CC0 1.0",
+      "licence_source": "Dataverse dataset record, field latestVersion.license.rightsIdentifier",
+      "contains_target_geometry": false,
+      "note": "Supplies the CENTRE depths and the object descriptions quoted below, in its dsDescription field."
+    },
+    "companion_article": {
+      "doi": "10.1016/j.dib.2026.113103",
+      "title": "Ground-penetrating radar datasets for non-destructive geometry evaluation of concrete step specimens with embedded elements",
+      "journal": "Data in Brief",
+      "published": "2026-08",
+      "relation": "Crossref records doi:10.7910/DVN/FCMUJQ as is-supplemented-by of this article"
+    },
+    "geometry_article": {
+      "doi": "10.1016/j.dib.2023.109312",
+      "pmcid": "PMC10294002",
+      "title": "Low frequency ultrasonic pulse-echo datasets for object detection and thickness measurement in concrete specimens as testing tasks in civil engineering",
+      "note": "SAME physical specimens, different modality (ultrasound). Supplies the X positions and the concrete-cover depths in its Table 4. This is the only located source giving numeric target X.",
+      "licence": "CC BY 4.0"
+    }
+  },
+
+  "coordinate_frame": {
+    "kind": "local_cartesian",
+    "crs": null,
+    "crs_provenance": "none",
+    "units": "mm",
+    "origin": "upper (measuring) surface of the specimen; Z = 0 at that surface",
+    "axes": {
+      "X": "along specimen length, 0 to 2000 mm",
+      "Y": "across specimen width, 0 to 800 mm",
+      "Z": "downward into the specimen, positive depth below the measuring surface"
+    },
+    "shared_with_radar": true,
+    "shared_with_radar_evidence": "X-values.npy in the repository runs 0..2000 mm in uniform 5 mm steps and Y-values.npy runs 0..800 mm in uniform 5 mm steps, i.e. the scanner grid is expressed in the same millimetre specimen frame as the target X below. No transformation is required and none is applied.",
+    "vertical_datum": null,
+    "vertical_datum_note": "There is no geodetic vertical datum and none is needed: depth is measured from the specimen surface, which is a physical reference, not an elevation. No absolute Z exists or is implied."
+  },
+
+  "specimens": [
+    {
+      "id": "Pk266",
+      "role": "targets",
+      "dimensions_mm": {"length_x": 2000.0, "width_y": 800.0},
+      "step_thicknesses_mm": [569.9, 448.2, 329.8, 210.3],
+      "step_thickness_source": "data_repository",
+      "targets": [
+        {
+          "target_id": "Pk266-duct-1",
+          "type": "tendon duct",
+          "material": "metal duct, circular cross section",
+          "geometry": {"shape": "cylinder", "inner_diameter_mm": 60.0, "outer_diameter_mm": 67.0},
+          "orientation": "axis parallel to Y",
+          "extent": {"spans_full_width_y": true, "y_from_mm": 0.0, "y_to_mm": 800.0},
+          "x_mm": 250.0,
+          "x_source": "geometry_article Table 4",
+          "centre_depth_mm": 274.5,
+          "centre_depth_source": "data_repository",
+          "concrete_cover_mm": 244.5,
+          "concrete_cover_tolerance_mm": 0.5,
+          "concrete_cover_source": "geometry_article Table 4"
+        },
+        {
+          "target_id": "Pk266-duct-2",
+          "type": "tendon duct",
+          "material": "metal duct, circular cross section",
+          "geometry": {"shape": "cylinder", "inner_diameter_mm": 60.0, "outer_diameter_mm": 67.0},
+          "orientation": "axis parallel to Y",
+          "extent": {"spans_full_width_y": true, "y_from_mm": 0.0, "y_to_mm": 800.0},
+          "x_mm": 750.0,
+          "x_source": "geometry_article Table 4",
+          "centre_depth_mm": 214.6,
+          "centre_depth_source": "data_repository",
+          "concrete_cover_mm": 184.6,
+          "concrete_cover_tolerance_mm": 1.6,
+          "concrete_cover_source": "geometry_article Table 4"
+        },
+        {
+          "target_id": "Pk266-duct-3",
+          "type": "tendon duct",
+          "material": "metal duct, circular cross section",
+          "geometry": {"shape": "cylinder", "inner_diameter_mm": 60.0, "outer_diameter_mm": 67.0},
+          "orientation": "axis parallel to Y",
+          "extent": {"spans_full_width_y": true, "y_from_mm": 0.0, "y_to_mm": 800.0},
+          "x_mm": 1250.0,
+          "x_source": "geometry_article Table 4",
+          "centre_depth_mm": 151.4,
+          "centre_depth_source": "data_repository",
+          "concrete_cover_mm": 121.4,
+          "concrete_cover_tolerance_mm": 1.0,
+          "concrete_cover_source": "geometry_article Table 4"
+        },
+        {
+          "target_id": "Pk266-duct-4",
+          "type": "tendon duct",
+          "material": "metal duct, circular cross section",
+          "geometry": {"shape": "cylinder", "inner_diameter_mm": 60.0, "outer_diameter_mm": 67.0},
+          "orientation": "axis parallel to Y",
+          "extent": {"spans_full_width_y": true, "y_from_mm": 0.0, "y_to_mm": 800.0},
+          "x_mm": 1750.0,
+          "x_source": "geometry_article Table 4",
+          "centre_depth_mm": 94.4,
+          "centre_depth_source": "data_repository",
+          "concrete_cover_mm": 64.4,
+          "concrete_cover_tolerance_mm": 0.75,
+          "concrete_cover_source": "geometry_article Table 4"
+        }
+      ]
+    },
+    {
+      "id": "Pk050",
+      "role": "negative_control",
+      "dimensions_mm": {"length_x": 2000.0, "width_y": 800.0},
+      "step_thicknesses_mm": [571.3, 452.0, 330.9, 210.8],
+      "step_thickness_source": "data_repository",
+      "targets": [],
+      "empty_is_attested": true,
+      "empty_attestation": "The data repository states verbatim: 'Specimen Pk050 does not contain any embedded elements.' This is a positive statement of absence by the specimen's own fabricator, not a blank field. It is therefore usable as control ground, unlike the 4TU activities whose blank utility field means missing information.",
+      "back_wall_note": "Pk050 is not featureless. The step back walls are real reflectors at the step thicknesses above, and any detector will respond to them. It is a control for EMBEDDED OBJECTS, not a control for 'no reflector'."
+    },
+    {
+      "id": "Pk401",
+      "role": "targets_not_transcribed",
+      "not_acquired": true,
+      "reason": "Its four polystyrene foam cuboids (120 x 120 x 60 mm, centre depths 270 / 210 / 150 / 90 mm) have X/Y positions given ONLY in the technical drawings of an appendix, not in any table. Transcribing them would mean digitising a drawing, and any resulting coordinate would be a digitised estimate rather than a published value. Left out until either a numeric source or an author file is obtained."
+    }
+  ],
+
+  "open_questions": [
+    {
+      "id": "cover-vs-centre-reference",
+      "statement": "For all four ducts, centre_depth_mm minus concrete_cover_mm is exactly 30.0 mm, which is the INNER radius (60/2). If the cover were measured to the duct's outer surface facing the antenna, the difference would be 33.5 mm (the outer radius). The two published sources therefore do not use the same reference surface, and which one Table 4's 'cover' refers to is not settled by anything read so far.",
+      "magnitude_mm": 3.5,
+      "handling": "centre_depth_mm from the data publisher is treated as primary because it is stated by the same institution that published the radar data. The cover values are retained verbatim beside it. Neither is adjusted to fit the other.",
+      "resolution_route": "author contact (BAM), or the full text of the companion article, which was not retrievable -- Elsevier returned HTTP 403 and the article is not yet in Europe PMC."
+    },
+    {
+      "id": "target-y-extent",
+      "statement": "The ducts are recorded as spanning the full 800 mm width. This is stated in the geometry article. Whether they terminate exactly at the specimen faces or are recessed is not stated.",
+      "handling": "Recorded as spans_full_width_y with the statement's source; not treated as a measured endpoint."
+    }
+  ],
+
+  "not_included_and_why": {
+    "target_x_uncertainty": "The geometry article gives X as exact values (250.0, 750.0, 1250.0, 1750.0) with no tolerance. No uncertainty is invented for them.",
+    "trace_to_target_mapping": "Not published, and not fabricated here. It is COMPUTABLE, because trace X/Y and target X are in the same frame, but computing it is a Subterra step that must be written and tested, not a source fact."
+  }
+}

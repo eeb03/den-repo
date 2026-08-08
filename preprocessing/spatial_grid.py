@@ -223,6 +223,54 @@ def _local_anomaly_grid(
     return z, unreliable
 
 
+#: The ring windows `preprocess_trace_local_anomaly` uses, in the
+#: (depth, trace) axis order `_local_anomaly_grid` expects. Named once here so
+#: the record path and the array path cannot drift apart.
+TRACE_ANOMALY_WINDOWS = {
+    "inner_window": (5, 2),
+    "outer_window": (15, 6),
+    "min_ring_count": 20,
+    "min_row_ring_count": 10,   # depth axis
+    "min_col_ring_count": 4,    # trace axis
+}
+
+
+def anomaly_grid_from_traces(traces_2d) -> np.ndarray:
+    """
+    The trace-local anomaly z-grid for one survey line, computed from an
+    array instead of from one SubterraRecord per cell.
+
+    Takes (n_traces, n_samples) and returns (n_samples, n_traces) -- the
+    (depth, trace) orientation `_trace_depth_grid` builds, so the result is
+    directly comparable with the record path.
+
+    WHY IT TAKES AN ARRAY. Peak memory on a real corpus is dominated by the
+    per-(trace, sample) records, not by the science: a 14,516 x 512 radargram
+    is a 59 MB float array but roughly 5 GB of pydantic objects. This calls
+    the IDENTICAL functions in the IDENTICAL order that
+    `preprocess_trace_local_anomaly` does -- background_removal -> dewow ->
+    apply_gain -> `_local_anomaly_grid` with `TRACE_ANOMALY_WINDOWS` -- on the
+    array directly. Nothing is chunked, so the ring statistic still sees the
+    whole line at once and there are no chunk boundaries to correct for.
+
+    It is NOT an approximation of the record path; `scripts/characterise_4tu.py
+    --verify-arraywise` asserts the two produce the same grid. What it does not
+    produce is per-candidate characterisation, which legitimately needs the
+    per-cell records.
+    """
+    from preprocessing.trace_processing import apply_gain, background_removal, dewow
+
+    traces = np.asarray(traces_2d, dtype=float)
+    traces = np.asarray(background_removal(traces.tolist()), dtype=float)
+    processed = np.array(
+        [apply_gain(dewow(t.tolist(), window=15), gain_type="linear", power=1.0)
+         for t in traces],
+        dtype=float,
+    )
+    z_grid, _unreliable = _local_anomaly_grid(processed.T, **TRACE_ANOMALY_WINDOWS)
+    return z_grid
+
+
 def preprocess_spatial_grid_anomaly(
     records: list[SubterraRecord],
     inner_window: int = 5,

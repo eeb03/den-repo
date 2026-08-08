@@ -29,6 +29,7 @@ per-file CRC32.
 
 | Tier | ID | Name | License | Download | On disk | Status |
 |---|---|---|---|---|---|---|
+| **T1** | `bam-concrete-gpr` | **BAM concrete step specimens — the only TARGET ground truth held** | **CC0-1.0** | 1,758.0 MB | 1,758.0 MB | acquired, MD5-verified |
 | T1 | `4tu-nl-utility` | NL utility surveying + trench ground truth | **CC0-1.0** | 402.6 MB | 1,430.5 MB | acquired |
 | T1 | `tu1208-ifsttar` | TU1208 / IFSTTAR test site | **CC-BY-4.0** | 200.7 MB | 897.7 MB | acquired |
 | T1 | `hillside-lancaster` | Hillside GPR (Lancaster) | **CC-BY-4.0** | 80.4 MB | 200.4 MB | acquired |
@@ -38,6 +39,31 @@ per-file CRC32.
 
 On-disk exceeds download because archives are kept alongside their
 extraction; 4TU additionally nests 13 inner ZIPs that are also extracted.
+`bam-concrete-gpr` is held as archives only, not yet extracted.
+
+---
+
+## T1.4 · `bam-concrete-gpr`
+
+**The first and only dataset Subterra holds with target ground truth** — the
+identity, geometry, position and depth of things in the medium, as distinct
+from where the instrument was. Full evidence and the tier reasoning are in
+[`external-gpr-benchmark-acquisition.md`](external-gpr-benchmark-acquisition.md).
+
+| | |
+|---|---|
+| **Name** | GPR data (pulse-echo) on concrete step specimens containing embedded objects |
+| **Source** | Harvard Dataverse · [10.7910/DVN/FCMUJQ](https://doi.org/10.7910/DVN/FCMUJQ) · Grohmann, Maack, Niederleithinger, Wöstmann (BAM Berlin), 2026 |
+| **Companion article** | [10.1016/j.dib.2026.113103](https://doi.org/10.1016/j.dib.2026.113103), *Data in Brief* |
+| **License** | **CC0-1.0**, read from the Dataverse record's own `license.rightsIdentifier`. Commercial use, derivatives, model training and redistribution all permitted; no attribution required |
+| **Acquired** | `Pk266` 888,611,774 B and `Pk050` 869,357,088 B — **both MD5-verified against the publisher's published digests**. `Pk401` (782.2 MB) deliberately skipped |
+| **File formats** | `.DZT` ×4 per specimen (**reads with the existing GSSI converter, unmodified**), `.csv` ×656, 3-D `.npy` ×4, plus `X/Y/Z-values` vectors in both `.npy` and `.csv` |
+| **Geometry** | 401 × 161 scanner grid, uniform 5 mm in X and Y; 512 samples over 15 ns (Δt 0.029354207 ns); GSSI SIR-20 with 1.5 GHz and 2.6 GHz antennas, two polarisations each |
+| **CRS** | **None, and none needed.** A local specimen frame in millimetres: X 0–2000, Y 0–800, Z depth below the measuring surface |
+| **Target truth** | Pk266: 4 tendon ducts (ID 60 / OD 67 mm) at X = 250/750/1250/1750 mm, centre depths 274.5/214.6/151.4/94.4 mm. **Pk050 is attested to contain no embedded elements — the first negative control available to this project** |
+| **Truth provenance** | `benchmark/bam_pk266_targets.json`, `transcribed_from_publication`. **The repository ships no geometry file**; the numbers come from the Dataverse description and Table 4 of the ultrasound paper on the same specimens |
+| **Benchmark role** | Detection scoring, false-alarm rate, and X/depth localisation scoring — **none of which any other held dataset supports** |
+| **Hard limit** | **Concrete NDT, not soil geophysics.** No CRS, no georeferencing, no soil clutter, no utility-scale geometry. Results here do not transfer to the 4TU corpus and must not be reported as if they did |
 
 ---
 
