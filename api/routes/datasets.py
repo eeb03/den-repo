@@ -253,7 +253,9 @@ def reprocess_dataset(
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
-    records = load_records(dataset_id)
+    # Uncached: run_pipeline reprocesses these records and they are saved back,
+    # so this path must not be handed the shared cached objects.
+    records = load_records(dataset_id, use_cache=False)
     if not records:
         raise HTTPException(status_code=404, detail="No stored records found for this dataset")
 
@@ -300,7 +302,8 @@ def align_dataset_with_dem(dataset_id: str, dem_filename: str, db: Session = Dep
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
-    records = load_records(dataset_id)
+    # Uncached: DEM alignment rewrites these records and saves them back.
+    records = load_records(dataset_id, use_cache=False)
     if not records:
         raise HTTPException(status_code=404, detail="No stored records found for this dataset")
 
@@ -422,7 +425,8 @@ def _run_depth_slice_pipeline(
     if apply_preprocessing:
         new_records = run_pipeline(new_records, mode=preprocessing_mode)
 
-    existing_records = load_records(dataset_id)
+    # Uncached: these records are concatenated with the new slice and saved back.
+    existing_records = load_records(dataset_id, use_cache=False)
     existing_depths = {round(r.depth, 4) for r in existing_records if r.depth is not None}
     if round(depth, 4) in existing_depths:
         raise HTTPException(
