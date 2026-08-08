@@ -2,7 +2,7 @@ import math
 import random
 import shutil
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 import numpy as np
 
@@ -57,6 +57,7 @@ def _run_ingest_pipeline(
     apply_preprocessing: bool = True,
     preprocessing_mode: str = "trace",
     converter_kwargs: Optional[dict] = None,
+    on_stage: Optional[Callable[[str], None]] = None,
 ) -> dict:
     """
     The core pipeline shared by every ingest entrypoint (direct upload,
@@ -72,7 +73,20 @@ def _run_ingest_pipeline(
     converter_kwargs passes format-specific options through to the
     converter (e.g. {"stride": 1} for GeoTIFFConverter on a small DEM tile
     where the default stride=10 would sample almost nothing).
+
+    `on_stage`, when given, is called with the name of each step as it begins
+    -- "converting", "validating", "preprocessing", "persisting",
+    "registering". It exists so a background import can report WHICH step it is
+    in without this function having to know anything about jobs, and so the
+    interface never has to invent a completion percentage the pipeline cannot
+    actually measure. It defaults to None, so every existing caller is
+    unchanged.
     """
+    def _stage(name: str) -> None:
+        if on_stage is not None:
+            on_stage(name)
+
+    _stage("converting")
     try:
         converter = get_converter(raw_path)
     except ValueError as e:
@@ -88,16 +102,20 @@ def _run_ingest_pipeline(
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Conversion failed: {e}")
 
+    _stage("validating")
     report = validate_dataset(records, dataset_id=dataset_id, source_file=raw_path)
 
     if apply_preprocessing:
+        _stage("preprocessing")
         records = run_pipeline(records, mode=preprocessing_mode)
 
+    _stage("persisting")
     save_records(dataset_id, records)
     # Converters not yet migrated to load() return no frames; reconstruct one
     # from the records so every dataset has frame coverage from ingest onward.
     save_frames(dataset_id, frames or synthesize_frames_from_records(records))
 
+    _stage("registering")
     center_lat, center_lon = _geographic_centre(records)
     has_gt = any(r.ground_truth.value != "none" for r in records)
 

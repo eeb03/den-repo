@@ -22,6 +22,8 @@
  *    wording rather than substituting its own.
  */
 import type {
+  ImportFormats,
+  ImportJob,
   BenchmarkArtifact,
   BenchmarkArtifactsResponse,
   BenchmarkRun,
@@ -209,6 +211,39 @@ export const api = {
 
   listBenchmarkRuns(): Promise<BenchmarkRun[]> {
     return request('/api/benchmark/runs')
+  },
+
+  /* ------------------------------- imports ------------------------------ */
+
+  /**
+   * What the platform can actually read, asked of the backend every time.
+   *
+   * The UI deliberately keeps NO list of its own: `converters/registry.py` is
+   * the single source of truth for format support, and a second copy here
+   * would eventually promise a format nobody can read.
+   */
+  getImportFormats(): Promise<ImportFormats> {
+    return request('/api/imports/formats')
+  },
+
+  /** Uploads a file and returns the created job. 202: no dataset exists yet. */
+  createImport(
+    file: File,
+    sensorType: string,
+  ): Promise<{ job: ImportJob }> {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('sensor_type', sensorType)
+    // No content-type header: the browser must set the multipart boundary.
+    return request('/api/imports', { method: 'POST', body: form })
+  },
+
+  getImportJob(jobId: string): Promise<{ job: ImportJob }> {
+    return request(`/api/imports/jobs/${encodeURIComponent(jobId)}`)
+  },
+
+  listImportJobs(): Promise<{ jobs: ImportJob[] }> {
+    return request('/api/imports/jobs')
   },
 }
 

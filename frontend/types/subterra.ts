@@ -522,3 +522,58 @@ export interface BenchmarkArtifact {
   grid?: Record<string, unknown>
   [key: string]: unknown
 }
+
+
+/* ------------------------------ dataset import ----------------------------- */
+
+/**
+ * The four states an import can be in. Deliberately finite and explicit: a job
+ * is queued, running, or finished one way or the other. There is no
+ * "processing…" catch-all that could hide a job the server has actually lost.
+ */
+export type ImportJobState = 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED'
+
+/**
+ * Which pipeline step the job is in. NOT a percentage: the ingest pipeline
+ * cannot measure fractional completion, and a number derived from a step index
+ * would be a fabricated measurement.
+ */
+export type ImportStage =
+  | 'queued'
+  | 'converting'
+  | 'validating'
+  | 'preprocessing'
+  | 'persisting'
+  | 'registering'
+  | 'complete'
+
+/** How the converter registry classified the file. */
+export type FormatStatus = 'supported' | 'recognized_unsupported' | 'unknown'
+
+export interface ImportJob {
+  id: string
+  job_type: string
+  state: ImportJobState
+  stage: ImportStage | null
+  original_filename: string | null
+  stored_filename: string | null
+  size_bytes: number | null
+  sensor_type: string | null
+  detected_format: string | null
+  format_status: FormatStatus | null
+  dataset_id: string | null
+  error_stage: string | null
+  error_message: string | null
+  owner_id: string | null
+  created_at: string | null
+  started_at: string | null
+  completed_at: string | null
+}
+
+/** The registry's own answer about what can be read. Never duplicated in the UI. */
+export interface ImportFormats {
+  supported: string[]
+  recognized_unsupported: { extension: string; description: string }[]
+  max_upload_bytes: number
+  note: string
+}

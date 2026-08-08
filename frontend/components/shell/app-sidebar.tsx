@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   Beaker,
   Database,
+  FileUp,
   Layers,
   type LucideIcon,
 } from 'lucide-react'
@@ -35,6 +36,12 @@ const navItems: NavItem[] = [
     label: 'Datasets',
     icon: Database,
     description: 'Ingested surveys and their frames',
+  },
+  {
+    href: '/import',
+    label: 'Import',
+    icon: FileUp,
+    description: 'Add a dataset from a file',
   },
   {
     href: '/benchmark',

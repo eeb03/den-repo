@@ -47,6 +47,87 @@ class Dataset(Base):
     versions = relationship("DatasetVersion", back_populates="dataset", cascade="all, delete-orphan")
 
 
+class ImportJob(Base):
+    """
+    One user-initiated dataset import, and everything the API can honestly say
+    about it while it runs.
+
+    WHY A TABLE AND NOT AN IN-MEMORY DICT. A job must not be able to vanish
+    without the API being able to represent that it failed. An in-memory
+    registry loses every running job on restart and reports the survivors as
+    still RUNNING forever, which is a lie the interface would then repeat. The
+    row survives the process; `mark_orphaned_jobs_failed()` reconciles anything
+    that was RUNNING when the process died.
+
+    STAGE, NOT PERCENTAGE. `stage` carries the name of the pipeline step the
+    job is actually in -- converting, validating, persisting, registering. The
+    underlying pipeline cannot report fractional completion, and inventing a
+    percentage from a step count would be a fabricated measurement in a product
+    whose entire argument is that it does not fabricate measurements.
+
+    OWNERSHIP. `owner_id` is nullable and unenforced. It exists so that the
+    import path is not the thing that has to be retrofitted when authentication
+    lands. The same column is deliberately NOT yet added to Dataset: see
+    docs/import-jobs.md for why that one needs a migration first.
+    """
+    __tablename__ = "import_jobs"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    #: Only "dataset_import" today. Present so a second job type does not need
+    #: a schema change.
+    job_type = Column(String, nullable=False, default="dataset_import", index=True)
+    #: QUEUED | RUNNING | SUCCEEDED | FAILED
+    state = Column(String, nullable=False, default="QUEUED", index=True)
+    #: The pipeline step this job is in. Never a percentage.
+    stage = Column(String, nullable=True)
+
+    #: As the client sent it -- kept verbatim for display and diagnostics.
+    original_filename = Column(String, nullable=True)
+    #: What we actually wrote to disk, after sanitisation.
+    stored_filename = Column(String, nullable=True)
+    stored_path = Column(String, nullable=True)
+    size_bytes = Column(Integer, nullable=True)
+
+    sensor_type = Column(String, nullable=True)
+    detected_format = Column(String, nullable=True)
+    #: "supported" | "recognized_unsupported" | "unknown", from the converter
+    #: registry -- never a second hand-maintained list.
+    format_status = Column(String, nullable=True)
+
+    dataset_id = Column(String, nullable=True, index=True)
+    #: Which stage raised, and what it said. The real backend error, never a
+    #: generic apology.
+    error_stage = Column(String, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    owner_id = Column(String, nullable=True, index=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "job_type": self.job_type,
+            "state": self.state,
+            "stage": self.stage,
+            "original_filename": self.original_filename,
+            "stored_filename": self.stored_filename,
+            "size_bytes": self.size_bytes,
+            "sensor_type": self.sensor_type,
+            "detected_format": self.detected_format,
+            "format_status": self.format_status,
+            "dataset_id": self.dataset_id,
+            "error_stage": self.error_stage,
+            "error_message": self.error_message,
+            "owner_id": self.owner_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+        }
+
+
 class DatasetVersion(Base):
     """Version history for a dataset (PRD: 'Data Versioning' requirement)."""
     __tablename__ = "dataset_versions"

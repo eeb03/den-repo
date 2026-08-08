@@ -6,9 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from database.session import init_db
+from jobs.runner import mark_orphaned_jobs_failed
 from api.routes import (datasets, fusion, benchmark, sources, training,
                         provenance, labels, overlays, objects, views,
-                        exports)
+                        exports, imports)
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -18,6 +19,12 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Starting Subterra Data Platform API — initializing database...")
     init_db()
+    # An import that was running when the process died must not stay RUNNING
+    # for ever; reconcile it to FAILED with a stated reason so the API can
+    # always represent what actually happened.
+    orphaned = mark_orphaned_jobs_failed()
+    if orphaned:
+        logger.info("Reconciled %d interrupted import job(s)", orphaned)
     yield
     logger.info("Shutting down Subterra Data Platform API")
 
@@ -51,6 +58,7 @@ app.include_router(fusion.router, prefix="/api/fusion", tags=["fusion"])
 app.include_router(benchmark.router, prefix="/api/benchmark", tags=["benchmark"])
 app.include_router(sources.router, prefix="/api/sources", tags=["sources"])
 app.include_router(training.router, prefix="/api/training", tags=["training"])
+app.include_router(imports.router, prefix="/api/imports", tags=["imports"])
 
 
 @app.get("/api/health", tags=["system"])
