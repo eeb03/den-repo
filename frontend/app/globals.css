@@ -208,3 +208,290 @@
     transparent 7px
   );
 }
+
+/* ==========================================================================
+   THE DESCENT -- landing page scroll choreography
+   ==========================================================================
+
+   ONE RULE GOVERNS THIS WHOLE BLOCK: the base styles are the FINISHED state.
+
+   Every element below is fully readable with no animation running at all.
+   Scroll-scrubbing is layered on afterwards, and only inside two guards --
+   `prefers-reduced-motion: no-preference` and `@supports (animation-timeline)`.
+   A visitor who asks for reduced motion, or arrives in a browser without
+   scroll-driven animation, sees the complete narrative rather than a
+   degraded one. No information is carried by motion alone.
+
+   That ordering is also why there is no "reveal on load" flash: nothing
+   starts hidden, so nothing can stay hidden if a script fails.
+   ========================================================================== */
+
+/* The fixed substrate the stages travel over. Its tint shifts as the active
+   stage changes, which is what makes nine sections read as one descent. */
+.descent-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 120% 80% at 50% var(--descent-light, 0%),
+      oklch(0.74 0.115 205 / 7%),
+      transparent 60%
+    ),
+    var(--background);
+  transition: --descent-light 900ms linear;
+}
+
+.descent-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, oklch(0.99 0 0 / 3%) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(0.99 0 0 / 3%) 1px, transparent 1px);
+  background-size: 56px 56px;
+  opacity: var(--descent-grid, 0.35);
+  transition: opacity 700ms ease;
+  mask-image: linear-gradient(to bottom, transparent, black 18%, black 82%, transparent);
+}
+
+/* Depth increases downward: the substrate darkens as the visitor descends. */
+.descent-root[data-depth='surface'] {
+  --descent-grid: 0.12;
+  --descent-light: 8%;
+}
+.descent-root[data-depth='shallow'] {
+  --descent-grid: 0.5;
+  --descent-light: 26%;
+}
+.descent-root[data-depth='deep'] {
+  --descent-grid: 0.75;
+  --descent-light: 48%;
+}
+.descent-root[data-depth='return'] {
+  --descent-grid: 0.3;
+  --descent-light: 14%;
+}
+
+/* --- stage entrance ------------------------------------------------------
+   Base = arrived. The IntersectionObserver adds data-entered; browsers
+   without scroll-driven animation still get a gentle entrance from it, and
+   browsers with it get the scrubbed version below. */
+.descent-stage {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .descent-stage[data-entered='false'] > * {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  .descent-stage > * {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 700ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      transform 700ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+}
+
+/* --- scroll-scrubbed layers ---------------------------------------------- */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    /* Parallax: three contour bands moving at different rates. The rates are
+       fixed multiples rather than tuned by eye, so the relationship between
+       layers stays legible as relief rather than reading as drift. */
+    .descent-parallax {
+      animation: descent-parallax linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+      translate: 0 calc(var(--descent-rate, 1) * -1px);
+    }
+
+    /* The B-scan builds column by column as the section crosses the viewport.
+       Scrubbed, never autoplayed: the visitor drives the acquisition, which is
+       what an antenna being pushed along a line actually feels like. */
+    .descent-acquire {
+      animation: descent-acquire linear both;
+      animation-timeline: view();
+      animation-range: entry 30% cover 62%;
+    }
+
+    /* The antenna glyph rides the same timeline as the build. */
+    .descent-antenna {
+      animation: descent-antenna linear both;
+      animation-timeline: view();
+      animation-range: entry 30% cover 62%;
+    }
+
+    /* 2.5D: the section tips back into a plan view. Transform only. */
+    .descent-tip {
+      animation: descent-tip linear both;
+      animation-timeline: view();
+      animation-range: entry 40% cover 70%;
+    }
+
+    /* Reprojection: the relatable frame slides into alignment. */
+    .descent-align {
+      animation: descent-align linear both;
+      animation-timeline: view();
+      animation-range: entry 45% cover 72%;
+    }
+
+    .descent-headline {
+      animation: descent-headline linear both;
+      animation-timeline: view();
+      animation-range: exit 0% exit 90%;
+    }
+
+    /* THE BREAK. The horizon is driven through the viewport across stage 1's
+       own range, so the surface is crossed DURING the stage rather than before
+       it. Before this the transition completed in the gap above stage 1, which
+       left the stage itself with nothing to show. */
+    .descent-break {
+      animation: descent-break linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 78%;
+    }
+
+    /* Content that belongs below the surface only resolves once it has been
+       crossed -- so the reader meets the break first and the explanation
+       second, rather than both competing. */
+    .descent-emerge {
+      animation: descent-emerge linear both;
+      animation-timeline: view();
+      animation-range: entry 55% cover 62%;
+    }
+
+    /* THE ASCENT. Terrain returns and the subsurface recedes, closing the
+       loop the hero opened. */
+    .descent-ascend {
+      animation: descent-ascend linear both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 85%;
+    }
+
+    /* Bridges carry a motif across a stage boundary; they drift at a rate
+       between the two stages so the seam reads as continuous. */
+    .descent-bridge {
+      animation: descent-bridge linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+    }
+  }
+}
+
+@keyframes descent-parallax {
+  from {
+    translate: 0 calc(var(--descent-rate, 1) * 26px);
+  }
+  to {
+    translate: 0 calc(var(--descent-rate, 1) * -26px);
+  }
+}
+
+@keyframes descent-acquire {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes descent-antenna {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(var(--descent-travel, 820px));
+  }
+}
+
+@keyframes descent-tip {
+  from {
+    transform: perspective(1200px) rotateX(0deg) translateZ(0) scale(1);
+  }
+  to {
+    transform: perspective(1200px) rotateX(52deg) translateZ(-40px) scale(0.92);
+  }
+}
+
+@keyframes descent-align {
+  from {
+    transform: translate3d(var(--descent-offset-x, 84px), var(--descent-offset-y, 30px), 0)
+      rotate(var(--descent-offset-r, -7deg));
+  }
+  to {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+}
+
+@keyframes descent-headline {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0.15;
+    transform: translateY(-40px);
+  }
+}
+
+@keyframes descent-break {
+  from {
+    transform: translateY(46%);
+  }
+  to {
+    transform: translateY(-52%);
+  }
+}
+
+@keyframes descent-emerge {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes descent-ascend {
+  from {
+    transform: translateY(38%);
+    opacity: 0.25;
+  }
+  to {
+    transform: translateY(-14%);
+    opacity: 1;
+  }
+}
+
+@keyframes descent-bridge {
+  from {
+    transform: translateY(14px);
+  }
+  to {
+    transform: translateY(-14px);
+  }
+}
+
+/* Below-fold stages are skipped until needed. The intrinsic size keeps the
+   scrollbar honest so scrubbing ranges do not jump as stages materialise. */
+.descent-defer {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 100svh;
+}
+
+/* A figure that is allowed to leave its text column. Used sparingly -- a
+   bordered container should mean "this is an instrument frame", so figures
+   that are not readouts bleed instead. */
+.descent-bleed {
+  width: 100vw;
+  max-width: 100vw;
+  margin-left: calc(50% - 50vw);
+}
