@@ -69,9 +69,18 @@ class DetectionRun:
 
 def detect_line(traces: np.ndarray, scan_id: str, line_index: int,
                 threshold: float = DEFAULT_ANOMALY_THRESHOLD,
-                min_cells: int = DEFAULT_MIN_CELLS) -> list[BenchmarkDetection]:
-    """Connected components on one B-scan's z-grid."""
-    z = anomaly_grid_from_traces(traces)          # (n_samples, n_traces)
+                min_cells: int = DEFAULT_MIN_CELLS,
+                estimator=anomaly_grid_from_traces) -> list[BenchmarkDetection]:
+    """
+    Connected components on one B-scan's z-grid.
+
+    `estimator` exists so an experiment can swap the z-grid statistic while
+    reusing this component rule EXACTLY -- threshold comparison, 4-connected
+    labelling and the min_cells filter must be bit-identical between arms, or a
+    comparison measures the re-implementation instead of the estimator. It
+    defaults to the baseline, so every existing caller is unchanged.
+    """
+    z = estimator(traces)                         # (n_samples, n_traces)
     mask = np.abs(np.nan_to_num(z, nan=0.0)) > threshold
     labeled, n = ndimage.label(mask)              # default 4-connectivity
 
@@ -101,7 +110,8 @@ def detect_line(traces: np.ndarray, scan_id: str, line_index: int,
 def detect_scan(scan, volume: np.ndarray,
                 threshold: float = DEFAULT_ANOMALY_THRESHOLD,
                 min_cells: int = DEFAULT_MIN_CELLS,
-                line_indices=None) -> DetectionRun:
+                line_indices=None,
+                estimator=anomaly_grid_from_traces) -> DetectionRun:
     """
     Run the detector over every line of a scan (or a chosen subset).
 
@@ -112,7 +122,8 @@ def detect_scan(scan, volume: np.ndarray,
     detections = []
     for y in lines:
         detections.extend(detect_line(line_traces(volume, y), scan.scan_id, int(y),
-                                      threshold=threshold, min_cells=min_cells))
+                                      threshold=threshold, min_cells=min_cells,
+                                      estimator=estimator))
     return DetectionRun(
         scan_id=scan.scan_id,
         specimen_id=scan.specimen_id,
