@@ -35,6 +35,7 @@ import os
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional
+from urllib.parse import quote, urlsplit
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -45,9 +46,38 @@ from database.models import PasswordResetToken, UserSession, gen_uuid
 #: that a link left in an inbox or a proxy log stops working the same hour.
 TTL_SECONDS = int(os.environ.get("SUBTERRA_PASSWORD_RESET_TTL_SECONDS", "1800"))
 
-#: Where the emailed link points. The reset page reads the token from the query
-#: string; the API never has a GET endpoint that would consume it.
-APP_BASE_URL = os.environ.get("SUBTERRA_APP_BASE_URL", "http://localhost:3000").rstrip("/")
+def _configured_app_url() -> str:
+    """
+    Where the emailed link points, taken from configuration and from nothing
+    else.
+
+    NEVER FROM THE REQUEST. A reset link built from the incoming `Host` header
+    would let anyone who can reach the API mint an email, sent by us, carrying a
+    real token, pointing at a host they chose -- the standard host-header
+    poisoning route to a stolen reset. `reset_url` is not given the request at
+    all, so there is nothing to get wrong later.
+
+    `SUBTERRA_APP_URL` is the documented name; `SUBTERRA_APP_BASE_URL` is still
+    read so an existing deployment does not break silently on upgrade.
+    """
+    raw = (
+        os.environ.get("SUBTERRA_APP_URL")
+        or os.environ.get("SUBTERRA_APP_BASE_URL")
+        or "http://localhost:3000"
+    ).strip().rstrip("/")
+
+    parts = urlsplit(raw)
+    if parts.scheme not in ("http", "https") or not parts.netloc:
+        # Refused at import, so a deployment cannot start and then email links
+        # nobody can open.
+        raise ValueError(
+            "SUBTERRA_APP_URL must be an absolute http(s) URL such as "
+            "https://app.example.com"
+        )
+    return raw
+
+
+APP_BASE_URL = _configured_app_url()
 
 #: Injectable so tests can expire a token by moving time rather than sleeping.
 _clock = datetime.utcnow
@@ -74,7 +104,15 @@ def token_hash(token: str) -> str:
 
 
 def reset_url(token: str) -> str:
-    return f"{APP_BASE_URL}/reset-password?token={token}"
+    """
+    The link that goes in the email. Takes a token and nothing else -- no
+    request, no headers, no host.
+
+    The token is percent-encoded even though `token_urlsafe` cannot produce a
+    character that needs it: the encoding is what makes that stay true if the
+    generator is ever changed.
+    """
+    return f"{APP_BASE_URL}/reset-password?token={quote(token, safe='')}"
 
 
 def issue(db: Session, user_id: str) -> str:

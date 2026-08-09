@@ -20,6 +20,16 @@ services:
     build: .
     environment:
       DATABASE_URL: postgresql://subterra:subterra@db:5432/subterra_data
+      # Password-reset email. Passed through from the host environment or the
+      # root .env (which is git-ignored); no secrets are written here. Left
+      # empty, the API selects the development console mailer and no mail is
+      # sent anywhere. See .env.example and docs/authentication.md.
+      SUBTERRA_ENV: ${SUBTERRA_ENV:-development}
+      SUBTERRA_APP_URL: ${SUBTERRA_APP_URL:-http://localhost:3000}
+      SUBTERRA_EMAIL_PROVIDER: ${SUBTERRA_EMAIL_PROVIDER:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      SUBTERRA_EMAIL_FROM: ${SUBTERRA_EMAIL_FROM:-}
+      SUBTERRA_EMAIL_REPLY_TO: ${SUBTERRA_EMAIL_REPLY_TO:-}
     ports:
       # 8001 on the host -- Subterra Core's own API already uses 8000
       - "8001:8000"

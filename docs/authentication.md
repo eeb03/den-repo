@@ -213,16 +213,151 @@ password on one they own.
 
 ### Email delivery
 
-No provider is added. `auth/mailer.py` defines one interface,
-`send_password_reset(email, reset_url)`, with three implementations:
-`ConsoleMailer` (development; logs the link, and is refused in production
-because that link is a live credential), `CapturingMailer` (tests), and
-`UnconfiguredMailer` (the production default, which **raises**). Failing loudly
-beats quietly returning success for mail nobody sent. Either way the API answer
-is unchanged, so a delivery failure is not an oracle.
+`auth/mailer.py` defines one interface — `send_password_reset(email,
+reset_url)` — and the password-reset service holds nothing else. It cannot tell
+which provider is installed, and must not be able to.
 
-**To plug in a real provider:** implement the one method and call
-`auth.mailer.set_mailer()` at startup. Nothing else changes.
+```
+PasswordResetService
+        │
+        ▼
+PasswordResetMailer                          selected by SUBTERRA_EMAIL_PROVIDER
+        ├── ConsoleMailer        console  ·  development: writes the link to the log
+        ├── ResendMailer         resend   ·  production: one HTTPS POST to Resend
+        ├── CapturingMailer          —    ·  tests: in memory, never selectable
+        └── UnconfiguredMailer       —    ·  nothing chosen: raises
+```
+
+**Selection is explicit and never falls back.** `SUBTERRA_EMAIL_PROVIDER=resend`
+without `RESEND_API_KEY` or `SUBTERRA_EMAIL_FROM` fails at **startup**. It does
+not quietly become console delivery — that deployment would look healthy while
+writing every live reset token into its own log. It does not defer the failure
+to send time either: `forgot-password` answers identically whether or not the
+mail went out, so a send-time failure is invisible to everyone except whoever
+eventually reads the log. Startup is the only moment where it can be loud.
+`ConsoleMailer` is likewise **refused** when `SUBTERRA_ENV` is not a development
+value, for the same reason.
+
+Either way the API answer is unchanged, so a delivery failure is not an oracle.
+Loud internally, silent externally — those live in different places and do not
+conflict.
+
+#### Resend
+
+One HTTPS POST to `https://api.resend.com/emails` with a bearer token and a JSON
+body (`from`, `to`, `subject`, `html`, `text`, optional `reply_to`).
+
+**No SDK, and no new dependency.** `requests` is already a direct dependency
+(`ingestion/sources.py`, `ingestion/downloader.py`). A provider SDK would buy
+convenience with a supply-chain surface, a release cadence and a second HTTP
+stack, for a request that fits on a screen.
+
+| Failure | Result |
+|---|---|
+| 4xx / 5xx | `EmailDeliveryError`, status code + a short scrubbed reason |
+| timeout / connection refused / TLS | `EmailDeliveryError` |
+| 2xx whose body is unreadable or has no `id` | `EmailDeliveryError` — *"probably accepted" is not accepted* |
+
+**No retries.** Not "bounded retries" — none. This runs synchronously inside a
+request someone is waiting on, so a retry mostly makes the failure twice as
+slow, and a 429 answered by asking again immediately is the one response
+guaranteed not to help. The user's retry is requesting another link, which is
+one click and already rate-limited. Background delivery would mean persisting a
+live credential into a job record — a worse trade than a synchronous failure.
+
+**Secrets never travel with errors.** The API key and the reset URL are scrubbed
+out of any provider text before it reaches an exception message, because that
+message becomes a log line. Scrubbing happens *before* truncation, so a secret
+cannot survive by being cut in half. The provider's `request_id` and full body
+are never reproduced.
+
+#### The reset link
+
+Built from `SUBTERRA_APP_URL` and the token, and from nothing else — in
+particular **never from the request `Host` header**, which is the standard route
+to a poisoned reset link: the attacker's host arrives in a header, is baked into
+an email we send, and the victim clicks it. `reset_url(token)` is not given the
+request at all, so there is no header to trust or distrust. A non-absolute
+`SUBTERRA_APP_URL` is refused at import.
+
+The email carries the token (it must — it is the link), and carries nothing
+else: no password, no hash, no session token, no token hash, no user id, no
+database id, no diagnostics. It loads nothing from the network — no logo file,
+no web font, no tracking pixel — so there is nothing to block and nothing that
+reports it was opened. The copy says *someone* asked, never *you* asked; nobody
+knows who typed the address.
+
+**To add another provider:** implement the one method and give it a name in
+`configure_from_environment`. Nothing else changes.
+
+#### Configuration
+
+| Variable | Required | Meaning |
+|---|---|---|
+| `SUBTERRA_EMAIL_PROVIDER` | — | `console` or `resend`. Unset = console in development, nothing in production. |
+| `SUBTERRA_ENV` | — | `development`/`dev`/`test`/`local` permit console delivery. Anything else does not. |
+| `SUBTERRA_APP_URL` | — | Base of the emailed link. Default `http://localhost:3000`. Must be absolute. |
+| `RESEND_API_KEY` | with `resend` | From <https://resend.com/api-keys>. Never committed. |
+| `SUBTERRA_EMAIL_FROM` | with `resend` | e.g. `Subterra AI <no-reply@mail.example.com>` |
+| `SUBTERRA_EMAIL_REPLY_TO` | no | Where replies go, if anywhere. |
+| `SUBTERRA_EMAIL_TIMEOUT_SECONDS` | no | Default 10, max 60. |
+| `SUBTERRA_PASSWORD_RESET_TTL_SECONDS` | no | Default 1800. The email quotes whatever this says. |
+
+`SUBTERRA_APP_BASE_URL` is still read as a fallback so an existing deployment
+does not break on upgrade; `SUBTERRA_APP_URL` is the documented name.
+
+Placeholders live in `.env.example`; `.env` is git-ignored and must stay that
+way. Nothing prints a key: a missing one is reported **by variable name only**.
+
+**Local development** — nothing to set. The API selects `ConsoleMailer` and
+writes the link to the log:
+
+```
+docker compose logs api | grep reset-password
+```
+
+**Production**
+
+```bash
+SUBTERRA_ENV=production
+SUBTERRA_EMAIL_PROVIDER=resend
+SUBTERRA_APP_URL=https://app.example.com
+RESEND_API_KEY=…                       # from the Resend dashboard
+SUBTERRA_EMAIL_FROM="Subterra AI <no-reply@mail.example.com>"
+```
+
+**Testing without sending real email** — three ways, none of which touches the
+network. `CapturingMailer` holds messages in memory for the flow tests;
+`ResendMailer(transport=…)` takes an injected transport, so every provider
+branch (4xx, 5xx, timeout, refused connection, unreadable body) is exercised
+without a key or a socket; and `tests/test_email_provider.py` sabotages
+`requests.post` to prove the injection is real rather than decorative. No test
+needs a Resend account, and CI does not have one.
+
+#### Before this delivers anything in production
+
+**The sending domain must be added and verified in Resend first** — SPF and
+DKIM records published, domain showing verified in the dashboard. Until then
+Resend rejects the send, or the message is delivered and filtered as spam. That
+is a DNS and dashboard task, not a code one, and nothing in this repository can
+do it or check it.
+
+**Three different things, routinely confused:**
+
+| | What it means |
+|---|---|
+| **API accepted** | Resend returned 2xx with an id. All this code can observe. |
+| **Provider delivered** | Resend handed the message to the recipient's mail server. Visible only in the Resend dashboard. |
+| **Recipient received it** | It reached an inbox rather than a spam folder. Not observable from here at all. |
+
+The log line says *accepted by provider*, and deliberately not *sent*. A green
+API response is not evidence that anybody got an email, and this integration
+should not be described as production-ready on the strength of one.
+
+**No delivery webhooks.** The reset flow does not need them: it already treats
+non-delivery correctly by failing loudly on the server and saying nothing
+different to the caller. Bounce and complaint handling is worth adding when
+there is a reason to act on it, and is not part of this.
 
 ### Abuse control
 

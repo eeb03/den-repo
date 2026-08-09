@@ -1,40 +1,52 @@
 """
 Getting a reset link to a person.
 
-NO PROVIDER IS ADDED HERE. This repository has no email infrastructure --
-no SMTP settings, no SendGrid, no SES -- and choosing one is a deployment
-decision with credentials, deliverability and privacy consequences that a
-password-reset feature should not make on its behalf. What this module adds is
-the seam: one small interface, two implementations, and a documented way to
-plug a real provider in.
+THE SEAM, AND WHAT PLUGS INTO IT. One interface with a single method, and four
+implementations chosen explicitly by configuration. The password-reset route
+holds only the interface, so it cannot tell -- and must never be able to tell --
+which provider is installed.
 
-THE THREE IMPLEMENTATIONS, and why each exists.
+  ResendMailer (production)
+      An HTTPS POST to Resend, in `auth/resend_mailer.py`. No SDK and no new
+      dependency: `requests` is already used elsewhere in this repository.
 
-  ConsoleMailer (default in development)
-      Writes the link to the log so a developer can follow the flow without any
-      provider. It logs the URL -- which contains the token -- and is therefore
-      REFUSED IN PRODUCTION by `configure_from_environment`, because a token in
-      a log file is a credential in a log file.
+  ConsoleMailer (development)
+      Writes the link to the log so a developer can follow the flow without a
+      provider or a key. It logs the URL -- which contains the token -- and is
+      therefore REFUSED OUTSIDE DEVELOPMENT, because a token in a log file is a
+      credential in a log file.
 
   CapturingMailer (tests)
-      Keeps messages in memory so a test can assert what was sent. Never used
-      outside tests.
+      Keeps messages in memory so a test can assert what was sent, without a
+      network. Never selectable from the environment.
 
-  UnconfiguredMailer (default in production)
-      RAISES. This is the important one. The alternative -- quietly doing
-      nothing and returning success -- would leave users waiting for an email
-      that was never going to arrive, with nothing in the logs to say so. A
-      deployment that has not chosen a provider should find out immediately,
-      not from a support ticket.
+  UnconfiguredMailer (the default when nothing is chosen)
+      RAISES. The alternative -- quietly doing nothing and returning success --
+      would leave users waiting for mail that was never going to be sent, with
+      nothing in the logs to say so.
+
+SELECTION IS EXPLICIT, AND NEVER FALLS BACK. `SUBTERRA_EMAIL_PROVIDER` is
+`console` or `resend`, and asking for `resend` without a key or a sender is a
+startup error, not a quiet demotion to console. That rule is the whole point of
+this function: a deployment that silently downgraded to writing reset links into
+its own log would still appear to work, and every token it ever issued would be
+sitting in a log file.
+
+WHY STARTUP AND NOT SEND TIME. Because of anti-enumeration, `forgot-password`
+returns the same acknowledgement whether or not the mail went out. A
+misconfiguration discovered at send time is therefore invisible to the user and
+to the caller; it surfaces weeks later as "I never got the email". Startup is
+the one moment where it can be loud, so it is raised there. `ResendMailer` also
+validates in its constructor, so a half-configured instance cannot exist.
 
 THE API RESPONSE IS GENERIC EITHER WAY. A delivery failure must not become an
 account-existence oracle: if sending raises, the route logs it and still returns
 the same generic acknowledgement, because "we could not send mail" and "no such
-account" must be indistinguishable from outside.
+account" must be indistinguishable from outside. Loud internally, silent
+externally -- the two live in different places and do not conflict.
 
-TO ADD A REAL PROVIDER: implement `PasswordResetMailer.send_password_reset`,
-and set it with `set_mailer()` at startup. Nothing else changes; the route
-depends only on the interface.
+TO ADD ANOTHER PROVIDER: implement `send_password_reset`, and give it a name in
+`configure_from_environment`. Nothing else changes.
 """
 from __future__ import annotations
 
@@ -42,9 +54,35 @@ import os
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from auth.resend_mailer import (
+    EmailConfigurationError,
+    EmailDeliveryError,
+    ResendMailer,
+)
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+#: Which provider to use. No default that sends anything: see
+#: `configure_from_environment`.
+PROVIDER_ENV = "SUBTERRA_EMAIL_PROVIDER"
+
+#: Environments in which writing a live reset link to the log is acceptable.
+_DEVELOPMENT_ENVIRONMENTS = ("development", "dev", "test", "local")
+
+__all__ = [
+    "PasswordResetMailer",
+    "UnconfiguredMailer",
+    "ConsoleMailer",
+    "CapturingMailer",
+    "CapturedMessage",
+    "ResendMailer",
+    "EmailConfigurationError",
+    "EmailDeliveryError",
+    "set_mailer",
+    "get_mailer",
+    "configure_from_environment",
+]
 
 
 class PasswordResetMailer(Protocol):
@@ -66,7 +104,8 @@ class UnconfiguredMailer:
     def send_password_reset(self, email: str, reset_url: str) -> None:
         raise RuntimeError(
             "no password-reset mail provider is configured; "
-            "set one with auth.mailer.set_mailer() at startup"
+            f"set {PROVIDER_ENV}=resend (with RESEND_API_KEY and "
+            "SUBTERRA_EMAIL_FROM), or install one with auth.mailer.set_mailer()"
         )
 
 
@@ -125,19 +164,64 @@ def get_mailer() -> PasswordResetMailer:
 
 def configure_from_environment() -> None:
     """
-    Pick a default at startup.
+    Install the configured provider at startup, or refuse to start.
 
-    Development gets ConsoleMailer so the flow works out of the box. Anything
-    else gets UnconfiguredMailer, so a real deployment must choose a provider
-    rather than inheriting one that writes tokens to a log.
+    Raises `EmailConfigurationError` for a provider that was asked for and
+    cannot be built. That is deliberate: the caller is the application lifespan,
+    so a deployment that names a provider it did not finish configuring fails at
+    deploy time, when somebody is watching, rather than at 3am when a user
+    cannot sign in and the API cheerfully answers "if an account exists...".
+
+    NOTHING HERE EVER FALLS BACK TO ConsoleMailer. Not when the key is missing,
+    not when the provider name is wrong, not when the environment is unset.
+    Console delivery writes live tokens into the log, and a silent demotion to
+    it is the one failure that would look exactly like success.
     """
+    provider = os.environ.get(PROVIDER_ENV, "").strip().lower()
     environment = os.environ.get("SUBTERRA_ENV", "development").strip().lower()
-    if environment in ("development", "dev", "test", "local"):
-        set_mailer(ConsoleMailer())
+    development = environment in _DEVELOPMENT_ENVIRONMENTS
+
+    if not provider:
+        # Unset: the pre-existing behaviour, kept so a developer who has never
+        # heard of this variable still gets a working local flow. It selects
+        # console ONLY in development, and never sends anything anywhere else.
+        if development:
+            set_mailer(ConsoleMailer())
+            logger.info(
+                "%s is unset and SUBTERRA_ENV=%s: using the development console "
+                "mailer (reset links are written to the log)",
+                PROVIDER_ENV,
+                environment,
+            )
+            return
+        set_mailer(UnconfiguredMailer())
+        logger.warning(
+            "SUBTERRA_ENV=%s and %s is unset; password reset requests will be "
+            "accepted and will fail to deliver until a provider is configured",
+            environment,
+            PROVIDER_ENV,
+        )
         return
-    set_mailer(UnconfiguredMailer())
-    logger.warning(
-        "SUBTERRA_ENV=%s and no password-reset mail provider is configured; "
-        "reset requests will be accepted and will fail to deliver until one is set",
-        environment,
+
+    if provider == "console":
+        if not development:
+            raise EmailConfigurationError(
+                f"{PROVIDER_ENV}=console is refused when SUBTERRA_ENV={environment}: "
+                "the console mailer writes live reset links to the log. "
+                f"Set {PROVIDER_ENV}=resend."
+            )
+        set_mailer(ConsoleMailer())
+        logger.info("using the development console mailer for password reset")
+        return
+
+    if provider == "resend":
+        # Raises EmailConfigurationError, naming the variables that are missing
+        # and never their values.
+        mailer = ResendMailer.from_environment()
+        set_mailer(mailer)
+        logger.info("password reset email will be sent through Resend")
+        return
+
+    raise EmailConfigurationError(
+        f"unknown {PROVIDER_ENV}={provider!r}; expected 'console' or 'resend'"
     )
