@@ -140,6 +140,27 @@ def _add_user_password_hash(engine: Engine) -> None:
         logger.info("migration 002: added %s.%s", table, column)
 
 
+def _password_reset_tokens(engine: Engine) -> None:
+    """
+    003 — the password-reset token table.
+
+    A NEW table, so `create_all` builds it on a fresh database and this
+    migration is a no-op there. It exists for databases that already have the
+    other tables: create_all adds missing tables too, so strictly this is
+    belt-and-braces -- but recording it in the ledger keeps the schema history
+    complete and readable, which is the point of having a ledger at all.
+
+    Additive like every migration here: it creates, and never drops or rewrites.
+    """
+    if _has_table(engine, "password_reset_tokens"):
+        return
+
+    from database.models import PasswordResetToken
+
+    PasswordResetToken.__table__.create(bind=engine, checkfirst=True)
+    logger.info("migration 003: created password_reset_tokens")
+
+
 MIGRATIONS: list[Migration] = [
     Migration(
         id="001_dataset_owner_id",
@@ -150,6 +171,11 @@ MIGRATIONS: list[Migration] = [
         id="002_user_password_hash",
         description="add nullable users.password_hash for PBKDF2 credentials",
         apply=_add_user_password_hash,
+    ),
+    Migration(
+        id="003_password_reset_tokens",
+        description="create password_reset_tokens (hashed, expiring, single-use)",
+        apply=_password_reset_tokens,
     ),
 ]
 

@@ -493,6 +493,10 @@ def test_the_public_surface_is_exactly_what_we_intend():
         "/api/auth/register",
         "/api/auth/login",
         "/api/auth/logout",
+        # Password reset is unauthenticated by definition: somebody who cannot
+        # sign in is exactly who needs it.
+        "/api/auth/forgot-password",
+        "/api/auth/reset-password",
         # published scientific results: the landing page links to them and a
         # signed-out reader is meant to be able to check our claims
         "/api/benchmark/artifacts",

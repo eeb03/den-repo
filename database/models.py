@@ -73,6 +73,38 @@ class UserSession(Base):
     user = relationship("User", back_populates="sessions")
 
 
+class PasswordResetToken(Base):
+    """
+    A one-time credential for choosing a new password.
+
+    ITS OWN TABLE, not columns on `users`. Reset state is transient, plural (a
+    user may request twice), and needs its own expiry and consumption
+    semantics; hanging it off the account row would mean a half-dozen nullable
+    columns whose meaning depends on each other, and would put a live
+    credential in the same row as the account it protects.
+
+    ONLY THE HASH IS STORED, exactly as with session tokens. The raw token
+    exists in the emailed link and nowhere else -- not in this table, not in a
+    log line, not in an API response. A database dump therefore yields nothing
+    that can reset anybody's password.
+
+    `used_at` rather than a delete: a consumed token must be distinguishable
+    from one that never existed, so a second use can be refused by the same
+    atomic UPDATE that consumed it the first time. Rows are inert once used or
+    expired.
+    """
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    #: SHA-256 of the token in the link. Unique: two tokens cannot collide, and
+    #: the index is what makes consumption a single indexed UPDATE.
+    token_hash = Column(String, nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class LoginAttempt(Base):
     """
     Failed-login counters, in the database rather than in the process.

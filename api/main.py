@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from database.session import init_db
+from auth.mailer import configure_from_environment
 from jobs.runner import mark_orphaned_jobs_failed
 from api.routes import (datasets, fusion, benchmark, sources, training,
                         provenance, labels, overlays, objects, views,
@@ -23,6 +24,7 @@ async def lifespan(app: FastAPI):
     # An import that was running when the process died must not stay RUNNING
     # for ever; reconcile it to FAILED with a stated reason so the API can
     # always represent what actually happened.
+    configure_from_environment()
     orphaned = mark_orphaned_jobs_failed()
     if orphaned:
         logger.info("Reconciled %d interrupted import job(s)", orphaned)

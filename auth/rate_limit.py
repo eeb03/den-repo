@@ -100,6 +100,23 @@ TRUST_PROXY_HEADERS = os.environ.get("SUBTERRA_TRUST_PROXY_HEADERS", "0") not in
     "0", "", "false", "False",
 )
 
+# --- password-reset requests ----------------------------------------------
+# A SEPARATE POLICY sharing the same mechanism. The login limiter's semantics
+# do not transfer: a reset request is not a failed credential, nothing is
+# "wrong" about it, and it is not cleared by a later success. What it needs is
+# a ceiling, so that the endpoint cannot be used to send somebody a hundred
+# emails or to grind the token space.
+
+#: Reset requests allowed per window from one client address.
+RESET_IP_MAX = int(os.environ.get("SUBTERRA_RESET_IP_MAX", "10"))
+
+#: Reset requests allowed per window for one email address. Deliberately small:
+#: this is the number of emails a stranger can cause to arrive in someone's
+#: inbox, and there is no legitimate reason to need many.
+RESET_EMAIL_MAX = int(os.environ.get("SUBTERRA_RESET_EMAIL_MAX", "3"))
+
+RESET_WINDOW_SECONDS = int(os.environ.get("SUBTERRA_RESET_WINDOW_SECONDS", "3600"))
+
 #: Injectable so tests can advance time deterministically. A rate limiter tested
 #: with `sleep` is a slow test that fails on a loaded machine.
 _clock = time.time
@@ -160,11 +177,13 @@ _READ = text(
 )
 
 
-def _retry_after(window_started_at: float, now: float) -> int:
-    return max(1, int(window_started_at + WINDOW_SECONDS - now) + 1)
+def _retry_after(window_started_at: float, now: float, window: int) -> int:
+    return max(1, int(window_started_at + window - now) + 1)
 
 
-def check(db: Session, scope: str, key: str, limit: int) -> Optional[int]:
+def check(
+    db: Session, scope: str, key: str, limit: int, window: int = WINDOW_SECONDS
+) -> Optional[int]:
     """
     Seconds until this bucket may try again, or None if it may try now.
 
@@ -181,20 +200,22 @@ def check(db: Session, scope: str, key: str, limit: int) -> Optional[int]:
     if row is None:
         return None
     attempts, window_started_at = row[0], float(row[1])
-    if window_started_at <= now - WINDOW_SECONDS:
+    if window_started_at <= now - window:
         return None  # the window has elapsed; the row is stale
     if attempts < limit:
         return None
-    return _retry_after(window_started_at, now)
+    return _retry_after(window_started_at, now, window)
 
 
-def record_failure(db: Session, scope: str, key: str) -> int:
-    """Atomically count one failed attempt and return the new total."""
+def record_failure(
+    db: Session, scope: str, key: str, window: int = WINDOW_SECONDS
+) -> int:
+    """Atomically count one attempt and return the new total for the window."""
     now = _clock()
     try:
         row = db.execute(
             _INCREMENT,
-            {"bucket": _bucket(scope, key), "now": now, "cutoff": now - WINDOW_SECONDS},
+            {"bucket": _bucket(scope, key), "now": now, "cutoff": now - window},
         ).first()
         db.commit()
     except Exception as exc:  # noqa: BLE001

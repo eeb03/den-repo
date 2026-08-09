@@ -138,6 +138,17 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
           </button>
         </form>
 
+        {!registering && (
+          <p className="mt-4 text-xs text-muted-foreground">
+            <Link
+              href="/forgot-password"
+              className="text-primary underline-offset-4 hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </p>
+        )}
+
         <p className="mt-6 text-xs text-muted-foreground">
           {registering ? 'Already have an account? ' : 'No account yet? '}
           <Link

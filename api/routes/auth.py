@@ -23,7 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from auth import passwords, rate_limit, sessions
+from auth import mailer, passwords, rate_limit, reset, sessions
 from auth.dependencies import get_current_user, get_optional_user
 from database.models import User, UserSession, gen_uuid
 from database.session import get_db
@@ -233,3 +233,141 @@ def logout(
 def me(user: User = Depends(get_current_user)):
     """The signed-in account. 401 when there is none."""
     return {"user": _public(user)}
+
+
+# ---------------------------------------------------------------------------
+# password reset
+# ---------------------------------------------------------------------------
+
+class ForgotPasswordRequest(BaseModel):
+    email: str = Field(..., max_length=320)
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(..., max_length=512)
+    password: str = Field(..., max_length=passwords.MAX_PASSWORD_LENGTH)
+    password_confirmation: str = Field(..., max_length=passwords.MAX_PASSWORD_LENGTH)
+
+
+#: The one answer `forgot-password` ever gives. Identical for a registered
+#: address, an unregistered one, a malformed one, and one whose email failed to
+#: send -- because any difference between them is an account-existence oracle,
+#: and this endpoint is unauthenticated so anyone may ask it anything.
+_RESET_ACKNOWLEDGEMENT = {
+    "message": (
+        "If an account exists for that address, a password reset link has been sent."
+    )
+}
+
+#: Deliberately the same message for a token that never existed, one that
+#: expired, one already used, and one that is malformed. Distinguishing them
+#: tells an attacker which guesses were close.
+_INVALID_RESET_TOKEN = HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail="This password reset link is invalid or has expired. Please request a new one.",
+)
+
+
+@router.post("/forgot-password")
+def forgot_password(
+    body: ForgotPasswordRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    Begin a password reset. Always answers the same thing.
+
+    The work happens only if the account exists, but the RESPONSE does not
+    depend on that: same status, same body, same shape. Nothing about the user,
+    the token or the link is returned -- the token reaches the person through
+    the mailer and by no other route.
+    """
+    email = (body.email or "").strip().lower()
+    ip = rate_limit.client_key(request)
+
+    # Abuse control, separate from the login limiter: this is a ceiling on how
+    # many emails a stranger can cause, not a count of failed credentials. A
+    # throttled caller still gets the generic acknowledgement, because a 429
+    # here would say "this address is worth throttling" -- which is the oracle
+    # the generic response exists to prevent.
+    throttled = False
+    try:
+        for scope, key, limit in (
+            ("reset_ip", ip, rate_limit.RESET_IP_MAX),
+            ("reset_email", email, rate_limit.RESET_EMAIL_MAX),
+        ):
+            if rate_limit.check(db, scope, key, limit, rate_limit.RESET_WINDOW_SECONDS) is not None:
+                throttled = True
+        rate_limit.record_failure(db, "reset_ip", ip, rate_limit.RESET_WINDOW_SECONDS)
+        rate_limit.record_failure(db, "reset_email", email, rate_limit.RESET_WINDOW_SECONDS)
+    except rate_limit.RateLimitUnavailable:
+        # Fail closed on the SIDE EFFECT, not on the response: no email is sent,
+        # and the caller still cannot tell whether the address exists.
+        throttled = True
+
+    if throttled or not EMAIL_RE.match(email):
+        return _RESET_ACKNOWLEDGEMENT
+
+    user = db.query(User).filter(User.email == email).first()
+    if user is not None and user.is_active:
+        token = reset.issue(db, user.id)
+        try:
+            mailer.get_mailer().send_password_reset(user.email, reset.reset_url(token))
+        except Exception as exc:  # noqa: BLE001
+            # Logged WITHOUT the token or the link, and swallowed: a delivery
+            # failure must not become a way to detect that the account exists.
+            logger.error("password reset email could not be sent: %s", exc)
+
+    return _RESET_ACKNOWLEDGEMENT
+
+
+@router.post("/reset-password")
+def reset_password(
+    body: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Consume a reset token and set a new password.
+
+    Order matters. The password is validated BEFORE the token is consumed, so a
+    weak password does not burn the link and strand the user; the token is then
+    claimed atomically, so two simultaneous submissions cannot both succeed.
+    """
+    if body.password != body.password_confirmation:
+        raise HTTPException(status_code=422, detail="the two passwords do not match")
+
+    # The existing policy, reused rather than restated -- a second copy would
+    # drift and one endpoint would quietly accept what the other refuses.
+    try:
+        passwords.validate_password(body.password)
+    except passwords.WeakPassword as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    user_id = reset.consume(db, body.token)
+    if user_id is None:
+        raise _INVALID_RESET_TOKEN
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise _INVALID_RESET_TOKEN
+
+    user.password_hash = passwords.hash_password(body.password)
+    db.commit()
+
+    # Every signed-in browser ends here. A reset usually means the password was
+    # lost or is believed compromised; sessions surviving it would preserve
+    # exactly the access it is meant to remove.
+    reset.revoke_all_sessions(db, user.id)
+
+    # The ACCOUNT-level failed-login counter is cleared: somebody who just
+    # proved control of the address should not then be locked out by their own
+    # earlier attempts to remember the old password.
+    #
+    # The per-ADDRESS counter is deliberately left alone. Clearing it would let
+    # an attacker wipe the budget they had spent guessing at other accounts,
+    # simply by resetting a password on an account they control -- turning the
+    # recovery flow into a way to refill an attack.
+    rate_limit.clear(db, "email", user.email)
+
+    logger.info("password reset completed for user %s", user.id)
+    return {"message": "Your password has been changed. Please sign in."}

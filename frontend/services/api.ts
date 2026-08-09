@@ -268,6 +268,26 @@ export const api = {
     return postJson('/api/auth/login', { email, password })
   },
 
+  /**
+   * Request a reset link. The response is deliberately identical whether or not
+   * the address has an account, and carries no token, url or identifier.
+   */
+  forgotPassword(email: string): Promise<{ message: string }> {
+    return postJson('/api/auth/forgot-password', { email })
+  },
+
+  resetPassword(
+    token: string,
+    password: string,
+    passwordConfirmation: string,
+  ): Promise<{ message: string }> {
+    return postJson('/api/auth/reset-password', {
+      token,
+      password,
+      password_confirmation: passwordConfirmation,
+    })
+  },
+
   logout(): Promise<{ ok: boolean }> {
     return request('/api/auth/logout', { method: 'POST' })
   },

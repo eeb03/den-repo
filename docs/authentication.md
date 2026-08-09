@@ -168,9 +168,73 @@ Configuration, via environment variables (the mechanism `auth/sessions.py`
 already uses): `SUBTERRA_LOGIN_IP_MAX` (10), `SUBTERRA_LOGIN_EMAIL_MAX` (20),
 `SUBTERRA_LOGIN_WINDOW_SECONDS` (900), `SUBTERRA_TRUST_PROXY_HEADERS` (off).
 
+## Password reset
+
+```
+POST /api/auth/forgot-password   { email }        → always the same 200
+POST /api/auth/reset-password    { token, password, password_confirmation }
+```
+
+There is no `GET` that validates or consumes a token: a link scanner or a
+browser prefetch would spend it before the user ever saw the page.
+
+| | |
+|---|---|
+| **Token** | 256 bits from `secrets.token_urlsafe` — never `random` |
+| **Storage** | `password_reset_tokens`, SHA-256 hash only; the raw token exists in the emailed link and nowhere else |
+| **Expiry** | 30 minutes, `SUBTERRA_PASSWORD_RESET_TTL_SECONDS` |
+| **Consumption** | one atomic `UPDATE … WHERE used_at IS NULL AND expires_at > now RETURNING user_id` |
+| **After success** | password rehashed with the existing PBKDF2 implementation; **all sessions revoked** |
+
+**One answer for every input.** `forgot-password` returns the same status and
+body for a registered address, an unknown one, a malformed one, a throttled one,
+and one whose email failed to send. Any difference is an account-existence
+oracle, and the endpoint is unauthenticated so anyone may ask it anything.
+
+**One answer for every bad token.** Missing, malformed, expired, already used —
+all give *"This password reset link is invalid or has expired."* Telling them
+apart tells an attacker which guesses were close. Password-validation errors
+*are* shown plainly: they concern the user's own input and leak nothing. The
+password is validated **before** the token is consumed, so a mistyped password
+does not burn the link.
+
+**Consumption is atomic.** The `WHERE` clause is the check and the `SET` is the
+consumption, in one statement. The obvious three-step version — read, change
+password, mark used — has a window in which a second request reads the same
+unused token; two clicks on a slow connection are enough. A test races six
+threads at one token and asserts exactly one succeeds.
+
+**Sessions are revoked** on success. A reset usually means the password was lost
+or is believed compromised; sessions surviving it would preserve exactly the
+access it is meant to remove. The **account** failed-login counter is cleared
+too, but the **per-address** one deliberately is not — clearing it would let an
+attacker refill the budget they spent guessing at other accounts by resetting a
+password on one they own.
+
+### Email delivery
+
+No provider is added. `auth/mailer.py` defines one interface,
+`send_password_reset(email, reset_url)`, with three implementations:
+`ConsoleMailer` (development; logs the link, and is refused in production
+because that link is a live credential), `CapturingMailer` (tests), and
+`UnconfiguredMailer` (the production default, which **raises**). Failing loudly
+beats quietly returning success for mail nobody sent. Either way the API answer
+is unchanged, so a delivery failure is not an oracle.
+
+**To plug in a real provider:** implement the one method and call
+`auth.mailer.set_mailer()` at startup. Nothing else changes.
+
+### Abuse control
+
+Separate policy, same PostgreSQL mechanism as the login limiter: 3 requests per
+address and 10 per client IP, per hour (`SUBTERRA_RESET_EMAIL_MAX`,
+`SUBTERRA_RESET_IP_MAX`, `SUBTERRA_RESET_WINDOW_SECONDS`). A throttled caller
+still receives the **generic acknowledgement** — a 429 here would say "this
+address was worth throttling". The login limiter's own budgets are untouched.
+
 ## Not done here
 
-No password reset, no email verification, no social login, no MFA, and no roles
+No email verification, no social login, no MFA, and no roles
 or permissions beyond owner/system. Registration is deliberately **not** rate
 limited: credential guessing was the threat being addressed, and account-creation
 spam is a separate decision.
