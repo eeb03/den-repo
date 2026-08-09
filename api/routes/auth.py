@@ -23,7 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from auth import passwords, sessions
+from auth import passwords, rate_limit, sessions
 from auth.dependencies import get_current_user, get_optional_user
 from database.models import User, UserSession, gen_uuid
 from database.session import get_db
@@ -45,6 +45,33 @@ _DUMMY_HASH = passwords.hash_password("not-a-real-password-placeholder")
 GENERIC_LOGIN_FAILURE = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="invalid email or password",
+)
+
+
+def _too_many(retry_after: int) -> HTTPException:
+    """
+    429 with Retry-After.
+
+    The message says nothing about the account, and is identical for a
+    registered address and an invented one -- a 429 that appeared only for real
+    accounts would be exactly the existence oracle the uniform 401 prevents. It
+    also names no storage: an error mentioning a table or a backend tells an
+    attacker about the deployment and the user nothing.
+    """
+    return HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail="too many sign-in attempts. Please wait and try again.",
+        headers={"Retry-After": str(retry_after)},
+    )
+
+
+#: Fail closed. Refusing the attempt costs nothing that was working: the counter
+#: shares its database with the credential store, so there is no state in which
+#: this is unreachable and the sign-in could otherwise have succeeded.
+_LIMITER_DOWN = HTTPException(
+    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+    detail="sign-in is temporarily unavailable. Please try again shortly.",
+    headers={"Retry-After": "30"},
 )
 
 
@@ -129,6 +156,23 @@ def login(
     db: Session = Depends(get_db),
 ):
     email = (body.email or "").strip().lower()
+    ip = rate_limit.client_key(request)
+
+    # Checked BEFORE the password is verified: the point is to stop spending
+    # 600k PBKDF2 iterations on an attacker's behalf, not merely to withhold
+    # the answer afterwards. Both dimensions are consulted -- see
+    # auth/rate_limit.py for why either alone is the wrong key.
+    try:
+        for scope, key, limit in (
+            ("ip", ip, rate_limit.IP_MAX_FAILURES),
+            ("email", email, rate_limit.EMAIL_MAX_FAILURES),
+        ):
+            retry_after = rate_limit.check(db, scope, key, limit)
+            if retry_after is not None:
+                raise _too_many(retry_after)
+    except rate_limit.RateLimitUnavailable:
+        raise _LIMITER_DOWN
+
     user = db.query(User).filter(User.email == email).first()
 
     # Always verify something, so a missing account is not faster than a wrong
@@ -137,8 +181,18 @@ def login(
     ok = passwords.verify_password(body.password, encoded)
 
     if user is None or not ok or not user.is_active:
+        # Only FAILURES are counted, so a correct sign-in is never throttled by
+        # the user's own earlier typos. Counted for the submitted address
+        # whether or not it exists, so the counter is not an oracle either.
+        try:
+            rate_limit.record_failure(db, "ip", ip)
+            rate_limit.record_failure(db, "email", email)
+        except rate_limit.RateLimitUnavailable:
+            raise _LIMITER_DOWN
         raise GENERIC_LOGIN_FAILURE
 
+    rate_limit.clear(db, "ip", ip)
+    rate_limit.clear(db, "email", email)
     _start_session(db, user, request, response)
     return {"user": _public(user)}
 

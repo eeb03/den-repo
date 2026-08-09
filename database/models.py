@@ -73,6 +73,38 @@ class UserSession(Base):
     user = relationship("User", back_populates="sessions")
 
 
+class LoginAttempt(Base):
+    """
+    Failed-login counters, in the database rather than in the process.
+
+    WHY NOT AN IN-MEMORY DICT. A dict resets on restart -- so an attacker gets a
+    fresh budget for free by waiting for a deploy -- and it is per-process, so
+    N workers would silently multiply the limit by N. Neither is a limiter.
+
+    WHY NOT REDIS. There is none: the deployment is `db` and `api`, and the only
+    mention of Redis in this repository is the comment explaining why the job
+    runner does not use it. PostgreSQL is already the application's shared,
+    durable state, and adding a second store for one counter would be a new
+    operational dependency to buy something the existing one already does.
+
+    COUNTING IS ATOMIC IN SQL, never read-modify-write in Python: a single
+    `INSERT ... ON CONFLICT DO UPDATE ... RETURNING` both increments and reports
+    the new value, so simultaneous attempts cannot lose an update and slip past
+    the threshold. See auth/rate_limit.py.
+
+    `bucket` is the composite key -- "ip:1.2.3.4" or "email:a@b.test" -- so one
+    table serves both dimensions without a second schema.
+    """
+    __tablename__ = "login_attempts"
+
+    bucket = Column(String, primary_key=True)
+    #: Epoch seconds. A float rather than a DateTime deliberately: comparison
+    #: and arithmetic then behave identically on SQLite and PostgreSQL, with no
+    #: timezone semantics to differ between them.
+    window_started_at = Column(Float, nullable=False)
+    attempts = Column(Integer, nullable=False, default=0)
+
+
 class Dataset(Base):
     """Metadata registry entry — one row per ingested dataset."""
     __tablename__ = "datasets"

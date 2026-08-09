@@ -90,6 +90,29 @@ describe('sign in', () => {
     expect(text).not.toContain('unknown account')
   })
 
+  it('renders a rate-limit refusal cleanly', async () => {
+    // The API already returns a clean, generic 429 detail, so the form needs no
+    // special case -- it renders the backend's message. This test exists so a
+    // future refactor cannot start swallowing or rewording it.
+    login.mockRejectedValue(
+      new ApiError(429, 'too many sign-in attempts. Please wait and try again.'),
+    )
+    const { container } = render(<AuthForm mode="login" />)
+    container.querySelector('form')!.dispatchEvent(
+      new Event('submit', { bubbles: true, cancelable: true }),
+    )
+    await waitFor(() => {
+      expect(container.querySelector('[data-auth-error]')?.textContent).toBe(
+        'too many sign-in attempts. Please wait and try again.',
+      )
+    })
+    const text = (container.textContent ?? '').toLowerCase()
+    // still no account information and no storage internals
+    expect(text).not.toContain('does not exist')
+    expect(text).not.toContain('redis')
+    expect(text).not.toContain('sqlite')
+  })
+
   it('reports a connection failure as a connection failure', async () => {
     login.mockRejectedValue(new TypeError('NetworkError'))
     const { container } = render(<AuthForm mode="login" />)

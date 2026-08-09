@@ -111,8 +111,66 @@ longer exercise authorization** — accepted only because authorization has its
 own exhaustive suite. The bypass is **opt-out via `@pytest.mark.real_auth`**, so
 a new security test cannot inherit it by accident.
 
+## Login rate limiting
+
+Login is the one endpoint a stranger can call repeatedly with attacker-chosen
+input. PBKDF2 at 600k iterations makes each guess expensive, but expensive is
+not limited.
+
+| | |
+|---|---|
+| **Storage** | the application database — `login_attempts`, one row per bucket |
+| **Counting** | atomic `INSERT … ON CONFLICT DO UPDATE … RETURNING`, never read-modify-write in Python |
+| **Keys** | `ip:<peer>` and `email:<submitted address>` — both checked |
+| **Policy** | 10 failures per IP, 20 per account, in a 15-minute fixed window |
+| **Blocked** | `429` + `Retry-After`, generic message |
+| **Recovery** | the window expires on its own; there is no lockout flag |
+
+**Why the database and not Redis:** there is no Redis. The deployment is `db`
+and `api`, and the only mention of Redis in this repository is the comment
+explaining why the job runner does not use one. PostgreSQL is already the shared,
+durable state; adding a broker for one counter would be a new operational
+dependency for something the existing store does. **Why not a Python dict:** it
+resets on restart, handing an attacker a fresh budget every deploy, and is
+per-process, so N workers would multiply the limit by N.
+
+**Two keys, because either alone is wrong.** Per-IP alone lets a botnet try one
+password against every account. Per-account alone lets an attacker lock a victim
+out of their own account — a defence turned into a weapon. The per-account
+budget is therefore the more generous, and **neither ever locks**: the window
+expires by itself.
+
+**Only failures count**, and a success clears both counters, so nobody is
+throttled by their own earlier typos and a shared office address is not punished
+for having many legitimate users.
+
+**No new enumeration channel.** Counters are keyed on the submitted address
+whether or not it exists, so the 429 is identical for a real address and an
+invented one. A blocked bucket also refuses the *correct* password — otherwise
+the 429 would answer only wrong guesses, which is an oracle.
+
+**Client address:** `request.client.host`, the peer. `X-Forwarded-For` is
+consulted only when `SUBTERRA_TRUST_PROXY_HEADERS` is set, because trusting it
+unconditionally lets any caller choose their own bucket by sending a header —
+which deletes the limit rather than weakening it. There is no trusted-proxy
+configuration in this application, so it defaults off.
+
+**Failure policy: fail closed**, and it costs nothing. If the counter cannot be
+read or written, login is refused (`503`). That is normally a hard trade, but the
+limiter shares its store with the credential store — there is no state in which
+this table is unreachable and login could otherwise have succeeded.
+
+**A known cost:** the window is fixed, not sliding, so an attacker can spend a
+budget at the end of one window and another at the start of the next, briefly
+doubling the rate. Accepted for a counter that is one row and one statement.
+
+Configuration, via environment variables (the mechanism `auth/sessions.py`
+already uses): `SUBTERRA_LOGIN_IP_MAX` (10), `SUBTERRA_LOGIN_EMAIL_MAX` (20),
+`SUBTERRA_LOGIN_WINDOW_SECONDS` (900), `SUBTERRA_TRUST_PROXY_HEADERS` (off).
+
 ## Not done here
 
-No password reset, no email verification, no rate limiting on login, no social
-login, no roles or permissions beyond owner/system. Rate limiting is the most
-material gap: nothing currently throttles credential guessing.
+No password reset, no email verification, no social login, no MFA, and no roles
+or permissions beyond owner/system. Registration is deliberately **not** rate
+limited: credential guessing was the threat being addressed, and account-creation
+spam is a separate decision.
