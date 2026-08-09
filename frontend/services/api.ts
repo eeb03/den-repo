@@ -41,14 +41,21 @@ import type {
 } from '@/types/subterra'
 
 /**
- * Base URL of the FastAPI backend.
+ * Base URL of the FastAPI backend. The single place this is decided.
  *
- * Same-origin by default so a reverse-proxied deployment needs no config;
- * override with NEXT_PUBLIC_SUBTERRA_API for the usual split dev setup
- * (Next on :3000, uvicorn on :8000).
+ * THE DEFAULT IS THE PORT `docker-compose.yml` PUBLISHES, which is 8001 and not
+ * 8000: Subterra Core's own API already holds 8000 on this machine, so the
+ * compose file maps `8001:8000`. The default pointed at 8000 for long enough
+ * that `NEXT_PUBLIC_SUBTERRA_API=http://localhost:8001` had become a documented
+ * ritual — a workaround for a default that was simply wrong about its own
+ * deployment. `frontend/services/api-base.test.ts` now reads the compose file
+ * and fails if the two drift apart again.
+ *
+ * Still overridable with NEXT_PUBLIC_SUBTERRA_API, which is what a
+ * reverse-proxied or same-origin deployment sets.
  */
 export const API_BASE =
-  process.env.NEXT_PUBLIC_SUBTERRA_API ?? 'http://localhost:8000'
+  process.env.NEXT_PUBLIC_SUBTERRA_API ?? 'http://localhost:8001'
 
 /** An HTTP-level refusal, carrying the backend's own explanation. */
 export class ApiError extends Error {
@@ -80,7 +87,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       ...init,
       // The session lives in an HTTP-only cookie, so every call must carry
       // credentials. Without this the browser silently omits it cross-origin
-      // (Next on :3000, API on :8000) and every request looks unauthenticated.
+      // (Next on :3000, API on :8001) and every request looks unauthenticated.
       credentials: 'include',
       headers: { accept: 'application/json', ...(init?.headers ?? {}) },
     })

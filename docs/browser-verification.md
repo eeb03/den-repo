@@ -42,6 +42,10 @@ Three details that cost time and are worth not rediscovering:
 - Port 8000 is deliberate — it is `API_BASE`'s default, so no
   `NEXT_PUBLIC_SUBTERRA_API` override is involved and the verified
   configuration is the default one.
+  **Since 2026-08-09 that default is 8001**, matching the port
+  `docker-compose.yml` publishes; the reasoning is unchanged, so a later run
+  should publish **`-p 8001:8000`** and still involve no override. The command
+  above is left as it was actually run.
 
 Playwright has no browsers in its cache; Chrome is driven directly via
 `executable_path`. No browser download was needed.

@@ -7,8 +7,9 @@
  * that does not exist, a field renamed on the backend, or an error shape
  * the adapter mis-reads.
  *
- * Run with the API up:
- *   DATABASE_URL=... uvicorn api.main:app --port 8000
+ * Run with the API up, which is what `docker compose up` gives you --
+ * it publishes the API on 8001, and `API_BASE` defaults there:
+ *   docker compose up -d
  *   corepack pnpm test
  */
 import { beforeAll, describe, expect, it } from 'vitest'

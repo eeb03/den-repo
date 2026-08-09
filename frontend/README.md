@@ -44,8 +44,11 @@ corepack pnpm install
 corepack pnpm dev          # http://localhost:3000
 ```
 
-The backend is expected at `http://localhost:8000` (see the repository
-README). The existing `/viewer` and `/client` pages are untouched and remain
+The backend is expected at `http://localhost:8001` — the port
+`docker-compose.yml` publishes, because Subterra Core already holds 8000. That
+is the default, so `docker compose up` and `corepack pnpm dev` work together
+with nothing to configure; set `NEXT_PUBLIC_SUBTERRA_API` only for a different
+deployment. The existing `/viewer` and `/client` pages are untouched and remain
 fully functional; the workspace header links to both.
 
 ```bash
