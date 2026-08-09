@@ -118,11 +118,38 @@ def _add_dataset_owner(engine: Engine) -> None:
             )
 
 
+def _add_user_password_hash(engine: Engine) -> None:
+    """
+    002 — give `users` the credential column.
+
+    `users` was created empty by 001, deliberately without a credential because
+    the choice belonged to the authentication task. That table now EXISTS, so
+    `create_all` will not add the column to it: same problem as 001, one table
+    along. Nullable, because a row without a hash simply cannot log in --
+    `verify_password` refuses an absent hash -- which is the correct behaviour
+    for any account created by some future non-password route (an invite, an
+    OIDC link) that has no password to store.
+    """
+    table, column = "users", "password_hash"
+    if not _has_table(engine, table):
+        return  # fresh database: create_all built it correctly
+
+    if not _has_column(engine, table, column):
+        with engine.begin() as conn:
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} VARCHAR"))
+        logger.info("migration 002: added %s.%s", table, column)
+
+
 MIGRATIONS: list[Migration] = [
     Migration(
         id="001_dataset_owner_id",
         description="add nullable datasets.owner_id, indexed, FK to users where supported",
         apply=_add_dataset_owner,
+    ),
+    Migration(
+        id="002_user_password_hash",
+        description="add nullable users.password_hash for PBKDF2 credentials",
+        apply=_add_user_password_hash,
     ),
 ]
 

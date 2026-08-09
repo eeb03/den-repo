@@ -15,24 +15,18 @@ def gen_uuid() -> str:
 
 class User(Base):
     """
-    A platform account. THE TABLE EXISTS; AUTHENTICATION DOES NOT.
+    A platform account.
 
-    This is deliberately schema-only. Nothing creates a row, nothing reads one,
-    and no request is associated with a user, because the platform has no login
-    and inventing an identity to fill a column would be worse than leaving it
-    empty -- it would make every dataset look owned by someone who does not
-    exist, and later make it impossible to tell real ownership from the
-    placeholder.
+    The table was created empty one commit before authentication existed, so
+    that ownership could be added to `datasets` while doing so was free.
+    Retrofitting a foreign key onto a populated table means deciding
+    retroactively who owns data that was uploaded by nobody -- a question with
+    no correct answer.
 
-    It is created now so that ownership can be added to `datasets` while the
-    table is empty and the change is free. Adding a foreign key to a populated
-    table, after users exist, means deciding retroactively who owns data that
-    was uploaded by nobody -- a question with no correct answer.
-
-    No password column is present, and that is intentional too: the credential
-    model (password hash, OIDC subject, API token) is a decision for the
-    authentication task, and guessing at it here would bake in a choice that
-    task should make.
+    The credential is a PBKDF2 hash in `password_hash`; see auth/passwords.py
+    for why PBKDF2 and not bcrypt. No profile fields beyond an email and a
+    display name: an account exists to own datasets, and anything else would be
+    personal data collected for no stated purpose.
     """
     __tablename__ = "users"
 
@@ -40,10 +34,43 @@ class User(Base):
     #: Login identifier. Unique so the constraint exists before any row does.
     email = Column(String, nullable=False, unique=True, index=True)
     display_name = Column(String, nullable=True)
+    #: PBKDF2-HMAC-SHA256, encoded by auth/passwords.py. Nullable so the column
+    #: could be added to the already-created users table; a user without one
+    #: cannot log in, because verify_password refuses an absent hash.
+    password_hash = Column(String, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     datasets = relationship("Dataset", back_populates="owner")
+    sessions = relationship("UserSession", back_populates="user",
+                            cascade="all, delete-orphan")
+
+
+class UserSession(Base):
+    """
+    One signed-in browser.
+
+    ONLY THE HASH OF THE TOKEN IS STORED. The cookie carries 256 bits of
+    `secrets` output; the database keeps SHA-256 of it, so a database dump
+    cannot be replayed as a set of live sessions.
+
+    Revocation is a column rather than a delete so that logging out leaves a
+    trace: `revoked_at` says a session ended deliberately, which a missing row
+    could not distinguish from one that expired or never existed.
+    """
+    __tablename__ = "user_sessions"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    #: SHA-256 of the cookie value. Unique: two sessions cannot share a token.
+    token_hash = Column(String, nullable=False, unique=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=True)
+    revoked_at = Column(DateTime, nullable=True)
+    #: Coarse provenance for the session, for a future "your sessions" screen.
+    user_agent = Column(String, nullable=True)
+
+    user = relationship("User", back_populates="sessions")
 
 
 class Dataset(Base):
@@ -51,11 +78,12 @@ class Dataset(Base):
     __tablename__ = "datasets"
 
     id = Column(String, primary_key=True, default=gen_uuid)
-    #: Who uploaded this. NULL means "uploaded before ownership existed, or by
-    #: an unauthenticated caller" -- which is every row today. It is nullable
-    #: on purpose: the platform is still single-user, and a NOT NULL column
-    #: would force a fabricated owner onto historical data. Nothing reads this
-    #: yet and no request sets it; see docs/ownership-schema.md.
+    #: Who uploaded this, taken from the authenticated session at import and
+    #: never from the request body. NULL means SYSTEM/PUBLIC: the published
+    #: reference corpora that predate accounts, readable by any signed-in user
+    #: and writable by none. Still nullable on purpose -- a NOT NULL column
+    #: would force a fabricated owner onto that data. See
+    #: docs/ownership-schema.md and auth/dependencies.py for the visibility rule.
     owner_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     name = Column(String, nullable=False, index=True)
     source = Column(String, nullable=True)          # e.g. "Zenodo", "USGS"
@@ -105,11 +133,11 @@ class ImportJob(Base):
     percentage from a step count would be a fabricated measurement in a product
     whose entire argument is that it does not fabricate measurements.
 
-    OWNERSHIP. `owner_id` is nullable and unenforced. It exists so that the
-    import path is not the thing that has to be retrofitted when authentication
-    lands. `Dataset` now carries the matching column, added to existing
-    databases by database/migrations.py -- `create_all` cannot alter a table
-    that already exists. See docs/ownership-schema.md.
+    OWNERSHIP. `owner_id` is set from the authenticated session when the job is
+    created, and the dataset the job produces inherits it from the job -- never
+    from anything the client sent. A job with a NULL owner predates
+    authentication and is nobody's to read; unlike datasets there is no
+    system-owned case for jobs. See auth/dependencies.py::job_or_404.
     """
     __tablename__ = "import_jobs"
 

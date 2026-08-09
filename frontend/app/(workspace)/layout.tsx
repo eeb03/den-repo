@@ -1,4 +1,5 @@
 import { AppSidebar } from '@/components/shell/app-sidebar'
+import { RequireAuth } from '@/components/auth/require-auth'
 
 /**
  * The workspace shell: a fixed sidebar beside a scroll-contained main area.
@@ -14,9 +15,11 @@ export default function WorkspaceLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex h-svh overflow-hidden">
-      <AppSidebar />
-      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
-    </div>
+    <RequireAuth>
+      <div className="flex h-svh overflow-hidden">
+        <AppSidebar />
+        <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+      </div>
+    </RequireAuth>
   )
 }

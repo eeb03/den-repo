@@ -5,12 +5,13 @@ Every response carries the payload AND a report naming what was written, what
 was skipped and why. A format that cannot honestly represent the data refuses
 with a reason rather than emitting a placeholder.
 """
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import PlainTextResponse
 
 from database.objects_store import load_objects
 from exports.exporters import EXPORT_FORMATS, ExportRefused, export_objects
 from utils.logger import get_logger
+from auth.dependencies import require_dataset_access, require_owned_dataset
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -43,7 +44,8 @@ def formats():
 
 @router.get("/{dataset_id}/objects")
 def export_dataset_objects(dataset_id: str,
-                           fmt: str = Query("json", alias="format")):
+                           fmt: str = Query("json", alias="format"),
+    _dataset=Depends(require_dataset_access)):
     if fmt not in EXPORT_FORMATS:
         raise HTTPException(400, f"unknown format {fmt!r}; options: {list(EXPORT_FORMATS)}")
     objects = load_objects(dataset_id)

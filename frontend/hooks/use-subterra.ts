@@ -157,3 +157,28 @@ export function useImportJob(jobId: string | undefined) {
     },
   )
 }
+
+/* --------------------------------- accounts -------------------------------- */
+
+/**
+ * Who is signed in, according to the server.
+ *
+ * A 401 is a legitimate ANSWER here, not a failure: it means "nobody". The
+ * hook therefore resolves to null rather than surfacing an error, and does not
+ * retry -- retrying a settled "you are not signed in" would only delay the
+ * login screen.
+ */
+export function useCurrentUser() {
+  return useSWR(
+    'current-user',
+    () =>
+      api
+        .me()
+        .then((r) => r.user)
+        .catch((error) => {
+          if (error instanceof ApiError && error.status === 401) return null
+          throw error
+        }),
+    { ...options, shouldRetryOnError: false },
+  )
+}

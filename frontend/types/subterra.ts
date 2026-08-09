@@ -577,3 +577,18 @@ export interface ImportFormats {
   max_upload_bytes: number
   note: string
 }
+
+
+/* --------------------------------- accounts -------------------------------- */
+
+/**
+ * The signed-in account, as the API reports it. Deliberately minimal: an
+ * account exists to own datasets, and the password hash never leaves the
+ * server.
+ */
+export interface AuthUser {
+  id: string
+  email: string
+  display_name: string | null
+  created_at: string | null
+}

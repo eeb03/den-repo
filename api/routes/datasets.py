@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from database.session import get_db
-from database.models import Dataset, gen_uuid
+from database.models import Dataset, User, gen_uuid
 from schemas.subterra_record import SensorType
 from converters.registry import get_converter
 from converters.base import MissingDependencyError
@@ -26,6 +26,12 @@ from preprocessing.dem_alignment import align_records_with_dem
 from configs.settings import settings
 from jobs import storage
 from utils.logger import get_logger
+from auth.dependencies import (
+    get_current_user,
+    require_dataset_access,
+    require_owned_dataset,
+    visible_datasets,
+)
 
 logger = get_logger(__name__)
 
@@ -59,6 +65,7 @@ def _run_ingest_pipeline(
     preprocessing_mode: str = "trace",
     converter_kwargs: Optional[dict] = None,
     on_stage: Optional[Callable[[str], None]] = None,
+    owner_id: Optional[str] = None,
 ) -> dict:
     """
     The core pipeline shared by every ingest entrypoint (direct upload,
@@ -74,6 +81,12 @@ def _run_ingest_pipeline(
     converter_kwargs passes format-specific options through to the
     converter (e.g. {"stride": 1} for GeoTIFFConverter on a small DEM tile
     where the default stride=10 would sample almost nothing).
+
+    `owner_id`, when given, is the account the resulting dataset belongs to. It
+    is passed by the IMPORT WORKER from the job record -- never read from a
+    request body -- so a client cannot name the owner of what it uploads.
+    Defaulting to None keeps every existing caller producing system/public
+    datasets, which is what a script-run ingest genuinely is.
 
     `on_stage`, when given, is called with the name of each step as it begins
     -- "converting", "validating", "preprocessing", "persisting",
@@ -135,6 +148,7 @@ def _run_ingest_pipeline(
         has_ground_truth=has_gt,
         center_lat=center_lat,
         center_lon=center_lon,
+        owner_id=owner_id,
         extra_metadata={"validation_issues": report.issues},
     )
     db.add(dataset)
@@ -160,6 +174,7 @@ async def ingest_dataset(
     apply_preprocessing: bool = Form(True),
     preprocessing_mode: str = Form("trace", description="'trace' for multi-sample waveforms, 'spatial_grid' for single-value raster/depth-slice data (GPR, magnetometer, gravity)"),
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """
     Full ingest pipeline from a direct file upload: save -> convert ->
@@ -189,6 +204,7 @@ async def ingest_dataset(
         raw_path, sensor_type, name or file.filename, db,
         source=source, license=license, apply_preprocessing=apply_preprocessing,
         preprocessing_mode=preprocessing_mode,
+        owner_id=user.id,
     )
 
 
@@ -204,7 +220,7 @@ class IngestFromURLRequest(BaseModel):
 
 
 @router.post("/ingest_from_url")
-def ingest_from_url(req: IngestFromURLRequest, db: Session = Depends(get_db)):
+def ingest_from_url(req: IngestFromURLRequest, db: Session = Depends(get_db), _user=Depends(get_current_user)):
     """
     Same pipeline as /ingest, but for a dataset that lives at a URL —
     e.g. a download_url returned by /api/sources/{source}/search. Downloads
@@ -254,6 +270,7 @@ def reprocess_dataset(
     dewow_enabled: bool = True,
     gain_enabled: bool = True,
     db: Session = Depends(get_db),
+    _dataset=Depends(require_owned_dataset),
 ):
     """
     Re-run preprocessing on an already-ingested dataset's stored records.
@@ -322,7 +339,8 @@ def reprocess_dataset(
 
 
 @router.post("/{dataset_id}/align_dem")
-def align_dataset_with_dem(dataset_id: str, dem_filename: str, db: Session = Depends(get_db)):
+def align_dataset_with_dem(dataset_id: str, dem_filename: str, db: Session = Depends(get_db),
+    _dataset=Depends(require_owned_dataset)):
     """
     Look up ground-surface elevation from a DEM GeoTIFF (e.g. one fetched via
     /api/sources/opentopography/dem, saved under datasets/downloads/) at each
@@ -384,7 +402,7 @@ class IngestLocalFileRequest(BaseModel):
 
 
 @router.post("/ingest_local_file")
-def ingest_local_file(req: IngestLocalFileRequest, db: Session = Depends(get_db)):
+def ingest_local_file(req: IngestLocalFileRequest, db: Session = Depends(get_db), _user=Depends(get_current_user)):
     """
     Ingest a file that's already on disk in the container — e.g. a DEM
     tile saved by /api/sources/opentopography/dem — without re-uploading
@@ -493,7 +511,8 @@ class IngestDepthSliceLocalRequest(BaseModel):
 
 
 @router.post("/{dataset_id}/ingest_depth_slice")
-def ingest_depth_slice(dataset_id: str, req: IngestDepthSliceLocalRequest, db: Session = Depends(get_db)):
+def ingest_depth_slice(dataset_id: str, req: IngestDepthSliceLocalRequest, db: Session = Depends(get_db),
+    _dataset=Depends(require_owned_dataset)):
     """Add one depth slice (from a file already on disk) to an existing multi-depth dataset."""
     src_path = Path(req.path)
     if not src_path.is_absolute():
@@ -520,7 +539,8 @@ class IngestDepthSliceURLRequest(BaseModel):
 
 
 @router.post("/{dataset_id}/ingest_depth_slice_from_url")
-def ingest_depth_slice_from_url(dataset_id: str, req: IngestDepthSliceURLRequest, db: Session = Depends(get_db)):
+def ingest_depth_slice_from_url(dataset_id: str, req: IngestDepthSliceURLRequest, db: Session = Depends(get_db),
+    _dataset=Depends(require_owned_dataset)):
     """Add one depth slice (downloaded from a URL) to an existing multi-depth dataset."""
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     if not dataset:
@@ -560,7 +580,7 @@ class IngestZipFromURLRequest(BaseModel):
 
 
 @router.post("/ingest_zip_from_url")
-def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_db)):
+def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_db), _user=Depends(get_current_user)):
     """
     Downloads a .zip archive, extracts it, finds every file inside (incl.
     subdirectories) whose extension has a registered converter, converts
@@ -726,7 +746,7 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
 
 
 @router.get("/debug/segy_headers")
-def debug_segy_headers(path: str, n_traces: int = 5):
+def debug_segy_headers(path: str, n_traces: int = 5, _user=Depends(get_current_user)):
     """
     Diagnostic: dumps common trace header field values for the first
     n_traces of a SEG-Y file already on disk (e.g. one extracted by a
@@ -782,7 +802,8 @@ def debug_segy_headers(path: str, n_traces: int = 5):
 
 
 @router.get("/{dataset_id}/points")
-def get_dataset_points(dataset_id: str, max_points: int = 20000, db: Session = Depends(get_db)):
+def get_dataset_points(dataset_id: str, max_points: int = 20000, db: Session = Depends(get_db),
+    _dataset=Depends(require_dataset_access)):
     """
     Returns a (optionally downsampled) list of renderable points for this
     dataset — lat/lon/elevation/depth/signal/sensor_type/ground_truth —
@@ -846,7 +867,8 @@ def get_dataset_points(dataset_id: str, max_points: int = 20000, db: Session = D
 
 
 @router.get("/{dataset_id}/depths")
-def get_dataset_depths(dataset_id: str, db: Session = Depends(get_db)):
+def get_dataset_depths(dataset_id: str, db: Session = Depends(get_db),
+    _dataset=Depends(require_dataset_access)):
     """Lists distinct depth values present in this dataset with record counts -- for building a depth-slice-stacking control."""
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     if not dataset:
@@ -867,6 +889,7 @@ def get_dataset_grid(
     smooth: bool = True,
     smoothing_window: int = 3,
     db: Session = Depends(get_db),
+    _dataset=Depends(require_dataset_access),
 ):
     """
     Returns a single depth layer as a 2D grid for heatmap/surface rendering
@@ -921,6 +944,7 @@ def get_dataset_trace_grid(
     source_file: Optional[str] = None,
     field: str = "signal",
     db: Session = Depends(get_db),
+    _dataset=Depends(require_dataset_access),
 ):
     """
     Returns one survey line's data as a dense (depth x trace) 2D grid --
@@ -1012,7 +1036,8 @@ def get_dataset_trace_grid(
 
 
 @router.get("/{dataset_id}/info")
-def get_dataset_info(dataset_id: str, db: Session = Depends(get_db)):
+def get_dataset_info(dataset_id: str, db: Session = Depends(get_db),
+    _dataset=Depends(require_dataset_access)):
     """
     Richer dataset summary for the UI's dataset card: survey area, grid
     resolution, and active processing steps -- all computed from real
@@ -1112,9 +1137,17 @@ def list_datasets(
     min_quality: Optional[float] = None,
     has_ground_truth: Optional[bool] = None,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
-    """Search datasets by sensor, quality score, and ground-truth availability."""
-    query = db.query(Dataset)
+    """
+    Search datasets by sensor, quality score, and ground-truth availability.
+
+    SCOPED IN THE QUERY, not after it. Loading every row and dropping some in
+    Python is one forgotten filter away from leaking them, and the filter is
+    trivially expressible in SQL: the caller's own datasets, plus the
+    system/public reference corpora that belong to nobody.
+    """
+    query = visible_datasets(db, user)
     if sensor_type:
         query = query.filter(Dataset.sensor_type == sensor_type)
     if min_quality is not None:
@@ -1126,7 +1159,8 @@ def list_datasets(
 
 
 @router.get("/{dataset_id}")
-def get_dataset(dataset_id: str, db: Session = Depends(get_db)):
+def get_dataset(dataset_id: str, db: Session = Depends(get_db),
+    _dataset=Depends(require_dataset_access)):
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
@@ -1134,7 +1168,8 @@ def get_dataset(dataset_id: str, db: Session = Depends(get_db)):
 
 
 @router.delete("/{dataset_id}")
-def delete_dataset(dataset_id: str, db: Session = Depends(get_db)):
+def delete_dataset(dataset_id: str, db: Session = Depends(get_db),
+    _dataset=Depends(require_owned_dataset)):
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")

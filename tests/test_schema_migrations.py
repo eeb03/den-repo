@@ -183,16 +183,24 @@ def test_no_code_invents_a_placeholder_owner():
                 assert placeholder not in source, f"{path} fabricates an owner"
 
 
-def test_the_user_table_exists_but_carries_no_credential_column(engine):
+def test_the_user_table_carries_exactly_one_credential_column(engine):
     """
-    The credential model belongs to the authentication task. Guessing at it
-    here would bake in a choice that task should make deliberately.
+    Superseded assertion, updated rather than deleted.
+
+    When this table was introduced it deliberately had NO credential column,
+    because the choice belonged to the authentication task, and a test held
+    that line. Authentication has since landed and chosen: a single
+    `password_hash` holding a PBKDF2 digest. The test now pins the new truth --
+    that one credential column exists and that no OTHER secret has crept in
+    beside it, which is the failure worth catching from here on.
     """
     Base.metadata.create_all(bind=engine)
+    run_migrations(engine)
     columns = {c["name"] for c in inspect(engine).get_columns("users")}
-    assert {"id", "email", "is_active"} <= columns
-    for credential in ("password", "password_hash", "hashed_password", "token", "secret"):
-        assert credential not in columns
+
+    assert {"id", "email", "is_active", "password_hash"} <= columns
+    for other_secret in ("password", "hashed_password", "token", "secret", "api_key"):
+        assert other_secret not in columns
 
 
 def test_ownership_links_to_a_real_user_when_one_exists(engine):

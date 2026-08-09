@@ -12,6 +12,7 @@ import {
 import { cn } from '@/lib/utils'
 import { SubterraLogo } from '@/components/brand/logo'
 import { ProvenanceLegend } from '@/components/subterra/provenance-tag'
+import { AccountMenu } from '@/components/auth/account-menu'
 
 interface NavItem {
   href: string
@@ -104,6 +105,8 @@ export function AppSidebar() {
           not ranked.
         </p>
       </div>
+
+      <AccountMenu />
     </aside>
   )
 }

@@ -31,7 +31,8 @@ from converters.registry import (
     classify_file,
     supported_extensions,
 )
-from database.models import ImportJob, gen_uuid
+from auth.dependencies import get_current_user, job_or_404
+from database.models import ImportJob, User, gen_uuid
 from database.session import get_db
 from jobs import runner, storage
 from schemas.subterra_record import SensorType
@@ -75,6 +76,7 @@ async def create_import(
     sensor_type: SensorType = Form(...),
     name: Optional[str] = Form(None),
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """
     Accept an upload, persist it safely, queue it, and return the job.
@@ -99,6 +101,10 @@ async def create_import(
         sensor_type=sensor_type.value,
         detected_format=detail,
         format_status=classification,
+        # OWNERSHIP COMES FROM THE SESSION. There is no owner_id field on this
+        # request and there must never be one: a client that could name the
+        # owner could give its upload away, or take someone else's.
+        owner_id=user.id,
         created_at=datetime.utcnow(),
     )
 
@@ -151,9 +157,14 @@ async def create_import(
 
 
 @router.get("/jobs")
-def list_jobs(limit: int = Query(25, ge=1, le=200), db: Session = Depends(get_db)):
+def list_jobs(
+    limit: int = Query(25, ge=1, le=200),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     jobs = (
         db.query(ImportJob)
+        .filter(ImportJob.owner_id == user.id)
         .order_by(ImportJob.created_at.desc())
         .limit(limit)
         .all()
@@ -162,8 +173,11 @@ def list_jobs(limit: int = Query(25, ge=1, le=200), db: Session = Depends(get_db
 
 
 @router.get("/jobs/{job_id}")
-def get_job(job_id: str, db: Session = Depends(get_db)):
-    job = db.query(ImportJob).filter(ImportJob.id == job_id).first()
-    if job is None:
-        raise HTTPException(status_code=404, detail=f"no import job {job_id!r}")
-    return {"job": job.to_dict()}
+def get_job(
+    job_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    # 404 for someone else's job as well as for a missing one: guessing ids
+    # must not reveal which of the two it was.
+    return {"job": job_or_404(db, user, job_id).to_dict()}

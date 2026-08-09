@@ -136,6 +136,9 @@ def _execute(job_id: str) -> None:
         path = job.stored_path
         sensor_type = job.sensor_type
         name = job.original_filename or job.stored_filename
+        # The trusted owner: written when the job was created, from the
+        # authenticated session. The worker never sees the request.
+        owner_id = job.owner_id
         job.state = RUNNING
         job.stage = STAGE_CONVERTING
         job.started_at = datetime.utcnow()
@@ -157,6 +160,7 @@ def _execute(job_id: str) -> None:
                 session,
                 source="upload",
                 on_stage=on_stage,
+                owner_id=owner_id,
             )
         _set(
             job_id,

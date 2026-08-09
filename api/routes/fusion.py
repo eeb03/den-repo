@@ -3,6 +3,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from auth.dependencies import get_current_user, visible_dataset_ids
+from database.models import User
 from database.session import get_db
 from database.models import Dataset, FusionSample as FusionSampleModel, gen_uuid
 from database.frames_store import load_frames_for
@@ -19,6 +21,7 @@ def run_fusion(
     multimodal_only_flag: bool = True,
     persist: bool = True,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """
     Run spatial sensor fusion across ingested datasets and return (optionally
@@ -89,7 +92,10 @@ def run_fusion(
 
 
 @router.get("/samples")
-def list_fusion_samples(db: Session = Depends(get_db)):
+def list_fusion_samples(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     samples = db.query(FusionSampleModel).all()
     return [
         {

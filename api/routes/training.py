@@ -7,6 +7,7 @@ validated against real field data.
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Depends
+from auth.dependencies import get_current_user
 from pydantic import BaseModel
 
 import numpy as np
@@ -24,6 +25,7 @@ from database.models import Dataset
 from database.records_store import load_records
 from preprocessing.spatial_grid import build_grid_for_records
 from utils.logger import get_logger
+from auth.dependencies import require_dataset_access, require_owned_dataset
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -40,7 +42,7 @@ class TrainRequest(BaseModel):
 
 
 @router.post("/synthetic/train")
-def train_synthetic_classifier(req: TrainRequest):
+def train_synthetic_classifier(req: TrainRequest, _user=Depends(get_current_user)):
     """
     Generates a fresh synthetic dataset, trains the classifier, and reports
     REAL metrics — training accuracy, validation accuracy during training,
@@ -77,7 +79,7 @@ def train_synthetic_classifier(req: TrainRequest):
 
 
 @router.get("/model_info")
-def get_model_info():
+def get_model_info(_user=Depends(get_current_user)):
     if not MODEL_PATH.exists():
         raise HTTPException(status_code=404, detail="No trained model yet. POST /api/training/synthetic/train first.")
     clf = SoftmaxClassifier.load(MODEL_PATH)
@@ -94,7 +96,7 @@ class ClassifyPatchRequest(BaseModel):
 
 
 @router.post("/classify")
-def classify_patch(req: ClassifyPatchRequest):
+def classify_patch(req: ClassifyPatchRequest, _user=Depends(get_current_user)):
     """
     Classifies a B-scan patch (n_traces x n_samples amplitude window) using
     the trained Phase-0 model. Returns real probabilities from the actual
@@ -124,7 +126,7 @@ def classify_patch(req: ClassifyPatchRequest):
 
 
 @router.get("/synthetic/example_patch")
-def get_example_patch(class_name: str = "pipe", seed: int = 0):
+def get_example_patch(class_name: str = "pipe", seed: int = 0, _user=Depends(get_current_user)):
     """Returns one freshly-generated synthetic patch for a given class -- useful for testing /classify or inspecting what the generator actually produces."""
     if class_name not in CLASSES:
         raise HTTPException(status_code=400, detail=f"Unknown class '{class_name}'. Options: {CLASSES}")
@@ -149,7 +151,7 @@ class TrainSpatialRequest(BaseModel):
 
 
 @router.post("/spatial/train")
-def train_spatial_classifier(req: TrainSpatialRequest):
+def train_spatial_classifier(req: TrainSpatialRequest, _user=Depends(get_current_user)):
     """Same idea as /synthetic/train, but for the 2D spatial-shape classifier used by /detect_objects."""
     X, y = generate_spatial_dataset(n_per_class=req.n_per_class, seed=req.seed)
 
@@ -205,6 +207,7 @@ def detect_objects(
     threshold: float = 2.0,
     depth: float | None = None,
     db=Depends(get_db),
+    _dataset=Depends(require_dataset_access),
 ):
     """
     Finds connected clusters of high-magnitude anomaly cells in a dataset's

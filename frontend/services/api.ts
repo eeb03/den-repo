@@ -22,6 +22,7 @@
  *    wording rather than substituting its own.
  */
 import type {
+  AuthUser,
   ImportFormats,
   ImportJob,
   BenchmarkArtifact,
@@ -77,6 +78,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(`${API_BASE}${path}`, {
       ...init,
+      // The session lives in an HTTP-only cookie, so every call must carry
+      // credentials. Without this the browser silently omits it cross-origin
+      // (Next on :3000, API on :8000) and every request looks unauthenticated.
+      credentials: 'include',
       headers: { accept: 'application/json', ...(init?.headers ?? {}) },
     })
   } catch (cause) {
@@ -236,6 +241,35 @@ export const api = {
     form.append('sensor_type', sensorType)
     // No content-type header: the browser must set the multipart boundary.
     return request('/api/imports', { method: 'POST', body: form })
+  },
+
+  /* -------------------------------- auth -------------------------------- */
+
+  /**
+   * The signed-in account, or an ApiError with status 401.
+   *
+   * There is no token to read here and none is stored: the cookie is
+   * HTTP-only, so script cannot see it, and the only way to learn who you are
+   * is to ask the server.
+   */
+  me(): Promise<{ user: AuthUser }> {
+    return request('/api/auth/me')
+  },
+
+  register(email: string, password: string, displayName?: string): Promise<{ user: AuthUser }> {
+    return postJson('/api/auth/register', {
+      email,
+      password,
+      display_name: displayName || null,
+    })
+  },
+
+  login(email: string, password: string): Promise<{ user: AuthUser }> {
+    return postJson('/api/auth/login', { email, password })
+  },
+
+  logout(): Promise<{ ok: boolean }> {
+    return request('/api/auth/logout', { method: 'POST' })
   },
 
   getImportJob(jobId: string): Promise<{ job: ImportJob }> {
