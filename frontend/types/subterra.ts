@@ -592,3 +592,153 @@ export interface AuthUser {
   display_name: string | null
   created_at: string | null
 }
+
+/* ------------------------------ dataset report ----------------------------- */
+
+/**
+ * The Dataset Report, from `GET /api/datasets/{id}/report`.
+ *
+ * Mirrors `schemas/dataset_report.py` exactly. Every field the backend may
+ * leave undeclared is `| null` here rather than optional, so the UI has to
+ * decide what to render for an absence instead of silently printing
+ * `undefined` — which is how "not declared" quietly becomes a blank that
+ * reads like zero.
+ */
+export type Readiness = 'ready' | 'partial' | 'blocked'
+
+export type Capability =
+  | 'ingestion'
+  | 'validation'
+  | 'signal_processing'
+  | 'horizontal_registration'
+  | 'vertical_registration'
+  | 'candidate_analysis'
+  | 'object_classification'
+  | 'reconstruction_3d'
+
+export interface CapabilityAssessment {
+  capability: Capability
+  readiness: Readiness
+  reason: string
+  missing: string[]
+  depends_on: Capability[]
+}
+
+export interface QualityDimension {
+  name: string
+  /** null means deliberately unmeasured, never zero. */
+  value: number | null
+  weight: number
+  basis: string
+  counts: Record<string, number>
+}
+
+export interface DatasetReport {
+  report_version: string
+  generated_at: string
+  identity: {
+    dataset_id: string
+    name: string | null
+    source: string | null
+    source_url: string | null
+    license: string | null
+    modality: string | null
+    original_format: string | null
+    source_files: string[]
+    manufacturer: string | null
+    device_model: string | null
+    collection_date: string | null
+    imported_at: string | null
+    updated_at: string | null
+    checksum: string | null
+    version: number | null
+    owner_id: string | null
+    is_system_dataset: boolean
+    has_ground_truth: boolean
+    undeclared: string[]
+  }
+  volume: {
+    record_count: number
+    frame_count: number
+    positions_per_frame: Record<string, number | null>
+    samples_per_trace: number[] | null
+    sample_interval: number[] | null
+    sample_interval_units: string | null
+    records_with_signal: number
+    records_with_timestamp: number
+    records_with_depth: number
+    records_with_position: number
+    invalid_signal_count: number
+    position_kinds: Record<string, number>
+  }
+  spatial: {
+    horizontal: {
+      coordinates_present: boolean
+      earth_referenced: boolean
+      declared_refs: string[]
+      crs_kinds: string[]
+      crs_provenance: string[]
+      positioned_record_count: number
+      total_record_count: number
+      geo_tie_frames: string[]
+      reasons: string[]
+      missing: string[]
+    }
+    vertical: {
+      axis_kinds: string[]
+      axis_units: string[]
+      axis_origins: string[]
+      vertical_datum_declared: boolean
+      vertical_datums: string[]
+      depth_axis_available: boolean
+      depth_basis: string
+      time_to_depth_justified: boolean
+      surface_model_held: boolean
+      surface_frame_ids: string[]
+      relationship_kind: string | null
+      absolute_elevation_available: boolean
+      reasons: string[]
+      missing: string[]
+    }
+    geometry: {
+      frame_count: number
+      bounds: Record<string, number> | null
+      lat_span_m: number | null
+      lon_span_m: number | null
+      along_track_extent_m: Record<string, number>
+      reasons: string[]
+    }
+  }
+  processing: {
+    stage: string
+    status: string
+    detail: string | null
+    parameters: Record<string, unknown>
+    at: string | null
+  }[]
+  quality: {
+    stored_score: number | null
+    computed_score: number | null
+    dimensions: QualityDimension[]
+    issues: string[]
+    score_is_stale: boolean
+  }
+  candidates: {
+    candidate_count: number
+    analysed: boolean
+    frames_with_candidates: string[]
+    shape_classes: Record<string, number>
+    evidence_available: boolean
+    classified_object_count: number
+    note: string
+  }
+  readiness: CapabilityAssessment[]
+  provenance: {
+    quantity: string
+    provenance: string
+    basis: string
+    value: unknown
+    verified: boolean | null
+    source: string | null
+  }[]
+}

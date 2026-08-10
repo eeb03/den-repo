@@ -174,3 +174,63 @@ describe('benchmark figures are not transformed in transit', () => {
     expect(String(detection.recall).length).toBeGreaterThan(5)
   })
 })
+
+describe('the dataset report tells the truth about real datasets', () => {
+  liveIt('never claims an absolute elevation for any dataset held', async () => {
+    const datasets = await api.listDatasets()
+    if (datasets.length === 0) return
+
+    for (const d of datasets) {
+      const report = await api.getDatasetReport(d.id)
+
+      // No dataset currently held has an established vertical relationship.
+      // If this ever legitimately changes, it changes because a datum was
+      // declared -- and this assertion is where that should be noticed.
+      expect(report.spatial.vertical.absolute_elevation_available).toBe(false)
+
+      const vertical = report.readiness.find(
+        (c) => c.capability === 'vertical_registration',
+      )!
+      expect(vertical.readiness).not.toBe('ready')
+      expect(vertical.missing.length).toBeGreaterThan(0)
+    }
+  })
+
+  liveIt('never reports a classified object, and blocks classification', async () => {
+    const datasets = await api.listDatasets()
+    for (const d of datasets) {
+      const report = await api.getDatasetReport(d.id)
+      expect(report.candidates.classified_object_count).toBe(0)
+
+      const classification = report.readiness.find(
+        (c) => c.capability === 'object_classification',
+      )!
+      expect(classification.readiness).toBe('blocked')
+    }
+  })
+
+  liveIt('blocks 3D reconstruction for every dataset, with a reason', async () => {
+    const datasets = await api.listDatasets()
+    for (const d of datasets) {
+      const report = await api.getDatasetReport(d.id)
+      const reconstruction = report.readiness.find(
+        (c) => c.capability === 'reconstruction_3d',
+      )!
+      expect(reconstruction.readiness).toBe('blocked')
+      expect(reconstruction.reason.length).toBeGreaterThan(0)
+      expect(reconstruction.missing.length).toBeGreaterThan(0)
+    }
+  })
+
+  liveIt('reports no survey extent where no record carries a position', async () => {
+    const datasets = await api.listDatasets()
+    for (const d of datasets) {
+      const report = await api.getDatasetReport(d.id)
+      if (report.spatial.horizontal.positioned_record_count === 0) {
+        // The (0, 0) placeholder failure, guarded at the report level.
+        expect(report.spatial.geometry.bounds).toBeNull()
+        expect(report.spatial.geometry.lat_span_m).toBeNull()
+      }
+    }
+  })
+})

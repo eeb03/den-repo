@@ -30,6 +30,7 @@ import type {
   BenchmarkRun,
   Composition,
   DatasetInfo,
+  DatasetReport,
   DatasetSummary,
   FrameProvenanceResponse,
   LabelsResponse,
@@ -141,6 +142,22 @@ export const api = {
    */
   getDatasetInfo(id: string): Promise<DatasetInfo> {
     return request(`/api/datasets/${encodeURIComponent(id)}/info`)
+  },
+
+  /**
+   * The Dataset Report: identity, volume, spatial reference, processing,
+   * quality, candidates and downstream readiness, in one call.
+   *
+   * Deliberately ONE call. The alternative — assembling it in the browser
+   * from `/info`, `/provenance/{id}/frames` and `/labels/{id}` — would put
+   * the readiness judgement in the client, where it cannot be tested and
+   * where the next consumer would reimplement it slightly differently.
+   *
+   * Unlike `/info`, this does NOT 404 on a dataset with no records: "this
+   * produced nothing" is one of the most useful things a report can say.
+   */
+  getDatasetReport(id: string): Promise<DatasetReport> {
+    return request(`/api/datasets/${encodeURIComponent(id)}/report`)
   },
 
   /* ------------------------- objects and labels ------------------------- */

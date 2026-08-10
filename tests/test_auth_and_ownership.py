@@ -264,6 +264,7 @@ def test_each_user_lists_only_their_own_datasets_plus_system_data(two_users):
 ID_ROUTES = [
     "/api/datasets/{id}",
     "/api/datasets/{id}/info",
+    "/api/datasets/{id}/report",
     "/api/datasets/{id}/points",
     "/api/datasets/{id}/depths",
     "/api/datasets/{id}/grid",

@@ -1131,6 +1131,35 @@ def get_dataset_info(dataset_id: str, db: Session = Depends(get_db),
     }
 
 
+@router.get("/{dataset_id}/report")
+def get_dataset_report(dataset_id: str, db: Session = Depends(get_db),
+    _dataset=Depends(require_dataset_access)):
+    """
+    The Dataset Report: what this dataset is, what happened to it, how far it
+    can be trusted, and what Subterra may legitimately do with it next.
+
+    ONE CALL, ONE DOMAIN VALUE. The report deliberately does not leave the
+    client to assemble this from `/info`, `/provenance/{id}/frames`,
+    `/labels/{id}` and a view resolution -- four calls whose answers could
+    disagree, and whose combination would put the readiness judgement in the
+    browser where it cannot be tested or reused. Stage 8's spatial workflow
+    and stage 17's reconstruction need the same assessment, and will call
+    `api.reports.build_dataset_report` rather than this route.
+
+    UNLIKE `/info`, A DATASET WITH NO RECORDS IS NOT A 404. "This dataset
+    produced nothing" is one of the most important things a report can say,
+    and answering 404 would make an empty dataset indistinguishable from a
+    missing one.
+    """
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    from api.reports import build_dataset_report
+
+    return build_dataset_report(dataset).model_dump(mode="json")
+
+
 @router.get("/")
 def list_datasets(
     sensor_type: Optional[str] = None,

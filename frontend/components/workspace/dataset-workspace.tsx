@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { AppHeader } from '@/components/shell/app-header'
 import {
   Panel,
@@ -75,6 +76,20 @@ export function DatasetWorkspace({ datasetId }: { datasetId: string }) {
           <PanelHeader title="Dataset" />
           <PanelBody className="pt-0">
             <DatasetSummaryPane datasetId={datasetId} />
+
+            {/*
+              The report answers what this workspace cannot: how far the
+              dataset can be trusted and what Subterra may legitimately do
+              with it. Linked rather than embedded -- it is a page-length
+              answer, and burying it in a sidebar is how a limitation goes
+              unread.
+            */}
+            <Link
+              href={`/datasets/${encodeURIComponent(datasetId)}/report`}
+              className="mt-3 inline-flex text-xs text-primary underline-offset-4 hover:underline"
+            >
+              View dataset report
+            </Link>
 
             <SectionLabel count={layers.data?.layer_count}>Layers</SectionLabel>
             <QueryState

@@ -28,7 +28,27 @@ Last verified against `0daa3e7` on 2026-08-08.
 | Browser verification | ✅ Complete (first pass) | `browser-verification.md` — 11 routes, all 6 datasets, 0 page errors, 0 failed requests |
 | Detection improvement | ⏳ Open — one candidate tried and **rejected** | `detector-multiscale-experiment.md` |
 | Author / evidence requests | 🟡 Open | outstanding queries to dataset publishers |
-| Production-ready platform | ⏳ Later | no auth, no encryption, no dataset signing |
+| Authentication and ownership | ✅ Complete | `docs/authentication.md`; sessions, PBKDF2, dataset ownership, login limiting, password reset with Resend delivery |
+| Dataset reports | ✅ Complete | `docs/dataset-report.md`; `GET /api/datasets/{id}/report`, eight capability assessments per dataset |
+| Production-ready platform | ⏳ Later | no encryption at rest, no dataset signing |
+
+## The product sequence
+
+The work-area table above records what exists. The **development sequence** is
+separate and is reproduced here because it previously lived nowhere in the
+repository:
+
+1–5 product shell, upload/import, ownership/auth, password recovery, email
+delivery — **complete**. 6 dataset reports — **complete**. Then: 7 dataset
+management, 8 spatial reference workflow, 9 FileDrop acquisition, 10 device
+abstraction, 11 acquisition sessions, 12 hardware adapter, 13 candidate
+intelligence, 14 ground-truth benchmarks, 15 validated object detection,
+16 multi-modal fusion, 17 3D reconstruction, 18 interactive underground model,
+19 real-time scanning, 20 non-expert interpretation.
+
+Stages 17–18 depend on 8 far more than on 13–16, and stage 8 is blocked by
+evidence rather than effort. `docs/dataset-report.md` carries the measured
+dependency report.
 
 ## Where detection actually stands
 

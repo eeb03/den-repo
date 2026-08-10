@@ -37,6 +37,14 @@ export function useDatasetInfo(datasetId: string | undefined) {
   )
 }
 
+export function useDatasetReport(datasetId: string | undefined) {
+  return useSWR(
+    datasetId ? ['dataset-report', datasetId] : null,
+    () => api.getDatasetReport(datasetId as string),
+    options,
+  )
+}
+
 export function useObjects(datasetId: string | undefined) {
   return useSWR(
     datasetId ? ['objects', datasetId] : null,
