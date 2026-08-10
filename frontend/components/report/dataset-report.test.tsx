@@ -381,3 +381,25 @@ describe('the component computes nothing', () => {
     }
   })
 })
+
+describe('recomputing a stale score', () => {
+  it('offers the action only when the score is stale', async () => {
+    const fresh = await renderReport()
+    expect(fresh.container.querySelector('[data-action="rescore"]')).toBeNull()
+
+    const stale = report()
+    stale.quality = { ...stale.quality, stored_score: 0.3, computed_score: 0.8, score_is_stale: true }
+    const { container } = await renderReport(stale)
+    expect(container.querySelector('[data-action="rescore"]')).toBeTruthy()
+  })
+
+  it('says it is not reprocessing', async () => {
+    const stale = report()
+    stale.quality = { ...stale.quality, stored_score: 0.3, computed_score: 0.8, score_is_stale: true }
+    const { container } = await renderReport(stale)
+    const text = container.textContent ?? ''
+    // The distinction that makes this safe to offer as a button at all.
+    expect(text).toContain('Only the derived score is recomputed')
+    expect(text).toContain('this is not reprocessing')
+  })
+})

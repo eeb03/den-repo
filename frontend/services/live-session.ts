@@ -54,6 +54,15 @@ export async function signInForLiveTests(apiBase: string): Promise<boolean> {
     // First run against this database: create the account, which also signs in.
     response = await post(apiBase, '/api/auth/register')
   }
+  if (!response.ok) {
+    // THE RACE. Vitest runs test FILES in parallel, and both integration suites
+    // sign in at once. On a fresh database both find no account, both register,
+    // and the loser gets 409 -- which used to make that whole suite skip itself
+    // while the other passed, so the run stayed green with half the coverage
+    // silently missing. That is the exact failure mode this file exists to fix,
+    // reappearing one level up. The account now exists, so log in.
+    response = await post(apiBase, '/api/auth/login')
+  }
   if (!response.ok) return false
 
   const cookie = cookieFrom(response)

@@ -1,13 +1,14 @@
 import math
 import random
 import shutil
+from datetime import datetime
 from pathlib import Path
 from typing import Callable, Optional
 
 import numpy as np
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from database.session import get_db
@@ -24,6 +25,7 @@ from ingestion.downloader import download_file, DownloadError
 from converters.registry import supported_extensions
 from preprocessing.dem_alignment import align_records_with_dem
 from configs.settings import settings
+from api import dataset_lifecycle as lifecycle
 from jobs import storage
 from utils.logger import get_logger
 from auth.dependencies import (
@@ -1184,7 +1186,37 @@ def list_datasets(
     if has_ground_truth is not None:
         query = query.filter(Dataset.has_ground_truth == has_ground_truth)
     results = query.all()
-    return [_dataset_to_dict(d) for d in results]
+
+    # Status needs the originating import job, and duplicate awareness needs
+    # every checksum in the result. Both are computed ONCE for the whole list:
+    # a per-row query here is how a dataset list becomes slow enough to need
+    # pagination for the wrong reason.
+    #
+    # Readiness is deliberately NOT included. Assessing it means loading a
+    # dataset's records -- 157,040 for one of these -- and doing that per row
+    # would make listing cost more than opening. The list says what a dataset
+    # IS and links to the report, which says what can be done with it.
+    jobs = lifecycle.latest_jobs_by_dataset(db, [d.id for d in results])
+    duplicates = lifecycle.duplicate_groups(results)
+    checksum_of_group = {
+        dataset_id: checksum
+        for checksum, ids in duplicates.items() for dataset_id in ids
+    }
+
+    out = []
+    for d in results:
+        row = _dataset_to_dict(d)
+        status = lifecycle.status_for(d, jobs.get(d.id))
+        row["status"] = status.value
+        row["status_reason"] = status.reason
+        row["job_state"] = status.job_state
+        row["job_id"] = status.job_id
+        checksum = checksum_of_group.get(d.id)
+        row["shares_source_with"] = (
+            [i for i in duplicates[checksum] if i != d.id] if checksum else []
+        )
+        out.append(row)
+    return out
 
 
 @router.get("/{dataset_id}")
@@ -1196,15 +1228,131 @@ def get_dataset(dataset_id: str, db: Session = Depends(get_db),
     return _dataset_to_dict(dataset)
 
 
+class RenameDatasetRequest(BaseModel):
+    name: str = Field(..., max_length=lifecycle.MAX_NAME_LENGTH + 1)
+
+
+@router.patch("/{dataset_id}")
+def rename_dataset(dataset_id: str, body: RenameDatasetRequest,
+    db: Session = Depends(get_db), dataset=Depends(require_owned_dataset)):
+    """
+    Change a dataset's human-facing name. Nothing else moves.
+
+    THE ID IS NOT THE NAME. Every record, frame, label and artifact is keyed on
+    the immutable dataset id, so a rename touches exactly one column. The raw
+    source path, the checksum, the frames' `source_file` and every provenance
+    entry are untouched -- which is what keeps "what the user calls it" and
+    "what the file was" two separate facts. A test asserts the report's
+    provenance is byte-identical across a rename.
+
+    Names are not unique. Two datasets in this corpus are already both called
+    "INGV-UNISA Site 1 GPR v3", and they are genuinely different ingestion
+    events; enforcing uniqueness would either reject that or mangle it.
+    """
+    try:
+        name = lifecycle.clean_dataset_name(body.name)
+    except lifecycle.InvalidDatasetName as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    dataset.name = name
+    dataset.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(dataset)
+    logger.info("renamed dataset %s", dataset_id)
+    return _dataset_to_dict(dataset)
+
+
+@router.post("/{dataset_id}/rescore")
+def rescore_dataset(dataset_id: str, db: Session = Depends(get_db),
+    dataset=Depends(require_owned_dataset)):
+    """
+    Recompute the stored quality score from the records as they are now.
+
+    THIS IS NOT `reprocess`, AND THE DIFFERENCE MATTERS. `POST /reprocess` runs
+    the preprocessing pipeline and SAVES THE RESULT BACK -- dewow, gain,
+    normalisation; it changes the science. Using it to correct a stale score
+    would silently alter the measurements to fix a number about them.
+
+    This endpoint reads the records, runs the existing validator, and writes one
+    derived scalar plus its issue list. It is deterministic, it touches no
+    record, frame, label or raw file, and running it twice changes nothing the
+    first run did not. That is what makes it safe to offer as a button.
+
+    It exists because the report can already detect that a stored score no
+    longer matches the data (`score_is_stale`) -- two of the six datasets held
+    were scored before `NoPosition` replaced the `(0, 0)` placeholder, and were
+    being penalised for coordinates their format never had.
+    """
+    records = load_records(dataset_id)
+    if not records:
+        raise HTTPException(
+            status_code=400,
+            detail="this dataset has no stored records, so there is nothing to score")
+
+    before = dataset.quality_score
+    report = validate_dataset(records, dataset_id=dataset_id)
+    dataset.quality_score = report.quality_score
+    dataset.extra_metadata = {
+        **(dataset.extra_metadata or {}),
+        "validation_issues": report.issues,
+    }
+    dataset.updated_at = datetime.utcnow()
+    db.commit()
+
+    return {
+        "dataset_id": dataset_id,
+        "previous_quality_score": before,
+        "quality_score": report.quality_score,
+        "record_count": len(records),
+        "issues": report.issues,
+        "note": ("only the derived score was recomputed; no record, frame, label "
+                 "or source file was modified"),
+    }
+
+
 @router.delete("/{dataset_id}")
 def delete_dataset(dataset_id: str, db: Session = Depends(get_db),
-    _dataset=Depends(require_owned_dataset)):
-    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
-    if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset not found")
-    db.delete(dataset)
-    db.commit()
-    return {"deleted": dataset_id}
+    dataset=Depends(require_owned_dataset)):
+    """
+    Delete a dataset and the data derived from it.
+
+    The policy is in `api/dataset_lifecycle.py` and comes down to one line:
+    DERIVED DATA IS REMOVED, SOURCE DATA AND EVENT LOGS ARE RETAINED. The raw
+    file survives because it is the bottom of the evidence chain, cannot be
+    regenerated, and is demonstrably shared between datasets in this corpus. The
+    import job survives because an import happened and deleting the record would
+    make the history lie by omission.
+
+    A dataset with an import in flight is REFUSED rather than deleted: removing
+    the artifacts a running job is writing would race it, and the job would
+    finish by recreating some of them.
+
+    The response enumerates what went and what stayed. "deleted: true" is not an
+    adequate answer for an irreversible operation over scientific data.
+    """
+    active = lifecycle.active_job_for(db, dataset_id)
+    if active is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=(f"an import for this dataset is {active.state.lower()}; "
+                    "wait for it to finish before deleting"))
+
+    plan = lifecycle.delete_dataset_completely(db, dataset)
+    return {
+        "deleted": dataset_id,
+        "removed": {
+            "artifacts": plan.artifacts,
+            "fusion_samples": len(plan.fusion_sample_ids),
+            "versions": plan.version_count,
+        },
+        "retained": {
+            "raw_source": plan.retained_raw_path,
+            "import_jobs": len(plan.retained_job_ids),
+            "why": ("the raw source is the original measurement, cannot be regenerated, "
+                    "and may be shared with other datasets; the import job records an "
+                    "event that happened"),
+        },
+    }
 
 
 def _dataset_to_dict(d: Dataset) -> dict:
@@ -1221,5 +1369,15 @@ def _dataset_to_dict(d: Dataset) -> dict:
         "center_lon": d.center_lon,
         "version": d.version,
         "created_at": d.created_at.isoformat() if d.created_at else None,
+        # Added for dataset management. `source_file` is the ORIGINAL file this
+        # came from and is kept distinct from `name`, which the user may change:
+        # renaming a dataset must not rewrite what the file was.
+        "source_file": Path(d.raw_path).name if d.raw_path else None,
+        "updated_at": d.updated_at.isoformat() if d.updated_at else None,
+        "checksum": d.checksum,
+        # NULL owner means the published reference corpora, which are readable
+        # by everyone and writable by nobody. The UI needs this to know that
+        # rename and delete will be refused.
+        "is_system_dataset": d.owner_id is None,
     }
 

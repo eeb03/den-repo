@@ -32,10 +32,12 @@ import type {
   DatasetInfo,
   DatasetReport,
   DatasetSummary,
+  DeletionResult,
   FrameProvenanceResponse,
   LabelsResponse,
   LayersResponse,
   ObjectsResponse,
+  RescoreResult,
   Selection,
   SelectionResolution,
   TraceGrid,
@@ -134,6 +136,43 @@ export const api = {
 
   getDataset(id: string): Promise<DatasetSummary> {
     return request(`/api/datasets/${encodeURIComponent(id)}`)
+  },
+
+  /* -------------------------- dataset management ------------------------- */
+
+  /**
+   * Change a dataset's human-facing name. The id, the source file, the
+   * checksum and every provenance entry are untouched by construction — the
+   * backend writes one column.
+   */
+  renameDataset(id: string, name: string): Promise<DatasetSummary> {
+    return request(`/api/datasets/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+  },
+
+  /**
+   * Delete a dataset and the data derived from it.
+   *
+   * The raw source file and the import job survive: the first is the original
+   * measurement and cannot be regenerated, the second records an event that
+   * happened. The response enumerates both, and the UI shows it — "deleted"
+   * alone is not an adequate answer for an irreversible operation.
+   */
+  deleteDataset(id: string): Promise<DeletionResult> {
+    return request(`/api/datasets/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  },
+
+  /**
+   * Recompute the stored quality score from the records as they are now.
+   *
+   * NOT `reprocess`, which runs the preprocessing pipeline and saves the result
+   * back. This reads, validates, and writes one derived scalar.
+   */
+  rescoreDataset(id: string): Promise<RescoreResult> {
+    return postJson(`/api/datasets/${encodeURIComponent(id)}/rescore`, {})
   },
 
   /**

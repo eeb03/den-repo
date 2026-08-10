@@ -7,6 +7,7 @@ import { useDatasetReport } from '@/hooks/use-subterra'
 import { NO_VALUE, formatCount, formatDateTime, formatPercent } from '@/lib/format'
 import type { DatasetReport as Report } from '@/types/subterra'
 import { CapabilityRow } from './readiness'
+import { RescoreAction } from './rescore'
 
 /**
  * The Dataset Report.
@@ -326,11 +327,13 @@ function QualitySection({ report }: { report: Report }) {
       </dl>
 
       {q.score_is_stale && (
-        <p data-stale-score className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          The stored score ({formatPercent(q.stored_score)}) does not match a fresh
-          computation ({formatPercent(q.computed_score)}). The dataset changed after it
-          was last scored.
-        </p>
+        <div data-stale-score>
+          <RescoreAction
+            datasetId={report.identity.dataset_id}
+            storedScore={q.stored_score}
+            computedScore={q.computed_score}
+          />
+        </div>
       )}
 
       <div className="mt-3 space-y-2.5">

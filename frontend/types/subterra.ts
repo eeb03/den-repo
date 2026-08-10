@@ -233,6 +233,50 @@ export interface DatasetSummary {
   center_lon: number | null
   version: number | null
   created_at: string | null
+  updated_at: string | null
+
+  /* --------------------------- dataset management -------------------------- */
+
+  /**
+   * The ORIGINAL file this came from, kept distinct from `name`.
+   *
+   * Renaming a dataset changes what the user calls it and nothing about what
+   * the file was. Collapsing the two would lose the provenance the moment
+   * somebody tidied a list.
+   */
+  source_file: string | null
+  checksum: string | null
+  /** NULL owner: published reference data, readable by all and writable by none. */
+  is_system_dataset: boolean
+  /** importing | ready | empty | failed — derived, never stored. */
+  status: 'importing' | 'ready' | 'empty' | 'failed'
+  status_reason: string
+  /** The originating import job's own state, carried through unrenamed. */
+  job_state: string | null
+  job_id: string | null
+  /**
+   * Other datasets ingested from the same source bytes.
+   *
+   * Detection only. Identical bytes are not the same dataset: the four INGV
+   * entries in this corpus share a checksum and are four different ingestion
+   * events under different converter behaviour.
+   */
+  shares_source_with: string[]
+}
+
+export interface DeletionResult {
+  deleted: string
+  removed: { artifacts: string[]; fusion_samples: number; versions: number }
+  retained: { raw_source: string | null; import_jobs: number; why: string }
+}
+
+export interface RescoreResult {
+  dataset_id: string
+  previous_quality_score: number | null
+  quality_score: number
+  record_count: number
+  issues: string[]
+  note: string
 }
 
 export interface SpatialRefSummary {

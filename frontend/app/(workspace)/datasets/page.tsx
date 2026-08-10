@@ -7,6 +7,8 @@ import { Panel, PanelBody, PanelHeader } from '@/components/subterra/panel'
 import { QueryState } from '@/components/subterra/query-state'
 import { StateBox } from '@/components/subterra/state-box'
 import { GroundTruthStatus } from '@/components/subterra/data-status'
+import { DatasetActions } from '@/components/datasets/dataset-actions'
+import { DatasetStatusBadge } from '@/components/datasets/dataset-status'
 import { useDatasets } from '@/hooks/use-subterra'
 import { NO_VALUE, formatCount, formatDateTime, formatPercent } from '@/lib/format'
 import type { DatasetSummary } from '@/types/subterra'
@@ -36,7 +38,7 @@ export default function DatasetsPage() {
                 <StateBox
                   kind="empty"
                   title="No datasets ingested"
-                  detail="Nothing has been ingested into this registry yet. Ingest a dataset through /api/datasets/ingest to see it here."
+                  detail="Nothing has been ingested into this registry yet. Import one to see it here."
                 />
               )}
               {data && data.length > 0 && (
@@ -56,57 +58,122 @@ export default function DatasetsPage() {
 
 function DatasetRow({ dataset }: { dataset: DatasetSummary }) {
   return (
-    <li>
-      <Link
-        href={`/datasets/${encodeURIComponent(dataset.id)}`}
-        className="group block rounded-lg border border-border px-3.5 py-3 transition-colors hover:border-primary/40 hover:bg-muted/40"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-baseline gap-2">
-              <Database
-                className="size-3.5 shrink-0 translate-y-0.5 text-muted-foreground"
-                aria-hidden
-              />
-              <span className="font-medium text-foreground">{dataset.name}</span>
-              {dataset.sensor_type && (
-                <span className="rounded border border-border px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                  {dataset.sensor_type}
-                </span>
-              )}
-            </div>
-            <code className="mt-1 block truncate font-mono text-[11px] text-muted-foreground">
-              {dataset.id}
-            </code>
+    <li
+      data-dataset-row={dataset.id}
+      className="rounded-lg border border-border px-3.5 py-3 transition-colors hover:border-primary/40"
+    >
+      {/*
+        The row is no longer one large link. Rename and delete are buttons, and
+        an interactive control cannot live inside another one -- so the title
+        links and the actions sit beside it.
+      */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <Database
+              className="size-3.5 shrink-0 translate-y-0.5 text-muted-foreground"
+              aria-hidden
+            />
+            <Link
+              href={`/datasets/${encodeURIComponent(dataset.id)}`}
+              className="font-medium text-foreground underline-offset-4 hover:underline"
+            >
+              {dataset.name}
+            </Link>
+            {dataset.sensor_type && (
+              <span className="rounded border border-border px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                {dataset.sensor_type}
+              </span>
+            )}
+            {dataset.original_format && (
+              <span className="rounded border border-border px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                {dataset.original_format}
+              </span>
+            )}
           </div>
-          <ArrowRight
-            className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
-            aria-hidden
-          />
+          {/*
+            The ID and the source file are both shown. Two datasets in this
+            corpus share a name, so the name alone does not identify one -- and
+            the source file is what the name is NOT, which matters the moment
+            somebody renames a dataset.
+          */}
+          <code className="mt-1 block truncate font-mono text-[11px] text-muted-foreground">
+            {dataset.id}
+          </code>
+          {dataset.source_file && (
+            <code
+              data-source-file
+              className="mt-0.5 block truncate font-mono text-[11px] text-muted-foreground"
+            >
+              from {dataset.source_file}
+            </code>
+          )}
         </div>
+        <DatasetStatusBadge dataset={dataset} />
+      </div>
 
-        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
-          <Stat label="Records" value={formatCount(dataset.record_count)} />
-          <Stat
-            label="Quality"
-            value={
-              dataset.quality_score === null
-                ? NO_VALUE
-                : formatPercent(dataset.quality_score)
-            }
-          />
-          <Stat label="Source" value={dataset.source ?? NO_VALUE} />
-          <Stat label="Ingested" value={formatDateTime(dataset.created_at)} />
-        </dl>
+      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
+        <Stat label="Records" value={formatCount(dataset.record_count)} />
+        <Stat
+          label="Quality"
+          value={
+            dataset.quality_score === null
+              ? NO_VALUE
+              : formatPercent(dataset.quality_score)
+          }
+        />
+        <Stat label="Ingested" value={formatDateTime(dataset.created_at)} />
+        <Stat label="Updated" value={formatDateTime(dataset.updated_at)} />
+      </dl>
 
-        <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-          <GroundTruthStatus hasGroundTruth={dataset.has_ground_truth} />
-          <CentreStatus dataset={dataset} />
-        </div>
-      </Link>
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <GroundTruthStatus hasGroundTruth={dataset.has_ground_truth} />
+        <CentreStatus dataset={dataset} />
+      </div>
+
+      {/*
+        Detection only. Identical source bytes are not the same dataset -- these
+        are separate ingestion events, often under different converter
+        behaviour -- so this states the relationship and offers no merge.
+      */}
+      {dataset.shares_source_with.length > 0 && (
+        <p data-shares-source className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          Ingested from the same source file as {dataset.shares_source_with.length} other
+          dataset{dataset.shares_source_with.length === 1 ? '' : 's'}. Separate ingestion
+          events are kept separate; they may differ in how they were converted.
+        </p>
+      )}
+
+      <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+        {dataset.status_reason}
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+        <Link
+          href={`/datasets/${encodeURIComponent(dataset.id)}/report`}
+          className="text-xs text-primary underline-offset-4 hover:underline"
+        >
+          Open report
+        </Link>
+        <span aria-hidden className="text-muted-foreground">
+          &middot;
+        </span>
+        <Link
+          href={`/datasets/${encodeURIComponent(dataset.id)}`}
+          className="inline-flex items-center gap-1 text-xs text-primary underline-offset-4 hover:underline"
+        >
+          Open workspace
+          <ArrowRight className="size-3" aria-hidden />
+        </Link>
+      </div>
+
+      <div className="mt-3">
+        <DatasetActions dataset={dataset} />
+      </div>
     </li>
   )
 }
+
 
 /**
  * The dataset's geographic centre, or a statement that it has none.
