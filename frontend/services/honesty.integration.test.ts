@@ -1,3 +1,10 @@
+// @vitest-environment node
+//
+// NOT jsdom. These are API contract tests with no DOM, and jsdom follows the
+// browser rule that `set-cookie` is a forbidden response header -- it strips it,
+// so the session cookie the sign-in needs is invisible and every dataset call
+// 401s. In a real browser the cookie jar handles this; in the test runner there
+// is none, so the header has to be readable.
 /**
  * Honesty guarantees that span the API/UI boundary.
  *
@@ -14,6 +21,7 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest'
 import { API_BASE, ApiError, api } from './api'
+import { signInForLiveTests } from './live-session'
 import { provenanceMeta } from '@/lib/provenance'
 import { asProvenanceClass } from '@/lib/provenance'
 
@@ -25,7 +33,14 @@ beforeAll(async () => {
   } catch {
     live = false
   }
-  if (!live) console.warn(`[skip] Subterra API not reachable at ${API_BASE}`)
+  if (!live) {
+    console.warn(`[skip] Subterra API not reachable at ${API_BASE}`)
+    return
+  }
+  // Dataset routes require a session. See services/live-session.ts for why
+  // this needs a shim rather than `credentials: 'include'`.
+  live = await signInForLiveTests(API_BASE)
+  if (!live) console.warn('[skip] Subterra API is up but a session could not be established')
 })
 
 const liveIt = (name: string, fn: () => Promise<void>, timeout = 30_000) =>
