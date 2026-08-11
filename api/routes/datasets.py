@@ -1343,6 +1343,7 @@ def delete_dataset(dataset_id: str, db: Session = Depends(get_db),
         "removed": {
             "artifacts": plan.artifacts,
             "fusion_samples": len(plan.fusion_sample_ids),
+            "spatial_declarations": len(plan.spatial_declaration_ids),
             "versions": plan.version_count,
         },
         "retained": {

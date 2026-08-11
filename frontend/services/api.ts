@@ -32,6 +32,7 @@ import type {
   DatasetInfo,
   DatasetReport,
   DatasetSummary,
+  DeclarationKind,
   DeletionResult,
   FrameProvenanceResponse,
   LabelsResponse,
@@ -40,6 +41,8 @@ import type {
   RescoreResult,
   Selection,
   SelectionResolution,
+  SpatialDeclaration,
+  SpatialReference,
   TraceGrid,
 } from '@/types/subterra'
 
@@ -197,6 +200,55 @@ export const api = {
    */
   getDatasetReport(id: string): Promise<DatasetReport> {
     return request(`/api/datasets/${encodeURIComponent(id)}/report`)
+  },
+
+  /* --------------------------- spatial reference -------------------------- */
+
+  /**
+   * What spatial relationship this dataset has to the physical world.
+   *
+   * Seven dimensions, each with its state, its reason, what is missing and
+   * which declaration would resolve it. An unresolved dimension is a correct
+   * answer, not a gap to be filled by the client.
+   */
+  getSpatialReference(datasetId: string): Promise<SpatialReference> {
+    return request(`/api/spatial/${encodeURIComponent(datasetId)}`)
+  },
+
+  /** Every claim ever made, superseded ones included. */
+  listSpatialDeclarations(
+    datasetId: string,
+  ): Promise<{ dataset_id: string; count: number; declarations: SpatialDeclaration[] }> {
+    return request(`/api/spatial/${encodeURIComponent(datasetId)}/declarations`)
+  },
+
+  /**
+   * Assert something about how this dataset relates to the world.
+   *
+   * `suppliedBy` names the AUTHORITY — a surveyor, a document, an operator —
+   * and is distinct from the signed-in account, which the backend records
+   * separately: the person typing may be relaying somebody else's measurement.
+   *
+   * Returns the recalculated spatial reference, so inspect → resolve →
+   * recalculate is one round trip rather than three.
+   */
+  declareSpatialReference(
+    datasetId: string,
+    kind: DeclarationKind,
+    value: Record<string, unknown>,
+    suppliedBy: string,
+    note?: string,
+  ): Promise<{
+    declaration: SpatialDeclaration
+    applied: { frames_changed: string[] }
+    spatial_reference: SpatialReference
+  }> {
+    return postJson(`/api/spatial/${encodeURIComponent(datasetId)}/declarations`, {
+      kind,
+      value,
+      supplied_by: suppliedBy,
+      note,
+    })
   },
 
   /* ------------------------- objects and labels ------------------------- */

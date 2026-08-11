@@ -11,7 +11,7 @@ from auth.mailer import configure_from_environment
 from jobs.runner import mark_orphaned_jobs_failed
 from api.routes import (datasets, fusion, benchmark, sources, training,
                         provenance, labels, overlays, objects, views,
-                        exports, imports, auth)
+                        exports, imports, auth, spatial)
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -77,6 +77,7 @@ app.include_router(sources.router, prefix="/api/sources", tags=["sources"])
 app.include_router(training.router, prefix="/api/training", tags=["training"])
 app.include_router(imports.router, prefix="/api/imports", tags=["imports"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(spatial.router, prefix="/api/spatial", tags=["spatial"])
 
 
 @app.get("/api/health", tags=["system"])

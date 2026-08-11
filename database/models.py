@@ -278,6 +278,75 @@ class DatasetVersion(Base):
     dataset = relationship("Dataset", back_populates="versions")
 
 
+class SpatialDeclaration(Base):
+    """
+    One asserted spatial relationship between a dataset and the physical world.
+
+    WHY THIS IS A TABLE AND NOT A FIELD ON THE FRAME. A CRS, a vertical datum, a
+    velocity or a tie is not simply a value -- it is a CLAIM somebody made, on
+    some authority, at some time, which a later claim may supersede. Writing the
+    value onto the frame and nothing else would lose who said it and what it
+    replaced, and those are exactly the questions asked when a reconstruction
+    turns out to be in the wrong place. The frame still carries the value, so
+    every existing consumer keeps working; this carries the claim.
+
+    APPEND-ONLY. A declaration is never edited or deleted: a correction is a new
+    row that supersedes the old one. `superseded_at`/`superseded_by` make the
+    history readable, and the audit trail survives the correction -- which is
+    the whole reason a scientific platform records provenance rather than state.
+
+    WHAT IT IS NOT. It is not a second provenance system: `value` carries the
+    existing vocabulary (`CRSProvenance`, `Assumption`, `GeoTie`), and
+    `schemas/provenance.py` remains the single projection consumers read. It is
+    not a second versioning system either -- it records what changed and when,
+    so downstream products computed before a change can be identified as stale.
+    """
+    __tablename__ = "spatial_declarations"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    dataset_id = Column(String, ForeignKey("datasets.id"), nullable=False, index=True)
+    #: NULL means "every frame in the dataset". A survey line's CRS is usually a
+    #: property of the whole acquisition, but a tie is emphatically not.
+    frame_id = Column(String, nullable=True, index=True)
+
+    #: crs | vertical_datum | antenna_offset | depth_conversion | geo_tie |
+    #: surface_reference. See schemas/spatial_reference.py::DeclarationKind.
+    kind = Column(String, nullable=False, index=True)
+    #: The declaration's payload, in the kind's own shape.
+    value = Column(JSON, nullable=False, default=dict)
+
+    #: WHO ASSERTED THIS, in their own words -- "site survey 2019-03-20",
+    #: "PDOK documentation for AHN". Required: a spatial claim with no
+    #: attribution is indistinguishable from a guess, which is the failure this
+    #: whole table exists to prevent.
+    supplied_by = Column(String, nullable=False)
+    note = Column(Text, nullable=True)
+
+    #: The account that made the declaration, from the session -- never from the
+    #: request body. Distinct from `supplied_by`, which names the AUTHORITY: the
+    #: person typing may be relaying a surveyor's measurement.
+    declared_by_user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    superseded_at = Column(DateTime, nullable=True)
+    superseded_by = Column(String, nullable=True)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "dataset_id": self.dataset_id,
+            "frame_id": self.frame_id,
+            "kind": self.kind,
+            "value": self.value,
+            "supplied_by": self.supplied_by,
+            "note": self.note,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "superseded_at": self.superseded_at.isoformat() if self.superseded_at else None,
+            "superseded_by": self.superseded_by,
+            "active": self.superseded_at is None,
+        }
+
+
 class FusionSample(Base):
     """
     A multimodal fusion sample: multiple datasets matched to one location.

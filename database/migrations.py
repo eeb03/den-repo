@@ -161,6 +161,24 @@ def _password_reset_tokens(engine: Engine) -> None:
     logger.info("migration 003: created password_reset_tokens")
 
 
+def _spatial_declarations(engine: Engine) -> None:
+    """
+    004 — the spatial declaration log.
+
+    A NEW table, additive like every migration here. It records CLAIMS about how
+    a dataset relates to the physical world; nothing in it rewrites a
+    measurement, and an existing database that never receives a declaration
+    behaves exactly as before.
+    """
+    if _has_table(engine, "spatial_declarations"):
+        return
+
+    from database.models import SpatialDeclaration
+
+    SpatialDeclaration.__table__.create(bind=engine, checkfirst=True)
+    logger.info("migration 004: created spatial_declarations")
+
+
 MIGRATIONS: list[Migration] = [
     Migration(
         id="001_dataset_owner_id",
@@ -176,6 +194,11 @@ MIGRATIONS: list[Migration] = [
         id="003_password_reset_tokens",
         description="create password_reset_tokens (hashed, expiring, single-use)",
         apply=_password_reset_tokens,
+    ),
+    Migration(
+        id="004_spatial_declarations",
+        description="create spatial_declarations (append-only spatial reference claims)",
+        apply=_spatial_declarations,
     ),
 ]
 

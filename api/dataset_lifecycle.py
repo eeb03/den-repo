@@ -15,7 +15,8 @@ same way. So the policy is explicit, and it follows one line:
     DERIVED DATA IS REMOVED. SOURCE DATA AND EVENT LOGS ARE RETAINED.
 
   removed   the dataset row and its versions; records, frames, labels,
-            associations and objects; fusion samples that included it
+            associations and objects; fusion samples that included it; the
+            spatial declarations made about it
   retained  the raw source file, and the import job that created it
 
 THE RAW FILE IS NEVER DELETED, and this is the most important decision here. It
@@ -36,8 +37,22 @@ omission.
 FUSION SAMPLES ARE REMOVED, because they are derived: a fusion sample is the
 output of a computation over datasets, recomputable from whatever remains, and a
 sample that silently references a dataset nobody can open is worse than no
-sample. This is the one place the policy destroys something, and it destroys
-only a cached result.
+sample.
+
+SPATIAL DECLARATIONS ARE REMOVED for a different reason: they are claims ABOUT
+this dataset ("its vertical datum is NAP") and describe nothing once it is gone,
+unlike an import job, which records an event that really happened. They also
+carry a foreign key to `datasets.id`, so retaining them is not merely
+undesirable -- it makes the delete fail.
+
+ROW FIRST, FILES SECOND. The two failure modes are not symmetric. If the files
+go and the row survives, the dataset is still listed and still openable while
+everything it consists of has silently vanished -- which is what happened during
+Stage 8 browser verification when the new declaration table's foreign key made
+the row delete fail after the artifacts were already unlinked. If the row goes
+and a file survives, the result is an orphan: recoverable, reportable by
+`scripts/find_orphaned_artifacts.py`, and visible. So the database commits
+first, and the files are removed after.
 """
 from __future__ import annotations
 
@@ -46,7 +61,8 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 from configs.settings import settings
-from database.models import Dataset, DatasetVersion, FusionSample, ImportJob
+from database.models import (
+    Dataset, DatasetVersion, FusionSample, ImportJob, SpatialDeclaration)
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -239,6 +255,7 @@ class DeletionPlan:
     dataset_id: str
     artifacts: list[str] = field(default_factory=list)
     fusion_sample_ids: list[str] = field(default_factory=list)
+    spatial_declaration_ids: list[str] = field(default_factory=list)
     version_count: int = 0
     retained_raw_path: Optional[str] = None
     retained_job_ids: list[str] = field(default_factory=list)
@@ -261,6 +278,8 @@ def plan_deletion(db, dataset: Dataset) -> DeletionPlan:
         if dataset_id in (s.dataset_ids or [])
     ]
     jobs = db.query(ImportJob).filter(ImportJob.dataset_id == dataset_id).all()
+    declarations = db.query(SpatialDeclaration).filter(
+        SpatialDeclaration.dataset_id == dataset_id).all()
     versions = db.query(DatasetVersion).filter(
         DatasetVersion.dataset_id == dataset_id).count()
 
@@ -268,6 +287,7 @@ def plan_deletion(db, dataset: Dataset) -> DeletionPlan:
         dataset_id=dataset_id,
         artifacts=[p.name for p in artifact_paths(dataset_id)],
         fusion_sample_ids=[s.id for s in samples],
+        spatial_declaration_ids=[d.id for d in declarations],
         version_count=versions,
         retained_raw_path=getattr(dataset, "raw_path", None),
         retained_job_ids=[j.id for j in jobs],
@@ -278,27 +298,31 @@ def delete_dataset_completely(db, dataset: Dataset) -> DeletionPlan:
     """
     Apply the policy. Returns what was actually done.
 
-    ORDER: derived artifacts first, then the row. A crash between the two leaves
-    a dataset whose files are gone -- which the report already renders honestly
-    as "0 records" -- rather than files nobody can reach, which is the state
-    this function exists to stop creating.
+    ORDER: the database first, the files second -- see the module docstring. A
+    half-deleted dataset that is still listed is invisible; an orphaned file is
+    not.
     """
     plan = plan_deletion(db, dataset)
     dataset_id = dataset.id
+
+    if plan.fusion_sample_ids:
+        db.query(FusionSample).filter(
+            FusionSample.id.in_(plan.fusion_sample_ids)).delete(synchronize_session=False)
+
+    # Claims about a dataset that no longer exists describe nothing, and their
+    # foreign key would block the delete regardless.
+    db.query(SpatialDeclaration).filter(
+        SpatialDeclaration.dataset_id == dataset_id).delete(synchronize_session=False)
+
+    # `Dataset.versions` cascades, so the versions go with the row.
+    db.delete(dataset)
+    db.commit()
 
     for path in artifact_paths(dataset_id):
         try:
             path.unlink()
         except OSError as exc:  # noqa: PERF203 -- one message per file is the point
             logger.error("could not remove artifact %s: %s", path.name, exc)
-
-    if plan.fusion_sample_ids:
-        db.query(FusionSample).filter(
-            FusionSample.id.in_(plan.fusion_sample_ids)).delete(synchronize_session=False)
-
-    # `Dataset.versions` cascades, so the versions go with the row.
-    db.delete(dataset)
-    db.commit()
 
     # The parse cache is keyed on the file's identity; the file is gone, but a
     # dataset re-created under the same id must not read the old records back.
@@ -307,10 +331,10 @@ def delete_dataset_completely(db, dataset: Dataset) -> DeletionPlan:
     clear_records_cache()
 
     logger.info(
-        "deleted dataset %s: %d artifact(s), %d fusion sample(s), %d version(s); "
-        "retained raw source and %d import job record(s)",
+        "deleted dataset %s: %d artifact(s), %d fusion sample(s), %d declaration(s), "
+        "%d version(s); retained raw source and %d import job record(s)",
         dataset_id, len(plan.artifacts), len(plan.fusion_sample_ids),
-        plan.version_count, len(plan.retained_job_ids),
+        len(plan.spatial_declaration_ids), plan.version_count, len(plan.retained_job_ids),
     )
     return plan
 

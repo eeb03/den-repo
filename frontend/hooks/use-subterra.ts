@@ -45,6 +45,14 @@ export function useDatasetReport(datasetId: string | undefined) {
   )
 }
 
+export function useSpatialReference(datasetId: string | undefined) {
+  return useSWR(
+    datasetId ? ['spatial-reference', datasetId] : null,
+    () => api.getSpatialReference(datasetId as string),
+    options,
+  )
+}
+
 export function useObjects(datasetId: string | undefined) {
   return useSWR(
     datasetId ? ['objects', datasetId] : null,

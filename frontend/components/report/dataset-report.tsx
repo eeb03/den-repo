@@ -143,6 +143,20 @@ function SpatialSection({ report }: { report: Report }) {
 
   return (
     <Section title="Spatial reference">
+      {/*
+        The report says what the spatial state IS. Changing it belongs in the
+        spatial workflow, which owns the declaration log and the per-dimension
+        actions -- duplicating those here would give two screens that could
+        disagree about the same dataset.
+      */}
+      <Link
+        href={`/datasets/${encodeURIComponent(report.identity.dataset_id)}/spatial`}
+        className="mb-3 inline-flex text-xs text-primary underline-offset-4 hover:underline"
+        data-spatial-workflow-link
+      >
+        Inspect and resolve the spatial reference
+      </Link>
+
       <SectionLabel>Horizontal</SectionLabel>
       <dl>
         <Field label="Coordinates">

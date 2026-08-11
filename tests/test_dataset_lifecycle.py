@@ -607,3 +607,58 @@ def test_rescore_refuses_a_dataset_with_no_records(env):
     session.close()
 
     assert client.post("/api/datasets/empty/rescore").status_code == 400
+
+
+def test_a_dataset_with_spatial_declarations_can_be_deleted(env):
+    """
+    Stage 8's declaration table carries a foreign key to `datasets.id`. Browser
+    verification caught what that did: the delete failed AFTER the artifacts
+    were unlinked, leaving a dataset that was still listed and still openable
+    with everything it consisted of silently gone.
+    """
+    from database.models import SpatialDeclaration
+
+    Session, root = env
+    client = signed_in()
+    own_dataset(client, Session, root)
+    session = Session()
+    session.add(SpatialDeclaration(
+        id="s1", dataset_id="d", kind="vertical_datum", value={"code": "NAP"},
+        supplied_by="the surveyor"))
+    session.commit()
+    session.close()
+
+    body = client.delete("/api/datasets/d")
+    assert body.status_code == 200
+    assert body.json()["removed"]["spatial_declarations"] == 1
+
+    session = Session()
+    assert session.query(SpatialDeclaration).count() == 0
+    assert session.query(Dataset).filter(Dataset.id == "d").count() == 0
+    session.close()
+    assert list((root / "processed").glob("d.*")) == []
+
+
+def test_the_database_row_goes_before_the_files(env):
+    """
+    The two failure modes are not symmetric. A row surviving without its files
+    is a dataset that lies about existing; a file surviving without its row is
+    an orphan -- recoverable and reportable. So the commit happens first.
+    """
+    import ast
+    import inspect
+
+    from api import dataset_lifecycle
+
+    source = inspect.getsource(dataset_lifecycle.delete_dataset_completely)
+    tree = ast.parse(source.lstrip())
+    order = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            name = getattr(node.func, "attr", "")
+            if name in ("commit", "unlink"):
+                order.append((node.lineno, name))
+    order.sort()
+    names = [name for _, name in order]
+    assert names.index("commit") < names.index("unlink"), \
+        "files are removed before the database commits"

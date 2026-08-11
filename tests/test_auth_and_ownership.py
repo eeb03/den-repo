@@ -269,6 +269,8 @@ ID_ROUTES = [
     "/api/datasets/{id}/depths",
     "/api/datasets/{id}/grid",
     "/api/datasets/{id}/trace_grid",
+    "/api/spatial/{id}",
+    "/api/spatial/{id}/declarations",
     "/api/provenance/{id}/frames",
     "/api/provenance/{id}/records",
     "/api/overlays/{id}/layers",
@@ -509,6 +511,7 @@ def test_the_public_surface_is_exactly_what_we_intend():
         "/api/objects/vocabulary",
         "/api/overlays/vocabulary",
         "/api/provenance/vocabulary",
+        "/api/spatial/vocabulary",
         "/api/views/vocabulary",
     }, sorted(public)
 

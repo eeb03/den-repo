@@ -786,3 +786,65 @@ export interface DatasetReport {
     source: string | null
   }[]
 }
+
+/* ----------------------------- spatial reference --------------------------- */
+
+/**
+ * The spatial contract, from `GET /api/spatial/{id}`.
+ *
+ * Seven dimensions, each with its OWN state vocabulary. They are not unified
+ * into one enum because the distinctions differ — a CRS can be `inferred`, a
+ * position cannot; depth can be `derived`, a datum cannot — and a shared
+ * vocabulary would have to drop whichever distinction did not generalise.
+ * Those are the distinctions that matter.
+ */
+export type SpatialDimensionName =
+  | 'horizontal_position'
+  | 'crs'
+  | 'vertical_reference'
+  | 'surface_reference'
+  | 'orientation'
+  | 'depth_conversion'
+  | 'survey_geometry'
+
+export type DeclarationKind =
+  | 'crs'
+  | 'vertical_datum'
+  | 'antenna_offset'
+  | 'depth_conversion'
+  | 'geo_tie'
+  | 'surface_reference'
+
+export interface DimensionState {
+  dimension: SpatialDimensionName
+  state: string
+  reason: string
+  missing: string[]
+  /** The declaration that would resolve this, or null when no declaration can. */
+  action: DeclarationKind | null
+  provenance: string | null
+  detail: Record<string, unknown>
+}
+
+export interface SpatialDeclaration {
+  id: string
+  dataset_id: string
+  frame_id: string | null
+  kind: DeclarationKind
+  value: Record<string, unknown>
+  supplied_by: string
+  note: string | null
+  created_at: string | null
+  superseded_at: string | null
+  superseded_by: string | null
+  active: boolean
+}
+
+export interface SpatialReference {
+  contract_version: string
+  dataset_id: string
+  dimensions: DimensionState[]
+  declarations: SpatialDeclaration[]
+  has_stale_products: boolean
+  stale_products: string[]
+}
