@@ -1137,7 +1137,12 @@ def get_dataset_info(dataset_id: str, db: Session = Depends(get_db),
 def get_dataset_acquisition(dataset_id: str, db: Session = Depends(get_db),
     _dataset=Depends(require_dataset_access)):
     """
-    Where this dataset came from: the acquisition that produced it.
+    Where this dataset came from: the acquisition that produced it, and -- when
+    a device session was involved -- the session and the device behind it.
+
+    THE WHOLE CHAIN, ADDRESSABLE: device -> session -> acquisition -> dataset.
+    A dataset that arrived through FileDrop reports the session and device as
+    absent rather than having them invented.
 
     THE BOTTOM OF THE EVIDENCE CHAIN, made addressable. A dataset report says
     what Subterra understands; this says what arrived and when, with the
@@ -1161,10 +1166,30 @@ def get_dataset_acquisition(dataset_id: str, db: Session = Depends(get_db),
         return {
             "dataset_id": dataset_id,
             "acquisition": None,
+            "session": None,
+            "device": None,
             "reason": ("this dataset predates the acquisition boundary, so how its "
                        "source file arrived was never recorded"),
         }
-    return {"dataset_id": dataset_id, "acquisition": job.to_dict()}
+
+    # The rest of the chain, when a device session produced this. A FileDrop
+    # acquisition reports both as absent rather than inventing a device: a file
+    # is a source in its own right, not a session with a missing instrument.
+    from database.models import AcquisitionSession, Device
+
+    session = device = None
+    if job.session_id:
+        session = db.query(AcquisitionSession).filter(
+            AcquisitionSession.id == job.session_id).first()
+        if session is not None:
+            device = db.query(Device).filter(Device.id == session.device_id).first()
+
+    return {
+        "dataset_id": dataset_id,
+        "acquisition": job.to_dict(),
+        "session": session.to_dict() if session is not None else None,
+        "device": device.to_dict() if device is not None else None,
+    }
 
 
 @router.get("/{dataset_id}/report")

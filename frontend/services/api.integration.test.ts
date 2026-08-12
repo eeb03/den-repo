@@ -68,6 +68,7 @@ describe('datasets', () => {
     }
   })
 
+  // Walks every dataset calling /info, which parses each one's records in turn.
   liveIt('a dataset with no positioned records reports null, not zero', async () => {
     const datasets = await api.listDatasets()
     for (const d of datasets) {
@@ -83,7 +84,7 @@ describe('datasets', () => {
         return
       }
     }
-  })
+  }, 120_000)
 })
 
 describe('objects and labels', () => {

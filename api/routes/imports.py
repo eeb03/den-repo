@@ -77,6 +77,7 @@ async def create_import(
     sensor_type: SensorType = Form(...),
     name: Optional[str] = Form(None),
     review: bool = Form(False),
+    session_id: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -91,6 +92,13 @@ async def create_import(
     keeps every existing caller working rather than making the new flow
     mandatory for scripts that never wanted it.
 
+    `session_id` IS WHERE STAGE 10 CONVERGES WITH STAGE 9. A device session
+    produces its acquisition through THIS route rather than one of its own, so
+    everything after receipt -- identification, the review hold, validation,
+    spatial assessment, ingestion, the dataset -- is the same code for a file
+    somebody dropped and for a file a session produced. A separate hardware
+    endpoint would be a second pipeline, and the two would drift.
+
     202 rather than 201: the dataset does not exist yet, and saying it does
     would be the first untruth in the workflow. The response carries a job id;
     the dataset id appears on that job only once the pipeline has actually
@@ -102,12 +110,20 @@ async def create_import(
     job_id = gen_uuid()
     classification, detail = classify_file(file.filename or "")
 
+    # A session must exist, belong to the caller, and still be open. Checked
+    # BEFORE any bytes are written: an acquisition attributed to a session that
+    # cannot accept it would be a provenance claim nobody could act on.
+    session = None
+    if session_id:
+        session = acquisition.open_session_or_refuse(db, user, session_id)
+
     job = ImportJob(
         id=job_id,
         job_type="dataset_import",
         state=runner.QUEUED,
         stage=runner.STAGE_QUEUED,
         original_filename=file.filename,
+        session_id=session.id if session is not None else None,
         sensor_type=sensor_type.value,
         detected_format=detail,
         format_status=classification,

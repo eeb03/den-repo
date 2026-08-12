@@ -250,3 +250,34 @@ def state_after_identification(identification: dict[str, Any]) -> str:
     if (identification.get("duplicates") or {}).get("is_duplicate"):
         return NEEDS_INPUT
     return IDENTIFIED
+
+
+def open_session_or_refuse(db, user, session_id: str):
+    """
+    The acquisition session this upload belongs to, if it may still have one.
+
+    Refuses in three distinguishable ways rather than one: a session that does
+    not exist (or is not the caller's) is a 404 so an id cannot be probed; a
+    session that has ended is a 409, because attaching to a completed
+    acquisition event would rewrite history rather than record it.
+    """
+    from fastapi import HTTPException
+
+    from database.models import AcquisitionSession
+    from schemas.devices import ACCEPTS_ACQUISITIONS, SessionState
+
+    session = (
+        db.query(AcquisitionSession)
+        .filter(AcquisitionSession.id == session_id)
+        .first()
+    )
+    if session is None or session.owner_id != user.id:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if SessionState(session.state) not in ACCEPTS_ACQUISITIONS:
+        raise HTTPException(
+            status_code=409,
+            detail=(f"this session is {session.state} and cannot receive an "
+                    f"acquisition; only "
+                    f"{' or '.join(s.value for s in ACCEPTS_ACQUISITIONS)} can"))
+    return session

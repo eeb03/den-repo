@@ -210,6 +210,29 @@ def _acquisition_fields(engine: Engine) -> None:
             logger.info("migration 005: added import_jobs.%s", column)
 
 
+def _devices_and_sessions(engine: Engine) -> None:
+    """
+    006 — devices, acquisition sessions, and the link from an acquisition.
+
+    Two new tables (which `create_all` builds on a fresh database anyway) plus
+    one additive column on `import_jobs`, which is the part `create_all` cannot
+    do. `session_id` is nullable because FileDrop acquisitions have no session
+    and never will: a file is a source in its own right, not a session with a
+    missing device.
+    """
+    from database.models import AcquisitionSession, Device
+
+    for model in (Device, AcquisitionSession):
+        if not _has_table(engine, model.__tablename__):
+            model.__table__.create(bind=engine, checkfirst=True)
+            logger.info("migration 006: created %s", model.__tablename__)
+
+    if _has_table(engine, "import_jobs") and not _has_column(engine, "import_jobs", "session_id"):
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE import_jobs ADD COLUMN session_id VARCHAR"))
+        logger.info("migration 006: added import_jobs.session_id")
+
+
 MIGRATIONS: list[Migration] = [
     Migration(
         id="001_dataset_owner_id",
@@ -235,6 +258,11 @@ MIGRATIONS: list[Migration] = [
         id="005_acquisition_fields",
         description="add checksum, content_type and identification to import_jobs",
         apply=_acquisition_fields,
+    ),
+    Migration(
+        id="006_devices_and_sessions",
+        description="create devices and acquisition_sessions; link acquisitions to a session",
+        apply=_devices_and_sessions,
     ),
 ]
 

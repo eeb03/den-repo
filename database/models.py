@@ -238,6 +238,11 @@ class ImportJob(Base):
     #: once at receipt and read by the review screen.
     identification = Column(JSON, nullable=True)
 
+    #: The acquisition session this arrived from, when a device produced it.
+    #: NULL for FileDrop -- a file is a source in its own right, not a session
+    #: with a missing device.
+    session_id = Column(String, nullable=True, index=True)
+
     dataset_id = Column(String, nullable=True, index=True)
     #: Which stage raised, and what it said. The real backend error, never a
     #: generic apology.
@@ -266,6 +271,7 @@ class ImportJob(Base):
             "detected_format": self.detected_format,
             "format_status": self.format_status,
             "dataset_id": self.dataset_id,
+            "session_id": self.session_id,
             "checksum": self.checksum,
             "content_type": self.content_type,
             "identification": self.identification,
@@ -290,6 +296,121 @@ class DatasetVersion(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     dataset = relationship("Dataset", back_populates="versions")
+
+
+class Device(Base):
+    """
+    A record of an instrument somebody says they used.
+
+    NOT A CONNECTION. Subterra cannot talk to any instrument; this is
+    provenance, not control. Every field here is currently typed by a person,
+    which is why `identity_source` exists and currently always says so -- a
+    serial number a user remembered is not a serial number an instrument
+    reported, and a future adapter must not be able to blur the two by writing
+    into the same field with no marker.
+
+    `kind` separates physical from simulated, and that separation must survive
+    into every dataset a simulated session produces. Test data that cannot be
+    told from measurement is the worst thing an acquisition layer can leak.
+    """
+    __tablename__ = "devices"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    #: NULL means a system/reference device, readable by all and writable by
+    #: none -- the same rule datasets follow.
+    owner_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+
+    manufacturer = Column(String, nullable=True)
+    model = Column(String, nullable=True)
+    #: The primary modality, from SensorType. Not a second vocabulary.
+    device_type = Column(String, nullable=False, index=True)
+    #: Optional, and deliberately so: neither FileDrop nor a simulated device
+    #: can supply one, and requiring it would invite an invented value.
+    serial_number = Column(String, nullable=True)
+    firmware_version = Column(String, nullable=True)
+
+    #: What this device CAN produce. See schemas/devices.py::DeviceCapabilities.
+    capabilities = Column(JSON, nullable=False, default=dict)
+    #: "user_declared" | "device_reported". Only the first is currently written.
+    identity_source = Column(String, nullable=False, default="user_declared")
+    #: "physical" | "simulated".
+    kind = Column(String, nullable=False, default="physical", index=True)
+
+    label = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "owner_id": self.owner_id,
+            "is_system_device": self.owner_id is None,
+            "manufacturer": self.manufacturer,
+            "model": self.model,
+            "device_type": self.device_type,
+            "serial_number": self.serial_number,
+            "firmware_version": self.firmware_version,
+            "capabilities": self.capabilities or {},
+            "identity_source": self.identity_source,
+            "kind": self.kind,
+            "is_simulated": self.kind == "simulated",
+            "label": self.label,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class AcquisitionSession(Base):
+    """
+    One acquisition event involving a device.
+
+    SEPARATE FROM THE IMPORT JOB. A session is the event; an import job is the
+    ingestion of what the event produced. One session may produce several
+    acquisitions or none, so the two cannot be one row -- and their states
+    answer different questions.
+
+    `evidence` records what this session actually provided, as distinct from
+    what its device is capable of. That gap is the whole reason both exist.
+    """
+    __tablename__ = "acquisition_sessions"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    device_id = Column(String, ForeignKey("devices.id"), nullable=False, index=True)
+    owner_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+
+    #: CREATED | READY | ACQUIRING | COMPLETED | CANCELLED | FAILED
+    state = Column(String, nullable=False, default="CREATED", index=True)
+    label = Column(String, nullable=True)
+    #: Who ran it, in their own words. Provenance, not an account.
+    operator = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    #: What this session ACTUALLY provided. See schemas/devices.py::SessionEvidence.
+    evidence = Column(JSON, nullable=False, default=dict)
+
+    #: Which category of failure, and what it said. Distinct from an import
+    #: job's stages: a session does not fail because a parser did.
+    failure_stage = Column(String, nullable=True)
+    failure_message = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime, nullable=True)
+    ended_at = Column(DateTime, nullable=True)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "device_id": self.device_id,
+            "owner_id": self.owner_id,
+            "state": self.state,
+            "label": self.label,
+            "operator": self.operator,
+            "notes": self.notes,
+            "evidence": self.evidence or {},
+            "failure_stage": self.failure_stage,
+            "failure_message": self.failure_message,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "ended_at": self.ended_at.isoformat() if self.ended_at else None,
+        }
 
 
 class SpatialDeclaration(Base):

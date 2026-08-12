@@ -31,8 +31,10 @@ import type {
   Composition,
   DatasetInfo,
   DatasetReport,
+  AcquisitionSession,
   DatasetSummary,
   DeclarationKind,
+  Device,
   DeletionResult,
   FrameProvenanceResponse,
   LabelsResponse,
@@ -41,6 +43,8 @@ import type {
   RescoreResult,
   Selection,
   SelectionResolution,
+  SessionPayload,
+  SessionState,
   SpatialDeclaration,
   SpatialReference,
   TraceGrid,
@@ -139,6 +143,49 @@ export const api = {
 
   getDataset(id: string): Promise<DatasetSummary> {
     return request(`/api/datasets/${encodeURIComponent(id)}`)
+  },
+
+  /* --------------------------------- devices -------------------------------- */
+
+  /**
+   * Record an instrument. Everything supplied here is user-declared and the
+   * backend marks it so permanently — `identity_source` is not a field a client
+   * can set, because asserting that hardware reported its own serial number
+   * would be a forgery.
+   */
+  registerDevice(body: {
+    device_type: string
+    manufacturer?: string
+    model?: string
+    serial_number?: string
+    label?: string
+    kind?: 'physical' | 'simulated'
+    capabilities?: Record<string, unknown>
+  }): Promise<{ device: Device }> {
+    return postJson('/api/devices', body)
+  },
+
+  listDevices(): Promise<Device[]> {
+    return request('/api/devices')
+  },
+
+  createSession(
+    deviceId: string,
+    body: { label?: string; operator?: string; notes?: string },
+  ): Promise<{ session: AcquisitionSession; device: Device }> {
+    return postJson(`/api/devices/${encodeURIComponent(deviceId)}/sessions`, body)
+  },
+
+  getSession(sessionId: string): Promise<SessionPayload> {
+    return request(`/api/sessions/${encodeURIComponent(sessionId)}`)
+  },
+
+  /** Move a session along its lifecycle. Illegal transitions are refused 409. */
+  moveSession(sessionId: string, to: SessionState): Promise<SessionPayload> {
+    return postJson(
+      `/api/sessions/${encodeURIComponent(sessionId)}/state?to=${encodeURIComponent(to)}`,
+      {},
+    )
   },
 
   /* -------------------------- dataset management ------------------------- */

@@ -175,6 +175,12 @@ describe('benchmark figures are not transformed in transit', () => {
   })
 })
 
+// EACH of these builds a full report for EVERY dataset held. A report loads all
+// of a dataset's records, and the record cache holds one dataset at a time, so
+// six reports is six full parses -- about 28 s on this corpus, which sits right
+// on the default 30 s timeout and makes them flaky rather than wrong. The cost
+// is a known property of the single-entry cache, not a regression; the timeout
+// is raised to reflect what the tests actually do.
 describe('the dataset report tells the truth about real datasets', () => {
   liveIt('never claims an absolute elevation for any dataset held', async () => {
     const datasets = await api.listDatasets()
@@ -207,7 +213,7 @@ describe('the dataset report tells the truth about real datasets', () => {
       )!
       expect(classification.readiness).toBe('blocked')
     }
-  })
+  }, 120_000)
 
   liveIt('blocks 3D reconstruction for every dataset, with a reason', async () => {
     const datasets = await api.listDatasets()
@@ -220,7 +226,7 @@ describe('the dataset report tells the truth about real datasets', () => {
       expect(reconstruction.reason.length).toBeGreaterThan(0)
       expect(reconstruction.missing.length).toBeGreaterThan(0)
     }
-  })
+  }, 120_000)
 
   liveIt('reports no survey extent where no record carries a position', async () => {
     const datasets = await api.listDatasets()
@@ -232,5 +238,5 @@ describe('the dataset report tells the truth about real datasets', () => {
         expect(report.spatial.geometry.lat_span_m).toBeNull()
       }
     }
-  })
+  }, 120_000)
 })

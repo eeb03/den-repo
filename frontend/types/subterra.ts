@@ -905,3 +905,80 @@ export interface AcquisitionIdentification {
   rejection_reason?: string
   supported_formats?: string[]
 }
+
+/* --------------------------------- devices --------------------------------- */
+
+/**
+ * A record of an instrument somebody says they used.
+ *
+ * `identity_source` is currently always `user_declared`: every field was typed
+ * by a person. A future adapter that genuinely reads a serial off hardware will
+ * write `device_reported`, and the two must stay distinguishable.
+ */
+export interface Device {
+  id: string
+  owner_id: string | null
+  is_system_device: boolean
+  manufacturer: string | null
+  model: string | null
+  device_type: string
+  serial_number: string | null
+  firmware_version: string | null
+  capabilities: {
+    modalities?: string[]
+    reports_position?: boolean
+    reports_orientation?: boolean
+    reports_absolute_time?: boolean
+    notes?: string | null
+  }
+  identity_source: 'user_declared' | 'device_reported'
+  kind: 'physical' | 'simulated'
+  is_simulated: boolean
+  label: string | null
+  created_at: string | null
+}
+
+export type SessionState =
+  | 'CREATED'
+  | 'READY'
+  | 'ACQUIRING'
+  | 'COMPLETED'
+  | 'CANCELLED'
+  | 'FAILED'
+
+export interface AcquisitionSession {
+  id: string
+  device_id: string
+  owner_id: string | null
+  state: SessionState
+  label: string | null
+  operator: string | null
+  notes: string | null
+  evidence: {
+    position_provided?: boolean
+    position_source?: string | null
+    orientation_provided?: boolean
+    orientation_source?: string | null
+    absolute_time_provided?: boolean
+    acquisition_parameters?: Record<string, unknown>
+  }
+  failure_stage: string | null
+  failure_message: string | null
+  created_at: string | null
+  started_at: string | null
+  ended_at: string | null
+}
+
+export interface SessionPayload {
+  session: AcquisitionSession
+  device: Device | null
+  /** What the device can produce and this session did not. */
+  capability_gap: string[]
+  acquisitions: {
+    acquisition_id: string
+    state: string
+    original_filename: string | null
+    dataset_id: string | null
+  }[]
+  datasets: string[]
+}
