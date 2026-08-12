@@ -68,6 +68,7 @@ class GeoTIFFConverter(BaseConverter):
         stride: int = 10,
         reproject: bool = True,
         vertical_datum: str | None = None,
+        band_is_elevation: bool | None = None,
         **kwargs,
     ) -> ConversionResult:
         """
@@ -80,6 +81,28 @@ class GeoTIFFConverter(BaseConverter):
         values are measured from. GeoTIFF has no field for it -- AHN's NAP is
         documented by PDOK and absent from the file -- so without this the
         frame states no datum and absolute elevation stays uncomputable.
+
+        `band_is_elevation` is the same kind of declaration about what band 1
+        MEANS. A GeoTIFF band carries numbers and no statement of what they
+        measure: elevation, reflectance, temperature and slope are
+        indistinguishable from the file. Until this stage the answer was
+        inferred from the operator's declared MODALITY -- a raster called lidar
+        got an elevation axis and one called satellite did not -- which is why
+        the COP30 DEM held here has `AxisKind.NONE` and cannot anchor anything,
+        while an AHN raster got an elevation axis nobody had actually asserted.
+
+        Three states, and the difference matters:
+
+            True   the caller asserts band 1 is elevation in metres
+            False  the caller asserts it is not
+            None   nobody has said; the modality inference is used and is
+                   RECORDED AS AN INFERENCE on the frame rather than passing
+                   silently as fact
+
+        When the axis is an elevation, the band value is also written to
+        `record.elevation`. It never was, for any raster -- which is why
+        `assess_surface` saw no elevations even on a LiDAR raster whose axis
+        said ELEVATION_M.
         """
         try:
             import rasterio
@@ -91,6 +114,12 @@ class GeoTIFFConverter(BaseConverter):
 
         path = Path(path)
         records: list[SubterraRecord] = []
+
+        # Decided ONCE, before any record is built, so every record and the
+        # frame agree about what band 1 is.
+        declared = band_is_elevation is not None
+        is_elevation = (band_is_elevation if declared
+                        else sensor_type == SensorType.LIDAR)
 
         with rasterio.open(str(path)) as ds:
             band1 = ds.read(1)
@@ -136,6 +165,10 @@ class GeoTIFFConverter(BaseConverter):
                         position=position,
                         frame_id=make_frame_id(dataset_id, path.name),
                         signal=[float(val)],
+                        # THE BAND VALUE AS AN ELEVATION, when somebody has said
+                        # that is what it is. `signal` keeps it either way, so
+                        # nothing is lost when the claim is absent or withdrawn.
+                        elevation=float(val) if is_elevation else None,
                         metadata={"band": 1, "stride": stride, "source_crs": str(ds.crs)},
                     )
                 )
@@ -144,13 +177,15 @@ class GeoTIFFConverter(BaseConverter):
                 path=path, dataset_id=dataset_id, sensor_type=sensor_type, ds=ds,
                 stride=stride, reprojected=reprojected, n_records=len(records),
                 reproject=reproject, vertical_datum=vertical_datum,
+                is_elevation=is_elevation, elevation_declared=declared,
             )
 
         logger.info(f"GeoTIFFConverter: sampled {len(records)} points from {path.name} (stride={stride})")
         return ConversionResult(records=records, frames=[frame])
 
     def _build_frame(self, path, dataset_id, sensor_type, ds, stride, reprojected,
-                     n_records, reproject=True, vertical_datum=None):
+                     n_records, reproject=True, vertical_datum=None,
+                     is_elevation=False, elevation_declared=False):
         """
         The frame's spatial_ref describes what the RECORDS hold, which after
         eager reprojection is EPSG:4326. The raster's native CRS -- the thing
@@ -159,6 +194,26 @@ class GeoTIFFConverter(BaseConverter):
         """
         native_epsg = ds.crs.to_epsg() if ds.crs else None
         assumptions = []
+
+        # WHAT BAND 1 MEANS, and on whose authority. Recorded either way: a
+        # declaration is supplied_by_caller, and the modality fallback is an
+        # INFERENCE that now says so instead of passing as fact. `verified` is
+        # False in both cases -- nothing checked the band against anything.
+        assumptions.append(Assumption(
+            key="band_is_elevation",
+            value=is_elevation,
+            basis=(
+                f"SUPPLIED BY CALLER: band 1 was declared "
+                f"{'to be' if is_elevation else 'not to be'} elevation in metres. "
+                f"The GeoTIFF states no band semantics."
+                if elevation_declared else
+                f"INFERRED from the declared modality {sensor_type.value!r}: the file "
+                f"states no band semantics, and nobody declared any. A band of numbers "
+                f"is elevation, reflectance or temperature indistinguishably; this is a "
+                f"deduction, not something the raster said."
+            ),
+            verified=False,
+        ))
         if ds.crs:
             assumptions.append(Assumption(
                 key="crs", value=f"EPSG:{native_epsg}" if native_epsg else str(ds.crs),
@@ -208,8 +263,8 @@ class GeoTIFFConverter(BaseConverter):
                 horizontal_units="deg",
             ),
             vertical_axis=VerticalAxis(
-                kind=AxisKind.ELEVATION_M if sensor_type == SensorType.LIDAR else AxisKind.NONE,
-                units="m" if sensor_type == SensorType.LIDAR else "",
+                kind=AxisKind.ELEVATION_M if is_elevation else AxisKind.NONE,
+                units="m" if is_elevation else "",
                 origin="raster band 1 value",
                 positive_down=False,
                 n_samples=1,

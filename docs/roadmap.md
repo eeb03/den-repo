@@ -30,6 +30,7 @@ Last verified against `0daa3e7` on 2026-08-08.
 | Author / evidence requests | 🟡 Open | outstanding queries to dataset publishers |
 | Authentication and ownership | ✅ Complete | `docs/authentication.md`; sessions, PBKDF2, dataset ownership, login limiting, password reset with Resend delivery |
 | Dataset reports | ✅ Complete | `docs/dataset-report.md`; `GET /api/datasets/{id}/report`, eight capability assessments per dataset |
+| Surface reference / vertical anchor | ✅ Complete | `docs/surface-reference.md`; a raster band can be declared elevation, so `surface_reference` can reach `available` for the first time |
 | Device abstraction | ✅ Complete | `docs/devices.md`; device + session records converging on the Stage 9 acquisition boundary. No hardware integration |
 | FileDrop acquisition | ✅ Complete | `docs/filedrop.md`; acquisition boundary, checksum at receipt, identification before ingestion, review hold |
 | Spatial reference workflow | ✅ Complete | `docs/spatial-reference.md`; seven-dimension assessment, append-only declaration log, six declaration kinds |
@@ -45,8 +46,13 @@ repository:
 1–5 product shell, upload/import, ownership/auth, password recovery, email
 delivery — **complete**. 6 dataset reports — **complete**. 7 dataset
 management — **complete**. 8 spatial reference workflow — **complete**. 9 FileDrop acquisition —
-**complete**. 10 device abstraction — **complete**. Then: 11 acquisition
-sessions, 12 hardware adapter, 13 candidate
+**complete**. 10 device abstraction — **complete**. 11 surface reference — **complete**.
+
+The old list's "11 acquisition sessions" is obsolete: stage 10 implemented
+them. Stage 11 was chosen by dependency instead — the surface anchor was the
+only blocker toward reconstruction that needed no external evidence. What
+remains: 12 hardware adapter (blocked: no instrument or protocol identified),
+13 candidate
 intelligence, 14 ground-truth benchmarks, 15 validated object detection,
 16 multi-modal fusion, 17 3D reconstruction, 18 interactive underground model,
 19 real-time scanning, 20 non-expert interpretation.

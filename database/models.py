@@ -238,6 +238,13 @@ class ImportJob(Base):
     #: once at receipt and read by the review screen.
     identification = Column(JSON, nullable=True)
 
+    #: What the user declared at the review step about HOW to read this file --
+    #: currently whether a raster band is elevation. Persisted rather than
+    #: derived because it is a claim somebody made that changed what the
+    #: converter produced, and the resulting frame's provenance points back
+    #: here. Nothing else can reconstruct it after the fact.
+    ingest_options = Column(JSON, nullable=True)
+
     #: The acquisition session this arrived from, when a device produced it.
     #: NULL for FileDrop -- a file is a source in its own right, not a session
     #: with a missing device.
@@ -272,6 +279,7 @@ class ImportJob(Base):
             "format_status": self.format_status,
             "dataset_id": self.dataset_id,
             "session_id": self.session_id,
+            "ingest_options": self.ingest_options,
             "checksum": self.checksum,
             "content_type": self.content_type,
             "identification": self.identification,

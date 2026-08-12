@@ -18,7 +18,11 @@ vi.mock('@/services/api', async () => {
   const actual = await vi.importActual<typeof import('@/services/api')>('@/services/api')
   return {
     ...actual,
-    api: { ...actual.api, acceptAcquisition: (id: string) => acceptAcquisition(id) },
+    api: {
+      ...actual.api,
+      acceptAcquisition: (id: string, options?: unknown) =>
+        acceptAcquisition(id, options),
+    },
   }
 })
 
@@ -180,7 +184,7 @@ describe('handing off', () => {
     expect(acceptAcquisition).not.toHaveBeenCalled()
     fireEvent.click(container.querySelector('[data-action="accept-acquisition"]')!)
 
-    await waitFor(() => expect(acceptAcquisition).toHaveBeenCalledWith('j1'))
+    await waitFor(() => expect(acceptAcquisition).toHaveBeenCalledWith('j1', {}))
     await waitFor(() => expect(onAccepted).toHaveBeenCalled())
   })
 
@@ -209,5 +213,62 @@ describe('the component computes nothing', () => {
     for (const forbidden of ['endsWith(', 'split(\'.\')', 'EPSG', 'Math.']) {
       expect(source).not.toContain(forbidden)
     }
+  })
+})
+
+describe('the surface anchor declaration', () => {
+  function geotiff() {
+    const raster = job()
+    Object.assign(raster.identification as unknown as Record<string, unknown>, {
+      detected_format: 'geotiff',
+      ambiguous_format: false,
+      ambiguity_note: null,
+    })
+    return raster
+  }
+
+  it('is offered for a raster and not for other formats', () => {
+    const { container: csv } = render(<AcquisitionReview job={job()} />)
+    expect(csv.querySelector('[data-band-declaration]')).toBeNull()
+
+    const { container } = render(<AcquisitionReview job={geotiff()} />)
+    expect(container.querySelector('[data-band-declaration]')).toBeTruthy()
+  })
+
+  it('is undeclared by default', () => {
+    const { container } = render(<AcquisitionReview job={geotiff()} />)
+    expect((container.querySelector('#band-is-elevation') as HTMLInputElement).checked)
+      .toBe(false)
+  })
+
+  it('says the file does not state what its band measures', () => {
+    const { container } = render(<AcquisitionReview job={geotiff()} />)
+    const text = container.querySelector('[data-band-declaration]')?.textContent ?? ''
+    expect(text).toContain('does not say what its band measures')
+    expect(text).toContain('recorded as your claim')
+    expect(text).toContain('undeclared band is a correct answer')
+  })
+
+  it('says a surface still needs a datum before it can anchor anything', () => {
+    const { container } = render(<AcquisitionReview job={geotiff()} />)
+    expect(container.querySelector('[data-band-declaration]')?.textContent).toContain(
+      'declared vertical datum before it can anchor anything',
+    )
+  })
+
+  it('sends the declaration only when the format can use it', async () => {
+    acceptAcquisition.mockResolvedValue({ job: job() })
+
+    const { container } = render(<AcquisitionReview job={geotiff()} />)
+    fireEvent.click(container.querySelector('#band-is-elevation')!)
+    fireEvent.click(container.querySelector('[data-action="accept-acquisition"]')!)
+    await waitFor(() =>
+      expect(acceptAcquisition).toHaveBeenCalledWith('j1', { band_is_elevation: true }),
+    )
+
+    acceptAcquisition.mockClear()
+    const { container: csv } = render(<AcquisitionReview job={job()} />)
+    fireEvent.click(csv.querySelector('[data-action="accept-acquisition"]')!)
+    await waitFor(() => expect(acceptAcquisition).toHaveBeenCalledWith('j1', {}))
   })
 })

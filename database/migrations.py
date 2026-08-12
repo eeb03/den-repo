@@ -233,6 +233,23 @@ def _devices_and_sessions(engine: Engine) -> None:
         logger.info("migration 006: added import_jobs.session_id")
 
 
+def _ingest_options(engine: Engine) -> None:
+    """
+    007 — what the user declared about how to read the file.
+
+    One additive nullable column, which `create_all` cannot add to an existing
+    table. Persisted because it is a CLAIM that changed what the converter
+    produced -- whether a raster band is elevation -- and no later inspection
+    of the records could recover whether somebody said so or the modality
+    inference guessed it.
+    """
+    if _has_table(engine, "import_jobs") and not _has_column(
+            engine, "import_jobs", "ingest_options"):
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE import_jobs ADD COLUMN ingest_options JSON"))
+        logger.info("migration 007: added import_jobs.ingest_options")
+
+
 MIGRATIONS: list[Migration] = [
     Migration(
         id="001_dataset_owner_id",
@@ -263,6 +280,11 @@ MIGRATIONS: list[Migration] = [
         id="006_devices_and_sessions",
         description="create devices and acquisition_sessions; link acquisitions to a session",
         apply=_devices_and_sessions,
+    ),
+    Migration(
+        id="007_ingest_options",
+        description="add ingest_options to import_jobs (user declarations about how to read a file)",
+        apply=_ingest_options,
     ),
 ]
 

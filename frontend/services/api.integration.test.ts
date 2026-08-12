@@ -48,7 +48,9 @@ beforeAll(async () => {
   }
 })
 
-const liveIt = (name: string, fn: () => Promise<void>, timeout = 30_000) =>
+// 120 s: several cases here walk every dataset held, calling /info on each,
+// which parses that dataset's records. See honesty.integration.test.ts.
+const liveIt = (name: string, fn: () => Promise<void>, timeout = 120_000) =>
   it(name, async () => {
     if (!live) return
     await fn()
@@ -84,7 +86,7 @@ describe('datasets', () => {
         return
       }
     }
-  }, 120_000)
+  })
 })
 
 describe('objects and labels', () => {

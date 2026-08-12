@@ -38,13 +38,19 @@ export function AcquisitionReview({
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // A raster band carries numbers and no statement of what they measure.
+  // Undeclared by default: the platform must not assume the answer.
+  const [bandIsElevation, setBandIsElevation] = useState(false)
   const identification = job.identification
 
   async function accept() {
     setBusy(true)
     setError(null)
     try {
-      const { job: queued } = await api.acceptAcquisition(job.id)
+      const { job: queued } = await api.acceptAcquisition(
+        job.id,
+        canDeclareElevation ? { band_is_elevation: bandIsElevation } : {},
+      )
       onAccepted?.(queued)
     } catch (err) {
       setError(
@@ -60,6 +66,9 @@ export function AcquisitionReview({
   if (!identification) return null
 
   const rejected = !identification.parser_available
+  // Only formats whose converter can act on it. Offering the choice elsewhere
+  // would invite a declaration that changes nothing.
+  const canDeclareElevation = identification.detected_format === 'geotiff'
   const duplicates = identification.duplicates
 
   return (
@@ -170,6 +179,42 @@ export function AcquisitionReview({
             Missing spatial information does not stop this file being read, processed
             and assessed. It stops 3D reconstruction, which the dataset report and the
             spatial workflow will explain once it is in.
+          </p>
+        </div>
+      )}
+
+      {/*
+        THE SURFACE ANCHOR STARTS HERE. A raster band is elevation, reflectance
+        or temperature indistinguishably, and until somebody says which, the
+        file cannot anchor a depth to the ground. Undeclared is the default and
+        a legitimate answer; declaring it is recorded as the caller's claim, not
+        as something the file stated.
+      */}
+      {!rejected && canDeclareElevation && (
+        <div data-band-declaration className="text-xs leading-relaxed text-muted-foreground">
+          <label className="flex items-start gap-2">
+            <input
+              id="band-is-elevation"
+              type="checkbox"
+              className="mt-0.5"
+              checked={bandIsElevation}
+              onChange={(e) => setBandIsElevation(e.target.checked)}
+            />
+            <span>
+              Band 1 of this raster is <strong className="text-foreground">elevation in
+              metres</strong>.
+            </span>
+          </label>
+          <p className="mt-1.5">
+            The file does not say what its band measures. Declaring this makes the
+            raster usable as a surface model — the thing a subsurface depth is
+            eventually measured down from — and is recorded as your claim, not as
+            something the file stated. Leave it unticked if you do not know: an
+            undeclared band is a correct answer.
+          </p>
+          <p className="mt-1.5">
+            A surface still needs a declared vertical datum before it can anchor
+            anything. The spatial workflow asks for that after import.
           </p>
         </div>
       )}

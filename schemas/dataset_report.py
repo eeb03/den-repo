@@ -570,6 +570,14 @@ def build_vertical(frames, assess=None) -> VerticalReference:
 
     if not subsurface:
         reasons.append("this dataset carries no subsurface vertical axis")
+        # NAMED, not merely stated. A surface model on its own is a legitimate
+        # dataset and vertical registration is still unavailable for it -- but a
+        # blocked capability with an empty `missing` list cannot be acted on,
+        # which is the invariant every other branch here maintains. Found by
+        # browser verification on a DEM whose horizontal reference was ready.
+        missing.append(
+            "a subsurface acquisition to register: this dataset is a surface model, "
+            "and there is nothing beneath it to place")
     if not surface:
         reasons.append(
             "no surface elevation model is held for this dataset, so there is nothing "

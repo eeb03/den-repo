@@ -23,6 +23,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
+from pydantic import BaseModel
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
@@ -200,8 +202,20 @@ async def create_import(
     return {"job": payload}
 
 
+class AcceptRequest(BaseModel):
+    """
+    What the user declares at the review step about how to read this file.
+
+    Currently one thing: whether a raster band is elevation. Validated against
+    what the detected format can actually accept, so an option that would be
+    silently ignored is refused rather than recorded as though it had an effect.
+    """
+    band_is_elevation: Optional[bool] = None
+
+
 @router.post("/jobs/{job_id}/accept", status_code=202)
-def accept_acquisition(job_id: str, db: Session = Depends(get_db),
+def accept_acquisition(job_id: str, body: Optional[AcceptRequest] = None,
+                       db: Session = Depends(get_db),
                        user: User = Depends(get_current_user)):
     """
     Hand a reviewed acquisition to the existing ingestion pipeline.
@@ -222,6 +236,10 @@ def accept_acquisition(job_id: str, db: Session = Depends(get_db),
             status_code=409,
             detail=(f"this acquisition is {job.state} and cannot be accepted; "
                     f"only {' or '.join(acquisition.HELD_STATES)} can be"))
+
+    options = acquisition.validated_ingest_options(job, body)
+    if options:
+        job.ingest_options = options
 
     job.state = runner.QUEUED
     job.stage = runner.STAGE_QUEUED

@@ -281,3 +281,41 @@ def open_session_or_refuse(db, user, session_id: str):
                     f"acquisition; only "
                     f"{' or '.join(s.value for s in ACCEPTS_ACQUISITIONS)} can"))
     return session
+
+
+#: Which formats can accept which ingest declarations. Kept explicit so an
+#: option that would be silently ignored is refused instead of recorded as
+#: though it had done something.
+INGEST_OPTIONS_BY_FORMAT: dict[str, tuple[str, ...]] = {
+    "geotiff": ("band_is_elevation",),
+}
+
+
+def validated_ingest_options(job, body) -> dict[str, Any]:
+    """
+    The declarations a user made at review, checked against what this file's
+    converter can actually use.
+
+    A raster band carries numbers and no statement of what they measure, so
+    whether band 1 is elevation is a CLAIM somebody makes -- and it changes what
+    the converter produces. Recording one for a format that cannot use it would
+    be provenance for an effect that never happened.
+    """
+    from fastapi import HTTPException
+
+    if body is None:
+        return {}
+
+    declared = {k: v for k, v in body.model_dump().items() if v is not None}
+    if not declared:
+        return {}
+
+    fmt = (job.identification or {}).get("detected_format")
+    accepted = INGEST_OPTIONS_BY_FORMAT.get(fmt, ())
+    unusable = sorted(set(declared) - set(accepted))
+    if unusable:
+        raise HTTPException(
+            status_code=422,
+            detail=(f"{', '.join(unusable)} cannot be applied to a {fmt} file; "
+                    f"this format accepts {', '.join(accepted) or 'no ingest options'}"))
+    return declared

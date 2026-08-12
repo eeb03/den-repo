@@ -401,8 +401,14 @@ export const api = {
    * running or finished one with 409 rather than ingesting the same bytes
    * twice under one record.
    */
-  acceptAcquisition(jobId: string): Promise<{ job: ImportJob }> {
-    return postJson(`/api/imports/jobs/${encodeURIComponent(jobId)}/accept`, {})
+  acceptAcquisition(
+    jobId: string,
+    options: { band_is_elevation?: boolean } = {},
+  ): Promise<{ job: ImportJob }> {
+    // `options` are declarations about HOW to read the file — currently only
+    // whether a raster band is elevation. The backend refuses any the detected
+    // format cannot use, rather than recording a claim that had no effect.
+    return postJson(`/api/imports/jobs/${encodeURIComponent(jobId)}/accept`, options)
   },
 
   createImport(

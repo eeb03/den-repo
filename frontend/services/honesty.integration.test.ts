@@ -43,7 +43,13 @@ beforeAll(async () => {
   if (!live) console.warn('[skip] Subterra API is up but a session could not be established')
 })
 
-const liveIt = (name: string, fn: () => Promise<void>, timeout = 30_000) =>
+// 120 s, not the 30 s default. EVERY live case here walks the whole corpus --
+// several build a full dataset report for each of the six datasets held, and a
+// report parses all of that dataset's records. Six full parses is about 28 s,
+// which sits ON the default and makes these flaky rather than wrong. The cost is
+// the single-entry record cache, not a regression; the timeout reflects what the
+// tests actually do.
+const liveIt = (name: string, fn: () => Promise<void>, timeout = 120_000) =>
   it(name, async () => {
     if (!live) return
     await fn()
@@ -213,7 +219,7 @@ describe('the dataset report tells the truth about real datasets', () => {
       )!
       expect(classification.readiness).toBe('blocked')
     }
-  }, 120_000)
+  })
 
   liveIt('blocks 3D reconstruction for every dataset, with a reason', async () => {
     const datasets = await api.listDatasets()
@@ -226,7 +232,7 @@ describe('the dataset report tells the truth about real datasets', () => {
       expect(reconstruction.reason.length).toBeGreaterThan(0)
       expect(reconstruction.missing.length).toBeGreaterThan(0)
     }
-  }, 120_000)
+  })
 
   liveIt('reports no survey extent where no record carries a position', async () => {
     const datasets = await api.listDatasets()
@@ -238,5 +244,5 @@ describe('the dataset report tells the truth about real datasets', () => {
         expect(report.spatial.geometry.lat_span_m).toBeNull()
       }
     }
-  }, 120_000)
+  })
 })
