@@ -12,13 +12,24 @@ what the CRS declarations and extents support.
 """
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from sqlalchemy.orm import Session
+
 from database.frames_store import load_frames, synthesize_frames_from_records
+from database.session import get_db
 from database.records_store import load_records
 from schemas.overlays import build_layer, compose
 from utils.logger import get_logger
+from auth import dependencies as access
+from auth.dependencies import (
+    dataset_or_404,
+    get_current_user,
+    require_dataset_access,
+    require_owned_dataset,
+)
+from database.models import User
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -79,7 +90,8 @@ def vocabulary():
 
 
 @router.get("/{dataset_id}/layers")
-def dataset_layers(dataset_id: str, frame_id: Optional[str] = Query(None)):
+def dataset_layers(dataset_id: str, frame_id: Optional[str] = Query(None),
+    _dataset=Depends(require_dataset_access)):
     """Every survey frame in a dataset, described as an overlay layer."""
     frames, by_frame = _frames_and_records(dataset_id)
     if frame_id:
@@ -98,7 +110,15 @@ def dataset_layers(dataset_id: str, frame_id: Optional[str] = Query(None)):
 
 
 @router.post("/compose")
-def compose_layers(body: CompositionRequest):
+def compose_layers(
+    body: CompositionRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    # Every dataset in the composition must be visible to the caller; one
+    # unauthorised id in the list is enough to leak a layer.
+    for _did in body.datasets:
+        access.dataset_or_404(db, user, _did)
     """
     Describes how layers from several datasets relate.
 

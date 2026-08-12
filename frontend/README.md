@@ -14,11 +14,18 @@ Verified in a real browser against `0daa3e7` — all six datasets held, plus the
 legacy `/viewer` and `/client`, with no page errors and no failed requests. See
 `../docs/browser-verification.md` for what that pass did and did not cover.
 
+`/` is **The Descent**: a nine-stage scroll narrative — surface, break, signal,
+candidate, frame, fusion, provenance, gates, view — that follows the platform's
+own pipeline. It fetches nothing, so it renders when the API is down. Every
+figure is closed-form SVG geometry captioned as illustrative; the only live
+facts on it are the two blocked gates (rendered with the workspace's own
+`BlockedGate`) and the provenance vocabulary from `lib/provenance`. Motion is
+CSS scroll-driven animation with a single `IntersectionObserver`; base styles
+are the finished state, so reduced-motion and unsupported browsers get the
+whole narrative.
+
 Not done yet:
 
-- **The marketing landing page.** `app/page.tsx` redirects `/` to `/datasets`
-  until the v0 design's claims have been checked against what the platform
-  actually does.
 - **UI for four backend route groups** — `exports`, `fusion`, `sources`,
   `training`. The adapter covers datasets, objects, labels, overlays, views,
   provenance, trace_grid and benchmark.
@@ -37,8 +44,11 @@ corepack pnpm install
 corepack pnpm dev          # http://localhost:3000
 ```
 
-The backend is expected at `http://localhost:8000` (see the repository
-README). The existing `/viewer` and `/client` pages are untouched and remain
+The backend is expected at `http://localhost:8001` — the port
+`docker-compose.yml` publishes, because Subterra Core already holds 8000. That
+is the default, so `docker compose up` and `corepack pnpm dev` work together
+with nothing to configure; set `NEXT_PUBLIC_SUBTERRA_API` only for a different
+deployment. The existing `/viewer` and `/client` pages are untouched and remain
 fully functional; the workspace header links to both.
 
 ```bash

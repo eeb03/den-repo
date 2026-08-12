@@ -1,0 +1,424 @@
+"""
+Recording a spatial declaration, and applying it to the frames.
+
+TWO WRITES, DELIBERATELY SEPARATE. A declaration is stored as an append-only
+row -- who claimed what, when, on whose authority -- and then applied to the
+`SurveyFrame` so every existing consumer (`views.resolve`,
+`vertical_reference.assess`, the dataset report, `frame_provenance`) keeps
+working without knowing this module exists. The row is the audit trail; the
+frame is the value. Storing only the frame would lose the claim; storing only
+the row would leave every reader to reimplement its interpretation.
+
+THE RAW MEASUREMENT IS NEVER REWRITTEN. Applying a declaration edits frame
+METADATA -- the reference a measurement is expressed in -- and never a measured
+value. The one apparent exception proves the rule: `apply_geo_tie` writes
+`record.registered_position` while leaving `record.position` exactly as the
+instrument reported it, so a bad tie can be replaced without having destroyed
+what was measured underneath it. `position_provenance` keeps native, registered
+and derived distinguishable for ever after.
+
+EVERY DECLARATION BECOMES AN ASSUMPTION ON THE FRAME. `Assumption(key, value,
+basis, verified)` already exists and is already surfaced by `frame_provenance`
+and the dataset report, so a user's velocity shows up next to the converter's
+own assumptions in the same list, phrased the same way, with `verified=False`
+because nobody checked it. Nothing a user types is ever promoted to a
+measurement.
+"""
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any, Optional
+
+from database.frames_store import load_frames, save_frames, synthesize_frames_from_records
+from database.models import SpatialDeclaration, gen_uuid
+from database.records_store import load_records, save_records
+from schemas.spatial import (
+    Assumption,
+    AxisKind,
+    ControlPoint,
+    CRSKind,
+    CRSProvenance,
+    SpatialRef,
+    VerticalDatum,
+)
+from schemas.spatial_reference import DeclarationKind
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+class DeclarationError(ValueError):
+    """The declaration cannot be accepted as stated."""
+
+
+def _require(value: Any, name: str) -> Any:
+    if value in (None, "", [], {}):
+        raise DeclarationError(f"{name} is required")
+    return value
+
+
+# ---------------------------------------------------------------------------
+# validation, per kind
+# ---------------------------------------------------------------------------
+
+def _validated_crs(value: dict) -> dict:
+    """
+    A horizontal reference, asserted by somebody.
+
+    ALWAYS `SUPPLIED_BY_CALLER`. A user cannot declare that the SOURCE declared
+    something -- that provenance belongs to the file, is set by the converter,
+    and would be a forgery if the interface could write it. Nor can a user mark
+    a CRS `inferred`: an inference needs a stated justification and a mechanism,
+    and typing a code into a box is neither.
+    """
+    code = str(_require(value.get("code"), "code")).strip()
+    if not code:
+        raise DeclarationError("code is required")
+    kind = str(value.get("kind") or CRSKind.PROJECTED.value)
+    try:
+        crs_kind = CRSKind(kind)
+    except ValueError:
+        raise DeclarationError(
+            f"kind must be one of {[k.value for k in CRSKind]}, not {kind!r}")
+    if crs_kind not in (CRSKind.GEOGRAPHIC, CRSKind.PROJECTED):
+        raise DeclarationError(
+            f"an EPSG code is not meaningful for a {crs_kind.value} frame; such a frame has "
+            "no Earth reference by definition. Declare a GeoTie instead.")
+    # Constructed here so `SpatialRef`'s own validators reject a code with no
+    # provenance rather than this module re-checking what the schema owns.
+    ref = SpatialRef(
+        kind=crs_kind, code=code, crs_provenance=CRSProvenance.SUPPLIED_BY_CALLER,
+        name=value.get("name") or "supplied by a caller through the spatial workflow",
+        horizontal_units="deg" if crs_kind == CRSKind.GEOGRAPHIC else "m",
+    )
+    return ref.model_dump(mode="json")
+
+
+def _validated_vertical_datum(value: dict) -> dict:
+    code = str(_require(value.get("code"), "code")).strip()
+    datum = VerticalDatum(
+        code=code, provenance=CRSProvenance.SUPPLIED_BY_CALLER,
+        name=value.get("name") or code)
+    return datum.model_dump(mode="json")
+
+
+def _validated_antenna_offset(value: dict) -> dict:
+    """
+    How far the sensor sat above the ground, and what the offset is measured
+    between.
+
+    NO DEFAULT. An antenna height of zero is a physical claim -- that the
+    antenna was on the ground -- and assuming it is how an air-launched survey
+    ends up with every reflector half a metre out. If nobody knows the height,
+    the correct outcome is that depth stays unplaceable.
+    """
+    raw = _require(value.get("offset_m"), "offset_m")
+    try:
+        offset = float(raw)
+    except (TypeError, ValueError):
+        raise DeclarationError(f"offset_m {raw!r} is not a number")
+    if offset != offset or abs(offset) == float("inf"):
+        raise DeclarationError("offset_m is not finite")
+    if not -10.0 <= offset <= 10.0:
+        raise DeclarationError(
+            "offset_m must be between -10 and 10 metres; a larger sensor-to-ground "
+            "offset is not a survey geometry this platform can represent")
+    return {
+        "offset_m": offset,
+        "measured_from": str(value.get("measured_from") or "sensor phase centre"),
+        "measured_to": str(value.get("measured_to") or "ground surface"),
+        "positive_direction": "sensor above ground",
+    }
+
+
+def _validated_depth_conversion(value: dict) -> dict:
+    """
+    A propagation velocity, checked against physically justified bounds.
+
+    Reuses `converters.ids_dt_converter.validate_velocity`, whose bounds are not
+    invented -- they are the IDS acquisition software's own MinPropVel/MaxPropVel
+    limits, with the upper bound also being the speed of light. Borrowing that
+    check keeps one definition of "physically plausible" rather than a second
+    that could drift from it.
+    """
+    from converters.ids_dt_converter import validate_velocity
+
+    velocity, reason = validate_velocity(value.get("velocity_m_per_ns"))
+    if velocity is None:
+        raise DeclarationError(reason or "a propagation velocity is required")
+    return {
+        "method": "constant_velocity",
+        "velocity_m_per_ns": velocity,
+        "basis": str(value.get("basis") or "supplied by a caller; not measured on this site"),
+        # Recorded on the conversion itself so no consumer has to look elsewhere
+        # to learn that this depth is an assumption.
+        "derived": True,
+    }
+
+
+def _validated_geo_tie(value: dict) -> dict:
+    """Control points, checked by the existing tie builder."""
+    from ingestion.geo_tie import build_geo_tie
+
+    raw_points = _require(value.get("control_points"), "control_points")
+    if not isinstance(raw_points, list) or len(raw_points) < 2:
+        raise DeclarationError(
+            "a GeoTie needs at least two control points: one point fixes a location "
+            "but not the line's bearing, so nothing can be interpolated from it")
+    try:
+        points = [ControlPoint.model_validate(p) for p in raw_points]
+    except Exception as exc:  # noqa: BLE001
+        raise DeclarationError(f"a control point is not valid: {exc}")
+
+    try:
+        tie = build_geo_tie(
+            points,
+            supplied_by=str(value.get("supplied_by") or "unattributed"),
+            max_rms_residual_m=value.get("max_rms_residual_m"),
+            applies_to=value.get("applies_to"),
+            notes=value.get("notes"),
+        )
+    except Exception as exc:  # noqa: BLE001 -- GeoTie's own validators
+        raise DeclarationError(str(exc))
+    return tie.model_dump(mode="json")
+
+
+def _validated_surface_reference(value: dict) -> dict:
+    """
+    Another dataset asserted to be this survey's surface.
+
+    ACCEPTING THE LINK IS NOT ACCEPTING THE ANCHOR. This records that somebody
+    considers dataset X the surface model for dataset Y. Whether X can actually
+    anchor anything is decided by `assess_surface`, which checks the linked
+    frames for an elevation axis and a declared datum -- and reports
+    `unvalidated` when they are absent, however confidently the link was made.
+    """
+    surface_id = str(_require(value.get("surface_dataset_id"), "surface_dataset_id")).strip()
+    return {"surface_dataset_id": surface_id, "note": value.get("note")}
+
+
+_VALIDATORS = {
+    DeclarationKind.CRS: _validated_crs,
+    DeclarationKind.VERTICAL_DATUM: _validated_vertical_datum,
+    DeclarationKind.ANTENNA_OFFSET: _validated_antenna_offset,
+    DeclarationKind.DEPTH_CONVERSION: _validated_depth_conversion,
+    DeclarationKind.GEO_TIE: _validated_geo_tie,
+    DeclarationKind.SURFACE_REFERENCE: _validated_surface_reference,
+}
+
+
+def validate_declaration(kind: DeclarationKind, value: dict) -> dict:
+    if kind not in _VALIDATORS:
+        raise DeclarationError(f"unknown declaration kind {kind!r}")
+    if not isinstance(value, dict):
+        raise DeclarationError("value must be an object")
+    return _VALIDATORS[kind](value)
+
+
+# ---------------------------------------------------------------------------
+# applying a declaration to the frames
+# ---------------------------------------------------------------------------
+
+def _assumption_for(kind: DeclarationKind, value: dict, supplied_by: str) -> Assumption:
+    """
+    The frame-level record of what was asserted and on whose authority.
+
+    `verified=False` on every one of them, without exception. Nothing a person
+    types has been checked against anything; a tie's residual is the closest
+    this comes, and `build_geo_tie` sets that itself only when three or more
+    points were actually fitted.
+    """
+    described = {
+        DeclarationKind.CRS: f"horizontal reference {value.get('code')}",
+        DeclarationKind.VERTICAL_DATUM: f"vertical datum {value.get('code')}",
+        DeclarationKind.ANTENNA_OFFSET:
+            f"{value.get('offset_m')} m from {value.get('measured_from')} to "
+            f"{value.get('measured_to')}",
+        DeclarationKind.DEPTH_CONVERSION:
+            f"propagation velocity {value.get('velocity_m_per_ns')} m/ns",
+        DeclarationKind.GEO_TIE:
+            f"{len(value.get('control_points') or [])} control point(s)",
+        DeclarationKind.SURFACE_REFERENCE:
+            f"surface model {value.get('surface_dataset_id')}",
+    }[kind]
+    return Assumption(
+        key=f"declared_{kind.value}",
+        value=value.get("code") or value.get("velocity_m_per_ns")
+        or value.get("offset_m") or value.get("surface_dataset_id") or supplied_by,
+        basis=(f"SUPPLIED BY CALLER through the spatial reference workflow: {described}, "
+               f"asserted by {supplied_by!r}. This is a declaration, not a measurement."),
+        verified=False,
+    )
+
+
+def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
+                      supplied_by: str, frame_id: Optional[str] = None) -> dict:
+    """
+    Write the declaration into the dataset's frames.
+
+    Returns a summary of what changed. Raises `DeclarationError` when the
+    declaration cannot be applied to what is actually stored -- a velocity for a
+    dataset with no time axis, a tie for a dataset with no odometry.
+    """
+    records = load_records(dataset_id)
+    frames = load_frames(dataset_id) or (
+        synthesize_frames_from_records(records) if records else [])
+    if not frames:
+        raise DeclarationError(
+            "this dataset has no survey frames, so there is nothing to reference")
+
+    targets = [f for f in frames if frame_id is None or f.frame_id == frame_id]
+    if not targets:
+        raise DeclarationError(f"no frame {frame_id!r} in this dataset")
+
+    changed: list[str] = []
+    assumption = _assumption_for(kind, value, supplied_by)
+
+    if kind == DeclarationKind.CRS:
+        ref = SpatialRef.model_validate(value)
+        for frame in targets:
+            frame.spatial_ref = ref
+            changed.append(frame.frame_id)
+
+    elif kind == DeclarationKind.VERTICAL_DATUM:
+        datum = VerticalDatum.model_validate(value)
+        for frame in targets:
+            frame.vertical_axis = frame.vertical_axis.model_copy(
+                update={"vertical_datum": datum})
+            changed.append(frame.frame_id)
+
+    elif kind == DeclarationKind.DEPTH_CONVERSION:
+        eligible = [f for f in targets
+                    if f.vertical_axis.kind in (AxisKind.TWO_WAY_TIME_NS,
+                                                AxisKind.TWO_WAY_TIME_MS,
+                                                AxisKind.TWO_WAY_TIME_S)]
+        if not eligible:
+            raise DeclarationError(
+                "no frame carries a measured time axis, so there is no time for a velocity "
+                "to convert. A depth that already exists is not re-derived here.")
+        for frame in eligible:
+            frame.vertical_axis = frame.vertical_axis.model_copy(update={"conversion": value})
+            changed.append(frame.frame_id)
+
+    elif kind == DeclarationKind.ANTENNA_OFFSET:
+        # Recorded as an assumption only. It does NOT move the depth axis
+        # origin: doing that would silently shift every sample, and the offset
+        # is one of three things an absolute elevation needs -- see
+        # fusion/vertical_reference.py. The declaration makes it available; it
+        # does not pretend the registration is done.
+        changed = [f.frame_id for f in targets]
+
+    elif kind == DeclarationKind.GEO_TIE:
+        from ingestion.geo_tie import GeoTie, GeoTieError, apply_geo_tie, tied_spatial_ref
+
+        tie = GeoTie.model_validate(value)
+        try:
+            registered = apply_geo_tie(records, tie, path_id=tie.applies_to)
+        except GeoTieError as exc:
+            raise DeclarationError(str(exc))
+        # ADDITIVE: `apply_geo_tie` wrote `registered_position` and left every
+        # `position` as the instrument reported it.
+        save_records(dataset_id, records)
+        for frame in targets:
+            frame.geo_tie = tie
+            frame.registered_spatial_ref = tied_spatial_ref(tie)
+            changed.append(frame.frame_id)
+        assumption = _assumption_for(kind, value, supplied_by)
+        logger.info("geo tie registered %d record(s) in %s", registered, dataset_id)
+
+    elif kind == DeclarationKind.SURFACE_REFERENCE:
+        changed = [f.frame_id for f in targets]
+
+    for frame in frames:
+        if frame.frame_id in changed:
+            frame.assumptions = [
+                a for a in (frame.assumptions or []) if a.key != assumption.key
+            ] + [assumption]
+
+    save_frames(dataset_id, frames)
+    return {"frames_changed": changed, "assumption": assumption.model_dump(mode="json")}
+
+
+# ---------------------------------------------------------------------------
+# the declaration log
+# ---------------------------------------------------------------------------
+
+def active_declarations(db, dataset_id: str) -> list[SpatialDeclaration]:
+    return (
+        db.query(SpatialDeclaration)
+        .filter(SpatialDeclaration.dataset_id == dataset_id,
+                SpatialDeclaration.superseded_at.is_(None))
+        .order_by(SpatialDeclaration.created_at.desc())
+        .all()
+    )
+
+
+def all_declarations(db, dataset_id: str) -> list[SpatialDeclaration]:
+    return (
+        db.query(SpatialDeclaration)
+        .filter(SpatialDeclaration.dataset_id == dataset_id)
+        .order_by(SpatialDeclaration.created_at.desc())
+        .all()
+    )
+
+
+def record_declaration(db, dataset_id: str, kind: DeclarationKind, value: dict,
+                       supplied_by: str, user_id: Optional[str],
+                       frame_id: Optional[str] = None,
+                       note: Optional[str] = None) -> SpatialDeclaration:
+    """
+    Append the claim, superseding any earlier claim of the same kind and scope.
+
+    SUPERSEDED, NOT DELETED. The earlier row stays, with the id of the one that
+    replaced it, so "what did we think the datum was in March, and who said so"
+    remains answerable after somebody corrects it. That question is the reason
+    for keeping a log rather than a column.
+    """
+    now = datetime.utcnow()
+    row = SpatialDeclaration(
+        id=gen_uuid(), dataset_id=dataset_id, frame_id=frame_id, kind=kind.value,
+        value=value, supplied_by=supplied_by, note=note,
+        declared_by_user_id=user_id, created_at=now)
+
+    superseded = (
+        db.query(SpatialDeclaration)
+        .filter(SpatialDeclaration.dataset_id == dataset_id,
+                SpatialDeclaration.kind == kind.value,
+                SpatialDeclaration.frame_id.is_(frame_id) if frame_id is None
+                else SpatialDeclaration.frame_id == frame_id,
+                SpatialDeclaration.superseded_at.is_(None))
+        .all()
+    )
+    for previous in superseded:
+        previous.superseded_at = now
+        previous.superseded_by = row.id
+
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    logger.info("spatial declaration %s recorded for %s by %r",
+                kind.value, dataset_id, supplied_by)
+    return row
+
+
+def stale_products(db, dataset_id: str, declarations) -> list[str]:
+    """
+    Derived products computed BEFORE the newest spatial declaration.
+
+    A CRS, a datum, a tie or a velocity changes what the data means, so anything
+    computed from the old reference is describing a different world. Nothing is
+    recomputed here -- fusion is expensive and re-running it silently would hide
+    the very change this is reporting. The state is made explicit and the
+    decision is left to somebody who can see it.
+    """
+    if not declarations:
+        return []
+    newest = max(d.created_at for d in declarations if d.created_at)
+
+    from database.models import FusionSample
+
+    stale = [
+        f"fusion sample {s.id}" for s in db.query(FusionSample).all()
+        if dataset_id in (s.dataset_ids or []) and s.created_at and s.created_at < newest
+    ]
+    return stale

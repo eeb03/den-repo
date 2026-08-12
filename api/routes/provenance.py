@@ -11,7 +11,8 @@ with the data.
 """
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from auth.dependencies import get_current_user
 
 from database.frames_store import load_frames, synthesize_frames_from_records
 from database.records_store import load_records
@@ -20,6 +21,7 @@ from schemas.provenance import (
     record_provenance, summarise,
 )
 from utils.logger import get_logger
+from auth.dependencies import require_dataset_access, require_owned_dataset
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -69,7 +71,8 @@ def _frames_for(dataset_id: str):
 
 @router.get("/{dataset_id}/frames")
 def dataset_frame_provenance(dataset_id: str,
-                             frame_id: Optional[str] = Query(None)):
+                             frame_id: Optional[str] = Query(None),
+    _dataset=Depends(require_dataset_access)):
     """Provenance for every survey frame in a dataset, or one named frame."""
     frames = _frames_for(dataset_id)
     if frame_id:
@@ -93,7 +96,8 @@ def dataset_frame_provenance(dataset_id: str,
 @router.get("/{dataset_id}/records")
 def dataset_record_provenance(dataset_id: str,
                               limit: int = Query(5, ge=1, le=200),
-                              source_file: Optional[str] = Query(None)):
+                              source_file: Optional[str] = Query(None),
+    _dataset=Depends(require_dataset_access)):
     """
     Provenance for a sample of records.
 
@@ -126,7 +130,7 @@ def dataset_record_provenance(dataset_id: str,
 
 
 @router.post("/candidates")
-def candidates_provenance(candidates: list[dict]):
+def candidates_provenance(candidates: list[dict], _user=Depends(get_current_user)):
     """
     Provenance for anomaly candidates supplied by the caller.
 

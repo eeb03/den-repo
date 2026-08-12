@@ -7,10 +7,15 @@ displays the reason for what does not.
 """
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
+from auth import dependencies as access
+from auth.dependencies import get_current_user
 from database.frames_store import load_frames, synthesize_frames_from_records
+from database.models import User
+from database.session import get_db
 from database.records_store import load_records
 from schemas.views import Selection, ViewKind, resolve
 from utils.logger import get_logger
@@ -52,9 +57,17 @@ def vocabulary():
 
 
 @router.post("/resolve")
-def resolve_selection(body: ResolveSelectionRequest):
+def resolve_selection(
+    body: ResolveSelectionRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     """Resolves a selection across all views."""
     sel = body.selection
+    # The dataset id arrives in the BODY here rather than the path, so the route
+    # dependency cannot see it -- authorisation has to happen in the handler or
+    # this becomes the one way round the whole scheme.
+    access.dataset_or_404(db, user, sel.dataset_id)
     frame = None
     vertical = None
     if sel.frame_id:

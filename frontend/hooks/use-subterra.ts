@@ -37,6 +37,22 @@ export function useDatasetInfo(datasetId: string | undefined) {
   )
 }
 
+export function useDatasetReport(datasetId: string | undefined) {
+  return useSWR(
+    datasetId ? ['dataset-report', datasetId] : null,
+    () => api.getDatasetReport(datasetId as string),
+    options,
+  )
+}
+
+export function useSpatialReference(datasetId: string | undefined) {
+  return useSWR(
+    datasetId ? ['spatial-reference', datasetId] : null,
+    () => api.getSpatialReference(datasetId as string),
+    options,
+  )
+}
+
 export function useObjects(datasetId: string | undefined) {
   return useSWR(
     datasetId ? ['objects', datasetId] : null,
@@ -113,5 +129,72 @@ export function useBenchmarkArtifact(name: string | undefined) {
     name ? ['benchmark-artifact', name] : null,
     () => api.getBenchmarkArtifact(name as string),
     options,
+  )
+}
+
+/* ------------------------------ dataset import ----------------------------- */
+
+/**
+ * The registry's answer about format support. Static for the life of a
+ * deployment, so it is fetched once and never revalidated.
+ */
+export function useImportFormats() {
+  return useSWR('import-formats', () => api.getImportFormats(), {
+    ...options,
+    revalidateIfStale: false,
+    revalidateOnReconnect: false,
+  })
+}
+
+/**
+ * An import job, polled until it finishes.
+ *
+ * THIS IS THE ONE LEGITIMATE EXCEPTION to the no-polling rule at the top of
+ * this file, and it is worth being precise about why. That rule exists because
+ * the v0 prototype refreshed sensors on a timer to imply a live rig, and
+ * nothing Subterra serves is live. An import job genuinely is: the server is
+ * doing work right now and its state really does change without anyone acting.
+ * Polling here reports a change that is actually happening rather than
+ * simulating one that is not.
+ *
+ * Polling STOPS the moment the job reaches a terminal state, so a finished
+ * import produces no further traffic and no illusion of ongoing activity.
+ */
+export function useImportJob(jobId: string | undefined) {
+  return useSWR(
+    jobId ? ['import-job', jobId] : null,
+    () => api.getImportJob(jobId as string).then((r) => r.job),
+    {
+      ...options,
+      refreshInterval: (latest) =>
+        latest && (latest.state === 'SUCCEEDED' || latest.state === 'FAILED')
+          ? 0
+          : 1200,
+    },
+  )
+}
+
+/* --------------------------------- accounts -------------------------------- */
+
+/**
+ * Who is signed in, according to the server.
+ *
+ * A 401 is a legitimate ANSWER here, not a failure: it means "nobody". The
+ * hook therefore resolves to null rather than surfacing an error, and does not
+ * retry -- retrying a settled "you are not signed in" would only delay the
+ * login screen.
+ */
+export function useCurrentUser() {
+  return useSWR(
+    'current-user',
+    () =>
+      api
+        .me()
+        .then((r) => r.user)
+        .catch((error) => {
+          if (error instanceof ApiError && error.status === 401) return null
+          throw error
+        }),
+    { ...options, shouldRetryOnError: false },
   )
 }

@@ -1,6 +1,7 @@
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from auth.dependencies import get_current_user
 
 from ingestion.sources import SOURCE_REGISTRY, SourceAPIError, OpenTopographyConnector, USGSConnector
 
@@ -8,7 +9,7 @@ router = APIRouter()
 
 
 @router.get("/{source_name}/search")
-def search_source(source_name: str, q: str = Query(..., description="Search query"), limit: int = 10):
+def search_source(source_name: str, q: str = Query(..., description="Search query"), limit: int = 10, _user=Depends(get_current_user)):
     connector = SOURCE_REGISTRY.get(source_name)
     if not connector:
         raise HTTPException(status_code=404, detail=f"Unknown source '{source_name}'. Options: {list(SOURCE_REGISTRY)}")
@@ -31,6 +32,7 @@ def fetch_opentopography_dem(
     south: float, north: float, west: float, east: float,
     usgs: bool = False,
     output_format: str = "GTiff",
+    _user=Depends(get_current_user),
 ):
     """Fetch a DEM tile for a bounding box. Set usgs=true for USGS 3DEP types (USGS30m/10m/1m)."""
     connector: OpenTopographyConnector = SOURCE_REGISTRY["opentopography"]
@@ -49,6 +51,7 @@ def fetch_usgs_earthquakes(
     min_lat: float, max_lat: float, min_lon: float, max_lon: float,
     start_time: Optional[str] = None, end_time: Optional[str] = None,
     min_magnitude: Optional[float] = None, limit: int = 100,
+    _user=Depends(get_current_user),
 ):
     connector: USGSConnector = SOURCE_REGISTRY["usgs"]
     try:

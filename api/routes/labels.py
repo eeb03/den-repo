@@ -12,7 +12,7 @@ a future importer.
 """
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from database.labels_store import (
@@ -21,6 +21,7 @@ from database.labels_store import (
 from schemas.labels import LabelKind, LabelTargetKind, SemanticLabel
 from schemas.provenance import ProvenanceClass, summarise
 from utils.logger import get_logger
+from auth.dependencies import require_dataset_access, require_owned_dataset
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -96,6 +97,7 @@ def list_labels(
     source_name: Optional[str] = Query(None),
     processing_stage: Optional[str] = Query(None),
     min_confidence: Optional[float] = Query(None, ge=0.0, le=1.0),
+    _dataset=Depends(require_dataset_access),
 ):
     """
     Labels for a dataset, filtered on the axes a viewer actually filters on.
@@ -135,7 +137,8 @@ def list_labels(
 
 
 @router.post("/{dataset_id}")
-def write_labels(dataset_id: str, body: LabelWriteRequest):
+def write_labels(dataset_id: str, body: LabelWriteRequest,
+    _dataset=Depends(require_owned_dataset)):
     """
     Creates or replaces labels.
 
@@ -157,14 +160,16 @@ def write_labels(dataset_id: str, body: LabelWriteRequest):
 
 
 @router.delete("/{dataset_id}")
-def remove_labels(dataset_id: str, label_ids: list[str] = Query(...)):
+def remove_labels(dataset_id: str, label_ids: list[str] = Query(...),
+    _dataset=Depends(require_owned_dataset)):
     out, missing = delete_labels(dataset_id, label_ids)
     return {"dataset_id": dataset_id, "deleted": [i for i in label_ids if i not in missing],
             "not_found": missing, "total_after_delete": len(out.labels)}
 
 
 @router.get("/{dataset_id}/disagreements")
-def disagreements(dataset_id: str):
+def disagreements(dataset_id: str,
+    _dataset=Depends(require_dataset_access)):
     """
     Targets carrying more than one distinct label value.
 
@@ -191,7 +196,8 @@ def disagreements(dataset_id: str):
 def labels_from_candidates(dataset_id: str, candidates: list[dict],
                            detector_name: str = Query("find_anomaly_candidates"),
                            detector_version: str = Query(...),
-                           processing_stage: str = Query("detection")):
+                           processing_stage: str = Query("detection"),
+    _dataset=Depends(require_owned_dataset)):
     """
     Turns detector candidates into detector_candidate labels.
 

@@ -8,7 +8,7 @@ anything.
 """
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from database.objects_store import (
@@ -17,6 +17,7 @@ from database.objects_store import (
 from schemas.associations import AssociationRecord, AssociationSet
 from schemas.objects import ObservationRef, SubsurfaceObject, build_object
 from utils.logger import get_logger
+from auth.dependencies import require_dataset_access, require_owned_dataset
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -66,7 +67,8 @@ def vocabulary():
 def list_associations(dataset_id: str,
                       method: Optional[str] = Query(None),
                       min_score: float = Query(0.0, ge=0.0, le=1.0),
-                      independent_only: bool = Query(False)):
+                      independent_only: bool = Query(False),
+    _dataset=Depends(require_dataset_access)):
     s = load_associations(dataset_id)
     out = [a for a in s.associations if a.score >= min_score]
     if method:
@@ -84,7 +86,8 @@ def list_associations(dataset_id: str,
 
 
 @router.post("/{dataset_id}/associations")
-def write_associations(dataset_id: str, body: AssociationWriteRequest):
+def write_associations(dataset_id: str, body: AssociationWriteRequest,
+    _dataset=Depends(require_owned_dataset)):
     try:
         out = upsert_associations(dataset_id, body.associations)
     except ValueError as e:
@@ -94,7 +97,8 @@ def write_associations(dataset_id: str, body: AssociationWriteRequest):
 
 
 @router.get("/{dataset_id}")
-def list_objects(dataset_id: str, status: Optional[str] = Query(None)):
+def list_objects(dataset_id: str, status: Optional[str] = Query(None),
+    _dataset=Depends(require_dataset_access)):
     objs = load_objects(dataset_id)
     if status:
         objs = [o for o in objs if o.status.value == status]
@@ -110,7 +114,8 @@ def list_objects(dataset_id: str, status: Optional[str] = Query(None)):
 
 
 @router.post("/{dataset_id}/resolve")
-def resolve_objects(dataset_id: str, body: ResolveRequest):
+def resolve_objects(dataset_id: str, body: ResolveRequest,
+    _dataset=Depends(require_owned_dataset)):
     """
     Re-cuts the association graph into objects at a given score threshold.
 

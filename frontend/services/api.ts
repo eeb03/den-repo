@@ -22,30 +22,46 @@
  *    wording rather than substituting its own.
  */
 import type {
+  AuthUser,
+  ImportFormats,
+  ImportJob,
   BenchmarkArtifact,
   BenchmarkArtifactsResponse,
   BenchmarkRun,
   Composition,
   DatasetInfo,
+  DatasetReport,
   DatasetSummary,
+  DeclarationKind,
+  DeletionResult,
   FrameProvenanceResponse,
   LabelsResponse,
   LayersResponse,
   ObjectsResponse,
+  RescoreResult,
   Selection,
   SelectionResolution,
+  SpatialDeclaration,
+  SpatialReference,
   TraceGrid,
 } from '@/types/subterra'
 
 /**
- * Base URL of the FastAPI backend.
+ * Base URL of the FastAPI backend. The single place this is decided.
  *
- * Same-origin by default so a reverse-proxied deployment needs no config;
- * override with NEXT_PUBLIC_SUBTERRA_API for the usual split dev setup
- * (Next on :3000, uvicorn on :8000).
+ * THE DEFAULT IS THE PORT `docker-compose.yml` PUBLISHES, which is 8001 and not
+ * 8000: Subterra Core's own API already holds 8000 on this machine, so the
+ * compose file maps `8001:8000`. The default pointed at 8000 for long enough
+ * that `NEXT_PUBLIC_SUBTERRA_API=http://localhost:8001` had become a documented
+ * ritual — a workaround for a default that was simply wrong about its own
+ * deployment. `frontend/services/api-base.test.ts` now reads the compose file
+ * and fails if the two drift apart again.
+ *
+ * Still overridable with NEXT_PUBLIC_SUBTERRA_API, which is what a
+ * reverse-proxied or same-origin deployment sets.
  */
 export const API_BASE =
-  process.env.NEXT_PUBLIC_SUBTERRA_API ?? 'http://localhost:8000'
+  process.env.NEXT_PUBLIC_SUBTERRA_API ?? 'http://localhost:8001'
 
 /** An HTTP-level refusal, carrying the backend's own explanation. */
 export class ApiError extends Error {
@@ -75,6 +91,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(`${API_BASE}${path}`, {
       ...init,
+      // The session lives in an HTTP-only cookie, so every call must carry
+      // credentials. Without this the browser silently omits it cross-origin
+      // (Next on :3000, API on :8001) and every request looks unauthenticated.
+      credentials: 'include',
       headers: { accept: 'application/json', ...(init?.headers ?? {}) },
     })
   } catch (cause) {
@@ -121,12 +141,114 @@ export const api = {
     return request(`/api/datasets/${encodeURIComponent(id)}`)
   },
 
+  /* -------------------------- dataset management ------------------------- */
+
+  /**
+   * Change a dataset's human-facing name. The id, the source file, the
+   * checksum and every provenance entry are untouched by construction — the
+   * backend writes one column.
+   */
+  renameDataset(id: string, name: string): Promise<DatasetSummary> {
+    return request(`/api/datasets/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+  },
+
+  /**
+   * Delete a dataset and the data derived from it.
+   *
+   * The raw source file and the import job survive: the first is the original
+   * measurement and cannot be regenerated, the second records an event that
+   * happened. The response enumerates both, and the UI shows it — "deleted"
+   * alone is not an adequate answer for an irreversible operation.
+   */
+  deleteDataset(id: string): Promise<DeletionResult> {
+    return request(`/api/datasets/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  },
+
+  /**
+   * Recompute the stored quality score from the records as they are now.
+   *
+   * NOT `reprocess`, which runs the preprocessing pipeline and saves the result
+   * back. This reads, validates, and writes one derived scalar.
+   */
+  rescoreDataset(id: string): Promise<RescoreResult> {
+    return postJson(`/api/datasets/${encodeURIComponent(id)}/rescore`, {})
+  },
+
   /**
    * The richer dataset card. 404s when the dataset has no stored records,
    * which is a real state and not an error.
    */
   getDatasetInfo(id: string): Promise<DatasetInfo> {
     return request(`/api/datasets/${encodeURIComponent(id)}/info`)
+  },
+
+  /**
+   * The Dataset Report: identity, volume, spatial reference, processing,
+   * quality, candidates and downstream readiness, in one call.
+   *
+   * Deliberately ONE call. The alternative — assembling it in the browser
+   * from `/info`, `/provenance/{id}/frames` and `/labels/{id}` — would put
+   * the readiness judgement in the client, where it cannot be tested and
+   * where the next consumer would reimplement it slightly differently.
+   *
+   * Unlike `/info`, this does NOT 404 on a dataset with no records: "this
+   * produced nothing" is one of the most useful things a report can say.
+   */
+  getDatasetReport(id: string): Promise<DatasetReport> {
+    return request(`/api/datasets/${encodeURIComponent(id)}/report`)
+  },
+
+  /* --------------------------- spatial reference -------------------------- */
+
+  /**
+   * What spatial relationship this dataset has to the physical world.
+   *
+   * Seven dimensions, each with its state, its reason, what is missing and
+   * which declaration would resolve it. An unresolved dimension is a correct
+   * answer, not a gap to be filled by the client.
+   */
+  getSpatialReference(datasetId: string): Promise<SpatialReference> {
+    return request(`/api/spatial/${encodeURIComponent(datasetId)}`)
+  },
+
+  /** Every claim ever made, superseded ones included. */
+  listSpatialDeclarations(
+    datasetId: string,
+  ): Promise<{ dataset_id: string; count: number; declarations: SpatialDeclaration[] }> {
+    return request(`/api/spatial/${encodeURIComponent(datasetId)}/declarations`)
+  },
+
+  /**
+   * Assert something about how this dataset relates to the world.
+   *
+   * `suppliedBy` names the AUTHORITY — a surveyor, a document, an operator —
+   * and is distinct from the signed-in account, which the backend records
+   * separately: the person typing may be relaying somebody else's measurement.
+   *
+   * Returns the recalculated spatial reference, so inspect → resolve →
+   * recalculate is one round trip rather than three.
+   */
+  declareSpatialReference(
+    datasetId: string,
+    kind: DeclarationKind,
+    value: Record<string, unknown>,
+    suppliedBy: string,
+    note?: string,
+  ): Promise<{
+    declaration: SpatialDeclaration
+    applied: { frames_changed: string[] }
+    spatial_reference: SpatialReference
+  }> {
+    return postJson(`/api/spatial/${encodeURIComponent(datasetId)}/declarations`, {
+      kind,
+      value,
+      supplied_by: suppliedBy,
+      note,
+    })
   },
 
   /* ------------------------- objects and labels ------------------------- */
@@ -209,6 +331,88 @@ export const api = {
 
   listBenchmarkRuns(): Promise<BenchmarkRun[]> {
     return request('/api/benchmark/runs')
+  },
+
+  /* ------------------------------- imports ------------------------------ */
+
+  /**
+   * What the platform can actually read, asked of the backend every time.
+   *
+   * The UI deliberately keeps NO list of its own: `converters/registry.py` is
+   * the single source of truth for format support, and a second copy here
+   * would eventually promise a format nobody can read.
+   */
+  getImportFormats(): Promise<ImportFormats> {
+    return request('/api/imports/formats')
+  },
+
+  /** Uploads a file and returns the created job. 202: no dataset exists yet. */
+  createImport(
+    file: File,
+    sensorType: string,
+  ): Promise<{ job: ImportJob }> {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('sensor_type', sensorType)
+    // No content-type header: the browser must set the multipart boundary.
+    return request('/api/imports', { method: 'POST', body: form })
+  },
+
+  /* -------------------------------- auth -------------------------------- */
+
+  /**
+   * The signed-in account, or an ApiError with status 401.
+   *
+   * There is no token to read here and none is stored: the cookie is
+   * HTTP-only, so script cannot see it, and the only way to learn who you are
+   * is to ask the server.
+   */
+  me(): Promise<{ user: AuthUser }> {
+    return request('/api/auth/me')
+  },
+
+  register(email: string, password: string, displayName?: string): Promise<{ user: AuthUser }> {
+    return postJson('/api/auth/register', {
+      email,
+      password,
+      display_name: displayName || null,
+    })
+  },
+
+  login(email: string, password: string): Promise<{ user: AuthUser }> {
+    return postJson('/api/auth/login', { email, password })
+  },
+
+  /**
+   * Request a reset link. The response is deliberately identical whether or not
+   * the address has an account, and carries no token, url or identifier.
+   */
+  forgotPassword(email: string): Promise<{ message: string }> {
+    return postJson('/api/auth/forgot-password', { email })
+  },
+
+  resetPassword(
+    token: string,
+    password: string,
+    passwordConfirmation: string,
+  ): Promise<{ message: string }> {
+    return postJson('/api/auth/reset-password', {
+      token,
+      password,
+      password_confirmation: passwordConfirmation,
+    })
+  },
+
+  logout(): Promise<{ ok: boolean }> {
+    return request('/api/auth/logout', { method: 'POST' })
+  },
+
+  getImportJob(jobId: string): Promise<{ job: ImportJob }> {
+    return request(`/api/imports/jobs/${encodeURIComponent(jobId)}`)
+  },
+
+  listImportJobs(): Promise<{ jobs: ImportJob[] }> {
+    return request('/api/imports/jobs')
   },
 }
 

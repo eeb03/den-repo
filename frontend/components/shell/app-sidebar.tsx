@@ -5,12 +5,14 @@ import { usePathname } from 'next/navigation'
 import {
   Beaker,
   Database,
+  FileUp,
   Layers,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SubterraLogo } from '@/components/brand/logo'
 import { ProvenanceLegend } from '@/components/subterra/provenance-tag'
+import { AccountMenu } from '@/components/auth/account-menu'
 
 interface NavItem {
   href: string
@@ -35,6 +37,12 @@ const navItems: NavItem[] = [
     label: 'Datasets',
     icon: Database,
     description: 'Ingested surveys and their frames',
+  },
+  {
+    href: '/import',
+    label: 'Import',
+    icon: FileUp,
+    description: 'Add a dataset from a file',
   },
   {
     href: '/benchmark',
@@ -97,6 +105,8 @@ export function AppSidebar() {
           not ranked.
         </p>
       </div>
+
+      <AccountMenu />
     </aside>
   )
 }

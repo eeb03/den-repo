@@ -1,17 +1,18 @@
 import math
 import random
 import shutil
+from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 import numpy as np
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from database.session import get_db
-from database.models import Dataset, gen_uuid
+from database.models import Dataset, User, gen_uuid
 from schemas.subterra_record import SensorType
 from converters.registry import get_converter
 from converters.base import MissingDependencyError
@@ -24,7 +25,15 @@ from ingestion.downloader import download_file, DownloadError
 from converters.registry import supported_extensions
 from preprocessing.dem_alignment import align_records_with_dem
 from configs.settings import settings
+from api import dataset_lifecycle as lifecycle
+from jobs import storage
 from utils.logger import get_logger
+from auth.dependencies import (
+    get_current_user,
+    require_dataset_access,
+    require_owned_dataset,
+    visible_datasets,
+)
 
 logger = get_logger(__name__)
 
@@ -57,6 +66,8 @@ def _run_ingest_pipeline(
     apply_preprocessing: bool = True,
     preprocessing_mode: str = "trace",
     converter_kwargs: Optional[dict] = None,
+    on_stage: Optional[Callable[[str], None]] = None,
+    owner_id: Optional[str] = None,
 ) -> dict:
     """
     The core pipeline shared by every ingest entrypoint (direct upload,
@@ -72,7 +83,26 @@ def _run_ingest_pipeline(
     converter_kwargs passes format-specific options through to the
     converter (e.g. {"stride": 1} for GeoTIFFConverter on a small DEM tile
     where the default stride=10 would sample almost nothing).
+
+    `owner_id`, when given, is the account the resulting dataset belongs to. It
+    is passed by the IMPORT WORKER from the job record -- never read from a
+    request body -- so a client cannot name the owner of what it uploads.
+    Defaulting to None keeps every existing caller producing system/public
+    datasets, which is what a script-run ingest genuinely is.
+
+    `on_stage`, when given, is called with the name of each step as it begins
+    -- "converting", "validating", "preprocessing", "persisting",
+    "registering". It exists so a background import can report WHICH step it is
+    in without this function having to know anything about jobs, and so the
+    interface never has to invent a completion percentage the pipeline cannot
+    actually measure. It defaults to None, so every existing caller is
+    unchanged.
     """
+    def _stage(name: str) -> None:
+        if on_stage is not None:
+            on_stage(name)
+
+    _stage("converting")
     try:
         converter = get_converter(raw_path)
     except ValueError as e:
@@ -88,16 +118,20 @@ def _run_ingest_pipeline(
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Conversion failed: {e}")
 
+    _stage("validating")
     report = validate_dataset(records, dataset_id=dataset_id, source_file=raw_path)
 
     if apply_preprocessing:
+        _stage("preprocessing")
         records = run_pipeline(records, mode=preprocessing_mode)
 
+    _stage("persisting")
     save_records(dataset_id, records)
     # Converters not yet migrated to load() return no frames; reconstruct one
     # from the records so every dataset has frame coverage from ingest onward.
     save_frames(dataset_id, frames or synthesize_frames_from_records(records))
 
+    _stage("registering")
     center_lat, center_lon = _geographic_centre(records)
     has_gt = any(r.ground_truth.value != "none" for r in records)
 
@@ -116,6 +150,7 @@ def _run_ingest_pipeline(
         has_ground_truth=has_gt,
         center_lat=center_lat,
         center_lon=center_lon,
+        owner_id=owner_id,
         extra_metadata={"validation_issues": report.issues},
     )
     db.add(dataset)
@@ -141,6 +176,7 @@ async def ingest_dataset(
     apply_preprocessing: bool = Form(True),
     preprocessing_mode: str = Form("trace", description="'trace' for multi-sample waveforms, 'spatial_grid' for single-value raster/depth-slice data (GPR, magnetometer, gravity)"),
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """
     Full ingest pipeline from a direct file upload: save -> convert ->
@@ -148,14 +184,29 @@ async def ingest_dataset(
     Conversion Engine" + "Dataset Validator" + "Metadata Database" wired
     together.
     """
-    raw_path = settings.raw_dir / file.filename
-    with open(raw_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+    # SECURITY. This previously wrote to `settings.raw_dir / file.filename`
+    # with the client's filename unmodified, so a name like
+    # `../../../etc/evil.csv` escaped the raw directory and a repeated name
+    # silently overwrote an earlier upload.
+    #
+    # The fix REUSES the storage helper the async import path already uses
+    # rather than adding a second sanitiser that could drift from it: the
+    # filename is reduced to one safe component, the bytes land in a directory
+    # named for a server-generated id (so a collision is unrepresentable), and
+    # a partial write is never renamed into place. The original filename is
+    # kept only as the dataset's display name, never as a path.
+    try:
+        raw_path, _, _ = storage.save_upload(gen_uuid(), file.filename, file.file)
+    except storage.EmptyUpload as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except storage.UploadTooLarge as exc:
+        raise HTTPException(status_code=413, detail=str(exc))
 
     return _run_ingest_pipeline(
         raw_path, sensor_type, name or file.filename, db,
         source=source, license=license, apply_preprocessing=apply_preprocessing,
         preprocessing_mode=preprocessing_mode,
+        owner_id=user.id,
     )
 
 
@@ -171,7 +222,7 @@ class IngestFromURLRequest(BaseModel):
 
 
 @router.post("/ingest_from_url")
-def ingest_from_url(req: IngestFromURLRequest, db: Session = Depends(get_db)):
+def ingest_from_url(req: IngestFromURLRequest, db: Session = Depends(get_db), _user=Depends(get_current_user)):
     """
     Same pipeline as /ingest, but for a dataset that lives at a URL —
     e.g. a download_url returned by /api/sources/{source}/search. Downloads
@@ -221,6 +272,7 @@ def reprocess_dataset(
     dewow_enabled: bool = True,
     gain_enabled: bool = True,
     db: Session = Depends(get_db),
+    _dataset=Depends(require_owned_dataset),
 ):
     """
     Re-run preprocessing on an already-ingested dataset's stored records.
@@ -253,7 +305,9 @@ def reprocess_dataset(
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
-    records = load_records(dataset_id)
+    # Uncached: run_pipeline reprocesses these records and they are saved back,
+    # so this path must not be handed the shared cached objects.
+    records = load_records(dataset_id, use_cache=False)
     if not records:
         raise HTTPException(status_code=404, detail="No stored records found for this dataset")
 
@@ -287,7 +341,8 @@ def reprocess_dataset(
 
 
 @router.post("/{dataset_id}/align_dem")
-def align_dataset_with_dem(dataset_id: str, dem_filename: str, db: Session = Depends(get_db)):
+def align_dataset_with_dem(dataset_id: str, dem_filename: str, db: Session = Depends(get_db),
+    _dataset=Depends(require_owned_dataset)):
     """
     Look up ground-surface elevation from a DEM GeoTIFF (e.g. one fetched via
     /api/sources/opentopography/dem, saved under datasets/downloads/) at each
@@ -300,7 +355,8 @@ def align_dataset_with_dem(dataset_id: str, dem_filename: str, db: Session = Dep
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
-    records = load_records(dataset_id)
+    # Uncached: DEM alignment rewrites these records and saves them back.
+    records = load_records(dataset_id, use_cache=False)
     if not records:
         raise HTTPException(status_code=404, detail="No stored records found for this dataset")
 
@@ -348,7 +404,7 @@ class IngestLocalFileRequest(BaseModel):
 
 
 @router.post("/ingest_local_file")
-def ingest_local_file(req: IngestLocalFileRequest, db: Session = Depends(get_db)):
+def ingest_local_file(req: IngestLocalFileRequest, db: Session = Depends(get_db), _user=Depends(get_current_user)):
     """
     Ingest a file that's already on disk in the container — e.g. a DEM
     tile saved by /api/sources/opentopography/dem — without re-uploading
@@ -422,7 +478,8 @@ def _run_depth_slice_pipeline(
     if apply_preprocessing:
         new_records = run_pipeline(new_records, mode=preprocessing_mode)
 
-    existing_records = load_records(dataset_id)
+    # Uncached: these records are concatenated with the new slice and saved back.
+    existing_records = load_records(dataset_id, use_cache=False)
     existing_depths = {round(r.depth, 4) for r in existing_records if r.depth is not None}
     if round(depth, 4) in existing_depths:
         raise HTTPException(
@@ -456,7 +513,8 @@ class IngestDepthSliceLocalRequest(BaseModel):
 
 
 @router.post("/{dataset_id}/ingest_depth_slice")
-def ingest_depth_slice(dataset_id: str, req: IngestDepthSliceLocalRequest, db: Session = Depends(get_db)):
+def ingest_depth_slice(dataset_id: str, req: IngestDepthSliceLocalRequest, db: Session = Depends(get_db),
+    _dataset=Depends(require_owned_dataset)):
     """Add one depth slice (from a file already on disk) to an existing multi-depth dataset."""
     src_path = Path(req.path)
     if not src_path.is_absolute():
@@ -483,7 +541,8 @@ class IngestDepthSliceURLRequest(BaseModel):
 
 
 @router.post("/{dataset_id}/ingest_depth_slice_from_url")
-def ingest_depth_slice_from_url(dataset_id: str, req: IngestDepthSliceURLRequest, db: Session = Depends(get_db)):
+def ingest_depth_slice_from_url(dataset_id: str, req: IngestDepthSliceURLRequest, db: Session = Depends(get_db),
+    _dataset=Depends(require_owned_dataset)):
     """Add one depth slice (downloaded from a URL) to an existing multi-depth dataset."""
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     if not dataset:
@@ -523,7 +582,7 @@ class IngestZipFromURLRequest(BaseModel):
 
 
 @router.post("/ingest_zip_from_url")
-def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_db)):
+def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_db), _user=Depends(get_current_user)):
     """
     Downloads a .zip archive, extracts it, finds every file inside (incl.
     subdirectories) whose extension has a registered converter, converts
@@ -689,7 +748,7 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
 
 
 @router.get("/debug/segy_headers")
-def debug_segy_headers(path: str, n_traces: int = 5):
+def debug_segy_headers(path: str, n_traces: int = 5, _user=Depends(get_current_user)):
     """
     Diagnostic: dumps common trace header field values for the first
     n_traces of a SEG-Y file already on disk (e.g. one extracted by a
@@ -745,7 +804,8 @@ def debug_segy_headers(path: str, n_traces: int = 5):
 
 
 @router.get("/{dataset_id}/points")
-def get_dataset_points(dataset_id: str, max_points: int = 20000, db: Session = Depends(get_db)):
+def get_dataset_points(dataset_id: str, max_points: int = 20000, db: Session = Depends(get_db),
+    _dataset=Depends(require_dataset_access)):
     """
     Returns a (optionally downsampled) list of renderable points for this
     dataset — lat/lon/elevation/depth/signal/sensor_type/ground_truth —
@@ -809,7 +869,8 @@ def get_dataset_points(dataset_id: str, max_points: int = 20000, db: Session = D
 
 
 @router.get("/{dataset_id}/depths")
-def get_dataset_depths(dataset_id: str, db: Session = Depends(get_db)):
+def get_dataset_depths(dataset_id: str, db: Session = Depends(get_db),
+    _dataset=Depends(require_dataset_access)):
     """Lists distinct depth values present in this dataset with record counts -- for building a depth-slice-stacking control."""
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     if not dataset:
@@ -830,6 +891,7 @@ def get_dataset_grid(
     smooth: bool = True,
     smoothing_window: int = 3,
     db: Session = Depends(get_db),
+    _dataset=Depends(require_dataset_access),
 ):
     """
     Returns a single depth layer as a 2D grid for heatmap/surface rendering
@@ -884,6 +946,7 @@ def get_dataset_trace_grid(
     source_file: Optional[str] = None,
     field: str = "signal",
     db: Session = Depends(get_db),
+    _dataset=Depends(require_dataset_access),
 ):
     """
     Returns one survey line's data as a dense (depth x trace) 2D grid --
@@ -975,7 +1038,8 @@ def get_dataset_trace_grid(
 
 
 @router.get("/{dataset_id}/info")
-def get_dataset_info(dataset_id: str, db: Session = Depends(get_db)):
+def get_dataset_info(dataset_id: str, db: Session = Depends(get_db),
+    _dataset=Depends(require_dataset_access)):
     """
     Richer dataset summary for the UI's dataset card: survey area, grid
     resolution, and active processing steps -- all computed from real
@@ -1069,15 +1133,52 @@ def get_dataset_info(dataset_id: str, db: Session = Depends(get_db)):
     }
 
 
+@router.get("/{dataset_id}/report")
+def get_dataset_report(dataset_id: str, db: Session = Depends(get_db),
+    _dataset=Depends(require_dataset_access)):
+    """
+    The Dataset Report: what this dataset is, what happened to it, how far it
+    can be trusted, and what Subterra may legitimately do with it next.
+
+    ONE CALL, ONE DOMAIN VALUE. The report deliberately does not leave the
+    client to assemble this from `/info`, `/provenance/{id}/frames`,
+    `/labels/{id}` and a view resolution -- four calls whose answers could
+    disagree, and whose combination would put the readiness judgement in the
+    browser where it cannot be tested or reused. Stage 8's spatial workflow
+    and stage 17's reconstruction need the same assessment, and will call
+    `api.reports.build_dataset_report` rather than this route.
+
+    UNLIKE `/info`, A DATASET WITH NO RECORDS IS NOT A 404. "This dataset
+    produced nothing" is one of the most important things a report can say,
+    and answering 404 would make an empty dataset indistinguishable from a
+    missing one.
+    """
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    from api.reports import build_dataset_report
+
+    return build_dataset_report(dataset).model_dump(mode="json")
+
+
 @router.get("/")
 def list_datasets(
     sensor_type: Optional[str] = None,
     min_quality: Optional[float] = None,
     has_ground_truth: Optional[bool] = None,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
-    """Search datasets by sensor, quality score, and ground-truth availability."""
-    query = db.query(Dataset)
+    """
+    Search datasets by sensor, quality score, and ground-truth availability.
+
+    SCOPED IN THE QUERY, not after it. Loading every row and dropping some in
+    Python is one forgotten filter away from leaking them, and the filter is
+    trivially expressible in SQL: the caller's own datasets, plus the
+    system/public reference corpora that belong to nobody.
+    """
+    query = visible_datasets(db, user)
     if sensor_type:
         query = query.filter(Dataset.sensor_type == sensor_type)
     if min_quality is not None:
@@ -1085,25 +1186,174 @@ def list_datasets(
     if has_ground_truth is not None:
         query = query.filter(Dataset.has_ground_truth == has_ground_truth)
     results = query.all()
-    return [_dataset_to_dict(d) for d in results]
+
+    # Status needs the originating import job, and duplicate awareness needs
+    # every checksum in the result. Both are computed ONCE for the whole list:
+    # a per-row query here is how a dataset list becomes slow enough to need
+    # pagination for the wrong reason.
+    #
+    # Readiness is deliberately NOT included. Assessing it means loading a
+    # dataset's records -- 157,040 for one of these -- and doing that per row
+    # would make listing cost more than opening. The list says what a dataset
+    # IS and links to the report, which says what can be done with it.
+    jobs = lifecycle.latest_jobs_by_dataset(db, [d.id for d in results])
+    duplicates = lifecycle.duplicate_groups(results)
+    checksum_of_group = {
+        dataset_id: checksum
+        for checksum, ids in duplicates.items() for dataset_id in ids
+    }
+
+    out = []
+    for d in results:
+        row = _dataset_to_dict(d)
+        status = lifecycle.status_for(d, jobs.get(d.id))
+        row["status"] = status.value
+        row["status_reason"] = status.reason
+        row["job_state"] = status.job_state
+        row["job_id"] = status.job_id
+        checksum = checksum_of_group.get(d.id)
+        row["shares_source_with"] = (
+            [i for i in duplicates[checksum] if i != d.id] if checksum else []
+        )
+        out.append(row)
+    return out
 
 
 @router.get("/{dataset_id}")
-def get_dataset(dataset_id: str, db: Session = Depends(get_db)):
+def get_dataset(dataset_id: str, db: Session = Depends(get_db),
+    _dataset=Depends(require_dataset_access)):
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
     return _dataset_to_dict(dataset)
 
 
-@router.delete("/{dataset_id}")
-def delete_dataset(dataset_id: str, db: Session = Depends(get_db)):
-    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
-    if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset not found")
-    db.delete(dataset)
+class RenameDatasetRequest(BaseModel):
+    name: str = Field(..., max_length=lifecycle.MAX_NAME_LENGTH + 1)
+
+
+@router.patch("/{dataset_id}")
+def rename_dataset(dataset_id: str, body: RenameDatasetRequest,
+    db: Session = Depends(get_db), dataset=Depends(require_owned_dataset)):
+    """
+    Change a dataset's human-facing name. Nothing else moves.
+
+    THE ID IS NOT THE NAME. Every record, frame, label and artifact is keyed on
+    the immutable dataset id, so a rename touches exactly one column. The raw
+    source path, the checksum, the frames' `source_file` and every provenance
+    entry are untouched -- which is what keeps "what the user calls it" and
+    "what the file was" two separate facts. A test asserts the report's
+    provenance is byte-identical across a rename.
+
+    Names are not unique. Two datasets in this corpus are already both called
+    "INGV-UNISA Site 1 GPR v3", and they are genuinely different ingestion
+    events; enforcing uniqueness would either reject that or mangle it.
+    """
+    try:
+        name = lifecycle.clean_dataset_name(body.name)
+    except lifecycle.InvalidDatasetName as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    dataset.name = name
+    dataset.updated_at = datetime.utcnow()
     db.commit()
-    return {"deleted": dataset_id}
+    db.refresh(dataset)
+    logger.info("renamed dataset %s", dataset_id)
+    return _dataset_to_dict(dataset)
+
+
+@router.post("/{dataset_id}/rescore")
+def rescore_dataset(dataset_id: str, db: Session = Depends(get_db),
+    dataset=Depends(require_owned_dataset)):
+    """
+    Recompute the stored quality score from the records as they are now.
+
+    THIS IS NOT `reprocess`, AND THE DIFFERENCE MATTERS. `POST /reprocess` runs
+    the preprocessing pipeline and SAVES THE RESULT BACK -- dewow, gain,
+    normalisation; it changes the science. Using it to correct a stale score
+    would silently alter the measurements to fix a number about them.
+
+    This endpoint reads the records, runs the existing validator, and writes one
+    derived scalar plus its issue list. It is deterministic, it touches no
+    record, frame, label or raw file, and running it twice changes nothing the
+    first run did not. That is what makes it safe to offer as a button.
+
+    It exists because the report can already detect that a stored score no
+    longer matches the data (`score_is_stale`) -- two of the six datasets held
+    were scored before `NoPosition` replaced the `(0, 0)` placeholder, and were
+    being penalised for coordinates their format never had.
+    """
+    records = load_records(dataset_id)
+    if not records:
+        raise HTTPException(
+            status_code=400,
+            detail="this dataset has no stored records, so there is nothing to score")
+
+    before = dataset.quality_score
+    report = validate_dataset(records, dataset_id=dataset_id)
+    dataset.quality_score = report.quality_score
+    dataset.extra_metadata = {
+        **(dataset.extra_metadata or {}),
+        "validation_issues": report.issues,
+    }
+    dataset.updated_at = datetime.utcnow()
+    db.commit()
+
+    return {
+        "dataset_id": dataset_id,
+        "previous_quality_score": before,
+        "quality_score": report.quality_score,
+        "record_count": len(records),
+        "issues": report.issues,
+        "note": ("only the derived score was recomputed; no record, frame, label "
+                 "or source file was modified"),
+    }
+
+
+@router.delete("/{dataset_id}")
+def delete_dataset(dataset_id: str, db: Session = Depends(get_db),
+    dataset=Depends(require_owned_dataset)):
+    """
+    Delete a dataset and the data derived from it.
+
+    The policy is in `api/dataset_lifecycle.py` and comes down to one line:
+    DERIVED DATA IS REMOVED, SOURCE DATA AND EVENT LOGS ARE RETAINED. The raw
+    file survives because it is the bottom of the evidence chain, cannot be
+    regenerated, and is demonstrably shared between datasets in this corpus. The
+    import job survives because an import happened and deleting the record would
+    make the history lie by omission.
+
+    A dataset with an import in flight is REFUSED rather than deleted: removing
+    the artifacts a running job is writing would race it, and the job would
+    finish by recreating some of them.
+
+    The response enumerates what went and what stayed. "deleted: true" is not an
+    adequate answer for an irreversible operation over scientific data.
+    """
+    active = lifecycle.active_job_for(db, dataset_id)
+    if active is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=(f"an import for this dataset is {active.state.lower()}; "
+                    "wait for it to finish before deleting"))
+
+    plan = lifecycle.delete_dataset_completely(db, dataset)
+    return {
+        "deleted": dataset_id,
+        "removed": {
+            "artifacts": plan.artifacts,
+            "fusion_samples": len(plan.fusion_sample_ids),
+            "spatial_declarations": len(plan.spatial_declaration_ids),
+            "versions": plan.version_count,
+        },
+        "retained": {
+            "raw_source": plan.retained_raw_path,
+            "import_jobs": len(plan.retained_job_ids),
+            "why": ("the raw source is the original measurement, cannot be regenerated, "
+                    "and may be shared with other datasets; the import job records an "
+                    "event that happened"),
+        },
+    }
 
 
 def _dataset_to_dict(d: Dataset) -> dict:
@@ -1120,5 +1370,15 @@ def _dataset_to_dict(d: Dataset) -> dict:
         "center_lon": d.center_lon,
         "version": d.version,
         "created_at": d.created_at.isoformat() if d.created_at else None,
+        # Added for dataset management. `source_file` is the ORIGINAL file this
+        # came from and is kept distinct from `name`, which the user may change:
+        # renaming a dataset must not rewrite what the file was.
+        "source_file": Path(d.raw_path).name if d.raw_path else None,
+        "updated_at": d.updated_at.isoformat() if d.updated_at else None,
+        "checksum": d.checksum,
+        # NULL owner means the published reference corpora, which are readable
+        # by everyone and writable by nobody. The UI needs this to know that
+        # rename and delete will be refused.
+        "is_system_dataset": d.owner_id is None,
     }
 

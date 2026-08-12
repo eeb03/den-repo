@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -6,9 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from database.session import init_db
+from auth.mailer import configure_from_environment
+from jobs.runner import mark_orphaned_jobs_failed
 from api.routes import (datasets, fusion, benchmark, sources, training,
                         provenance, labels, overlays, objects, views,
-                        exports)
+                        exports, imports, auth, spatial)
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -18,6 +21,13 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Starting Subterra Data Platform API — initializing database...")
     init_db()
+    # An import that was running when the process died must not stay RUNNING
+    # for ever; reconcile it to FAILED with a stated reason so the API can
+    # always represent what actually happened.
+    configure_from_environment()
+    orphaned = mark_orphaned_jobs_failed()
+    if orphaned:
+        logger.info("Reconciled %d interrupted import job(s)", orphaned)
     yield
     logger.info("Shutting down Subterra Data Platform API")
 
@@ -32,9 +42,23 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS. `allow_origins=["*"]` WITH `allow_credentials=True` is rejected by every
+# browser -- the spec forbids a wildcard on a credentialed request -- so the
+# previous configuration could never have carried a session cookie from the
+# Next.js dev server on :3000. Origins are therefore explicit. Override with
+# SUBTERRA_ALLOWED_ORIGINS (comma-separated) for any other deployment.
+_origins = [
+    o.strip()
+    for o in os.environ.get(
+        "SUBTERRA_ALLOWED_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000",
+    ).split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -51,6 +75,9 @@ app.include_router(fusion.router, prefix="/api/fusion", tags=["fusion"])
 app.include_router(benchmark.router, prefix="/api/benchmark", tags=["benchmark"])
 app.include_router(sources.router, prefix="/api/sources", tags=["sources"])
 app.include_router(training.router, prefix="/api/training", tags=["training"])
+app.include_router(imports.router, prefix="/api/imports", tags=["imports"])
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(spatial.router, prefix="/api/spatial", tags=["spatial"])
 
 
 @app.get("/api/health", tags=["system"])

@@ -233,6 +233,50 @@ export interface DatasetSummary {
   center_lon: number | null
   version: number | null
   created_at: string | null
+  updated_at: string | null
+
+  /* --------------------------- dataset management -------------------------- */
+
+  /**
+   * The ORIGINAL file this came from, kept distinct from `name`.
+   *
+   * Renaming a dataset changes what the user calls it and nothing about what
+   * the file was. Collapsing the two would lose the provenance the moment
+   * somebody tidied a list.
+   */
+  source_file: string | null
+  checksum: string | null
+  /** NULL owner: published reference data, readable by all and writable by none. */
+  is_system_dataset: boolean
+  /** importing | ready | empty | failed — derived, never stored. */
+  status: 'importing' | 'ready' | 'empty' | 'failed'
+  status_reason: string
+  /** The originating import job's own state, carried through unrenamed. */
+  job_state: string | null
+  job_id: string | null
+  /**
+   * Other datasets ingested from the same source bytes.
+   *
+   * Detection only. Identical bytes are not the same dataset: the four INGV
+   * entries in this corpus share a checksum and are four different ingestion
+   * events under different converter behaviour.
+   */
+  shares_source_with: string[]
+}
+
+export interface DeletionResult {
+  deleted: string
+  removed: { artifacts: string[]; fusion_samples: number; versions: number }
+  retained: { raw_source: string | null; import_jobs: number; why: string }
+}
+
+export interface RescoreResult {
+  dataset_id: string
+  previous_quality_score: number | null
+  quality_score: number
+  record_count: number
+  issues: string[]
+  note: string
 }
 
 export interface SpatialRefSummary {
@@ -521,4 +565,286 @@ export interface BenchmarkArtifact {
   provenance?: Record<string, unknown>
   grid?: Record<string, unknown>
   [key: string]: unknown
+}
+
+
+/* ------------------------------ dataset import ----------------------------- */
+
+/**
+ * The four states an import can be in. Deliberately finite and explicit: a job
+ * is queued, running, or finished one way or the other. There is no
+ * "processing…" catch-all that could hide a job the server has actually lost.
+ */
+export type ImportJobState = 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED'
+
+/**
+ * Which pipeline step the job is in. NOT a percentage: the ingest pipeline
+ * cannot measure fractional completion, and a number derived from a step index
+ * would be a fabricated measurement.
+ */
+export type ImportStage =
+  | 'queued'
+  | 'converting'
+  | 'validating'
+  | 'preprocessing'
+  | 'persisting'
+  | 'registering'
+  | 'complete'
+
+/** How the converter registry classified the file. */
+export type FormatStatus = 'supported' | 'recognized_unsupported' | 'unknown'
+
+export interface ImportJob {
+  id: string
+  job_type: string
+  state: ImportJobState
+  stage: ImportStage | null
+  original_filename: string | null
+  stored_filename: string | null
+  size_bytes: number | null
+  sensor_type: string | null
+  detected_format: string | null
+  format_status: FormatStatus | null
+  dataset_id: string | null
+  error_stage: string | null
+  error_message: string | null
+  owner_id: string | null
+  created_at: string | null
+  started_at: string | null
+  completed_at: string | null
+}
+
+/** The registry's own answer about what can be read. Never duplicated in the UI. */
+export interface ImportFormats {
+  supported: string[]
+  recognized_unsupported: { extension: string; description: string }[]
+  max_upload_bytes: number
+  note: string
+}
+
+
+/* --------------------------------- accounts -------------------------------- */
+
+/**
+ * The signed-in account, as the API reports it. Deliberately minimal: an
+ * account exists to own datasets, and the password hash never leaves the
+ * server.
+ */
+export interface AuthUser {
+  id: string
+  email: string
+  display_name: string | null
+  created_at: string | null
+}
+
+/* ------------------------------ dataset report ----------------------------- */
+
+/**
+ * The Dataset Report, from `GET /api/datasets/{id}/report`.
+ *
+ * Mirrors `schemas/dataset_report.py` exactly. Every field the backend may
+ * leave undeclared is `| null` here rather than optional, so the UI has to
+ * decide what to render for an absence instead of silently printing
+ * `undefined` — which is how "not declared" quietly becomes a blank that
+ * reads like zero.
+ */
+export type Readiness = 'ready' | 'partial' | 'blocked'
+
+export type Capability =
+  | 'ingestion'
+  | 'validation'
+  | 'signal_processing'
+  | 'horizontal_registration'
+  | 'vertical_registration'
+  | 'candidate_analysis'
+  | 'object_classification'
+  | 'reconstruction_3d'
+
+export interface CapabilityAssessment {
+  capability: Capability
+  readiness: Readiness
+  reason: string
+  missing: string[]
+  depends_on: Capability[]
+}
+
+export interface QualityDimension {
+  name: string
+  /** null means deliberately unmeasured, never zero. */
+  value: number | null
+  weight: number
+  basis: string
+  counts: Record<string, number>
+}
+
+export interface DatasetReport {
+  report_version: string
+  generated_at: string
+  identity: {
+    dataset_id: string
+    name: string | null
+    source: string | null
+    source_url: string | null
+    license: string | null
+    modality: string | null
+    original_format: string | null
+    source_files: string[]
+    manufacturer: string | null
+    device_model: string | null
+    collection_date: string | null
+    imported_at: string | null
+    updated_at: string | null
+    checksum: string | null
+    version: number | null
+    owner_id: string | null
+    is_system_dataset: boolean
+    has_ground_truth: boolean
+    undeclared: string[]
+  }
+  volume: {
+    record_count: number
+    frame_count: number
+    positions_per_frame: Record<string, number | null>
+    samples_per_trace: number[] | null
+    sample_interval: number[] | null
+    sample_interval_units: string | null
+    records_with_signal: number
+    records_with_timestamp: number
+    records_with_depth: number
+    records_with_position: number
+    invalid_signal_count: number
+    position_kinds: Record<string, number>
+  }
+  spatial: {
+    horizontal: {
+      coordinates_present: boolean
+      earth_referenced: boolean
+      declared_refs: string[]
+      crs_kinds: string[]
+      crs_provenance: string[]
+      positioned_record_count: number
+      total_record_count: number
+      geo_tie_frames: string[]
+      reasons: string[]
+      missing: string[]
+    }
+    vertical: {
+      axis_kinds: string[]
+      axis_units: string[]
+      axis_origins: string[]
+      vertical_datum_declared: boolean
+      vertical_datums: string[]
+      depth_axis_available: boolean
+      depth_basis: string
+      time_to_depth_justified: boolean
+      surface_model_held: boolean
+      surface_frame_ids: string[]
+      relationship_kind: string | null
+      absolute_elevation_available: boolean
+      reasons: string[]
+      missing: string[]
+    }
+    geometry: {
+      frame_count: number
+      bounds: Record<string, number> | null
+      lat_span_m: number | null
+      lon_span_m: number | null
+      along_track_extent_m: Record<string, number>
+      reasons: string[]
+    }
+  }
+  processing: {
+    stage: string
+    status: string
+    detail: string | null
+    parameters: Record<string, unknown>
+    at: string | null
+  }[]
+  quality: {
+    stored_score: number | null
+    computed_score: number | null
+    dimensions: QualityDimension[]
+    issues: string[]
+    score_is_stale: boolean
+  }
+  candidates: {
+    candidate_count: number
+    analysed: boolean
+    frames_with_candidates: string[]
+    shape_classes: Record<string, number>
+    evidence_available: boolean
+    classified_object_count: number
+    note: string
+  }
+  readiness: CapabilityAssessment[]
+  provenance: {
+    quantity: string
+    provenance: string
+    basis: string
+    value: unknown
+    verified: boolean | null
+    source: string | null
+  }[]
+}
+
+/* ----------------------------- spatial reference --------------------------- */
+
+/**
+ * The spatial contract, from `GET /api/spatial/{id}`.
+ *
+ * Seven dimensions, each with its OWN state vocabulary. They are not unified
+ * into one enum because the distinctions differ — a CRS can be `inferred`, a
+ * position cannot; depth can be `derived`, a datum cannot — and a shared
+ * vocabulary would have to drop whichever distinction did not generalise.
+ * Those are the distinctions that matter.
+ */
+export type SpatialDimensionName =
+  | 'horizontal_position'
+  | 'crs'
+  | 'vertical_reference'
+  | 'surface_reference'
+  | 'orientation'
+  | 'depth_conversion'
+  | 'survey_geometry'
+
+export type DeclarationKind =
+  | 'crs'
+  | 'vertical_datum'
+  | 'antenna_offset'
+  | 'depth_conversion'
+  | 'geo_tie'
+  | 'surface_reference'
+
+export interface DimensionState {
+  dimension: SpatialDimensionName
+  state: string
+  reason: string
+  missing: string[]
+  /** The declaration that would resolve this, or null when no declaration can. */
+  action: DeclarationKind | null
+  provenance: string | null
+  detail: Record<string, unknown>
+}
+
+export interface SpatialDeclaration {
+  id: string
+  dataset_id: string
+  frame_id: string | null
+  kind: DeclarationKind
+  value: Record<string, unknown>
+  supplied_by: string
+  note: string | null
+  created_at: string | null
+  superseded_at: string | null
+  superseded_by: string | null
+  active: boolean
+}
+
+export interface SpatialReference {
+  contract_version: string
+  dataset_id: string
+  dimensions: DimensionState[]
+  declarations: SpatialDeclaration[]
+  has_stale_products: boolean
+  stale_products: string[]
 }

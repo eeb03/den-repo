@@ -17,6 +17,8 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from auth.dependencies import get_current_user, visible_dataset_ids
+from database.models import User
 from database.session import get_db
 from database.models import BenchmarkRun, gen_uuid
 
@@ -38,7 +40,11 @@ class BenchmarkScoreRequest(BaseModel):
 
 
 @router.post("/score")
-def score_predictions(req: BenchmarkScoreRequest, db: Session = Depends(get_db)):
+def score_predictions(
+    req: BenchmarkScoreRequest,
+    db: Session = Depends(get_db),
+    _user=Depends(get_current_user),
+):
     preds = req.predictions
     n = len(preds)
     if n == 0:
@@ -85,7 +91,10 @@ def score_predictions(req: BenchmarkScoreRequest, db: Session = Depends(get_db))
 
 
 @router.get("/runs")
-def list_runs(db: Session = Depends(get_db)):
+def list_runs(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     runs = db.query(BenchmarkRun).all()
     return [
         {"id": r.id, "model_name": r.model_name, "dataset_id": r.dataset_id, "metrics": r.metrics}

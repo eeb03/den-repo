@@ -21,8 +21,12 @@ cp .env.example .env
 docker compose up --build
 ```
 
-- API: http://localhost:8000/api/docs
-- Postgres+PostGIS: localhost:5432
+- API: http://localhost:8001/api/docs
+- Postgres+PostGIS: localhost:5433
+
+(Both are shifted by one from the defaults inside the containers: Subterra
+Core's own API and Postgres already hold 8000 and 5432 on the same machine.
+`docker-compose.yml` is the authority for the mapping.)
 
 Run without Docker (SQLite dev mode):
 
