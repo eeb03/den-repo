@@ -297,9 +297,21 @@ def test_an_antenna_offset_has_no_default():
 
 
 def test_an_antenna_offset_states_what_it_is_measured_between():
-    value = service.validate_declaration(
-        DeclarationKind.ANTENNA_OFFSET, {"offset_m": 0.35})
-    assert value["measured_from"] and value["measured_to"]
+    """
+    Stage 12 stopped defaulting the reference point. It used to fall back to
+    "sensor phase centre", which quietly answered a question the caller had not
+    been asked -- and a phase-centre height is not an axis-origin offset.
+    """
+    with pytest.raises(service.DeclarationError) as exc:
+        service.validate_declaration(DeclarationKind.ANTENNA_OFFSET, {"offset_m": 0.35})
+    assert "measured_from is required" in str(exc.value)
+
+    value = service.validate_declaration(DeclarationKind.ANTENNA_OFFSET, {
+        "offset_m": 0.35, "measured_from": "depth_axis_origin",
+        "evidence": "field_measurement"})
+    assert value["measured_from"] == "depth_axis_origin"
+    assert value["measured_to"] == "ground surface"
+    assert value["verified"] is False
 
 
 def test_a_one_point_geo_tie_is_refused():
@@ -392,7 +404,13 @@ def test_the_spatial_endpoint_reports_every_dimension(env):
         assert dimension["reason"]
 
 
-def test_declaring_a_vertical_datum_resolves_that_dimension(env):
+def test_declaring_a_vertical_datum_moves_the_question_to_the_depth_origin(env):
+    """
+    Stage 12 corrected this. A datum alone used to resolve the dimension, but a
+    subsurface axis also needs its zero placed against the ground -- so with the
+    datum given and the origin unplaced, the workflow asks for the offset next
+    rather than reporting a vertical reference it does not have.
+    """
     Session, _ = env
     client = signed_in()
     seed(Session, client)
@@ -404,7 +422,19 @@ def test_declaring_a_vertical_datum_resolves_that_dimension(env):
     assert response.status_code == 201
     # The response carries the recalculated state, so inspect -> resolve ->
     # recalculate is one motion.
-    assert _state(response.json()["spatial_reference"], "vertical_reference") == "declared"
+    after = response.json()["spatial_reference"]
+    assert _state(after, "vertical_reference") == "unresolved"
+    vertical = next(d for d in after["dimensions"]
+                    if d["dimension"] == "vertical_reference")
+    assert vertical["action"] == DeclarationKind.ANTENNA_OFFSET.value
+    assert any("depth-axis origin" in m for m in vertical["missing"])
+
+    # And once the origin is placed too, the dimension is settled.
+    resolved = declare(client, "d", DeclarationKind.ANTENNA_OFFSET, {
+        "offset_m": 0.45, "measured_from": "depth_axis_origin",
+        "evidence": "field_measurement"})
+    assert resolved.status_code == 201
+    assert _state(resolved.json()["spatial_reference"], "vertical_reference") == "declared"
     assert _state(client.get("/api/spatial/d").json(), "vertical_reference") == "declared"
 
 

@@ -281,6 +281,97 @@ class VerticalRelationshipKind(str, Enum):
     UNRELATED = "unrelated"
 
 
+class OriginReference(str, Enum):
+    """
+    WHICH physical point an offset is measured from.
+
+    These were previously one free-text string, and `assess` decided whether
+    depth zero was the ground by searching it for the words "ground surface".
+    They are not interchangeable: an antenna's phase centre is where the pulse
+    effectively leaves the antenna, the housing is what a tape measure touches,
+    and the DEPTH-AXIS ORIGIN is where sample zero sits -- which for a GPR is
+    instrument time zero, set by the electronics, and is the only one vertical
+    registration is about. A phase-centre height is a real measurement that does
+    not answer the question until somebody also relates it to time zero.
+    """
+    DEPTH_AXIS_ORIGIN = "depth_axis_origin"
+    SENSOR_PHASE_CENTRE = "sensor_phase_centre"
+    SENSOR_HOUSING = "sensor_housing"
+
+
+class OffsetEvidence(str, Enum):
+    """
+    WHERE an offset came from. Ordered by how much the world vouches for it.
+
+    Kept separate from `verified`: documentation can be authoritative and still
+    unchecked against this particular acquisition.
+    """
+    #: Physically measured during acquisition -- a tape on the day.
+    FIELD_MEASUREMENT = "field_measurement"
+    #: Stated by the instrument or operator documentation for this setup.
+    ACQUISITION_DOCUMENTATION = "acquisition_documentation"
+    #: Supplied by a user with no independent basis given.
+    USER_DECLARATION = "user_declaration"
+    #: Computed from another known relationship, whose inputs are recorded.
+    DERIVED = "derived"
+
+
+#: THE SIGN CONVENTION, fixed and singular.
+#:
+#:     positive  =  the reference point is ABOVE the ground
+#:
+#: It is not chosen here: `api/spatial.py` has recorded
+#: `"positive_direction": "sensor above ground"` since the antenna-offset
+#: declaration was introduced, and changing it would silently invert every
+#: value already declared under it. So a cart-mounted antenna 0.45 m off the
+#: ground is `offset_m = +0.45`, and a sensor lowered into a trench below the
+#: surface is negative.
+#:
+#: For a depth axis (positive_down), the ground therefore lies at
+#: `+offset_m` ON that axis: a sample at depth d is (d - offset_m) below
+#: ground. Nothing in this module performs that arithmetic -- it is written
+#: down so that whatever eventually does cannot get the sign backwards.
+OFFSET_POSITIVE_MEANS = "the reference point is above the ground"
+
+
+class DepthOriginOffset(BaseModel):
+    """
+    Where the depth/time axis begins, relative to the ground.
+
+    THE MISSING LINK. A GPR's depth axis starts at instrument time zero, which
+    is not the ground surface; until somebody says how far apart they are, a
+    sample's depth cannot be placed against a surface model however good both
+    are. This records that statement -- and only that statement.
+
+    IT IS NOT A DEPTH, AND NOT A VELOCITY. Declaring this does not convert time
+    to metres, does not validate any depth already present, and does not make a
+    dataset vertically registered on its own. It removes exactly one of the
+    three things `fusion.vertical_reference.assess` enumerates as missing.
+    """
+    #: Metres, always. The field name carries the unit so a bare number cannot
+    #: arrive meaning centimetres.
+    offset_m: float
+    #: See `OriginReference`. Only DEPTH_AXIS_ORIGIN answers the registration
+    #: question; the others are recorded and reported as insufficient.
+    measured_from: OriginReference
+    measured_to: str = "ground surface"
+    evidence: OffsetEvidence
+    #: The AUTHORITY for the claim, in their own words -- not the account that
+    #: typed it. Same rule as every other spatial declaration.
+    supplied_by: str
+    #: Independently checked against something. Nothing sets this true yet:
+    #: Subterra has no way to verify an offset, and saying otherwise would make
+    #: a declaration look like a measurement.
+    verified: bool = False
+    sign_convention: str = OFFSET_POSITIVE_MEANS
+    note: Optional[str] = None
+
+    @property
+    def relates_the_depth_axis(self) -> bool:
+        """Whether this offset answers the question registration actually asks."""
+        return self.measured_from == OriginReference.DEPTH_AXIS_ORIGIN
+
+
 class VerticalAxis(BaseModel):
     """
     The vertical/time axis of a survey line, and how a stored `depth` was
@@ -302,6 +393,12 @@ class VerticalAxis(BaseModel):
     #: UNDECLARED -- which is the honest state for every dataset held so far,
     #: and the reason absolute elevation cannot be computed for any of them.
     vertical_datum: Optional[VerticalDatum] = None
+    #: Where this axis's zero sits relative to the ground. Absent means nobody
+    #: has said, which is a legitimate terminal state and not a gap to fill
+    #: with a typical antenna height. Lives on the AXIS, which lives on the
+    #: frame, because a survey line is exactly the unit over which a sensor
+    #: geometry is constant -- two lines of one survey may legitimately differ.
+    origin_offset: Optional[DepthOriginOffset] = None
 
 
 class Assumption(BaseModel):

@@ -318,10 +318,40 @@ def assess_vertical(frames) -> DimensionState:
                       action=DeclarationKind.VERTICAL_DATUM, codes=codes)
 
     provenance = {d.provenance.value for _, d in declared}
+
+    # THE DATUM IS NOT THE WHOLE VERTICAL REFERENCE. A subsurface axis also
+    # needs its zero placed against the ground, and until stage 12 there was no
+    # way to say where that was. When the datum is settled and the origin is
+    # not, the action points at the offset rather than at the datum the caller
+    # has already given -- so the workflow always asks for the next missing
+    # thing instead of the first.
+    subsurface = [
+        (f, a) for f, a in axes
+        if a.kind not in (AxisKind.ELEVATION_M, AxisKind.NONE)
+    ]
+    unplaced = [
+        f.frame_id for f, a in subsurface
+        if not (a.origin_offset is not None and a.origin_offset.relates_the_depth_axis)
+        and "ground surface" not in (a.origin or "").lower()
+    ]
+    if unplaced:
+        return _state(D, "unresolved",
+                      f"the vertical datum {codes[0]} is declared, but {len(unplaced)} "
+                      f"subsurface frame(s) do not say where their depth axis begins "
+                      f"relative to the ground: depth zero is instrument time zero, not "
+                      f"the surface",
+                      ["the offset from the depth-axis origin to the ground surface"],
+                      action=DeclarationKind.ANTENNA_OFFSET,
+                      provenance=sorted(provenance)[0], codes=codes,
+                      frames_without_origin_offset=unplaced)
+
     return _state(D, "declared",
                   f"{codes[0]}, "
                   + ("stated by the source" if "declared_by_source" in provenance
-                     else "supplied by a caller who took responsibility for it"),
+                     else "supplied by a caller who took responsibility for it")
+                  + (
+                      "; the depth axis origin is placed relative to the ground"
+                      if subsurface else ""),
                   provenance=sorted(provenance)[0], codes=codes, validated=False)
 
 

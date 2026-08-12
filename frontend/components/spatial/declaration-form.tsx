@@ -63,16 +63,29 @@ const FIELDS: Record<
     inputs: [{ name: 'code', label: 'Datum', placeholder: 'NAP' }],
   },
   antenna_offset: {
-    title: 'Declare the antenna offset',
-    explain: 'How far the sensor sat above the ground surface during acquisition.',
+    title: 'Declare where the depth axis begins',
+    explain:
+      'How far the depth/time axis’ zero sat from the ground surface during acquisition. A GPR’s depth zero is instrument time zero, which is not the ground.',
     consequence:
-      'There is no default. An offset of zero is a physical claim — that the antenna was on the ground — and assuming it is how an air-launched survey ends up with every reflector displaced.',
+      'This establishes the relationship between the acquisition origin and the ground reference. It does NOT establish a propagation velocity, a physical depth, a vertical datum, a surface elevation, or any validation of the number — nothing here checks that the value is true. There is no default: an offset of zero is a physical claim that the origin was on the ground.',
     inputs: [
       {
         name: 'offset_m',
-        label: 'Offset (m)',
-        placeholder: '0.35',
-        hint: 'positive means the sensor was above the ground',
+        label: 'Offset (metres)',
+        placeholder: '0.45',
+        hint: 'positive means the reference point was ABOVE the ground; 45 cm is 0.45, not 45',
+      },
+      {
+        name: 'measured_from',
+        label: 'Measured from',
+        placeholder: 'depth_axis_origin',
+        hint: 'depth_axis_origin · sensor_phase_centre · sensor_housing — only depth_axis_origin answers what vertical registration asks',
+      },
+      {
+        name: 'evidence',
+        label: 'Evidence',
+        placeholder: 'field_measurement',
+        hint: 'field_measurement · acquisition_documentation · user_declaration · derived',
       },
     ],
   },

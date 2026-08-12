@@ -104,14 +104,26 @@ def _validated_vertical_datum(value: dict) -> dict:
 
 def _validated_antenna_offset(value: dict) -> dict:
     """
-    How far the sensor sat above the ground, and what the offset is measured
-    between.
+    Where the depth/time axis begins, relative to the ground.
 
-    NO DEFAULT. An antenna height of zero is a physical claim -- that the
-    antenna was on the ground -- and assuming it is how an air-launched survey
-    ends up with every reflector half a metre out. If nobody knows the height,
-    the correct outcome is that depth stays unplaceable.
+    NO DEFAULT, ON EITHER FIELD. An offset of zero is a physical claim -- that
+    the reference point was on the ground -- and assuming it is how an
+    air-launched survey ends up with every reflector half a metre out. Nor is
+    the reference point defaulted: it used to fall back to "sensor phase
+    centre", which quietly answered a question the caller had not been asked,
+    and a phase-centre height is not an axis-origin offset.
+
+    SIGN: positive means the reference point is ABOVE the ground. Not chosen
+    here -- this declaration has recorded `positive_direction: sensor above
+    ground` since it was introduced, and inverting it now would silently flip
+    every value already declared under it.
+
+    SYNTAX IS NOT PHYSICS. Everything below checks that the number is a finite
+    quantity in a representable range. Nothing here checks that it is TRUE, and
+    the assessment says so wherever the offset appears.
     """
+    from schemas.spatial import DepthOriginOffset, OffsetEvidence, OriginReference
+
     raw = _require(value.get("offset_m"), "offset_m")
     try:
         offset = float(raw)
@@ -120,15 +132,46 @@ def _validated_antenna_offset(value: dict) -> dict:
     if offset != offset or abs(offset) == float("inf"):
         raise DeclarationError("offset_m is not finite")
     if not -10.0 <= offset <= 10.0:
+        # A representability bound, not a law of physics: beyond a few metres
+        # this is no longer a sensor-to-ground geometry the platform models, and
+        # a mistyped centimetre value lands here rather than in a dataset.
         raise DeclarationError(
-            "offset_m must be between -10 and 10 metres; a larger sensor-to-ground "
-            "offset is not a survey geometry this platform can represent")
-    return {
-        "offset_m": offset,
-        "measured_from": str(value.get("measured_from") or "sensor phase centre"),
-        "measured_to": str(value.get("measured_to") or "ground surface"),
-        "positive_direction": "sensor above ground",
-    }
+            "offset_m must be between -10 and 10 metres; a larger reference-to-ground "
+            "offset is not a survey geometry this platform can represent. The unit is "
+            "metres -- 45 cm is 0.45, not 45.")
+
+    # REQUIRED CHECKS OUTSIDE THE try. `DeclarationError` subclasses ValueError,
+    # so an `except ValueError` around `_require` swallows "this is required"
+    # and reports "must be one of ..." instead -- telling a caller who omitted
+    # the field to correct a value they never sent.
+    raw_from = _require(value.get("measured_from"), "measured_from")
+    try:
+        measured_from = OriginReference(raw_from)
+    except ValueError:
+        raise DeclarationError(
+            f"measured_from must be one of "
+            f"{', '.join(r.value for r in OriginReference)}; only "
+            f"{OriginReference.DEPTH_AXIS_ORIGIN.value} answers what vertical "
+            f"registration asks")
+
+    raw_evidence = _require(value.get("evidence"), "evidence")
+    try:
+        evidence = OffsetEvidence(raw_evidence)
+    except ValueError:
+        raise DeclarationError(
+            f"evidence must be one of {', '.join(e.value for e in OffsetEvidence)}")
+
+    declaration = DepthOriginOffset(
+        offset_m=offset,
+        measured_from=measured_from,
+        measured_to=str(value.get("measured_to") or "ground surface"),
+        evidence=evidence,
+        # Filled in by the route from the declaration's own attribution, so the
+        # offset carries its authority wherever the axis travels.
+        supplied_by=str(value.get("supplied_by") or "unattributed"),
+        note=value.get("note"),
+    )
+    return declaration.model_dump(mode="json")
 
 
 def _validated_depth_conversion(value: dict) -> dict:
@@ -233,7 +276,8 @@ def _assumption_for(kind: DeclarationKind, value: dict, supplied_by: str) -> Ass
         DeclarationKind.VERTICAL_DATUM: f"vertical datum {value.get('code')}",
         DeclarationKind.ANTENNA_OFFSET:
             f"{value.get('offset_m')} m from {value.get('measured_from')} to "
-            f"{value.get('measured_to')}",
+            f"{value.get('measured_to')} ({value.get('evidence')}); positive means the "
+            f"reference point is above the ground",
         DeclarationKind.DEPTH_CONVERSION:
             f"propagation velocity {value.get('velocity_m_per_ns')} m/ns",
         DeclarationKind.GEO_TIE:
@@ -301,12 +345,24 @@ def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
             changed.append(frame.frame_id)
 
     elif kind == DeclarationKind.ANTENNA_OFFSET:
-        # Recorded as an assumption only. It does NOT move the depth axis
-        # origin: doing that would silently shift every sample, and the offset
-        # is one of three things an absolute elevation needs -- see
-        # fusion/vertical_reference.py. The declaration makes it available; it
-        # does not pretend the registration is done.
-        changed = [f.frame_id for f in targets]
+        # WRITTEN ONTO THE AXIS, which is what changed in stage 12. Before this
+        # it was recorded as an assumption and nothing read it, so declaring an
+        # offset could never move the assessment: `assess` decided whether the
+        # axis zero was the ground by searching a free-text string.
+        #
+        # IT STILL MOVES NOTHING. `origin`, every sample and every stored depth
+        # are untouched; this records the RELATIONSHIP between the axis zero and
+        # the ground, which is exactly the missing piece and nothing more. No
+        # sample is shifted, because shifting samples is a different operation
+        # that needs a velocity this stage deliberately does not supply.
+        from schemas.spatial import DepthOriginOffset
+
+        declared_offset = DepthOriginOffset.model_validate(
+            {**value, "supplied_by": supplied_by})
+        for frame in targets:
+            frame.vertical_axis = frame.vertical_axis.model_copy(
+                update={"origin_offset": declared_offset})
+            changed.append(frame.frame_id)
 
     elif kind == DeclarationKind.GEO_TIE:
         from ingestion.geo_tie import GeoTie, GeoTieError, apply_geo_tie, tied_spatial_ref

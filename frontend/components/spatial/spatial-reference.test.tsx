@@ -333,3 +333,68 @@ describe('the component computes nothing', () => {
     }
   })
 })
+
+describe('the depth-origin declaration', () => {
+  function renderOffsetForm() {
+    return render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <DeclarationForm datasetId="d1" kind="antenna_offset" />
+      </SWRConfig>,
+    )
+  }
+
+  it('asks where the offset is measured from, and does not default it', () => {
+    const { container } = renderOffsetForm()
+    expect(container.querySelector('#antenna_offset-measured_from')).toBeTruthy()
+    expect(
+      (container.querySelector('#antenna_offset-measured_from') as HTMLInputElement).value,
+    ).toBe('')
+  })
+
+  it('says only the depth-axis origin answers the registration question', () => {
+    const { container } = renderOffsetForm()
+    expect(container.textContent).toContain(
+      'only depth_axis_origin answers what vertical registration asks',
+    )
+  })
+
+  it('states the sign convention and the unit', () => {
+    const { container } = renderOffsetForm()
+    const text = container.textContent ?? ''
+    expect(text).toContain('positive means the reference point was ABOVE the ground')
+    expect(text).toContain('45 cm is 0.45, not 45')
+  })
+
+  it('says what the declaration does not establish', () => {
+    const { container } = renderOffsetForm()
+    const consequence = container.querySelector('[data-consequence]')?.textContent ?? ''
+    expect(consequence).toContain('does NOT establish a propagation velocity')
+    expect(consequence).toContain('nothing here checks that the value is true')
+  })
+
+  it('asks for the kind of evidence behind the number', () => {
+    const { container } = renderOffsetForm()
+    expect(container.querySelector('#antenna_offset-evidence')).toBeTruthy()
+    expect(container.textContent).toContain('field_measurement')
+  })
+
+  it('cannot be submitted until every part is supplied', () => {
+    const { container } = renderOffsetForm()
+    const submit = container.querySelector('[data-action="submit-declaration"]') as HTMLButtonElement
+    fireEvent.change(container.querySelector('#antenna_offset-offset_m')!, {
+      target: { value: '0.45' },
+    })
+    fireEvent.change(container.querySelector('#antenna_offset-supplied-by')!, {
+      target: { value: 'field team' },
+    })
+    expect(submit.disabled).toBe(true)
+
+    fireEvent.change(container.querySelector('#antenna_offset-measured_from')!, {
+      target: { value: 'depth_axis_origin' },
+    })
+    fireEvent.change(container.querySelector('#antenna_offset-evidence')!, {
+      target: { value: 'field_measurement' },
+    })
+    expect(submit.disabled).toBe(false)
+  })
+})
