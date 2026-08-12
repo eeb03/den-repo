@@ -5,6 +5,7 @@ import { FileUp, Upload } from 'lucide-react'
 import { AppHeader } from '@/components/shell/app-header'
 import { Panel, PanelBody, PanelHeader } from '@/components/subterra/panel'
 import { StateBox } from '@/components/subterra/state-box'
+import { AcquisitionReview } from '@/components/import/acquisition-review'
 import { buttonVariants } from '@/components/ui/button'
 import { FormatVerdict, classify, type Verdict } from '@/components/import/format-check'
 import { ImportFailure, ImportReport } from '@/components/import/import-report'
@@ -36,6 +37,10 @@ export default function ImportPage() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  // The acquisition as first returned. `useImportJob` only polls once there is
+  // a job id, and a held acquisition never changes on its own, so the first
+  // response is what the review renders.
+  const [held, setHeld] = useState<ImportJob | null>(null)
 
   const { data: job } = useImportJob(jobId)
 
@@ -45,6 +50,7 @@ export default function ImportPage() {
   const reset = useCallback(() => {
     setFile(null)
     setJobId(undefined)
+    setHeld(null)
     setSubmitError(null)
     if (inputRef.current) inputRef.current.value = ''
   }, [])
@@ -54,8 +60,12 @@ export default function ImportPage() {
     setSubmitting(true)
     setSubmitError(null)
     try {
-      const { job: created } = await api.createImport(file, sensorType)
+      // review=true: the acquisition stops at the boundary and reports what
+      // arrived, so the decision to spend an ingestion is made by somebody who
+      // has been told what the file is.
+      const { job: created } = await api.createImport(file, sensorType, true)
       setJobId(created.id)
+      setHeld(created)
     } catch (err) {
       setSubmitError(
         err instanceof ApiError ? err.detail : `upload failed: ${String(err)}`,
@@ -66,8 +76,11 @@ export default function ImportPage() {
   }, [file, sensorType])
 
   // A job that was refused at the format gate comes back already FAILED.
-  const shown: ImportJob | undefined = job
+  const shown: ImportJob | undefined = job ?? held ?? undefined
   const finished = shown?.state === 'SUCCEEDED' || shown?.state === 'FAILED'
+  // Held at the acquisition boundary: identified, but not yet ingested.
+  const awaitingReview =
+    shown?.state === 'IDENTIFIED' || shown?.state === 'NEEDS_INPUT'
 
   return (
     <>
@@ -253,7 +266,25 @@ export default function ImportPage() {
                 </Panel>
               )}
 
-              {shown && !finished && (
+              {/*
+                Held at the acquisition boundary. Nothing has been ingested and
+                nothing will be until this is accepted -- so the stage track,
+                which describes an ingestion in flight, would be describing
+                something that is not happening.
+              */}
+              {shown && awaitingReview && (
+                <Panel>
+                  <PanelHeader title="What arrived" />
+                  <PanelBody>
+                    <AcquisitionReview
+                      job={shown}
+                      onAccepted={(queued) => setHeld(queued)}
+                    />
+                  </PanelBody>
+                </Panel>
+              )}
+
+              {shown && !finished && !awaitingReview && (
                 <Panel>
                   <PanelHeader title="Import job" />
                   <PanelBody>

@@ -227,6 +227,17 @@ class ImportJob(Base):
     #: registry -- never a second hand-maintained list.
     format_status = Column(String, nullable=True)
 
+    #: SHA-256 of the bytes as received, taken in the same pass that wrote them.
+    #: The acquisition's identity, and what duplicate detection compares.
+    checksum = Column(String, nullable=True, index=True)
+    #: The Content-Type the client claimed. Recorded, never trusted: format
+    #: dispatch is by extension and by what a converter can actually read.
+    content_type = Column(String, nullable=True)
+    #: What identification established BEFORE ingestion -- format, modality,
+    #: duplicates, and what the format can and cannot carry spatially. Written
+    #: once at receipt and read by the review screen.
+    identification = Column(JSON, nullable=True)
+
     dataset_id = Column(String, nullable=True, index=True)
     #: Which stage raised, and what it said. The real backend error, never a
     #: generic apology.
@@ -255,6 +266,9 @@ class ImportJob(Base):
             "detected_format": self.detected_format,
             "format_status": self.format_status,
             "dataset_id": self.dataset_id,
+            "checksum": self.checksum,
+            "content_type": self.content_type,
+            "identification": self.identification,
             "error_stage": self.error_stage,
             "error_message": self.error_message,
             "owner_id": self.owner_id,

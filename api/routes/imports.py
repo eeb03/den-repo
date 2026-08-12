@@ -34,6 +34,7 @@ from converters.registry import (
 from auth.dependencies import get_current_user, job_or_404
 from database.models import ImportJob, User, gen_uuid
 from database.session import get_db
+from api import acquisition
 from jobs import runner, storage
 from schemas.subterra_record import SensorType
 from utils.logger import get_logger
@@ -75,11 +76,20 @@ async def create_import(
     file: UploadFile = File(...),
     sensor_type: SensorType = Form(...),
     name: Optional[str] = Form(None),
+    review: bool = Form(False),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """
-    Accept an upload, persist it safely, queue it, and return the job.
+    Accept an upload, persist it safely, identify it, and either queue it or
+    hold it for review.
+
+    `review=false` (the default) is the original behaviour, unchanged: the file
+    is queued immediately. `review=true` is FileDrop: the acquisition stops at
+    IDENTIFIED, NEEDS_INPUT or REJECTED and reports what it found, and nothing
+    is ingested until `POST /jobs/{id}/accept`. Defaulting to the old behaviour
+    keeps every existing caller working rather than making the new flow
+    mandatory for scripts that never wanted it.
 
     202 rather than 201: the dataset does not exist yet, and saying it does
     would be the first untruth in the workflow. The response carries a job id;
@@ -124,8 +134,10 @@ async def create_import(
         db.commit()
         return {"job": job.to_dict()}
 
+    job.content_type = file.content_type
+
     try:
-        path, stored, size = storage.save_upload(job_id, file.filename, file.file)
+        path, stored, size, checksum = storage.save_upload(job_id, file.filename, file.file)
     except (storage.UploadTooLarge, storage.EmptyUpload) as exc:
         storage.cleanup_job_dir(job_id)
         job.state = runner.FAILED
@@ -139,8 +151,24 @@ async def create_import(
     job.stored_filename = stored
     job.stored_path = str(path)
     job.size_bytes = size
+    job.checksum = checksum
     if name:
         job.original_filename = job.original_filename or name
+
+    # Identification happens for BOTH flows: an immediate import gets the same
+    # record of what arrived, it simply does not stop to show it.
+    job.identification = acquisition.identify(job, db)
+
+    if review:
+        job.state = acquisition.state_after_identification(job.identification)
+        job.stage = None
+        db.add(job)
+        db.commit()
+        payload = job.to_dict()
+        logger.info("acquisition %s held at %s (%s, %d bytes)",
+                    job_id, payload["state"], stored, size)
+        return {"job": payload}
+
     db.add(job)
     db.commit()
 
@@ -153,6 +181,39 @@ async def create_import(
 
     runner.submit(job_id)
     logger.info("queued import job %s for %s (%d bytes)", job_id, stored, size)
+    return {"job": payload}
+
+
+@router.post("/jobs/{job_id}/accept", status_code=202)
+def accept_acquisition(job_id: str, db: Session = Depends(get_db),
+                       user: User = Depends(get_current_user)):
+    """
+    Hand a reviewed acquisition to the existing ingestion pipeline.
+
+    This is the whole handoff. It queues the job the pipeline already knows how
+    to run -- no second normalisation, no second validator, no second dataset
+    model. The acquisition keeps its id, so the dataset it produces stays
+    traceable to the bytes that arrived.
+
+    Only a HELD acquisition may be accepted. Accepting a rejected one would ask
+    the pipeline to read a file nothing can read; accepting a running or
+    finished one would ingest the same bytes twice under one record.
+    """
+    job = job_or_404(db, user, job_id)
+
+    if job.state not in acquisition.HELD_STATES:
+        raise HTTPException(
+            status_code=409,
+            detail=(f"this acquisition is {job.state} and cannot be accepted; "
+                    f"only {' or '.join(acquisition.HELD_STATES)} can be"))
+
+    job.state = runner.QUEUED
+    job.stage = runner.STAGE_QUEUED
+    db.commit()
+    payload = job.to_dict()
+
+    runner.submit(job_id)
+    logger.info("acquisition %s accepted and queued", job_id)
     return {"job": payload}
 
 

@@ -179,6 +179,37 @@ def _spatial_declarations(engine: Engine) -> None:
     logger.info("migration 004: created spatial_declarations")
 
 
+def _acquisition_fields(engine: Engine) -> None:
+    """
+    005 — the acquisition fields on import_jobs.
+
+    ADDITIVE COLUMNS ON AN EXISTING TABLE, which is the case `create_all`
+    cannot handle: it creates missing tables and never alters one that exists.
+    Every column is nullable, so rows written before FileDrop stay valid and
+    simply report that they carry no checksum -- which is true of them.
+
+    `ImportJob` is the acquisition record. A separate table would have been a
+    second upload pipeline with its own ownership, its own failure vocabulary
+    and its own drift; these four columns are what it was missing.
+    """
+    # `create_all` builds the whole table on a fresh database, so there is
+    # nothing to alter there. On a database that predates import jobs entirely
+    # there is no table either -- and ALTERing one that does not exist would
+    # fail the whole migration run for a column nobody needs yet.
+    if not _has_table(engine, "import_jobs"):
+        return
+
+    for column, ddl in (
+        ("checksum", "VARCHAR"),
+        ("content_type", "VARCHAR"),
+        ("identification", "JSON"),
+    ):
+        if not _has_column(engine, "import_jobs", column):
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE import_jobs ADD COLUMN {column} {ddl}"))
+            logger.info("migration 005: added import_jobs.%s", column)
+
+
 MIGRATIONS: list[Migration] = [
     Migration(
         id="001_dataset_owner_id",
@@ -199,6 +230,11 @@ MIGRATIONS: list[Migration] = [
         id="004_spatial_declarations",
         description="create spatial_declarations (append-only spatial reference claims)",
         apply=_spatial_declarations,
+    ),
+    Migration(
+        id="005_acquisition_fields",
+        description="add checksum, content_type and identification to import_jobs",
+        apply=_acquisition_fields,
     ),
 ]
 

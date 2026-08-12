@@ -575,7 +575,19 @@ export interface BenchmarkArtifact {
  * is queued, running, or finished one way or the other. There is no
  * "processing…" catch-all that could hide a job the server has actually lost.
  */
-export type ImportJobState = 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED'
+export type ImportJobState =
+  // The acquisition boundary, before anything is ingested. See
+  // api/acquisition.py: one state machine, extended -- everything from QUEUED
+  // onward is the original ingestion job, untouched.
+  | 'RECEIVED'
+  | 'IDENTIFIED'
+  | 'NEEDS_INPUT'
+  | 'REJECTED'
+  // The ingestion pipeline, unchanged.
+  | 'QUEUED'
+  | 'RUNNING'
+  | 'SUCCEEDED'
+  | 'FAILED'
 
 /**
  * Which pipeline step the job is in. NOT a percentage: the ingest pipeline
@@ -609,6 +621,10 @@ export interface ImportJob {
   error_stage: string | null
   error_message: string | null
   owner_id: string | null
+  /* acquisition fields — see api/acquisition.py */
+  checksum?: string | null
+  content_type?: string | null
+  identification?: AcquisitionIdentification | null
   created_at: string | null
   started_at: string | null
   completed_at: string | null
@@ -847,4 +863,45 @@ export interface SpatialReference {
   declarations: SpatialDeclaration[]
   has_stale_products: boolean
   stale_products: string[]
+}
+
+/* ------------------------------- acquisition ------------------------------- */
+
+/**
+ * What identification established about an arriving file, before ingestion.
+ *
+ * `spatial_expectation` is what the FORMAT can carry — not what this file
+ * declares. The dataset report answers the second question, once the file has
+ * actually been read.
+ */
+export interface AcquisitionIdentification {
+  original_filename: string | null
+  stored_filename: string | null
+  size_bytes: number | null
+  checksum: string | null
+  content_type_claimed: string | null
+  classification: string
+  detected_format: string
+  parser_available: boolean
+  declared_modality: string | null
+  modality_source: string
+  ambiguous_format: boolean
+  ambiguity_note: string | null
+  spatial_expectation: {
+    horizontal: string
+    vertical: string
+    missing: string[]
+  }
+  spatial_expectation_note: string
+  duplicates: {
+    checked: boolean
+    is_duplicate?: boolean
+    datasets?: { dataset_id: string; name: string }[]
+    acquisitions?: { acquisition_id: string; original_filename: string | null }[]
+    note?: string
+    reason?: string
+  }
+  ingestion_ready: boolean
+  rejection_reason?: string
+  supported_formats?: string[]
 }

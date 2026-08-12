@@ -265,6 +265,7 @@ ID_ROUTES = [
     "/api/datasets/{id}",
     "/api/datasets/{id}/info",
     "/api/datasets/{id}/report",
+    "/api/datasets/{id}/acquisition",
     "/api/datasets/{id}/points",
     "/api/datasets/{id}/depths",
     "/api/datasets/{id}/grid",

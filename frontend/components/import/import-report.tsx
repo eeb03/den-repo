@@ -181,6 +181,19 @@ export function ImportReport({ job, onReset }: { job: ImportJob; onReset: () => 
               Open dataset
               <ArrowRight aria-hidden />
             </Link>
+            {/*
+              The report is the authoritative description of what was created --
+              what it is, how far it can be trusted, and what Subterra may do
+              with it next. Offered here because the question a person has just
+              after an import is exactly the one it answers.
+            */}
+            <Link
+              data-open-report
+              href={`/datasets/${encodeURIComponent(job.dataset_id as string)}/report`}
+              className={buttonVariants({ variant: 'outline', size: 'lg' })}
+            >
+              Open dataset report
+            </Link>
             <button
               type="button"
               onClick={onReset}

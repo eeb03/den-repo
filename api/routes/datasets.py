@@ -196,7 +196,7 @@ async def ingest_dataset(
     # a partial write is never renamed into place. The original filename is
     # kept only as the dataset's display name, never as a path.
     try:
-        raw_path, _, _ = storage.save_upload(gen_uuid(), file.filename, file.file)
+        raw_path, _, _, _ = storage.save_upload(gen_uuid(), file.filename, file.file)
     except storage.EmptyUpload as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except storage.UploadTooLarge as exc:
@@ -1131,6 +1131,40 @@ def get_dataset_info(dataset_id: str, db: Session = Depends(get_db),
         "dem_aligned": bool(dataset.extra_metadata and dataset.extra_metadata.get("dem_aligned")),
         "last_preprocessing_mode": dataset.extra_metadata.get("last_preprocessing_mode") if dataset.extra_metadata else None,
     }
+
+
+@router.get("/{dataset_id}/acquisition")
+def get_dataset_acquisition(dataset_id: str, db: Session = Depends(get_db),
+    _dataset=Depends(require_dataset_access)):
+    """
+    Where this dataset came from: the acquisition that produced it.
+
+    THE BOTTOM OF THE EVIDENCE CHAIN, made addressable. A dataset report says
+    what Subterra understands; this says what arrived and when, with the
+    checksum of the bytes as received. Together they answer "where did this come
+    from" without anybody having to correlate a filename by hand.
+
+    Datasets ingested before FileDrop -- including every published reference
+    corpus -- have no acquisition record, and that is reported as an absence
+    rather than reconstructed from a raw path. A plausible-looking origin is
+    exactly the kind of provenance that must not be manufactured.
+    """
+    from database.models import ImportJob
+
+    job = (
+        db.query(ImportJob)
+        .filter(ImportJob.dataset_id == dataset_id)
+        .order_by(ImportJob.created_at.asc())
+        .first()
+    )
+    if job is None:
+        return {
+            "dataset_id": dataset_id,
+            "acquisition": None,
+            "reason": ("this dataset predates the acquisition boundary, so how its "
+                       "source file arrived was never recorded"),
+        }
+    return {"dataset_id": dataset_id, "acquisition": job.to_dict()}
 
 
 @router.get("/{dataset_id}/report")

@@ -30,6 +30,7 @@ Last verified against `0daa3e7` on 2026-08-08.
 | Author / evidence requests | 🟡 Open | outstanding queries to dataset publishers |
 | Authentication and ownership | ✅ Complete | `docs/authentication.md`; sessions, PBKDF2, dataset ownership, login limiting, password reset with Resend delivery |
 | Dataset reports | ✅ Complete | `docs/dataset-report.md`; `GET /api/datasets/{id}/report`, eight capability assessments per dataset |
+| FileDrop acquisition | ✅ Complete | `docs/filedrop.md`; acquisition boundary, checksum at receipt, identification before ingestion, review hold |
 | Spatial reference workflow | ✅ Complete | `docs/spatial-reference.md`; seven-dimension assessment, append-only declaration log, six declaration kinds |
 | Dataset lifecycle management | ✅ Complete | `docs/dataset-lifecycle.md`; rename, safe delete, derived status, duplicate detection, rescore |
 | Production-ready platform | ⏳ Later | no encryption at rest, no dataset signing |
@@ -42,8 +43,8 @@ repository:
 
 1–5 product shell, upload/import, ownership/auth, password recovery, email
 delivery — **complete**. 6 dataset reports — **complete**. 7 dataset
-management — **complete**. 8 spatial reference workflow — **complete**. Then:
-9 FileDrop acquisition, 10 device
+management — **complete**. 8 spatial reference workflow — **complete**. 9 FileDrop acquisition —
+**complete**. Then: 10 device
 abstraction, 11 acquisition sessions, 12 hardware adapter, 13 candidate
 intelligence, 14 ground-truth benchmarks, 15 validated object detection,
 16 multi-modal fusion, 17 3D reconstruction, 18 interactive underground model,

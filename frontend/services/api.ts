@@ -347,13 +347,29 @@ export const api = {
   },
 
   /** Uploads a file and returns the created job. 202: no dataset exists yet. */
+  /**
+   * Hand a reviewed acquisition to the existing ingestion pipeline.
+   *
+   * Only a held acquisition can be accepted; the backend refuses a rejected,
+   * running or finished one with 409 rather than ingesting the same bytes
+   * twice under one record.
+   */
+  acceptAcquisition(jobId: string): Promise<{ job: ImportJob }> {
+    return postJson(`/api/imports/jobs/${encodeURIComponent(jobId)}/accept`, {})
+  },
+
   createImport(
     file: File,
     sensorType: string,
+    review = false,
   ): Promise<{ job: ImportJob }> {
     const form = new FormData()
     form.append('file', file)
     form.append('sensor_type', sensorType)
+    // `review` holds the acquisition at the boundary so the user sees what
+    // arrived before anything is ingested. Defaulting to false keeps the
+    // original immediate behaviour for callers that never asked for a review.
+    form.append('review', String(review))
     // No content-type header: the browser must set the multipart boundary.
     return request('/api/imports', { method: 'POST', body: form })
   },
