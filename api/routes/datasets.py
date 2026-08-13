@@ -55,6 +55,30 @@ def _geographic_centre(records) -> tuple[Optional[float], Optional[float]]:
             sum(r.longitude for r in positioned) / len(positioned))
 
 
+#: What a modality gets when the caller names no preprocessing mode.
+#:
+#: GPR resolves to the FULL chain -- `gpr_trace_processing` then
+#: `gpr_local_anomaly` -- because that is the composition both benchmarks and the
+#: corpus characterisation measure, and the one the regression baseline pins.
+#: `gpr_local_anomaly` alone produces a materially different and previously
+#: unbenchmarked candidate population (Stage 18 measured 39 cells over |z|>3
+#: against 164 on the same real line). This is a claim about which processing the
+#: published numbers describe -- NOT a claim that the resulting signal is
+#: cleaner, better or more accurate, which nothing here has established.
+#:
+#: Every other modality keeps "trace". Nothing about their behaviour changes.
+DEFAULT_PREPROCESSING_MODE_BY_MODALITY: dict[SensorType, str] = {
+    SensorType.GPR: "gpr_full",
+}
+FALLBACK_PREPROCESSING_MODE = "trace"
+
+
+def default_preprocessing_mode(sensor_type: SensorType) -> str:
+    """The mode used when a caller names none. Never overrides an explicit choice."""
+    return DEFAULT_PREPROCESSING_MODE_BY_MODALITY.get(
+        sensor_type, FALLBACK_PREPROCESSING_MODE)
+
+
 def _run_ingest_pipeline(
     raw_path: Path,
     sensor_type: SensorType,
@@ -64,7 +88,7 @@ def _run_ingest_pipeline(
     license: Optional[str] = None,
     source_url: Optional[str] = None,
     apply_preprocessing: bool = True,
-    preprocessing_mode: str = "trace",
+    preprocessing_mode: Optional[str] = None,
     converter_kwargs: Optional[dict] = None,
     on_stage: Optional[Callable[[str], None]] = None,
     owner_id: Optional[str] = None,
@@ -74,11 +98,16 @@ def _run_ingest_pipeline(
     URL download, source-connector download, local file): convert ->
     validate -> (preprocess) -> persist records -> register metadata.
 
-    preprocessing_mode="trace" (default) treats each record's signal as a
-    multi-sample waveform. Use "spatial_grid" for single-value-per-point
-    raster data (GPR depth slices, magnetometer/gravity surveys) so
-    smoothing/normalization happens across real spatial neighbors instead
-    of being a no-op on a length-1 array.
+    preprocessing_mode=None (unspecified) resolves per modality via
+    `default_preprocessing_mode`: GPR gets the benchmark-aligned "gpr_full"
+    chain, everything else keeps "trace". Passing a mode explicitly always
+    wins, including passing "trace" for a GPR dataset.
+
+    preprocessing_mode="trace" treats each record's signal as a multi-sample
+    waveform. Use "spatial_grid" for single-value-per-point raster data (GPR
+    depth slices, magnetometer/gravity surveys) so smoothing/normalization
+    happens across real spatial neighbors instead of being a no-op on a
+    length-1 array.
 
     converter_kwargs passes format-specific options through to the
     converter (e.g. {"stride": 1} for GeoTIFFConverter on a small DEM tile
@@ -121,9 +150,15 @@ def _run_ingest_pipeline(
     _stage("validating")
     report = validate_dataset(records, dataset_id=dataset_id, source_file=raw_path)
 
+    # Resolved AFTER the sensor type is known, and only when the caller named
+    # nothing: an explicit mode always wins, including an explicit "trace" on a
+    # GPR dataset.
+    resolved_mode = (preprocessing_mode if preprocessing_mode is not None
+                     else default_preprocessing_mode(sensor_type))
+
     if apply_preprocessing:
         _stage("preprocessing")
-        records = run_pipeline(records, mode=preprocessing_mode)
+        records = run_pipeline(records, mode=resolved_mode)
 
     _stage("persisting")
     save_records(dataset_id, records)
@@ -151,7 +186,23 @@ def _run_ingest_pipeline(
         center_lat=center_lat,
         center_lon=center_lon,
         owner_id=owner_id,
-        extra_metadata={"validation_issues": report.issues},
+        # THE MODE IS RECORDED, and only when it was actually applied.
+        #
+        # Ingest previously stored nothing about how records were processed, so
+        # a dataset's processing was unknowable after the fact. It is written
+        # here under the SAME key `/reprocess` already uses, so one field answers
+        # "what produced these records" wherever they came from.
+        #
+        # Datasets ingested before this stage carry no such key, and absence
+        # must read as UNRECORDED -- never as `gpr_full`. Nothing infers a mode
+        # for them, and nothing reprocesses them.
+        extra_metadata={
+            "validation_issues": report.issues,
+            **({"last_preprocessing_mode": resolved_mode,
+                "preprocessing_mode_source": (
+                    "explicit" if preprocessing_mode is not None else "modality_default")}
+               if apply_preprocessing else {}),
+        },
     )
     db.add(dataset)
     db.commit()
@@ -163,6 +214,7 @@ def _run_ingest_pipeline(
         "quality_score": report.quality_score,
         "issues": report.issues,
         "preprocessing_applied": apply_preprocessing,
+        "preprocessing_mode": resolved_mode if apply_preprocessing else None,
     }
 
 
@@ -174,7 +226,7 @@ async def ingest_dataset(
     source: Optional[str] = Form(None),
     license: Optional[str] = Form(None),
     apply_preprocessing: bool = Form(True),
-    preprocessing_mode: str = Form("trace", description="'trace' for multi-sample waveforms, 'spatial_grid' for single-value raster/depth-slice data (GPR, magnetometer, gravity)"),
+    preprocessing_mode: Optional[str] = Form(None, description="omit to use the modality default ('gpr_full' for GPR, 'trace' otherwise); 'trace' for multi-sample waveforms, 'spatial_grid' for single-value raster/depth-slice data"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -218,7 +270,7 @@ class IngestFromURLRequest(BaseModel):
     license: Optional[str] = None
     expected_sha256: Optional[str] = None
     apply_preprocessing: bool = True
-    preprocessing_mode: str = "trace"
+    preprocessing_mode: Optional[str] = None
 
 
 @router.post("/ingest_from_url")
@@ -399,7 +451,7 @@ class IngestLocalFileRequest(BaseModel):
     source: Optional[str] = None
     license: Optional[str] = None
     apply_preprocessing: bool = True
-    preprocessing_mode: str = "trace"
+    preprocessing_mode: Optional[str] = None
     geotiff_stride: Optional[int] = None
 
 
@@ -572,7 +624,7 @@ class IngestZipFromURLRequest(BaseModel):
     license: Optional[str] = None
     expected_sha256: Optional[str] = None
     apply_preprocessing: bool = True
-    preprocessing_mode: str = "trace"
+    preprocessing_mode: Optional[str] = None
     max_files: int = 20  # safety cap -- large archives can contain hundreds of files
     # EXPLICIT, dataset-scoped CRS declaration for source formats that carry
     # coordinates without declaring what they are (SEG-Y SourceX/SourceY).

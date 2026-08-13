@@ -96,8 +96,13 @@ The owner is the ingest COMPOSITION, not either anomaly function: every ingest
 route applies exactly ONE `run_pipeline` mode, so the validated two-step chain
 the regression baseline has pinned since the interpretation baseline was
 unreachable through the API. A new `gpr_full` mode composes it; the single-step
-modes are unchanged, and BAM is bit-identical. See
-`docs/anomaly-path-equivalence.md`.
+modes are unchanged, and BAM is bit-identical. Stage 19 then made `gpr_full` the
+GPR ingest DEFAULT — a GPR dataset ingested with no mode named now gets the
+benchmark-aligned chain, the resolved mode is recorded on the dataset, explicit
+choices still win, no other modality moves and no historical dataset is
+reprocessed. Verified on a real 4TU line: the defaulted ingest is bit-identical
+to the BAM array path and candidate generation succeeds where UI-ingested GPR
+previously reported BLOCKED. See `docs/anomaly-path-equivalence.md`.
 
 ## External evidence: the 4TU author replied
 

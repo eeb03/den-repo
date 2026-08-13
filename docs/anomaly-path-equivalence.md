@@ -119,11 +119,38 @@ what the composition itself depends on. Nothing else changed: no threshold, no
 scoring, no truth, no candidate semantics, and `pre_anomaly_signal` still means
 exactly what Stage 17 established for each mode.
 
-**What this does not do.** It does not change any default. A caller must ask for
-`gpr_full`; the ingest routes still apply whichever single mode they are given.
-Changing the API's default preprocessing would affect every modality and is a
-product decision outside this stage's scope. The chain is now *reachable*, which
-it was not.
+**Stage 18 did not change any default** — it made the chain reachable. **Stage
+19 made it the GPR default**: a dataset ingested with `sensor_type=gpr` and no
+`preprocessing_mode` now resolves to `gpr_full`.
+
+| | |
+|---|---|
+| GPR, no mode named | **`gpr_full`** |
+| GPR, explicit `gpr_local_anomaly` | `gpr_local_anomaly`, unchanged |
+| GPR, explicit `trace` | `trace`, unchanged |
+| Every other modality, no mode named | `trace`, unchanged |
+
+Resolution happens inside the ingest helper, after the sensor type is known:
+`preprocessing_mode=None` means "the caller named nothing", and any string is
+the caller's own choice. Only GPR has an entry in the modality table.
+
+The resolved mode is now **persisted** — ingest previously recorded nothing about
+how records were processed, so a dataset's processing was unknowable after the
+fact. It is written under `last_preprocessing_mode`, the same key `/reprocess`
+already used, alongside `preprocessing_mode_source` (`explicit` or
+`modality_default`) so a reader can tell whether the mode was chosen or supplied.
+
+**Historical datasets are untouched and carry no such key.** Absence reads as
+UNRECORDED and never as `gpr_full`; nothing infers a mode for them and nothing
+reprocesses them. Verified against the live database: pre-existing rows report
+`<unrecorded>` or their own recorded reprocess mode.
+
+The depth-slice pipeline keeps its own `spatial_grid`/`trace` defaults — it
+appends to an existing dataset and is a different pipeline.
+
+**This is a claim about which processing the published numbers describe, not
+about signal quality.** Nothing here establishes that the result is cleaner,
+better or more accurate, and no such measurement exists.
 
 ## 6. Benchmark impact
 
