@@ -80,6 +80,25 @@ Stages 17–18 depend on 8 far more than on 13–16, and stage 8 is blocked by
 evidence rather than effort. `docs/dataset-report.md` carries the measured
 dependency report.
 
+## External evidence: the 4TU author replied
+
+Dr. ter Huurne, author of the 4TU dataset, answered a direct enquiry. It is the
+first evidence request in this project to produce an answer, and it resolves the
+vertical-datum question that has been open since stage 8: **the GNSS elevations
+in the exported SEG-Y are ellipsoidal WGS84, not NAP.**
+
+It does not unblock depth. The author is explicit that no time-zero correction
+and no air-gap removal were applied, so the ground surface does not necessarily
+correspond to depth zero and an air path remains in the data — and gives no
+magnitude for it. Physical depth and absolute elevation stay BLOCKED.
+
+One question stands between the datum and a usable surface reference: the 4TU
+files carry TWO per-trace elevation fields differing by 42.2–45.2 m (measured
+across 105 activities, varying by site as a geoid separation does), and the
+author named neither. Attaching the datum to the wrong one is a ~44 m error.
+Asking which field is currently the highest-value outstanding question in the
+project. See `docs/4tu-author-evidence.md`.
+
 ## Where detection actually stands
 
 The baseline detector is the scientific reference and remains unchanged in the
