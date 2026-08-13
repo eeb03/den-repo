@@ -117,12 +117,62 @@ modality; it cannot calibrate a time-domain GPR t0.
 
 ## 7. Well-tied seismic
 
-Not pursued to acquisition, deliberately. Marmousi is **synthetic** — excluded by
-Subterra's own rules. Checkshot/sonic well ties do validate the *general* pattern
-`time → reference → velocity → depth → verified interface`, but they validate it
-for seismic, and the only thing that could carry across is the **architecture**,
-which the GPR cases already exercise. Acquiring a seismic volume to prove a
-pattern two GPR datasets can prove is not the cheapest path.
+Not pursued to acquisition, deliberately, and the reasoning is recorded rather
+than the audit being left implied.
+
+**Marmousi is synthetic** — a velocity model with computed shot gathers.
+Subterra's own rules exclude synthetic geometry as field evidence, so it cannot
+serve as a calibration case however well-tied it looks.
+
+**Sleipner, SEAM and the SEG open volumes were not individually audited.**
+Checkshot and sonic well ties genuinely do validate the general pattern
+`time → reference → velocity → depth → verified interface` — that is exactly what
+a checkshot *is*. But they validate it for **seismic**, where the reference time
+is a shot instant recorded by the source, not a GPR system delay through an
+antenna and an air gap. The only thing that could carry across is the
+**architecture**, and two GPR cases (§5, §6) already exercise that on the right
+modality. Auditing a seismic volume to prove a pattern a GPR dataset can prove is
+not the cheapest path, and this is a scoping decision, not a finding.
+
+## 7a. The named leads, verified
+
+The brief named six leads and required they be verified rather than assumed.
+
+| Lead | Verdict | Evidence |
+|---|---|---|
+| **Grimsel Test Site** | **promising, unaudited** | Real crosshole and single-hole GPR in saturated crystalline rock; a *Scientific Data* paper describes 15 boreholes characterising a decametre-scale volume, published via **ETH Zurich Research Collection**. Borehole control is genuine. Whether raw GPR traces are downloadable was not established |
+| **Midtdalsbreen** | **downloadable, wrong evidence** | On **Figshare** (7695662), raw MALÅ 50 MHz Rough Terrain Antenna data with headers and positions documented. But it is **glacier ice with no boreholes and no surveyed targets** — thermal-regime research, not depth calibration |
+| **Florida hydrogeophysics** | **ruled out** | The two Florida GPR datasets in the curated index (Zenodo 848862, 1469818) are Everglades/subtropical-wetland **belowground carbon and biogenic gas** studies. No target depths, no borehole depth control |
+| **Karst** | **nothing found** | No karst GPR dataset with borehole or surveyed depth control surfaced in any repository searched |
+| **Urban hydrogeophysics** | **nothing found** | Same |
+| **Glacier margin** | = Midtdalsbreen | see above |
+
+## 8. Repository search — the curated index
+
+The strongest single result is a **negative one, and it is citable**. RGPR
+(Emanuel Huber) maintains a curated index of free GPR datasets. Of the **20
+datasets listed**:
+
+- **exactly one** (Frenke) includes a **CMP gather** — the only listed dataset
+  offering velocity from moveout;
+- **one** is explicitly **synthetic** (gprMax) and therefore excluded;
+- **none** lists **borehole control, known target depths, or documented
+  time-zero/velocity calibration parameters**;
+- TU1208 — already held and already shown in Stages 24–25 to be unusable for
+  this — is on the list, which is a useful check that the index reflects
+  reality.
+
+Two entries deserve a note. **Frenke** (`emanuelhuber.github.io/RGPR/2014_04_25_frenke.zip`)
+is five lines plus a CMP; small, but a CMP is a genuinely depth-independent
+velocity constraint. **Schillerslage Test Site** (Zenodo 2686824) is joint
+**MRT + ERT + GPR** at a hydrogeophysical test site — magnetic resonance gives
+water content independently of the radar, which is a different and interesting
+form of independence, though not a t0 constraint.
+
+**The wider conclusion is that this is not a search failure.** A curated,
+community-maintained index of open GPR data contains no dataset with published
+target depths and a documented calibration. What Stages 24–26 have been looking
+for is genuinely rare in open data, which is itself the finding.
 
 ## 8–9. Evidence-level table
 
