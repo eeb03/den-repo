@@ -819,6 +819,115 @@ export interface BenchmarkContext {
     source: string
   }[]
   caveat: string
+  /** The versioned ground-truth definition these numbers were computed under. */
+  definition_version?: string | null
+  /** What the ground truth genuinely supports scoring. */
+  evaluated?: string[]
+  /** Named explicitly — an unstated absence reads as a pass. */
+  not_evaluated?: string[]
+  /** Whether the benchmark could recognise an improvement if one happened. */
+  adequacy?: string
+}
+
+/* ------------------------ ground-truth benchmark ------------------------ */
+
+export type TruthLabel = 'positive' | 'negative' | 'unknown' | 'ambiguous' | 'excluded'
+
+export type DuplicateStatus =
+  | 'independent'
+  | 'duplicate_of'
+  | 'contaminated'
+  | 'unknown'
+
+export interface BenchmarkReadinessDimension {
+  name: string
+  readiness: 'ready' | 'partial' | 'blocked'
+  reason: string
+  missing: string[]
+}
+
+export interface BenchmarkPower {
+  benchmark: string
+  n_positive: number
+  n_negative: number
+  alpha: number
+  power: number
+  /** null means no estimate is possible at this size — never render as 0. */
+  smallest_detectable_auc: number | null
+  negatives_required: Record<string, number | null>
+  se_at_chance: number | null
+  adequate_for_a_useful_detector: boolean
+  adequacy_anchor: string
+  method: string
+  caveat: string
+}
+
+export interface BenchmarkOpenQuestion {
+  id: string
+  statement: string
+  blocks: string
+  resolution_route: string
+  status: string
+  request_status: string
+}
+
+export interface BenchmarkEvaluationUnit {
+  unit_id: string
+  benchmark: string
+  label: TruthLabel
+  duplicate_status: DuplicateStatus
+  shares_with: string[]
+  contributes_independent_evidence: boolean
+  exclusion_reason: string
+  evidence: {
+    basis: string
+    source: string
+    established_by: string
+    coverage: string
+    independent_of_subterra: boolean
+    verified_by_subterra: boolean
+    uncertainty: string
+  }
+  target: {
+    count: number | null
+    footprint_known: boolean
+    location_known: boolean
+    depth_known: boolean
+    class_known: boolean
+    described_as: string[]
+  }
+}
+
+export interface BenchmarkDefinition {
+  benchmark: string
+  version: string
+  schema_version: string
+  content_hash: string
+  counts: {
+    units: number
+    by_label: Record<string, number>
+    by_duplicate_status: Record<string, number>
+    independent_positives: number
+    independent_negatives: number
+  }
+  policies: {
+    duplicate: string
+    exclusion: string
+    metric: string
+    threshold: string
+  }
+  power: BenchmarkPower | null
+  readiness: BenchmarkReadinessDimension[]
+  open_questions: BenchmarkOpenQuestion[]
+  units: BenchmarkEvaluationUnit[]
+}
+
+export interface BenchmarkDefinitionArtifact {
+  generated_by: string
+  reads_detector_output: boolean
+  corpus_unmodified: boolean
+  benchmarks: Record<string, BenchmarkDefinition | { unavailable: true; reason: string }>
+  bootstrap_cross_check: Record<string, unknown>
 }
 
 export interface CandidateIntelligence {

@@ -138,6 +138,57 @@ export function CandidateIntelligenceView({ datasetId }: { datasetId: string }) 
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
           {data.benchmark.caveat}
         </p>
+
+        {/*
+          STAGE 14. The block above says how this method SCORED. This says
+          whether that score could have come out differently — a property of
+          the ground truth, not of the detector. Without it, "no measured
+          improvement" reads as "no improvement", when the corpus cannot
+          currently resolve one.
+        */}
+        {data.benchmark.adequacy && (
+          <p
+            data-benchmark-adequacy
+            className="mt-2 text-xs leading-relaxed text-foreground"
+          >
+            {data.benchmark.adequacy}
+          </p>
+        )}
+
+        {(data.benchmark.evaluated?.length || data.benchmark.not_evaluated?.length) && (
+          <div className="mt-2 grid gap-2 text-xs leading-relaxed text-muted-foreground sm:grid-cols-2">
+            {data.benchmark.evaluated?.length ? (
+              <div>
+                <p className="text-foreground">The ground truth supports scoring:</p>
+                <ul className="mt-1 space-y-0.5">
+                  {data.benchmark.evaluated.map((item) => (
+                    <li key={item} data-benchmark-evaluated>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {data.benchmark.not_evaluated?.length ? (
+              <div>
+                <p className="text-foreground">Not evaluated, and why:</p>
+                <ul className="mt-1 space-y-0.5">
+                  {data.benchmark.not_evaluated.map((item) => (
+                    <li key={item} data-benchmark-not-evaluated>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {data.benchmark.definition_version && (
+          <p className="mt-2 font-mono text-[10px] text-muted-foreground">
+            ground-truth definition {data.benchmark.definition_version}
+          </p>
+        )}
       </section>
 
       {data.status === 'blocked' ? (

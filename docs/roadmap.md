@@ -51,12 +51,17 @@ management — **complete**. 8 spatial reference workflow — **complete**. 9 Fi
 13 candidate intelligence — **complete**: the candidate layer is real,
 provenanced, versioned, staleable and inspectable. The detector it exposes is
 still at chance, which is a measured result rather than a gap in this stage.
+14 ground-truth benchmarks — **complete**, with a negative headline: after the
+duplicate audit the 4TU corpus holds 107 independent positives and **6**
+independent negatives, which could only distinguish a detector of AUC 0.742 or
+better from chance. Six further attested-empty surveys would make a clearly
+useful detector (AUC 0.70) recognisable. See `docs/ground-truth-benchmarks.md`.
 
 The old list's "11 acquisition sessions" is obsolete: stage 10 implemented
 them. Stage 11 was chosen by dependency instead — the surface anchor was the
 only blocker toward reconstruction that needed no external evidence. What
 remains: a hardware adapter (blocked: no instrument or protocol identified),
-14 ground-truth benchmarks, 15 validated object detection,
+15 validated object detection,
 16 multi-modal fusion, 17 3D reconstruction, 18 interactive underground model,
 19 real-time scanning, 20 non-expert interpretation.
 

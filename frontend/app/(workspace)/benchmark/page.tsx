@@ -6,6 +6,7 @@ import { QueryState } from '@/components/subterra/query-state'
 import { StateBox } from '@/components/subterra/state-box'
 import { BamPanel } from '@/components/benchmark/bam-panel'
 import { FourTuPanel } from '@/components/benchmark/fourtu-panel'
+import { GroundTruthPanel } from '@/components/benchmark/ground-truth-panel'
 import { useBenchmarkArtifacts } from '@/hooks/use-subterra'
 
 /**
@@ -49,6 +50,16 @@ export default function BenchmarkPage() {
     [artifacts],
   )
 
+  /*
+   * The ground-truth definition. Shown BELOW the scores deliberately: a
+   * reader arrives for the numbers, and the question of whether those
+   * numbers could have come out differently is what they should leave with.
+   */
+  const groundTruth = useMemo(
+    () => artifacts.find((a) => a.name === 'benchmark/definition')?.name ?? null,
+    [artifacts],
+  )
+
   return (
     <>
       <AppHeader
@@ -86,6 +97,9 @@ export default function BenchmarkPage() {
                     onSelect={setBamSelected}
                   />
                   <FourTuPanel name={fourTu} />
+                  <div className="xl:col-span-2">
+                    <GroundTruthPanel name={groundTruth} />
+                  </div>
                 </div>
               )}
 

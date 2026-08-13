@@ -36,6 +36,12 @@ services:
     volumes:
       - ./datasets:/app/datasets
       - ./logs:/app/logs
+      # The benchmark endpoint serves these and the benchmark page renders
+      # them, but they are gitignored and regenerable so the image does not
+      # carry them -- without this mount both are permanently empty in a
+      # compose environment. Read-only: the API only ever reads artifacts, and
+      # scoring runs write them from the host.
+      - ./artifacts:/app/artifacts:ro
     depends_on:
       db:
         condition: service_healthy

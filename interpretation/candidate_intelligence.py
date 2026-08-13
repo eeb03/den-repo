@@ -120,6 +120,21 @@ class CandidateStatus(str, Enum):
     REJECTED = "rejected"
 
 
+def _definition_version() -> Optional[str]:
+    """
+    The built ground-truth definition's version, if one exists.
+
+    Imported lazily so that `interpretation` does not take a load-time
+    dependency on `benchmark`, and so an absent artifact costs nothing.
+    """
+    try:
+        from benchmark.definition import current_version
+
+        return current_version()
+    except Exception:  # noqa: BLE001 -- benchmark tooling absent is not an error here
+        return None
+
+
 class BenchmarkContext(BaseModel):
     """
     Measured performance of the generating method, carried with its output.
@@ -149,6 +164,45 @@ class BenchmarkContext(BaseModel):
         "The 4TU separation rests on seven attested-empty trenches. Its 95% "
         "interval spans chance in both directions, so that benchmark cannot "
         "currently distinguish this method from chance -- in either direction."
+    )
+
+    # -- Stage 14 -------------------------------------------------------------
+    # WHAT THE BENCHMARK ITSELF CAN AND CANNOT ANSWER. The fields above report
+    # how this method SCORED. These report whether that score could have come
+    # out differently -- which is a property of the ground truth, not of the
+    # detector, and is the thing a reader needs in order to know what a future
+    # improvement would prove. A context that reported only the score would let
+    # "no measured improvement" be read as "no improvement", when the corpus
+    # cannot currently resolve one.
+
+    #: The versioned ground-truth definition these numbers were computed under.
+    #: None when no definition artifact has been built -- rendered as
+    #: "unrecorded", never as a version of zero.
+    definition_version: Optional[str] = Field(default_factory=lambda: _definition_version())
+
+    #: What the truth genuinely supports scoring.
+    evaluated: list[str] = Field(default_factory=lambda: [
+        "detection: does candidate density separate trench-occupied from "
+        "trench-empty ground, at activity level",
+    ])
+
+    #: Named explicitly, because an unstated absence reads as a pass.
+    not_evaluated: list[str] = Field(default_factory=lambda: [
+        "localisation: the 4TU publisher withholds trench coordinates, so no "
+        "candidate can be matched to a utility",
+        "depth: no unit publishes a depth that survives its own "
+        "reference-surface question",
+        "classification: no validated classifier and no class-level truth exist",
+    ])
+
+    #: The Stage 14 finding, carried with every candidate list.
+    adequacy: str = (
+        "This benchmark is UNDERPOWERED for comparing detectors. After removing "
+        "duplicated and contaminated units it holds 107 independent positives "
+        "and 6 independent negatives, which could only distinguish a detector of "
+        "AUC 0.74 or better from chance. A genuine but moderate improvement "
+        "would not be recognisable -- so an unchanged score here is not evidence "
+        "that a method failed."
     )
 
 

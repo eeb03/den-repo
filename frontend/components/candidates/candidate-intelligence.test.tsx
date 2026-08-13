@@ -417,6 +417,61 @@ describe('generation is an explicit action', () => {
   })
 })
 
+describe('the benchmark says whether it could recognise an improvement', () => {
+  const withAdequacy = () =>
+    intelligence({
+      benchmark: {
+        ...intelligence().benchmark,
+        definition_version: '1.a5669dcdc9d8e9d2',
+        adequacy:
+          'This benchmark is UNDERPOWERED for comparing detectors. After removing duplicated and contaminated units it holds 107 independent positives and 6 independent negatives, which could only distinguish a detector of AUC 0.74 or better from chance.',
+        evaluated: ['detection: does candidate density separate occupied from empty ground'],
+        not_evaluated: [
+          'localisation: the publisher withholds trench coordinates',
+          'depth: no unit publishes a usable depth',
+          'classification: no validated classifier and no class-level truth exist',
+        ],
+      },
+    })
+
+  it('states that an unchanged score is not evidence of failure', async () => {
+    getCandidates.mockResolvedValue(withAdequacy())
+    const { container } = view()
+    await screen.findByText('7.42')
+
+    expect(container.querySelector('[data-benchmark-adequacy]')?.textContent).toMatch(
+      /UNDERPOWERED/,
+    )
+  })
+
+  it('names what is not evaluated, so an absence does not read as a pass', async () => {
+    getCandidates.mockResolvedValue(withAdequacy())
+    const { container } = view()
+    await screen.findByText('7.42')
+
+    const notEvaluated = Array.from(
+      container.querySelectorAll('[data-benchmark-not-evaluated]'),
+    ).map((n) => n.textContent ?? '')
+    expect(notEvaluated.length).toBe(3)
+    expect(notEvaluated.join(' ')).toMatch(/localisation/i)
+    expect(notEvaluated.join(' ')).toMatch(/classification/i)
+  })
+
+  it('ties the numbers to a versioned ground-truth definition', async () => {
+    getCandidates.mockResolvedValue(withAdequacy())
+    const { container } = view()
+    await screen.findByText('7.42')
+    expect(container.textContent).toMatch(/ground-truth definition 1\.a5669dcdc9d8e9d2/)
+  })
+
+  it('renders without them when the backend sends none', async () => {
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+    await screen.findByText('7.42')
+    expect(container.querySelector('[data-benchmark-adequacy]')).toBeNull()
+  })
+})
+
 describe('provenance is shown', () => {
   it('names the method, its version and its parameters', async () => {
     getCandidates.mockResolvedValue(intelligence())
