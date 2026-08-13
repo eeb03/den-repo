@@ -13,8 +13,10 @@ went through:
 `find_anomaly_candidates` itself is record-based, and one scan of this
 benchmark is 401 x 161 x 512 = 33 million cells, which is far past the memory
 budget that forced the array path to exist in the first place. So the adapter
-reuses the array path, whose equivalence to the record path is asserted by
-`scripts/characterise_4tu.py --verify-arraywise`.
+reuses the array path, whose equivalence to the FILTERED record composition --
+`preprocess_trace_local_anomaly(process_gpr_traces(records))` -- is measured by
+`scripts/validate_arraywise.py`. (There is no `--verify-arraywise` flag; earlier
+docstrings named one that has never existed.)
 
 Thresholds are NOT tuned here. The detector's published defaults are used
 as-is, and every result records which values produced it.

@@ -80,6 +80,25 @@ Stages 17–18 depend on 8 far more than on 13–16, and stage 8 is blocked by
 evidence rather than effort. `docs/dataset-report.md` carries the measured
 dependency report.
 
+## The product was running an unbenchmarked detector (stage 18)
+
+`run_pipeline(mode="gpr_local_anomaly")` applied the ring statistic WITHOUT the
+trace filters that every benchmarked path applies. On a real 4TU line the two
+compositions disagree about 95.7% of cells, and the count of cells that become
+candidates differs 4.2x (39 unfiltered against 164 filtered).
+
+The two anomaly IMPLEMENTATIONS were always equivalent — `validate_arraywise`
+measures them bitwise identical and was never wrong. What diverged was the
+composition the ingest pipeline used. `--verify-arraywise`, referenced in three
+docstrings as though it were a CLI flag, has never existed.
+
+The owner is the ingest COMPOSITION, not either anomaly function: every ingest
+route applies exactly ONE `run_pipeline` mode, so the validated two-step chain
+the regression baseline has pinned since the interpretation baseline was
+unreachable through the API. A new `gpr_full` mode composes it; the single-step
+modes are unchanged, and BAM is bit-identical. See
+`docs/anomaly-path-equivalence.md`.
+
 ## External evidence: the 4TU author replied
 
 Dr. ter Huurne, author of the 4TU dataset, answered a direct enquiry. It is the
