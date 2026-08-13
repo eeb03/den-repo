@@ -693,6 +693,162 @@ export interface QualityDimension {
   counts: Record<string, number>
 }
 
+/* ---------------------------- candidates -------------------------------- */
+
+/**
+ * A candidate is NOT a detection.
+ *
+ * These types deliberately have no field for an object class, a probability or
+ * a confidence, because the backend has none to send. `candidate_score` is a
+ * peak anomaly magnitude that orders candidates within one dataset and means
+ * nothing outside it — never render it as a percentage.
+ */
+export type LocalisationCertainty =
+  | 'spatially_registered'
+  | 'frame_relative'
+  | 'trace_relative'
+  | 'unknown'
+
+export type DepthCertainty = 'measured' | 'derived' | 'unavailable'
+
+export type CandidateReviewStatus = 'proposed' | 'reviewed' | 'accepted' | 'rejected'
+
+export interface CandidateSummary {
+  candidate_count: number
+  analysed: boolean
+  frames_with_candidates: string[]
+  shape_classes: Record<string, number>
+  evidence_available: boolean
+  classified_object_count: number
+  note: string
+  status: 'available' | 'limited' | 'blocked'
+  status_reason: string
+  missing: string[]
+  method: string | null
+  method_version: string | null
+  generated_at: string | null
+  is_stale: boolean
+  stale_reasons: string[]
+  localisation_breakdown: Record<string, number>
+  depth_breakdown: Record<string, number>
+  classification_status: string
+}
+
+export interface CandidateGeneration {
+  method: string
+  method_version: string
+  parameters: { threshold: number; min_cells: number; min_trace_span: number }
+  generated_at: string
+  dataset_id: string
+  input_fingerprint: string
+  declared_reference_at: string | null
+  n_source_files: number
+  n_records: number
+  seed: number | null
+  deterministic: boolean
+  determinism_note: string
+}
+
+export interface AnomalyCandidate {
+  id: string
+  dataset_id: string
+  evidence: {
+    source_file: string
+    trace_range: [number, number]
+    depth_range: [number, number]
+    n_supporting_cells: number
+    peak_value: number
+    peak_trace: number
+    peak_depth: number
+    mean_value: number
+  }
+  characteristics: {
+    elongation: number | null
+    compactness: number | null
+    area_cells: number
+    continuity_across_traces: number
+    continuity_across_depth: number
+    approx_lateral_extent_m: number | null
+    lateral_extent_source: string | null
+    approx_depth_extent_m: number
+    centroid_lat: number | null
+    centroid_lon: number | null
+    centroid_elevation_m: number | null
+  }
+  /** Neutral geometry only. Never an object identity. */
+  interpretation: { anomaly_class: string; note: string }
+  confidence: {
+    reliable_fraction: number
+    touches_trace_boundary: boolean
+    touches_depth_boundary: boolean
+    kmz_direction_verified: boolean | null
+    dem_vertical_datum_verified: boolean | null
+    velocity_m_per_ns: number | null
+  }
+}
+
+export interface InspectableCandidate {
+  candidate: AnomalyCandidate
+  candidate_score: number
+  candidate_score_meaning: string
+  localisation: LocalisationCertainty
+  localisation_basis: string
+  depth: DepthCertainty
+  depth_basis: string
+  status: CandidateReviewStatus
+  classification_status: string
+  classification_blocked_reason: string
+}
+
+export interface BenchmarkContext {
+  method: string
+  method_version: string
+  summary: string
+  measurements: {
+    benchmark: string
+    arm: string
+    precision?: number
+    recall?: number
+    f1?: number
+    chance_precision?: number
+    times_chance?: number
+    auc?: number
+    ci95?: [number, number]
+    contains_chance?: boolean
+    n_negative?: number
+    source: string
+  }[]
+  caveat: string
+}
+
+export interface CandidateIntelligence {
+  dataset_id: string
+  status: 'available' | 'limited' | 'blocked'
+  status_reason: string
+  missing: string[]
+  definition: string
+  generation: CandidateGeneration | null
+  staleness: {
+    is_stale: boolean
+    reasons: string[]
+    checks_performed: string[]
+    checks_skipped: string[]
+    note: string
+  }
+  candidate_count: number
+  candidates: InspectableCandidate[]
+  ranking_basis: string
+  candidate_burden: number | null
+  candidate_burden_basis: string
+  localisation_breakdown: Record<string, number>
+  depth_breakdown: Record<string, number>
+  shape_classes: Record<string, number>
+  classification_status: string
+  classification_blocked_reason: string
+  classified_object_count: number
+  benchmark: BenchmarkContext
+}
+
 export interface DatasetReport {
   report_version: string
   generated_at: string
@@ -783,15 +939,7 @@ export interface DatasetReport {
     issues: string[]
     score_is_stale: boolean
   }
-  candidates: {
-    candidate_count: number
-    analysed: boolean
-    frames_with_candidates: string[]
-    shape_classes: Record<string, number>
-    evidence_available: boolean
-    classified_object_count: number
-    note: string
-  }
+  candidates: CandidateSummary
   readiness: CapabilityAssessment[]
   provenance: {
     quantity: string

@@ -319,6 +319,35 @@ class CandidateSummary(BaseModel):
         "classification has been performed."
     )
 
+    # -- Stage 13 -------------------------------------------------------------
+    # EXTENDED, NOT REPLACED. The fields above already prevented a candidate
+    # from claiming an object, and that protection is untouched. What they could
+    # not answer is whether the set is still TRUSTWORTHY: which method produced
+    # it, under which version, and whether the dataset has changed since. A
+    # count with no generation record cannot be reproduced or invalidated, so
+    # these are the minimum needed to make the existing summary accountable.
+
+    #: available | limited | blocked. `limited` means a set exists but no longer
+    #: matches the dataset; it is not the same as having found nothing.
+    status: str = "blocked"
+    status_reason: str = "candidate generation has not been run for this dataset"
+    #: Never empty when status is not `available`.
+    missing: list[str] = Field(default_factory=list)
+
+    method: Optional[str] = None
+    method_version: Optional[str] = None
+    generated_at: Optional[datetime] = None
+    is_stale: bool = False
+    stale_reasons: list[str] = Field(default_factory=list)
+
+    #: How much of this set is genuinely placeable, and how much has a depth at
+    #: all. Counts by certainty level -- see `interpretation.candidate_intelligence`.
+    localisation_breakdown: dict[str, int] = Field(default_factory=dict)
+    depth_breakdown: dict[str, int] = Field(default_factory=dict)
+
+    #: Structurally BLOCKED. No code path sets this to anything else.
+    classification_status: str = "BLOCKED"
+
 
 class DatasetReport(BaseModel):
     """The whole answer, in one value."""

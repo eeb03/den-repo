@@ -506,6 +506,7 @@ def test_the_public_surface_is_exactly_what_we_intend():
         "/api/benchmark/artifacts",
         "/api/benchmark/artifacts/{name:path}",
         # static capability vocabularies; no user data of any kind
+        "/api/candidates/vocabulary",
         "/api/exports/formats",
         "/api/imports/formats",
         "/api/labels/vocabulary",

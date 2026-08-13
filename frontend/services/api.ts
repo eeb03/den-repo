@@ -28,6 +28,8 @@ import type {
   BenchmarkArtifact,
   BenchmarkArtifactsResponse,
   BenchmarkRun,
+  CandidateIntelligence,
+  CandidateReviewStatus,
   Composition,
   DatasetInfo,
   DatasetReport,
@@ -47,6 +49,7 @@ import type {
   SessionState,
   SpatialDeclaration,
   SpatialReference,
+  InspectableCandidate,
   TraceGrid,
 } from '@/types/subterra'
 
@@ -482,6 +485,53 @@ export const api = {
 
   listImportJobs(): Promise<{ jobs: ImportJob[] }> {
     return request('/api/imports/jobs')
+  },
+
+  /* ----------------------------- candidates ----------------------------- */
+
+  /**
+   * The stored candidate set, with staleness assessed at read time.
+   *
+   * A `blocked` status here is a real answer, not an error: it means candidate
+   * generation has not been run, or cannot be, and `missing` says what would
+   * change that.
+   */
+  getCandidates(datasetId: string): Promise<CandidateIntelligence> {
+    return request(`/api/candidates/${encodeURIComponent(datasetId)}`)
+  },
+
+  /**
+   * Run candidate generation. An explicit action, never a side effect of
+   * opening a report — it reads every record in the dataset.
+   */
+  generateCandidates(
+    datasetId: string,
+    parameters?: { threshold?: number; min_cells?: number; min_trace_span?: number },
+  ): Promise<CandidateIntelligence> {
+    const query = new URLSearchParams()
+    for (const [key, value] of Object.entries(parameters ?? {})) {
+      if (value !== undefined) query.set(key, String(value))
+    }
+    const suffix = query.toString() ? `?${query}` : ''
+    return request(`/api/candidates/${encodeURIComponent(datasetId)}/generate${suffix}`, {
+      method: 'POST',
+    })
+  },
+
+  /**
+   * Record a reviewer's decision. Acceptance means "worth retaining" — it does
+   * not promote a candidate to a detection, an object, or ground truth.
+   */
+  reviewCandidate(
+    datasetId: string,
+    candidateId: string,
+    status: CandidateReviewStatus,
+  ): Promise<InspectableCandidate & { note: string }> {
+    return request(
+      `/api/candidates/${encodeURIComponent(datasetId)}/${encodeURIComponent(candidateId)}` +
+        `/status?status=${encodeURIComponent(status)}`,
+      { method: 'POST' },
+    )
   },
 }
 

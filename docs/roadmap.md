@@ -48,13 +48,15 @@ repository:
 delivery — **complete**. 6 dataset reports — **complete**. 7 dataset
 management — **complete**. 8 spatial reference workflow — **complete**. 9 FileDrop acquisition —
 **complete**. 10 device abstraction — **complete**. 11 surface reference — **complete**. 12 depth-axis origin — **complete**.
+13 candidate intelligence — **complete**: the candidate layer is real,
+provenanced, versioned, staleable and inspectable. The detector it exposes is
+still at chance, which is a measured result rather than a gap in this stage.
 
 The old list's "11 acquisition sessions" is obsolete: stage 10 implemented
 them. Stage 11 was chosen by dependency instead — the surface anchor was the
 only blocker toward reconstruction that needed no external evidence. What
 remains: a hardware adapter (blocked: no instrument or protocol identified),
-13 candidate
-intelligence, 14 ground-truth benchmarks, 15 validated object detection,
+14 ground-truth benchmarks, 15 validated object detection,
 16 multi-modal fusion, 17 3D reconstruction, 18 interactive underground model,
 19 real-time scanning, 20 non-expert interpretation.
 
@@ -65,13 +67,38 @@ dependency report.
 ## Where detection actually stands
 
 The baseline detector is the scientific reference and remains unchanged in the
-default path. It is at or below chance on both benchmarks:
+default path. It is at approximately chance on both benchmarks:
 
 - BAM: recall 0.065 (1.5 GHz) and 0.093 (2.6 GHz); precision 0.135 and 0.147
   against a 0.1297 chance rate — 1.04× and 1.13× chance.
-- 4TU: AUC 0.4452, Spearman ρ −0.0619, both at or below chance.
+- 4TU: AUC 0.4452, Spearman ρ −0.0619.
 
-One candidate has been tried. The multi-scale ring estimator was designed
+Stage 13 reproduced all three of those numbers bit-identically from the current
+repository rather than trusting this file, and **corrected one claim**: "at or
+below chance" overstated the 4TU result. The separation rests on seven
+negatives, and its bootstrap 95% interval is [0.2219, 0.6607] — it spans chance
+in both directions, so that benchmark cannot distinguish this method from
+chance *either way*. See `docs/candidate-intelligence.md`.
+
+Stage 13 also audited the 4TU corpus for duplicate evaluation units and found
+them: 759 radargrams carry 721 unique checksums, six activities are duplicated
+in full, and activity 09.7 — one of the seven negatives — shares a
+byte-identical radargram with 09.6, a positive. Counting each measurement once
+gives 121 activities and AUC 0.4511. The leakage is real and recorded in
+`artifacts/4tu/leakage.json`; it is **not** the explanation.
+
+Two candidates have now been tried and both were rejected on evidence.
+
+The **trace-span filter** (Stage 13) required a candidate to span at least K
+trace columns, on the physical argument that an object occupying space produces
+a laterally continuous response. K was chosen on the Rot90 rotation and reported
+on Rot00. Calibration selected K=1 — the baseline. Detections fall 333 → 68 → 0
+across K = 1, 2, 3, so **essentially no candidate this detector produces spans
+three traces**. That is the most specific account yet of why it sits at chance:
+the estimator is responding to near-point excursions, not to laterally extended
+structure. `artifacts/experiment/trace_span.json`.
+
+The **multi-scale ring estimator** was designed
 against the *measured* width-saturation mechanism, demonstrated that it escapes
 that collapse synthetically, and was **rejected**: its BAM gain is concentrated
 entirely in duct-4 while ducts 1–3 fall to zero, and 4TU AUC did not improve

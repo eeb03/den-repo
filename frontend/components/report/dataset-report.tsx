@@ -414,9 +414,26 @@ function CandidateSection({ report }: { report: Report }) {
   const c = report.candidates
   return (
     <Section title="Candidates">
+      {/*
+        As with the spatial reference: the report states what the candidate
+        state IS, and the candidate workflow owns generation, inspection and
+        review. Two screens that could both change a candidate set would be two
+        screens that could disagree about it.
+      */}
+      <Link
+        href={`/datasets/${encodeURIComponent(report.identity.dataset_id)}/candidates`}
+        className="mb-3 inline-flex text-xs text-primary underline-offset-4 hover:underline"
+        data-candidate-workflow-link
+      >
+        Inspect candidate intelligence
+      </Link>
+
       {c.analysed ? (
         <>
           <dl>
+            <Field label="Status">
+              <span data-candidate-status>{c.status}</span>
+            </Field>
             <Field label="Candidate regions">{formatCount(c.candidate_count)}</Field>
             <Field label="In frames">
               {c.frames_with_candidates.length
@@ -428,20 +445,64 @@ function CandidateSection({ report }: { report: Report }) {
                 .map(([shape, count]) => `${shape}: ${count}`)
                 .join(', ') || NO_VALUE}
             </Field>
+            {/*
+              Which method produced this set, and under which version. A count
+              with no generation record cannot be reproduced or invalidated,
+              and `method: null` is how the report says that has happened.
+            */}
+            <Field label="Method">
+              {c.method ? `${c.method} v${c.method_version}` : 'Unrecorded'}
+            </Field>
+            {/*
+              These arrived in Stage 13, so a report payload stored before it
+              will not carry them. Falling back to an empty breakdown renders
+              NO_VALUE — an honest "not stated" — rather than crashing a page
+              whose whole purpose is to be readable about incomplete data.
+            */}
+            <Field label="Position known">
+              {Object.entries(c.localisation_breakdown ?? {})
+                .map(([level, count]) => `${level.replace(/_/g, ' ')}: ${count}`)
+                .join(', ') || NO_VALUE}
+            </Field>
+            <Field label="Depth known">
+              {Object.entries(c.depth_breakdown ?? {})
+                .map(([level, count]) => `${level}: ${count}`)
+                .join(', ') || NO_VALUE}
+            </Field>
+            <Field label="Object classification">
+              <span data-classification-status>{c.classification_status ?? 'BLOCKED'}</span>
+            </Field>
             <Field label="Evidence">
               {c.evidence_available
                 ? 'Each candidate traces to its source file and trace range'
                 : 'Not addressable'}
             </Field>
           </dl>
+
+          {c.is_stale && (
+            <div
+              data-candidates-stale
+              className="mt-3 text-xs leading-relaxed text-muted-foreground"
+            >
+              <p className="text-foreground">
+                This candidate set no longer matches the dataset.
+              </p>
+              <Reasons items={c.stale_reasons ?? []} />
+            </div>
+          )}
+
           <p data-candidate-note className="mt-3 text-xs leading-relaxed text-muted-foreground">
             {c.note}
           </p>
         </>
       ) : (
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          No candidate analysis has been run on this dataset. {c.note}
-        </p>
+        <>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {c.status_reason ?? 'No candidate analysis has been run on this dataset'}.{' '}
+            {c.note}
+          </p>
+          <Reasons items={c.missing ?? []} />
+        </>
       )}
     </Section>
   )

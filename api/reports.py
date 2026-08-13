@@ -207,24 +207,96 @@ def _processing_stages(dataset, records, frames) -> list[ProcessingStage]:
     return stages
 
 
+def _stored_candidate_summary(dataset_id: str) -> Optional[CandidateSummary]:
+    """
+    Summarise a stored candidate set, or None if the dataset has none.
+
+    STALENESS IS ASSESSED ONLY AS FAR AS THIS FUNCTION CAN SEE. The report has
+    no database session, so the spatial-declaration check cannot run here and
+    `assess_staleness` records it as skipped rather than passed. The candidate
+    endpoint performs the complete assessment; the report says what it checked,
+    which is why `stale_reasons` is carried through verbatim instead of being
+    reduced to a boolean.
+    """
+    from database.candidates_store import load_candidates
+    from interpretation.candidate_intelligence import assess_staleness
+
+    try:
+        stored = load_candidates(dataset_id)
+    except Exception:  # noqa: BLE001 -- absent or unreadable candidate file
+        return None
+    if stored is None:
+        return None
+
+    staleness = assess_staleness(stored.generation)
+    shape_classes: dict[str, int] = {}
+    localisation: dict[str, int] = {}
+    depth: dict[str, int] = {}
+    frames: set[str] = set()
+    for c in stored.candidates:
+        cls = c.candidate.interpretation.anomaly_class
+        shape_classes[cls] = shape_classes.get(cls, 0) + 1
+        localisation[c.localisation.value] = localisation.get(c.localisation.value, 0) + 1
+        depth[c.depth.value] = depth.get(c.depth.value, 0) + 1
+        if c.candidate.evidence.source_file:
+            frames.add(c.candidate.evidence.source_file)
+
+    return CandidateSummary(
+        candidate_count=len(stored.candidates),
+        analysed=True,
+        frames_with_candidates=sorted(frames),
+        shape_classes=dict(sorted(shape_classes.items())),
+        evidence_available=True,
+        classified_object_count=0,
+        status="limited" if staleness.is_stale else "available",
+        status_reason=("this candidate set no longer matches the dataset"
+                       if staleness.is_stale
+                       else f"generated from {stored.generation.n_source_files} survey line(s)"),
+        missing=(["a regeneration run"] if staleness.is_stale else []),
+        method=stored.generation.method,
+        method_version=stored.generation.method_version,
+        generated_at=stored.generation.generated_at,
+        is_stale=staleness.is_stale,
+        stale_reasons=staleness.reasons,
+        localisation_breakdown=dict(sorted(localisation.items())),
+        depth_breakdown=dict(sorted(depth.items())),
+    )
+
+
 def _candidate_summary(dataset_id: str) -> CandidateSummary:
     """
     Candidates that a previous analysis stored, counted -- never re-detected.
 
-    Reads `detector_candidate` labels only. A `human_interpretation` or a
-    `ground_truth` label is a different kind of claim and is deliberately not
-    folded in: mixing them is exactly how a benchmark's truth ends up counted
-    as a machine's output.
+    PREFERS THE STORED CANDIDATE SET, because that is the only source carrying a
+    generation record: which method, version and parameters produced the set,
+    and therefore whether it still applies. Labels remain the fallback for a
+    dataset that was labelled before candidate sets existed -- a count without
+    provenance is worth less than one with it, and the summary says which it is
+    by leaving `method` unset.
+
+    Reads `detector_candidate` labels only in that fallback. A
+    `human_interpretation` or a `ground_truth` label is a different kind of
+    claim and is deliberately not folded in: mixing them is exactly how a
+    benchmark's truth ends up counted as a machine's output.
     """
+    stored = _stored_candidate_summary(dataset_id)
+    if stored is not None:
+        return stored
+
+    not_run = CandidateSummary(
+        analysed=False, status="blocked",
+        status_reason="candidate generation has not been run for this dataset",
+        missing=["a candidate generation run"])
+
     try:
         label_set = load_labels(dataset_id)
     except Exception:  # noqa: BLE001 -- absent or unreadable label file
-        return CandidateSummary()
+        return not_run
 
     candidates = [l for l in getattr(label_set, "labels", [])
                   if l.kind == LabelKind.DETECTOR_CANDIDATE]
     if not candidates:
-        return CandidateSummary(analysed=False)
+        return not_run
 
     shape_classes: dict[str, int] = {}
     frames: set[str] = set()
@@ -245,6 +317,12 @@ def _candidate_summary(dataset_id: str) -> CandidateSummary:
         # produced it. That is the lower half of the evidence chain.
         evidence_available=all(getattr(l, "evidence_ref", None) for l in candidates),
         classified_object_count=0,
+        # No generation record exists for label-only candidates, so this set
+        # cannot be reproduced or invalidated. `method` stays None to say so.
+        status="limited",
+        status_reason=("counted from stored labels, which carry no generation "
+                       "record: the method and parameters behind them are unknown"),
+        missing=["a candidate generation run, which records how the set was produced"],
     )
 
 

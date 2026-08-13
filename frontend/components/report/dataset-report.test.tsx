@@ -145,6 +145,17 @@ function report(overrides: Partial<DatasetReport> = {}): DatasetReport {
       evidence_available: false,
       classified_object_count: 0,
       note: 'Candidates are anomalous regions, not detected objects. No object classification has been performed.',
+      status: 'blocked',
+      status_reason: 'candidate generation has not been run for this dataset',
+      missing: ['a candidate generation run'],
+      method: null,
+      method_version: null,
+      generated_at: null,
+      is_stale: false,
+      stale_reasons: [],
+      localisation_breakdown: {},
+      depth_breakdown: {},
+      classification_status: 'BLOCKED',
     },
     readiness: [
       {
@@ -318,26 +329,61 @@ describe('quality', () => {
 })
 
 describe('candidates are never detections', () => {
-  it('says no analysis has been run when none has', async () => {
+  it('says no analysis has been run when none has, in the backend’s words', async () => {
     const { container } = await renderReport()
-    expect(container.textContent).toContain('No candidate analysis has been run')
+    // The wording is the backend's `status_reason`, not this component's: the
+    // report must not paraphrase a limitation it did not decide.
+    expect(container.textContent).toContain(
+      'candidate generation has not been run for this dataset',
+    )
+    expect(container.textContent).toContain('a candidate generation run')
   })
 
   it('describes candidates as candidate regions and carries the note', async () => {
     const analysed = report()
     analysed.candidates = {
+      ...analysed.candidates,
       candidate_count: 12,
       analysed: true,
       frames_with_candidates: ['line1.sgy'],
       shape_classes: { compact: 8, elongated: 4 },
       evidence_available: true,
-      classified_object_count: 0,
-      note: 'Candidates are anomalous regions, not detected objects. No object classification has been performed.',
+      status: 'available',
+      status_reason: 'generated from 1 survey line(s)',
+      missing: [],
+      method: 'ring_local_anomaly_connected_components',
+      method_version: '1.0.0',
+      localisation_breakdown: { trace_relative: 12 },
+      depth_breakdown: { unavailable: 12 },
     }
     const { container } = await renderReport(analysed)
     expect(container.textContent).toContain('Candidate regions')
     expect(container.querySelector('[data-candidate-note]')?.textContent).toContain(
       'not detected objects',
+    )
+    expect(container.querySelector('[data-classification-status]')?.textContent).toBe(
+      'BLOCKED',
+    )
+  })
+
+  it('survives a report payload stored before candidate provenance existed', async () => {
+    // A stored report from an earlier version carries none of the Stage 13
+    // fields. The page must degrade to "not stated", never crash.
+    const old = report()
+    old.candidates = {
+      candidate_count: 12,
+      analysed: true,
+      frames_with_candidates: ['line1.sgy'],
+      shape_classes: { compact: 12 },
+      evidence_available: true,
+      classified_object_count: 0,
+      note: 'Candidates are anomalous regions, not detected objects.',
+    } as unknown as typeof old.candidates
+
+    const { container } = await renderReport(old)
+    expect(container.textContent).toContain('Candidate regions')
+    expect(container.querySelector('[data-classification-status]')?.textContent).toBe(
+      'BLOCKED',
     )
   })
 
