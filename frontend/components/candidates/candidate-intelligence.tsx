@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import useSWR from 'swr'
 import { ApiError, api } from '@/services/api'
 import { buttonVariants } from '@/components/ui/button'
@@ -92,6 +93,17 @@ export function CandidateIntelligenceView({ datasetId }: { datasetId: string }) 
     <div data-candidate-intelligence={data.status} className="space-y-6">
       <header>
         <h2 className="text-base font-medium text-foreground">Candidate intelligence</h2>
+        {/*
+          The list says WHERE a candidate is; the radargram shows WHAT it came
+          from. A reviewer asked to accept or reject one needs the second.
+        */}
+        <Link
+          href={`/datasets/${encodeURIComponent(datasetId)}/radargram`}
+          data-radargram-link
+          className="mt-1 inline-flex text-xs text-primary underline-offset-4 hover:underline"
+        >
+          Inspect these candidates on the measured radargram
+        </Link>
         <p data-candidate-definition className="mt-1 text-xs leading-relaxed text-muted-foreground">
           {data.definition}
         </p>

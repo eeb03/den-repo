@@ -496,11 +496,23 @@ export interface FrameProvenanceResponse {
  * labelled as one -- it is not a depth.
  */
 export interface TraceGrid {
-  grid: number[][]
+  /** (depth x trace). `null` means the acquisition recorded no sample there. */
+  grid: (number | null)[][]
   trace_indices: number[]
   depths?: number[] | null
   source_file?: string | null
+  available_source_files?: string[]
   field?: string
+  /** What the numbers and axes are. Present since the radargram viewer. */
+  semantics?: RadargramSemantics
+  /** Per-cell reliability, same shape as `grid`. Only when requested. */
+  reliability?: (boolean | null)[][] | null
+  /** Candidate positions on THIS grid. Only when requested. */
+  candidate_footprints?: CandidateFootprint[] | null
+  trace_geographic?: boolean[]
+  trace_along_track?: (number | null)[]
+  velocity_m_per_ns?: number | number[] | null
+  velocity_note?: string | null
   [key: string]: unknown
 }
 
@@ -827,6 +839,71 @@ export interface BenchmarkContext {
   not_evaluated?: string[]
   /** Whether the benchmark could recognise an improvement if one happened. */
   adequacy?: string
+}
+
+/* ----------------------------- radargram -------------------------------- */
+
+/**
+ * What a radargram's numbers and axes actually are.
+ *
+ * These are not formatting hints. `derived_depth_default_velocity` is a
+ * different quantity from `derived_depth_declared_velocity`, and both differ
+ * from a measured depth; rendering any of them as "Depth (m)" would state a
+ * measurement that was never made.
+ */
+export type VerticalAxisKind =
+  | 'sample_index'
+  | 'two_way_time_ns'
+  | 'derived_depth_default_velocity'
+  | 'derived_depth_declared_velocity'
+  | 'measured_depth_m'
+  | 'unknown'
+
+export type VelocitySource = 'none' | 'converter_default' | 'declared'
+
+export interface RadargramSemantics {
+  vertical: {
+    kind: VerticalAxisKind
+    label: string
+    units: string | null
+    basis: string
+    is_derived: boolean
+    velocity_source: VelocitySource
+    velocity_m_per_ns: number | null
+    caveat: string | null
+  }
+  horizontal: {
+    kind: 'trace_index' | 'along_track_m' | 'geographic'
+    label: string
+    units: string | null
+    basis: string
+    geographic_available: boolean
+  }
+  field: {
+    field: string
+    label: string
+    units: string | null
+    description: string
+    /** True when the values are a statistic computed FROM the signal. */
+    is_statistic: boolean
+  }
+  unreliable_cells: number | null
+  total_cells: number | null
+  reliability_note: string
+  missing_note: string
+}
+
+/** Where one candidate sits on one grid — or why it cannot be placed. */
+export interface CandidateFootprint {
+  candidate_id: string
+  placeable: boolean
+  reason: string
+  first_column: number | null
+  last_column: number | null
+  first_row: number | null
+  last_row: number | null
+  peak_column: number | null
+  peak_row: number | null
 }
 
 /* ------------------------ ground-truth benchmark ------------------------ */

@@ -945,6 +945,8 @@ def get_dataset_trace_grid(
     dataset_id: str,
     source_file: Optional[str] = None,
     field: str = "signal",
+    include_reliability: bool = False,
+    include_candidates: bool = False,
     db: Session = Depends(get_db),
     _dataset=Depends(require_dataset_access),
 ):
@@ -1003,10 +1005,57 @@ def get_dataset_trace_grid(
             "assumptions": [a.model_dump(mode="json") for a in match.assumptions],
         }
 
+    # WHAT THE NUMBERS ARE AND WHAT THE AXES MEAN. Added for the radargram
+    # viewer, which otherwise has to guess -- and would guess wrong: on a
+    # dataset that has been through trace-local anomaly preprocessing,
+    # `signal` holds the z-score, not the amplitude it was computed from.
+    # `include_reliability` is opt-in because the mask roughly doubles the
+    # payload and no existing caller needs it.
+    from api import radargram as radargram_service
+
+    reliability = (
+        radargram_service.reliability_grid(
+            records, result["source_file"], result["trace_indices"], result["depths"])
+        if include_reliability else None
+    )
+    radargram_semantics = radargram_service.semantics(
+        records=records, survey_frame=line_frame, field=field,
+        velocity_m_per_ns=velocity_assumption if isinstance(velocity_assumption, float) else None,
+        declared=radargram_service.velocity_is_declared(db, dataset_id),
+        trace_geographic=result.get("trace_geographic"),
+        trace_along_track=result.get("trace_along_track"),
+        reliability=reliability,
+        n_cells=len(result["depths"]) * len(result["trace_indices"]),
+    )
+
+    # WHERE THE CANDIDATES SIT ON THIS GRID. The join is done here because only
+    # here are both sides present, and doing it in the browser would put a
+    # second copy of the mapping rule in TypeScript where it could drift from
+    # the tested one. Footprints are grid coordinates only -- the candidates
+    # themselves stay on /api/candidates, which remains their single
+    # representation.
+    candidate_footprints = None
+    if include_candidates:
+        from database.candidates_store import load_candidates
+        from schemas.radargram import map_candidates
+
+        stored = load_candidates(dataset_id)
+        line = [
+            c.candidate.model_dump(mode="json") for c in (stored.candidates if stored else [])
+            if c.candidate.evidence.source_file == result["source_file"]
+        ]
+        candidate_footprints = [
+            f.model_dump(mode="json") for f in
+            map_candidates(line, result["trace_indices"], result["depths"])
+        ]
+
     return {
         "dataset_id": dataset_id,
         "name": dataset.name,
         "field": field,
+        "semantics": radargram_semantics.model_dump(mode="json"),
+        "reliability": reliability,
+        "candidate_footprints": candidate_footprints,
         "source_file": result["source_file"],
         "available_source_files": result["available_source_files"],
         "n_depths": len(result["depths"]),

@@ -352,12 +352,27 @@ export const api = {
    * data has no radargram, and that is a fact about the data rather than a
    * failure of the request.
    */
+  /**
+   * One survey line as a (depth x trace) grid.
+   *
+   * `reliability` and `candidateFootprints` are opt-in because each adds
+   * materially to the payload and no earlier caller needs them. The footprints
+   * are computed server-side so the candidate-to-grid mapping has one tested
+   * implementation rather than a second copy in TypeScript.
+   */
   getTraceGrid(
     datasetId: string,
-    opts: { field?: string; sourceFile?: string | null } = {},
+    opts: {
+      field?: string
+      sourceFile?: string | null
+      reliability?: boolean
+      candidateFootprints?: boolean
+    } = {},
   ): Promise<TraceGrid> {
     const query = new URLSearchParams({ field: opts.field ?? 'signal' })
     if (opts.sourceFile) query.set('source_file', opts.sourceFile)
+    if (opts.reliability) query.set('include_reliability', 'true')
+    if (opts.candidateFootprints) query.set('include_candidates', 'true')
     return request(
       `/api/datasets/${encodeURIComponent(datasetId)}/trace_grid?${query}`,
     )
