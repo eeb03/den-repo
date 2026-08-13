@@ -116,12 +116,23 @@ and no air-gap removal were applied, so the ground surface does not necessarily
 correspond to depth zero and an air path remains in the data — and gives no
 magnitude for it. Physical depth and absolute elevation stay BLOCKED.
 
-One question stands between the datum and a usable surface reference: the 4TU
-files carry TWO per-trace elevation fields differing by 42.2–45.2 m (measured
-across 105 activities, varying by site as a geoid separation does), and the
-author named neither. Attaching the datum to the wrong one is a ~44 m error.
-Asking which field is currently the highest-value outstanding question in the
-project. See `docs/4tu-author-evidence.md`.
+The author named neither of the two per-trace elevation fields, which differ by
+42.2–45.2 m — attaching the datum to the wrong one is a ~44 m error. **That
+question has now been answered by measurement rather than by asking.** Both
+fields were compared against AHN, the Dutch national terrain model (PDOK, NAP
+orthometric), across 366,019 traces in 107 activities and 12 sites: bytes 41–44
+track AHN to −0.83 m, bytes 45–48 sit +43.38 m above it, and that difference
+correlates with latitude at −0.999 (planar R² 0.998, residual sd 0.034 m) —
+geoid behaviour, not a constant instrument offset, matching the published NL
+separation range of 41 m (Groningen) to 47 m (Limburg) in magnitude and
+gradient. **Bytes 45–48 hold the ellipsoidal GNSS height; bytes 41–44 an
+orthometric NAP-like height.** No platform state was changed. See
+`docs/4tu-elevation-field-identification.md` and `docs/4tu-author-evidence.md`.
+
+Depth remains blocked regardless: the author is explicit that no time-zero
+correction and no air-gap removal were applied, so a surface elevation does not
+locate depth zero. The two remaining external questions are the time-zero/air-gap
+magnitude and whether a propagation velocity was ever determined.
 
 ## Where detection actually stands
 

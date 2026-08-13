@@ -167,14 +167,20 @@ OPEN_QUESTIONS: tuple[OpenQuestionForAuthor, ...] = (
         why_it_matters=("the two fields differ by 42.2-45.2 m depending on site, so "
                         "attaching the datum to the wrong one puts a ~44 m error "
                         "into every elevation this platform reports"),
+        status="ANSWERED BY MEASUREMENT -- no author question needed",
         subterra_evidence=(
-            "measured across 105 activities: both fields are present on every trace; "
-            "the difference is constant within a site and varies smoothly between "
-            "sites (42.217-45.206 m), which is how a geoid separation behaves and "
-            "not how a fixed software constant would. That is consistent with the "
-            "LARGER field being the ellipsoidal height and the smaller being an "
-            "NAP-like orthometric height, but it is an inference from magnitude "
-            "and not a statement by anyone"),
+            "RESOLVED by comparison against AHN, the Dutch national terrain model "
+            "(PDOK, NAP orthometric), across 366,019 traces in 107 activities and "
+            "12 sites. Bytes 41-44 track AHN to -0.83 m mean; bytes 45-48 sit "
+            "+43.38 m above it. The difference varies 42.217-45.206 m and "
+            "correlates with latitude at -0.999 (planar R^2 0.998, residual sd "
+            "0.034 m), which is geoid behaviour and not a constant instrument "
+            "offset -- and it matches the published NL separation range (41 m "
+            "Groningen to 47 m Limburg) in both magnitude and north-south "
+            "gradient. So bytes 45-48 hold the ellipsoidal GNSS height and bytes "
+            "41-44 an orthometric NAP-like height. Hypothesis A is REJECTED: it "
+            "would put the ground ~44 m below what AHN measures. See "
+            "docs/4tu-elevation-field-identification.md"),
     ),
     OpenQuestionForAuthor(
         id="time-zero-offset-magnitude",

@@ -164,24 +164,52 @@ def test_the_field_mapping_question_is_recorded_with_its_stakes():
     q = next(q for q in OPEN_QUESTIONS
              if q.id == "which-header-holds-the-ellipsoidal-height")
     assert "44 m error" in q.why_it_matters
-    assert q.status.startswith("OUTSTANDING")
 
 
-def test_subterra_s_own_measurement_is_labelled_as_an_inference():
+def test_the_field_mapping_question_was_answered_by_measurement_not_by_the_author():
     """
-    The geoid-separation argument is strong and it is still an inference. It
-    must not be recorded as something the author said.
+    UPDATED AFTER THE ELEVATION-FIELD INVESTIGATION. This question was
+    OUTSTANDING because the author named neither field. It was then settled by
+    comparing both against an independent national terrain model -- so its
+    status must say ANSWERED, and must say answered by MEASUREMENT, because
+    recording it as author-stated would credit Dr. ter Huurne with something
+    they did not say.
+    """
+    q = next(q for q in OPEN_QUESTIONS
+             if q.id == "which-header-holds-the-ellipsoidal-height")
+    assert "ANSWERED BY MEASUREMENT" in q.status
+    assert "no author question needed" in q.status
+    assert "AHN" in q.subterra_evidence
+    assert "REJECTED" in q.subterra_evidence
+
+
+def test_subterra_s_own_measurement_stays_separated_from_the_author_s_words():
+    """
+    The resolution is Subterra's measurement, and it lives in
+    `subterra_evidence` -- never in `claim`, which is reserved for what the
+    author actually wrote.
     """
     q = next(q for q in OPEN_QUESTIONS
              if q.id == "which-header-holds-the-ellipsoidal-height")
     assert "42.217-45.206 m" in q.subterra_evidence
-    assert "an inference from magnitude" in q.subterra_evidence
-    assert "not a statement by anyone" in q.subterra_evidence
+    assert "366,019 traces" in q.subterra_evidence
+
+    ellipsoidal = claim("gnss-elevation-is-ellipsoidal")
+    assert "AHN" not in ellipsoidal.claim, \
+        "the author said nothing about AHN; that is Subterra's evidence"
+    assert "bytes 45-48" not in ellipsoidal.claim, \
+        "the author named no header field"
 
 
-def test_every_open_question_is_marked_not_yet_asked():
-    """No request has been sent for these; claiming otherwise would invent one."""
-    assert all(q.status.startswith("OUTSTANDING") for q in OPEN_QUESTIONS)
+def test_the_questions_the_data_cannot_answer_are_still_outstanding():
+    """
+    Identifying the elevation field settles nothing about depth. No request has
+    been sent for these two, and claiming otherwise would invent one.
+    """
+    remaining = {q.id: q for q in OPEN_QUESTIONS
+                 if q.id != "which-header-holds-the-ellipsoidal-height"}
+    assert set(remaining) == {"time-zero-offset-magnitude", "propagation-velocity"}
+    assert all(q.status.startswith("OUTSTANDING") for q in remaining.values())
 
 
 def test_the_remaining_questions_cover_the_blocked_chain():
