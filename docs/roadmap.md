@@ -51,6 +51,12 @@ management — **complete**. 8 spatial reference workflow — **complete**. 9 Fi
 13 candidate intelligence — **complete**: the candidate layer is real,
 provenanced, versioned, staleable and inspectable. The detector it exposes is
 still at chance, which is a measured result rather than a gap in this stage.
+15 radargram inspection — **complete**: the measured B-scan with candidate
+overlays mapped exactly to their supporting cells. 16 record-loading performance
+— **complete**: the candidate path was parsing its own copy of the corpus, so a
+radargram page materialised 384 MB twice; concurrent grid+candidates went from
+28.2 s to 4.7 s and candidate retrieval from 22.9 s to 0.27 s. See
+`docs/record-loading.md`.
 14 ground-truth benchmarks — **complete**, with a negative headline: after the
 duplicate audit the 4TU corpus holds 107 independent positives and **6**
 independent negatives, which could only distinguish a detector of AUC 0.742 or

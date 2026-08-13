@@ -111,7 +111,18 @@ def generate(db: Session, dataset_id: str,
     so a set produced under it can never be mistaken for the baseline.
     """
     parameters = parameters or GenerationParameters()
-    records = load_records(dataset_id, use_cache=False)
+    # Cached, because this path READS. `interpretation.anomaly_candidates` is a
+    # read-only interpretation layer -- it never mutates records, never writes
+    # `ground_truth`, and persists nothing -- and that is verified rather than
+    # trusted: `test_candidate_generation_does_not_mutate_the_records` hashes
+    # every record before and after a real generation run.
+    #
+    # It previously passed use_cache=False, which cost a second full parse. The
+    # radargram page asks for the grid and the candidates at once, so the
+    # dataset was materialised TWICE concurrently: measured at 412 MB per copy,
+    # and a parse that costs 4.0 s alone costs 14.0 s with another copy
+    # resident. See docs/record-loading.md.
+    records = load_records(dataset_id)
 
     if not records:
         return blocked(dataset_id, "this dataset holds no records",
@@ -181,7 +192,11 @@ def current(db: Session, dataset_id: str) -> CandidateIntelligence:
             dataset_id, "candidate generation has not been run for this dataset",
             ["a candidate generation run"])
 
-    records = load_records(dataset_id, use_cache=False)
+    # Cached: this reads the records only to fingerprint them for staleness.
+    # Freshness comes from the cache's own identity check -- (path, mtime, size)
+    # plus explicit invalidation on every write -- not from re-parsing, so
+    # bypassing bought nothing but a second 412 MB copy.
+    records = load_records(dataset_id)
     staleness = assess_staleness(
         stored.generation,
         current_fingerprint=current_fingerprint(dataset_id, records) if records else None,
