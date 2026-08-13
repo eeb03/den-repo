@@ -1,0 +1,509 @@
+{
+  "$comment": [
+    "Target ground truth for the IFSTTAR geophysical test site, as published in the",
+    "TU1208 Open Database of Radargrams paper.",
+    "",
+    "PROVENANCE CLASS: transcribed_from_publication. Every value below was read by",
+    "hand from the open-access paper named in `sources`. The data archive on disk",
+    "(Zenodo 1211173) contains radargrams and instrument sidecars only, and no",
+    "target-geometry file of any kind -- its own index, List_Database_V1.ods, was",
+    "never packaged.",
+    "",
+    "NOTHING HERE IS MEASURED, DERIVED OR INFERRED BY SUBTERRA, except where a",
+    "field carries `derived: true`, which states its derivation in words.",
+    "",
+    "WHAT IS DELIBERATELY ABSENT. No velocity. No time-zero. No depth computed from",
+    "a radargram. No detector label. The depths below are the experimental setup's",
+    "own account of what is buried where; they are the INPUT to a later validation",
+    "and must never become a training or scoring label.",
+    "",
+    "READ THE DEPTH DATUM CAVEAT BEFORE USING ANY DEPTH. The published sections do",
+    "not draw the surface layers that were actually built on top of them."
+  ],
+
+  "schema_version": 1,
+  "transcribed_utc": "2026-08-13T20:30:00+00:00",
+  "provenance_class": "transcribed_from_publication",
+  "verified_by_subterra": false,
+  "verified_by_subterra_note": "Subterra has excavated nothing and surveyed nothing here. Independent verification would mean a site visit or the authors' own survey records, neither of which this project has.",
+
+  "sources": {
+    "publication": {
+      "id": "tu1208_paper",
+      "doi": "10.3390/rs10040530",
+      "citation": "Dérobert, X.; Pajewski, L. TU1208 Open Database of Radargrams: The Dataset of the IFSTTAR Geophysical Test Site. Remote Sensing 2018, 10(4), 530.",
+      "licence": "CC-BY-4.0",
+      "retrieved_utc": "2026-08-13",
+      "retrieved_from": "https://res.mdpi.com/d_attachment/remotesensing/remotesensing-10-00530/article_deploy/remotesensing-10-00530.pdf",
+      "pages": 50,
+      "contains_target_geometry": true,
+      "note": "Target depths are printed in the transversal-section FIGURES, not in a table. Figure numbers and PDF page indices are recorded per value."
+    },
+    "data_archive": {
+      "id": "tu1208_archive",
+      "doi": "10.5281/zenodo.1211173",
+      "citation": "Dérobert, X.; Pajewski, L. Supplementary Files: TU1208 Open Database of Radargrams. Zenodo, 2018.",
+      "licence": "CC-BY-4.0",
+      "contains_target_geometry": false,
+      "local_path": "datasets/raw/zenodo/1211173/extracted/Database_2018",
+      "note": "Supplies the radargrams and the per-region directory layout used to corroborate the paper's region assignment."
+    }
+  },
+
+  "site": {
+    "name": "IFSTTAR geophysical test site",
+    "location_described_as": "Nantes research centre of IFSTTAR, France",
+    "description": "a pit 30 m long and 5 m wide at its maximum depth (around 4 m), with sloping sides that extend the width of the site to about 20 m, divided into five regions filled with different homogeneous soils and hosting georeferenced targets",
+    "description_source": {"document": "tu1208_paper", "section": "Abstract"},
+    "n_regions": 5,
+    "n_acquisition_lines": 11,
+    "n_profiles": 67
+  },
+
+  "coordinate_frame": {
+    "kind": "site_local",
+    "crs": null,
+    "crs_provenance": "none",
+    "vertical_datum": null,
+    "units": "m",
+    "authors_terminology": {
+      "depth": "distances below the surface, printed on the transversal sections as negative numbers with 0.00 at the top",
+      "transverse_offset": "distances across the section, referred to by the authors as measured from 'the longitudinal axis of the test site'",
+      "acquisition_line_offset": "distance 'from the upstream border of the section', the authors' phrase"
+    },
+    "shared_with_radar": false,
+    "shared_with_radar_note": "NO. The radargram files carry no site coordinate. Relating a trace index to a transverse offset needs the published profile length and scans-per-metre, and an along-line origin that no source states. Nothing here performs that association.",
+    "geographic_conversion": "NOT SUPPORTED. The paper states the site surface 'was georeferenced on the longitudinal axis and on the sides, for every limit of the sections' but names no CRS, no datum and no coordinate. No offset here is converted to a geographic or projected coordinate."
+  },
+
+  "target_geolocation_method": {
+    "instrument": "theodolite",
+    "statement": "During the realization of the test site, every embedded object was carefully geolocated, by using a theodolite. Therefore, each target is positioned from several points: 2 points on the upper side of the pipes at their beginnings and ends, 4 points at the upper angles of the polystyrene blocks, and from 3 to 20 points for the rock blocks and dolmens. The surface of the site was georeferenced on the longitudinal axis and on the sides, for every limit of the sections. For each half-section, an interpolation was performed from the 4 surface angles to obtain the height values above the various targets, and then calculate their respective depths.",
+    "source": {"document": "tu1208_paper", "section": "3.4 Geolocation of Targets", "pdf_page_index": 14},
+    "evidence_type": "surveyed",
+    "implication_for_pipe_depth_reference": "The pipes were positioned from 2 points ON THE UPPER SIDE. Whether the printed layer depth is therefore to the pipe CROWN or to its CENTRE is not stated in words anywhere in the paper. See open question `pipe-depth-reference-surface`."
+  },
+
+  "depth_datum_caveat": {
+    "id": "sections-omit-the-built-surface-layers",
+    "statement": "It has to be mentioned that the top of this section was finalized with about 30 cm of limestone (material from the third region), due to lack of silty material; such layer is not represented on the scheme. Moreover, all transversal schemes of the geophysical test site presented in this Section do not show neither the 10-cm surface layer made in limestone nor the asphalt wearing course.",
+    "source": {"document": "tu1208_paper", "section": "3.3.1 Silt Region", "pdf_page_index": 9},
+    "consequence": "The 0.00 line printed on every transversal section is NOT necessarily the surface an antenna was dragged over. A 10-cm limestone surface layer and an asphalt wearing course are omitted from all five schemes, and the silt region additionally carries about 30 cm of limestone that is also not drawn. Any comparison of a published depth against a radar arrival must carry this, and it is one of the two reasons a time-zero cannot be read off this dataset for free.",
+    "quantified": false,
+    "quantified_note": "'about 30 cm' and '10-cm' are the paper's own words; the asphalt wearing course has no published thickness at all."
+  },
+
+  "acquisition_lines": {
+    "definition": "Position: number identifying the acquisition line, which can be 1 (profile recorded 1.25 m from the upstream border of the section—left in Figure 2)/2 (3.75 m)/3 (6.25 m)/4 (8.75 m)",
+    "source": {"document": "tu1208_paper", "section": "4 Equipment and Data Acquisition (file nomenclature)", "pdf_page_index": 14},
+    "evidence_type": "published_numeric",
+    "offsets_m_from_upstream_border": {"1": 1.25, "2": 3.75, "3": 6.25, "4": 8.75},
+    "note": "The paper says data were collected along eleven lines across the site; the nomenclature defines four line POSITIONS within a section. Only the four are numerically published, and only those are recorded here."
+  },
+
+  "file_nomenclature": {
+    "published": "Freq_Section_Optional1Position_Optional2.ext",
+    "components": {
+      "Freq": "nominal central frequency",
+      "Section": "name identifying the section",
+      "Position": "number identifying the acquisition line",
+      "Optional1": "'h' added just before the position when a half-length profile is performed (e.g. h1)",
+      "Optional2": "'rev' when the profile is done in reverse",
+      "ext": "file extension, manufacturer dependent",
+      "b": "added before the extension for GPR 1 data recorded with the last-generation 200/400/900 MHz antennas, to distinguish them from data collected with older antennas at the same frequency"
+    },
+    "source": {"document": "tu1208_paper", "section": "4 Equipment and Data Acquisition", "pdf_page_index": 14}
+  },
+
+  "gpr_systems": {
+    "GPR 1": "GSSI (Geophysical Survey Systems, Inc; Nashua, NH, USA)",
+    "GPR 2": "MALÅ Geoscience (Malå, Sweden)",
+    "GPR 3": "IDS (Ingegneria dei Sistemi; Pisa, Italy)",
+    "source": {"document": "tu1208_paper", "section": "4 Equipment and Data Acquisition", "pdf_page_index": 14}
+  },
+
+  "pipe_specification": {
+    "$comment": "One specification, stated for the silt region and referred back to by every other region.",
+    "composition_and_order": "three pipes per layer: an empty steel pipe, a PVC pipe full of water, and an empty PVC pipe (this is the laying order in all layers, starting from the longitudinal axis of the test site)",
+    "order_from_axis": ["empty steel pipe", "PVC pipe full of water", "empty PVC pipe"],
+    "length_m": 2.5,
+    "length_source": {"document": "tu1208_paper", "section": "3.3.1 Silt Region", "pdf_page_index": 9},
+    "diameter_mm": null,
+    "diameter_status": "unavailable",
+    "diameter_note": "The paper gives no diameter for the three-pipe layers in any region. The 10-cm PVC tubes mentioned in section 3.2 are drainage tubes in the pit's drainage layer, a different object, and are NOT used as a diameter here.",
+    "spacing_statement": "the distance between pipes pertaining to the same layer increases with depth",
+    "spacing_source": {"document": "tu1208_paper", "section": "3.3.1 Silt Region", "pdf_page_index": 9}
+  },
+
+  "regions": [
+    {
+      "id": "silt",
+      "published_name": "silt",
+      "host_material": "silt",
+      "archive_directory": "SILT",
+      "figure": "Figure 6",
+      "figure_caption": "Transversal section of the silt region, showing the embedded targets and their positions. All distances are expressed in meters.",
+      "pdf_page_index": 9,
+      "targets_attested_absent": false,
+      "pipe_layers": [
+        {"layer": 1, "depth_m": -0.80, "n_pipes": 3, "evidence_type": "surveyed", "derived": false},
+        {"layer": 2, "depth_m": -1.20, "n_pipes": 3, "evidence_type": "surveyed", "derived": false},
+        {"layer": 3, "depth_m": -1.83, "n_pipes": 3, "evidence_type": "surveyed", "derived": false}
+      ],
+      "transverse_spacing_sequence_m": [0.5, 0.5, 0.7, 0.7, 0.7, 1.0, 1.0, 1.0],
+      "transverse_spacing_note": "The consecutive segment lengths printed on the section's upper scale bar, left to right. Labels alternate above and below the bar for legibility. Their assignment to individual pipes is NOT recorded -- see open question `spacing-to-pipe-assignment`.",
+      "other_published_depths": [
+        {"depth_m": -0.66, "object": "expanded polystyrene block staircase", "object_certain": true,
+         "which_step": null, "which_step_status": "unavailable",
+         "note": "One of the two depths printed for the staircase. Which of the six blocks it refers to is not printed."},
+        {"depth_m": -2.05, "object": "expanded polystyrene block staircase", "object_certain": true,
+         "which_step": null, "which_step_status": "unavailable",
+         "note": "The other printed staircase depth."}
+      ],
+      "other_targets": [
+        {"type": "expanded polystyrene block staircase", "n_blocks": 6,
+         "block_size_m": [1.00, 1.00, 0.25],
+         "source": {"document": "tu1208_paper", "section": "3.3.1 Silt Region", "pdf_page_index": 9},
+         "per_block_depth_status": "unavailable"}
+      ],
+      "modelled_permittivity": {
+        "relative_permittivity": 13,
+        "evidence_type": "modelled",
+        "method": "matching synthetic results of preliminary FDTD models with the measurements",
+        "authors_caveat": "Such estimations must be taken with care, as the surface limestone layer presents some slight thickness variations, and also because of the compaction performed on the silt above the polystyrene blocks during the test site implementation (which might have compressed the blocks a little). More advanced investigations will be carried out in the future, to obtain more accurate estimations of the various values.",
+        "attenuation_db_per_m": [15, 45],
+        "source": {"document": "tu1208_paper", "section": "5 Results", "pdf_page_index": 25},
+        "is_a_velocity": false,
+        "is_a_velocity_note": "A permittivity is not a velocity and is not converted into one here. It is recorded so a later stage can compare a fitted velocity against an independent expectation, never so it can supply one."
+      }
+    },
+    {
+      "id": "multilayer",
+      "published_name": "multilayer",
+      "host_material": "stratified: limestone / gneiss 0-20 / gneiss 14-20 / limestone / silt",
+      "archive_directory": "MULTI-LAYER",
+      "figure": "Figure 8",
+      "figure_caption": "Transversal section of the multilayer region, showing the stratification of materials and the thicknesses of the layers.",
+      "pdf_page_index": 10,
+      "targets_attested_absent": true,
+      "absence_attestation": "There are five layers and no targets.",
+      "absence_source": {"document": "tu1208_paper", "section": "3.3.2 Multilayer Region", "pdf_page_index": 10},
+      "absence_caveat": "This is a control for EMBEDDED TARGETS, not a control for 'no reflector'. Five material interfaces are real reflectors and any detector will respond to them.",
+      "pipe_layers": [],
+      "layers": [
+        {"index": 1, "material": "limestone", "thickness_m": 0.80, "evidence_type": "published_numeric", "derived": false},
+        {"index": 2, "material": "gneiss 0/20 gravel", "thickness_m": 0.60, "evidence_type": "published_numeric", "derived": false},
+        {"index": 3, "material": "gneiss 14/20 gravel", "thickness_m": 0.60, "evidence_type": "published_numeric", "derived": false},
+        {"index": 4, "material": "limestone", "thickness_m": 1.30, "evidence_type": "published_numeric", "derived": false},
+        {"index": 5, "material": "silt", "thickness_m": 0.60, "evidence_type": "published_numeric", "derived": false}
+      ],
+      "layers_note": "Thicknesses are printed inside each band of Figure 8. The figure prints 0.00 at the top and prints NO interface depth. Cumulative interface depths are therefore derivable but are not stored as published values -- see `benchmark.tu1208_truth.interface_depths`, which marks them derived.",
+      "boreholes": {"count": 2, "description": "Two vertical holes allow carrying out borehole, crosshole and tomography investigations in this region of the test site.",
+        "source": {"document": "tu1208_paper", "section": "3.3.2 Multilayer Region", "pdf_page_index": 10},
+        "positions_status": "unavailable"},
+      "other_published_depths": [],
+      "other_targets": [],
+      "modelled_permittivity": null,
+      "modelled_permittivity_note": "None published. The paper states: 'The multilayer section remains a challenge for GPR specialists, to estimate the real thicknesses and permittivity values of the various layers.'"
+    },
+    {
+      "id": "limestone",
+      "published_name": "limestone",
+      "host_material": "limestone",
+      "archive_directory": "LIMESTONE",
+      "figure": "Figure 9",
+      "figure_caption": "Transversal section of the limestone region, showing the embedded targets and their positions. All distances are expressed in meters.",
+      "pdf_page_index": 11,
+      "targets_attested_absent": false,
+      "pipe_layers": [
+        {"layer": 1, "depth_m": -1.20, "n_pipes": 3, "evidence_type": "surveyed", "derived": false},
+        {"layer": 2, "depth_m": -1.70, "n_pipes": 3, "evidence_type": "surveyed", "derived": false},
+        {"layer": 3, "depth_m": -2.40, "n_pipes": 3, "evidence_type": "surveyed", "derived": false}
+      ],
+      "transverse_spacing_sequence_m": [0.5, 0.5, 0.7, 0.7, 0.7, 1.0, 1.0, 1.0],
+      "transverse_spacing_note": "Left scale bar of Figure 9, same reading convention as the silt section. Assignment to individual pipes not recorded.",
+      "pipe_series_note": "The paper states TWO series of pipe layers are present in this region, 'with the same properties as those embedded in the silt region'. The transversal section shows one series. Whether the second series sits at the same three depths is NOT published -- see open question `limestone-second-pipe-series`.",
+      "other_published_depths": [
+        {"depth_m": -1.0, "object": null, "object_certain": false,
+         "candidates": ["isolated gneiss block (300 mm or 500 mm diameter)"],
+         "note": "The dashed line terminates at the shallowest grey block symbol. The text states the isolated blocks are at TWO different depths, but THREE depth values (-1.0, -1.5, -2.0) are printed among the block/polystyrene symbols, so which value belongs to which object is not settled."},
+        {"depth_m": -1.5, "object": null, "object_certain": false,
+         "candidates": ["isolated gneiss block (300 mm or 500 mm diameter)", "expanded polystyrene block"],
+         "note": "The dashed line meets both a grey block symbol and the polystyrene rectangle."},
+        {"depth_m": -2.0, "object": null, "object_certain": false,
+         "candidates": ["isolated gneiss block (300 mm or 500 mm diameter)"],
+         "note": "As for -1.0."},
+        {"depth_m": -3.47, "object": "hemispherical cavity of expanded polystyrene", "object_certain": true,
+         "note": "The dashed line terminates at the crown of the hemispherical cavity and no other object is drawn at that depth."}
+      ],
+      "other_targets": [
+        {"type": "hemispherical cavity of expanded polystyrene", "height_m": 0.50, "diameter_m": 2.50,
+         "source": {"document": "tu1208_paper", "section": "3.3.3 Limestone Region", "pdf_page_index": 11}},
+        {"type": "isolated gneiss blocks", "description": "Two couples of isolated gneiss blocks, with 300-mm and 500-mm diameters, buried at two different depths",
+         "diameters_mm": [300, 500], "n_depths": 2,
+         "source": {"document": "tu1208_paper", "section": "3.3.3 Limestone Region", "pdf_page_index": 11}},
+        {"type": "expanded polystyrene block", "block_size_m": [1.00, 1.00, 0.25],
+         "source": {"document": "tu1208_paper", "section": "3.3.3 Limestone Region", "pdf_page_index": 11},
+         "depth_status": "unavailable"},
+        {"type": "large-section electrical cable", "description": "in the first series of pipe layers, a large-section electrical cable per pipe layer is present: the cable is orthogonal to the pipe axes, forms a loop, and is taken out at the edge of the site, in order to optionally be able to feed it",
+         "source": {"document": "tu1208_paper", "section": "3.3.3 Limestone Region", "pdf_page_index": 11},
+         "depth_status": "drawn at the pipe-layer depths in Figure 9; no separate depth is printed"}
+      ],
+      "modelled_permittivity": {
+        "relative_permittivity": 6,
+        "evidence_type": "modelled",
+        "method": "analyzing the data and implementing preliminary FDTD models of this region",
+        "authors_caveat": "the paper phrases this as 'it is reasonable to assume that the relative permittivity of limestone is around ...'",
+        "attenuation_db_per_m": [6, 20],
+        "source": {"document": "tu1208_paper", "section": "5 Results", "pdf_page_index": 27},
+        "symbol_as_printed": "εr,sand",
+        "symbol_note": "The paper prints the subscript 'sand' for the limestone region; recorded verbatim rather than corrected.",
+        "is_a_velocity": false
+      }
+    },
+    {
+      "id": "gneiss_14_20",
+      "published_name": "Gneiss 14/20 gravel",
+      "host_material": "gneiss 14/20 gravel",
+      "archive_directory": "GNEISS14-20",
+      "figure": "Figure 11",
+      "figure_caption": "Transversal section of the Gneiss 14/20 gravel region, showing the embedded targets and their positions. All distances are expressed in meters.",
+      "pdf_page_index": 12,
+      "targets_attested_absent": false,
+      "pipe_layers": [
+        {"layer": 1, "depth_m": -0.90, "n_pipes": 3, "evidence_type": "surveyed", "derived": false},
+        {"layer": 2, "depth_m": -1.50, "n_pipes": 3, "evidence_type": "surveyed", "derived": false},
+        {"layer": 3, "depth_m": -2.10, "n_pipes": 3, "evidence_type": "surveyed", "derived": false}
+      ],
+      "transverse_spacing_sequence_m": [2.0, 1.25, 1.25, 2.0],
+      "transverse_spacing_note": "The right-hand scale bar of Figure 11. The section prints no left-hand scale bar for the pipe group.",
+      "other_published_depths": [
+        {"depth_m": -1.46, "object": "dolmen (upper)", "object_certain": true,
+         "note": "The dashed line terminates at the top of the upper large-block symbol. The text states two dolmens are located at different depths, and exactly two depths are printed."},
+        {"depth_m": -3.10, "object": "dolmen (lower)", "object_certain": true,
+         "note": "The dashed line terminates at the top of the lower large-block symbol."}
+      ],
+      "other_targets": [
+        {"type": "dolmen", "count": 2, "volume_m3_approx": 4,
+         "description": "Two dolmens of about 4 m3, consisting of 3 or 4 basic blocks and a capstone, located at different depths",
+         "source": {"document": "tu1208_paper", "section": "3.3.4 Gneiss 14/20 Gravel Region", "pdf_page_index": 12}},
+        {"type": "concrete empty pipe", "length_m": 2.0, "diameter_mm": 500,
+         "description": "A concrete empty pipe, 2-m long, with a diameter of 500 mm (its ends were sealed with polystyrene plates)",
+         "source": {"document": "tu1208_paper", "section": "3.3.4 Gneiss 14/20 Gravel Region", "pdf_page_index": 12},
+         "depth_status": "unavailable",
+         "depth_note": "Drawn in Figure 11 between the two dolmens with no dashed depth line of its own.",
+         "shared_with": "gneiss_0_20",
+         "shared_note": "The paper states the 500-mm concrete pipe is shared with the other gneiss region."}
+      ],
+      "modelled_permittivity": {
+        "relative_permittivity": 3,
+        "evidence_type": "modelled",
+        "method": "analyzing the data and implementing preliminary FDTD models of this region",
+        "authors_caveat": "the paper phrases this as 'it is reasonable to assume that the relative permittivity is around ...'",
+        "attenuation_db_per_m": null,
+        "source": {"document": "tu1208_paper", "section": "5 Results", "pdf_page_index": 30},
+        "symbol_as_printed": "εr,g1420",
+        "supporting_observation": "as the Gneiss 14/20 material presents a high level of porosity (due to the lack of fine and small elements), the corresponding GPR velocity is faster than for Gneiss 0/20",
+        "is_a_velocity": false
+      }
+    },
+    {
+      "id": "gneiss_0_20",
+      "published_name": "Gneiss 0/20 gravel",
+      "host_material": "gneiss 0/20 gravel",
+      "archive_directory": "GNEISS0-20",
+      "figure": "Figure 13",
+      "figure_caption": "Transversal sections of the Gneiss 0/20 gravel region: (a) First part; (b) second part. The embedded objects and their positions are shown. All distances are expressed in meters.",
+      "pdf_page_index": 13,
+      "targets_attested_absent": false,
+      "region_note": "This region is the widest and occupies four modules of the test site; it is drawn as TWO transversal sections, 13(a) and 13(b).",
+      "pipe_layers": [
+        {"layer": 1, "depth_m": -1.15, "n_pipes": 3, "evidence_type": "surveyed", "derived": false, "figure_part": "13(a)"},
+        {"layer": 2, "depth_m": -1.56, "n_pipes": 3, "evidence_type": "surveyed", "derived": false, "figure_part": "13(a)"},
+        {"layer": 3, "depth_m": -2.20, "n_pipes": 3, "evidence_type": "surveyed", "derived": false, "figure_part": "13(a)"}
+      ],
+      "transverse_spacing_sequence_m": [2.0, 1.25, 1.25, 2.0],
+      "transverse_spacing_note": "The right-hand scale bar of Figure 13(a). Figure 13(b) prints a separate sequence, recorded below.",
+      "transverse_spacing_sequence_part_b_m": [1.30, 1.30, 2.0],
+      "other_published_depths": [
+        {"depth_m": -0.92, "object": "large block", "object_certain": true, "figure_part": "13(a)",
+         "note": "Dashed line terminates at the top of the upper large-block symbol."},
+        {"depth_m": -3.26, "object": "large block", "object_certain": true, "figure_part": "13(a)",
+         "note": "Dashed line terminates at the top of the lower large-block symbol."},
+        {"depth_m": -1.52, "object": null, "object_certain": false, "figure_part": "13(b)",
+         "candidates": ["masonry wall"],
+         "note": "One of four dashed lines meeting the masonry symbol. The text describes TWO masonry walls, one of them with three steps and a total height of about 65 cm; four printed depths spanning 1.95 m cannot all belong to a 65 cm wall, so the assignment of each value is unsettled."},
+        {"depth_m": -2.18, "object": null, "object_certain": false, "figure_part": "13(b)", "candidates": ["masonry wall"], "note": "See -1.52."},
+        {"depth_m": -2.82, "object": null, "object_certain": false, "figure_part": "13(b)", "candidates": ["masonry wall"], "note": "See -1.52."},
+        {"depth_m": -3.47, "object": null, "object_certain": false, "figure_part": "13(b)", "candidates": ["masonry wall"], "note": "See -1.52. Coincides numerically with the limestone region's cavity depth; they are different objects in different sections."},
+        {"depth_m": -1.00, "object": "isolated block", "object_certain": true, "figure_part": "13(b)",
+         "note": "Dashed line terminates at the shallowest isolated-block symbol."},
+        {"depth_m": -1.53, "object": "isolated block", "object_certain": true, "figure_part": "13(b)"},
+        {"depth_m": -2.07, "object": "isolated block", "object_certain": true, "figure_part": "13(b)"},
+        {"depth_m": -2.65, "object": "heap of rocky blocks", "object_certain": true, "figure_part": "13(b)",
+         "note": "Dashed line terminates at the piled-blocks symbol."}
+      ],
+      "other_targets": [
+        {"type": "dolmen", "count": 2, "volume_m3_approx": 4,
+         "description": "Two dolmens of about 4 m3, consisting of three or four basic blocks and a capstone, at different depths",
+         "source": {"document": "tu1208_paper", "section": "3.3.5 Gneiss 0/20 Gravel Region", "pdf_page_index": 12}},
+        {"type": "concrete empty pipe", "length_m": 2.0, "diameter_mm": 500, "shared_with": "gneiss_14_20",
+         "source": {"document": "tu1208_paper", "section": "3.3.5 Gneiss 0/20 Gravel Region", "pdf_page_index": 12},
+         "depth_status": "unavailable"},
+        {"type": "masonry wall", "count": 2,
+         "description": "a masonry wall of parallelepiped hollow blocks; another masonry wall of parallelepiped hollow blocks, with three steps and a total height of about 65 cm",
+         "total_height_m_approx": 0.65,
+         "source": {"document": "tu1208_paper", "section": "3.3.5 Gneiss 0/20 Gravel Region", "pdf_page_index": 12}},
+        {"type": "steel girder", "description": "a steel girder, obliquely buried and crossing the projection of the acquisition line 2 (the girder is not drawn in Figure 13, because it is 'hidden' by the masonry walls)",
+         "source": {"document": "tu1208_paper", "section": "3.3.5 Gneiss 0/20 Gravel Region", "pdf_page_index": 12},
+         "depth_status": "unavailable",
+         "depth_note": "Explicitly not drawn in the figure, so it has no printed depth."},
+        {"type": "heap of rocky blocks", "diameters_mm": [300, 500],
+         "description": "a heap of rocky blocks, with diameters from 300 mm to 500 mm, and six isolated blocks, of the same origin as the surrounding Gneiss gravel",
+         "n_isolated_blocks": 6,
+         "source": {"document": "tu1208_paper", "section": "3.3.5 Gneiss 0/20 Gravel Region", "pdf_page_index": 12}}
+      ],
+      "modelled_permittivity": {
+        "relative_permittivity": 5.5,
+        "evidence_type": "modelled",
+        "method": "analyzing the data and implementing preliminary FDTD models of this region",
+        "authors_caveat": "the paper phrases this as 'it is reasonable to assume that the relative permittivity is around ...'",
+        "attenuation_db_per_m": null,
+        "source": {"document": "tu1208_paper", "section": "5 Results", "pdf_page_index": 32},
+        "symbol_as_printed": "εr,g0020",
+        "is_a_velocity": false
+      }
+    }
+  ],
+
+  "profiles": [
+    {"published_file_name": "200MHz_Silt_h2h1.dzt", "region": "silt", "lines": [1, 2], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 200, "n_traces": 1223, "profile_length_m": 24.44, "scans_per_m": 50, "samples": 512, "bits": 8, "range_ns": 110, "source_table": "Table 3", "note": "Exceptionally, lines 1 and 2 are saved in this one file: data were collected on the second half of line 2, over the pipes; then the acquisition continued on the first half of line 1, over the polystyrene blocks; a discontinuity in the data allows understanding where line 2 data end and line 1 data start."},
+    {"published_file_name": "400MHz_Silt_1_rev.dzt", "region": "silt", "lines": [1], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 400, "n_traces": 1321, "profile_length_m": 20.02, "scans_per_m": 66, "samples": 512, "bits": 16, "range_ns": 70, "source_table": "Table 3"},
+    {"published_file_name": "500MHz_Silt_1_rev.dzt", "region": "silt", "lines": [1], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 500, "n_traces": 1324, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 70, "source_table": "Table 3"},
+    {"published_file_name": "900MHz_Silt_1_rev.dzt", "region": "silt", "lines": [1], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 900, "n_traces": 1750, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 60, "source_table": "Table 3"},
+    {"published_file_name": "250MHz_Silt_1_rev.rd3", "region": "silt", "lines": [1], "gpr_system": "GPR 2", "year": 2002, "frequency_mhz": 250, "n_traces": 657, "profile_length_m": 19.90, "scans_per_m": 33, "samples": 413, "bits": 16, "range_ns": 80, "source_table": "Table 3"},
+    {"published_file_name": "500MHz_Silt_1_rev.rd3", "region": "silt", "lines": [1], "gpr_system": "GPR 2", "year": 2002, "frequency_mhz": 500, "n_traces": 1313, "profile_length_m": 25.80, "scans_per_m": 50, "samples": 499, "bits": 16, "range_ns": 89, "source_table": "Table 3"},
+    {"published_file_name": "800MHz_Silt_1_rev.rd3", "region": "silt", "lines": [1], "gpr_system": "GPR 2", "year": 2002, "frequency_mhz": 800, "n_traces": 784, "profile_length_m": 24.20, "scans_per_m": 32, "samples": 721, "bits": 16, "range_ns": 89, "source_table": "Table 3"},
+    {"published_file_name": "200MHz_Silt_h1_rev.dt", "region": "silt", "lines": [1], "gpr_system": "GPR 3", "year": 2005, "frequency_mhz": 200, "n_traces": 486, "profile_length_m": 9.70, "scans_per_m": 50, "samples": 1024, "bits": 16, "range_ns": 100, "source_table": "Table 3"},
+    {"published_file_name": "600MHz_Silt_h1_rev.dt", "region": "silt", "lines": [1], "gpr_system": "GPR 3", "year": 2005, "frequency_mhz": 600, "n_traces": 477, "profile_length_m": 9.52, "scans_per_m": 50, "samples": 1024, "bits": 16, "range_ns": 100, "source_table": "Table 3"},
+    {"published_file_name": "900MHz_Silt_h1_rev.dt", "region": "silt", "lines": [1], "gpr_system": "GPR 3", "year": 2005, "frequency_mhz": 900, "n_traces": 475, "profile_length_m": 9.48, "scans_per_m": 50, "samples": 1024, "bits": 16, "range_ns": 100, "source_table": "Table 3"},
+    {"published_file_name": "400MHz_Silt_2_rev.dzt", "region": "silt", "lines": [2], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 400, "n_traces": 1316, "profile_length_m": 19.94, "scans_per_m": 66, "samples": 512, "bits": 16, "range_ns": 70, "source_table": "Table 3"},
+    {"published_file_name": "900MHz_Silt_2_rev.dzt", "region": "silt", "lines": [2], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 900, "n_traces": 1533, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 60, "source_table": "Table 3"},
+    {"published_file_name": "200MHz_Silt_h2_rev.dt", "region": "silt", "lines": [2], "gpr_system": "GPR 3", "year": 2005, "frequency_mhz": 200, "n_traces": 497, "profile_length_m": 9.92, "scans_per_m": 50, "samples": 1024, "bits": 16, "range_ns": 100, "source_table": "Table 3"},
+    {"published_file_name": "600MHz_Silt_h2_rev.dt", "region": "silt", "lines": [2], "gpr_system": "GPR 3", "year": 2005, "frequency_mhz": 600, "n_traces": 474, "profile_length_m": 9.46, "scans_per_m": 50, "samples": 1024, "bits": 16, "range_ns": 100, "source_table": "Table 3"},
+    {"published_file_name": "900MHz_Silt_h2_rev.dt", "region": "silt", "lines": [2], "gpr_system": "GPR 3", "year": 2005, "frequency_mhz": 900, "n_traces": 487, "profile_length_m": 9.72, "scans_per_m": 50, "samples": 1024, "bits": 16, "range_ns": 100, "source_table": "Table 3"},
+
+    {"published_file_name": "400MHz_ML.dzt", "region": "multilayer", "lines": [1], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 400, "n_traces": 1198, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 70, "source_table": "Table 4"},
+    {"published_file_name": "900MHz_ML.dzt", "region": "multilayer", "lines": [1], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 900, "n_traces": 1777, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 60, "source_table": "Table 4"},
+    {"published_file_name": "250MHz_ML.rd3", "region": "multilayer", "lines": [1], "gpr_system": "GPR 2", "year": 2002, "frequency_mhz": 250, "n_traces": 733, "profile_length_m": 22.20, "scans_per_m": 33, "samples": 415, "bits": 16, "range_ns": 116, "source_table": "Table 4"},
+    {"published_file_name": "500MHz_ML.rd3", "region": "multilayer", "lines": [1], "gpr_system": "GPR 2", "year": 2002, "frequency_mhz": 500, "n_traces": 1297, "profile_length_m": 25.50, "scans_per_m": 50, "samples": 499, "bits": 16, "range_ns": 89, "source_table": "Table 4"},
+
+    {"published_file_name": "400MHz_Limestone_1_rev.dzt", "region": "limestone", "lines": [1], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 400, "n_traces": 1360, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 85, "stacking": 5, "raw_data": false, "source_table": "Table 5"},
+    {"published_file_name": "900MHz_Limestone_1_rev.dzt", "region": "limestone", "lines": [1], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 900, "n_traces": 1757, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 60, "stacking": 5, "raw_data": false, "source_table": "Table 5"},
+    {"published_file_name": "200MHz_Limestone_2.dzt", "region": "limestone", "lines": [2], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 200, "n_traces": 1235, "profile_length_m": 24.68, "scans_per_m": 50, "samples": 512, "bits": 16, "range_ns": 110, "stacking": 3, "raw_data": false, "source_table": "Table 5"},
+    {"published_file_name": "270MHz_Limestone_h2.dzt", "region": "limestone", "lines": [2], "gpr_system": "GPR 1", "year": 2017, "frequency_mhz": 270, "n_traces": 2571, "profile_length_m": 12.85, "scans_per_m": 200, "samples": 1024, "bits": 32, "range_ns": 100, "stacking": 1, "raw_data": true, "source_table": "Table 5"},
+    {"published_file_name": "350MHz_Limestone_h2.dzt", "region": "limestone", "lines": [2], "gpr_system": "GPR 1", "year": 2017, "frequency_mhz": 350, "n_traces": 2763, "profile_length_m": 13.81, "scans_per_m": 200, "samples": 512, "bits": 32, "range_ns": 100, "stacking": 1, "raw_data": true, "source_table": "Table 5"},
+    {"published_file_name": "400MHz_Limestone_2_rev.dzt", "region": "limestone", "lines": [2], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 400, "n_traces": 1418, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 85, "stacking": 5, "raw_data": false, "source_table": "Table 5"},
+    {"published_file_name": "400MHz_Limestone_h2_b.dzt", "region": "limestone", "lines": [2], "gpr_system": "GPR 1", "year": 2017, "frequency_mhz": 400, "n_traces": 2581, "profile_length_m": 12.90, "scans_per_m": 200, "samples": 1024, "bits": 32, "range_ns": 100, "stacking": 1, "raw_data": true, "source_table": "Table 5"},
+    {"published_file_name": "900MHz_Limestone2_rev.dzt", "region": "limestone", "lines": [2], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 900, "n_traces": 1861, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 60, "stacking": 5, "raw_data": false, "source_table": "Table 5"},
+    {"published_file_name": "900MHz_Limestone_h2_b.dzt", "region": "limestone", "lines": [2], "gpr_system": "GPR 1", "year": 2017, "frequency_mhz": 900, "n_traces": 2274, "profile_length_m": 11.36, "scans_per_m": 200, "samples": 1024, "bits": 32, "range_ns": 100, "stacking": 1, "raw_data": true, "source_table": "Table 5"},
+    {"published_file_name": "250MHz_Limestone2_rev.rd3", "region": "limestone", "lines": [2], "gpr_system": "GPR 2", "year": 2002, "frequency_mhz": 250, "n_traces": 715, "profile_length_m": 21.66, "scans_per_m": 33, "samples": 415, "bits": 16, "range_ns": 116, "stacking": 1, "raw_data": true, "source_table": "Table 5"},
+    {"published_file_name": "500MHz_Limestone2_rev.rd3", "region": "limestone", "lines": [2], "gpr_system": "GPR 2", "year": 2002, "frequency_mhz": 500, "n_traces": 1172, "profile_length_m": 23.03, "scans_per_m": 50, "samples": 499, "bits": 16, "range_ns": 89, "stacking": 1, "raw_data": true, "source_table": "Table 5"},
+    {"published_file_name": "800MHz_Limestone2_rev.rd3", "region": "limestone", "lines": [2], "gpr_system": "GPR 2", "year": 2002, "frequency_mhz": 800, "n_traces": 825, "profile_length_m": 25.47, "scans_per_m": 33, "samples": 721, "bits": 16, "range_ns": 89, "stacking": 1, "raw_data": true, "source_table": "Table 5"},
+    {"published_file_name": "200MHz_Limestone_2_rev.dt", "region": "limestone", "lines": [2], "gpr_system": "GPR 3", "year": 2005, "frequency_mhz": 200, "n_traces": 1053, "profile_length_m": 21.04, "scans_per_m": 50, "samples": 1024, "bits": 16, "range_ns": 100, "stacking": 1, "raw_data": true, "source_table": "Table 5"},
+    {"published_file_name": "600MHz_Limestone_2_rev.dt", "region": "limestone", "lines": [2], "gpr_system": "GPR 3", "year": 2005, "frequency_mhz": 600, "n_traces": 1038, "profile_length_m": 20.74, "scans_per_m": 50, "samples": 1024, "bits": 16, "range_ns": 100, "stacking": 1, "raw_data": true, "source_table": "Table 5"},
+    {"published_file_name": "900MHz_Limestone_2_rev.dt", "region": "limestone", "lines": [2], "gpr_system": "GPR 3", "year": 2005, "frequency_mhz": 900, "n_traces": 1042, "profile_length_m": 20.82, "scans_per_m": 50, "samples": 1024, "bits": 16, "range_ns": 100, "stacking": 1, "raw_data": true, "source_table": "Table 5"},
+
+    {"published_file_name": "400MHz_Gneiss14-20_1_rev.dzt", "region": "gneiss_14_20", "lines": [1], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 400, "n_traces": 1401, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 70, "stacking": 5, "raw_data": false, "source_table": "Table 6"},
+    {"published_file_name": "900MHz_Gneiss14-20_1_rev.dzt", "region": "gneiss_14_20", "lines": [1], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 900, "n_traces": 1473, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 60, "stacking": 5, "raw_data": false, "source_table": "Table 6"},
+    {"published_file_name": "500MHz_Gneiss14-20_1_rev.rd3", "region": "gneiss_14_20", "lines": [1], "gpr_system": "GPR 2", "year": 2002, "frequency_mhz": 500, "n_traces": 1272, "profile_length_m": 25.00, "scans_per_m": 50, "samples": 499, "bits": 16, "range_ns": 89, "stacking": 1, "raw_data": true, "source_table": "Table 6"},
+    {"published_file_name": "200MHz_Gneiss14-20_2_rev.dzt", "region": "gneiss_14_20", "lines": [2], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 200, "n_traces": 1291, "profile_length_m": 25.80, "scans_per_m": 50, "samples": 512, "bits": 8, "range_ns": 110, "stacking": 3, "raw_data": false, "source_table": "Table 6"},
+    {"published_file_name": "200MHz_Gneiss14-20_2_b.dzt", "region": "gneiss_14_20", "lines": [2], "gpr_system": "GPR 1", "year": 2017, "frequency_mhz": 200, "n_traces": 4922, "profile_length_m": 24.60, "scans_per_m": 200, "samples": 1024, "bits": 32, "range_ns": 100, "stacking": 1, "raw_data": true, "source_table": "Table 6"},
+    {"published_file_name": "270MHz_Gneiss14-20_2.dzt", "region": "gneiss_14_20", "lines": [2], "gpr_system": "GPR 1", "year": 2017, "frequency_mhz": 270, "n_traces": 4775, "profile_length_m": 23.87, "scans_per_m": 200, "samples": 1024, "bits": 32, "range_ns": 100, "stacking": 1, "raw_data": true, "source_table": "Table 6"},
+    {"published_file_name": "350MHz_Gneiss14-20_2.dzt", "region": "gneiss_14_20", "lines": [2], "gpr_system": "GPR 1", "year": 2017, "frequency_mhz": 350, "n_traces": 5168, "profile_length_m": 25.83, "scans_per_m": 200, "samples": 1024, "bits": 32, "range_ns": 100, "stacking": 1, "raw_data": true, "source_table": "Table 6"},
+    {"published_file_name": "400MHz_Gneiss14-20_2_rev.dzt", "region": "gneiss_14_20", "lines": [2], "gpr_system": "GPR 1", "year": 2000, "frequency_mhz": 400, "n_traces": 639, "profile_length_m": 21.27, "scans_per_m": 30, "samples": 512, "bits": 16, "range_ns": 90, "stacking": 2, "raw_data": false, "source_table": "Table 6"},
+    {"published_file_name": "400MHz_Gneiss14-20_2_b.dzt", "region": "gneiss_14_20", "lines": [2], "gpr_system": "GPR 1", "year": 2017, "frequency_mhz": 400, "n_traces": 2462, "profile_length_m": 24.61, "scans_per_m": 100, "samples": 1024, "bits": 16, "range_ns": 100, "stacking": 1, "raw_data": true, "source_table": "Table 6"},
+    {"published_file_name": "500MHz_Gneiss14-20_2.dzt", "region": "gneiss_14_20", "lines": [2], "gpr_system": "GPR 1", "year": 2017, "frequency_mhz": 500, "n_traces": 4838, "profile_length_m": 24.18, "scans_per_m": 200, "samples": 1024, "bits": 16, "range_ns": 100, "stacking": 1, "raw_data": true, "source_table": "Table 6"},
+    {"published_file_name": "900MHz_Gneiss14-20_2_rev.dzt", "region": "gneiss_14_20", "lines": [2], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 900, "n_traces": 1518, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 60, "stacking": 5, "raw_data": false, "source_table": "Table 6"},
+    {"published_file_name": "900MHz_Gneiss14-20_2_b.dzt", "region": "gneiss_14_20", "lines": [2], "gpr_system": "GPR 1", "year": 2017, "frequency_mhz": 900, "n_traces": 4952, "profile_length_m": 24.75, "scans_per_m": 200, "samples": 1024, "bits": 16, "range_ns": 90, "stacking": 1, "raw_data": true, "source_table": "Table 6"},
+    {"published_file_name": "250MHz_Gneiss14-20_2_rev.rd3", "region": "gneiss_14_20", "lines": [2], "gpr_system": "GPR 2", "year": 2002, "frequency_mhz": 250, "n_traces": 737, "profile_length_m": 22.32, "scans_per_m": 33, "samples": 415, "bits": 16, "range_ns": 116, "stacking": 1, "raw_data": true, "source_table": "Table 6"},
+    {"published_file_name": "500MHz_Gneiss14-20_2_rev.rd3", "region": "gneiss_14_20", "lines": [2], "gpr_system": "GPR 2", "year": 2002, "frequency_mhz": 500, "n_traces": 1287, "profile_length_m": 25.29, "scans_per_m": 50, "samples": 499, "bits": 16, "range_ns": 89, "stacking": 1, "raw_data": true, "source_table": "Table 6"},
+    {"published_file_name": "800MHz_Gneiss14-20_2_rev.rd3", "region": "gneiss_14_20", "lines": [2], "gpr_system": "GPR 2", "year": 2002, "frequency_mhz": 800, "n_traces": 820, "profile_length_m": 25.31, "scans_per_m": 33, "samples": 721, "bits": 16, "range_ns": 89, "stacking": 1, "raw_data": true, "source_table": "Table 6"},
+
+    {"published_file_name": "270MHz_Gneiss0-20_h1.dzt", "region": "gneiss_0_20", "lines": [1], "gpr_system": "GPR 1", "year": 2017, "frequency_mhz": 270, "n_traces": 2551, "profile_length_m": 12.75, "scans_per_m": 200, "samples": 1024, "bits": 32, "range_ns": 100, "stacking": 1, "raw_data": true, "source_table": "Table 7"},
+    {"published_file_name": "350MHz_Gneiss0-20_h1.dzt", "region": "gneiss_0_20", "lines": [1], "gpr_system": "GPR 1", "year": 2017, "frequency_mhz": 350, "n_traces": 2286, "profile_length_m": 11.42, "scans_per_m": 200, "samples": 512, "bits": 32, "range_ns": 100, "stacking": 1, "raw_data": true, "source_table": "Table 7"},
+    {"published_file_name": "400MHz_Gneiss0-20_h1.dzt", "region": "gneiss_0_20", "lines": [1], "gpr_system": "GPR 1", "year": 2017, "frequency_mhz": 400, "n_traces": 2490, "profile_length_m": 12.44, "scans_per_m": 200, "samples": 1024, "bits": 32, "range_ns": 100, "stacking": 1, "raw_data": true, "source_table": "Table 7"},
+    {"published_file_name": "400MHz_Gneiss0-20_1_rev.dzt", "region": "gneiss_0_20", "lines": [1], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 400, "n_traces": 1310, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 70, "stacking": 5, "raw_data": false, "source_table": "Table 7"},
+    {"published_file_name": "900MHz_Gneiss0-20_h1.dzt", "region": "gneiss_0_20", "lines": [1], "gpr_system": "GPR 1", "year": 2017, "frequency_mhz": 900, "n_traces": 2409, "profile_length_m": 12.04, "scans_per_m": 200, "samples": 1024, "bits": 32, "range_ns": 100, "stacking": 1, "raw_data": true, "source_table": "Table 7"},
+    {"published_file_name": "900MHz_Gneiss0-20_1_rev.dzt", "region": "gneiss_0_20", "lines": [1], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 900, "n_traces": 1837, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 60, "stacking": 5, "raw_data": false, "source_table": "Table 7"},
+    {"published_file_name": "250MHz_Gneiss0-20_1_rev.rd3", "region": "gneiss_0_20", "lines": [1], "gpr_system": "GPR 2", "year": 2002, "frequency_mhz": 250, "n_traces": 754, "profile_length_m": 22.84, "scans_per_m": 33, "samples": 415, "bits": 16, "range_ns": 116, "stacking": 1, "raw_data": true, "source_table": "Table 7"},
+    {"published_file_name": "500MHz_Gneiss0-20_1_rev.rd3", "region": "gneiss_0_20", "lines": [1], "gpr_system": "GPR 2", "year": 2002, "frequency_mhz": 500, "n_traces": 1234, "profile_length_m": 24.25, "scans_per_m": 50, "samples": 499, "bits": 16, "range_ns": 89, "stacking": 1, "raw_data": true, "source_table": "Table 7"},
+    {"published_file_name": "800MHz_Gneiss0-20_1_rev.rd3", "region": "gneiss_0_20", "lines": [1], "gpr_system": "GPR 2", "year": 2002, "frequency_mhz": 800, "n_traces": 801, "profile_length_m": 24.73, "scans_per_m": 33, "samples": 721, "bits": 16, "range_ns": 89, "stacking": 1, "raw_data": true, "source_table": "Table 7"},
+    {"published_file_name": "200MHz_Gneiss0-20_1_rev.dt", "region": "gneiss_0_20", "lines": [1], "gpr_system": "GPR 3", "year": 2005, "frequency_mhz": 200, "n_traces": 1080, "profile_length_m": 21.58, "scans_per_m": 50, "samples": 1024, "bits": 16, "range_ns": 100, "stacking": 1, "raw_data": true, "source_table": "Table 7"},
+    {"published_file_name": "600MHz_Gneiss0-20_1_rev.dt", "region": "gneiss_0_20", "lines": [1], "gpr_system": "GPR 3", "year": 2005, "frequency_mhz": 600, "n_traces": 1079, "profile_length_m": 21.56, "scans_per_m": 50, "samples": 1024, "bits": 16, "range_ns": 110, "stacking": 1, "raw_data": true, "source_table": "Table 7"},
+    {"published_file_name": "900MHz_Gneiss0-20_1_rev.dt", "region": "gneiss_0_20", "lines": [1], "gpr_system": "GPR 3", "year": 2005, "frequency_mhz": 900, "n_traces": 1081, "profile_length_m": 21.60, "scans_per_m": 50, "samples": 1024, "bits": 16, "range_ns": 110, "stacking": 1, "raw_data": true, "source_table": "Table 7"},
+    {"published_file_name": "400MHz_Gneiss0-20_2_rev.dzt", "region": "gneiss_0_20", "lines": [2], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 400, "n_traces": 1860, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 70, "stacking": 5, "raw_data": false, "source_table": "Table 7"},
+    {"published_file_name": "900MHz_Gneiss0-20_2_rev.dzt", "region": "gneiss_0_20", "lines": [2], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 900, "n_traces": 1458, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 60, "stacking": 5, "raw_data": false, "source_table": "Table 7"},
+    {"published_file_name": "400MHz_Gneiss0-20_3_rev.dzt", "region": "gneiss_0_20", "lines": [3], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 400, "n_traces": 1447, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 70, "stacking": 5, "raw_data": false, "source_table": "Table 7"},
+    {"published_file_name": "900MHz_Gneiss0-20_3_rev.dzt", "region": "gneiss_0_20", "lines": [3], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 900, "n_traces": 1841, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 60, "stacking": 5, "raw_data": false, "source_table": "Table 7"},
+    {"published_file_name": "400MHz_Gneiss0-20_4_rev.dzt", "region": "gneiss_0_20", "lines": [4], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 400, "n_traces": 1672, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 70, "stacking": 5, "raw_data": false, "source_table": "Table 7"},
+    {"published_file_name": "900MHz_Gneiss0-20_4_rev.dzt", "region": "gneiss_0_20", "lines": [4], "gpr_system": "GPR 1", "year": 1999, "frequency_mhz": 900, "n_traces": 1933, "profile_length_m": null, "scans_per_m": null, "samples": 512, "bits": 16, "range_ns": 60, "stacking": 5, "raw_data": false, "source_table": "Table 7"}
+  ],
+
+  "unavailable": [
+    {"quantity": "pipe diameter", "scope": "every three-pipe layer in every region", "reason": "no diameter is published for these pipes anywhere in the paper"},
+    {"quantity": "absolute transverse offset of any target from the longitudinal axis", "scope": "all regions", "reason": "the sections print segment LENGTHS on a scale bar, not offsets. The bar's origin is not tied to the axis by any printed number, so cumulative offsets would rest on a visual judgement"},
+    {"quantity": "per-pipe transverse offset", "scope": "all regions", "reason": "follows from the above; see open question `spacing-to-pipe-assignment`"},
+    {"quantity": "per-block depth of the silt polystyrene staircase", "scope": "silt", "reason": "only two depths are printed for six blocks"},
+    {"quantity": "depth of the 500 mm concrete pipe", "scope": "gneiss_14_20, gneiss_0_20", "reason": "drawn without a dashed depth line"},
+    {"quantity": "depth of the steel girder", "scope": "gneiss_0_20", "reason": "the paper states the girder is not drawn in the figure because it is hidden by the masonry walls"},
+    {"quantity": "depth of the limestone polystyrene block", "scope": "limestone", "reason": "three depth values are printed among the block symbols where the text describes blocks at two depths; no assignment is settled"},
+    {"quantity": "borehole positions", "scope": "multilayer", "reason": "the two vertical holes are described but not located"},
+    {"quantity": "along-line origin of any profile", "scope": "all profiles", "reason": "no source states where a profile's first trace sits relative to the site"},
+    {"quantity": "profile length", "scope": "22 of 67 profiles", "reason": "printed as NA in the paper's own tables"},
+    {"quantity": "asphalt wearing course thickness", "scope": "whole site", "reason": "named in the depth-datum caveat but never quantified"},
+    {"quantity": "transmitter-receiver antenna separation for GPR 3", "scope": "IDS profiles", "reason": "the paper states the manufacturer considers it confidential"},
+    {"quantity": "vertical datum, CRS, absolute surface elevation", "scope": "whole site", "reason": "none is published; the site frame is local"}
+  ],
+
+  "open_questions": [
+    {
+      "id": "pipe-depth-reference-surface",
+      "statement": "The theodolite survey positioned each pipe from '2 points on the upper side'. Whether the depth printed for a pipe layer is therefore the depth of the pipe CROWN or of its CENTRE is not stated. With no published pipe diameter, the two cannot even be related.",
+      "magnitude": "unknown; equal to one pipe radius, which is itself unpublished",
+      "blocks": "interpreting a fitted arrival time as crown depth or centre depth",
+      "resolution_route": "author contact, or the site's own survey records"
+    },
+    {
+      "id": "depth-datum-vs-antenna-surface",
+      "statement": "The transversal sections omit a 10-cm limestone surface layer and the asphalt wearing course, and the silt section additionally omits about 30 cm of limestone. The printed 0.00 is therefore not established to be the surface the antenna travelled on.",
+      "magnitude": "at least 0.10 m site-wide and about 0.30 m more in the silt region, plus an unpublished asphalt thickness",
+      "blocks": "treating a published depth as a depth below the antenna without a stated correction",
+      "resolution_route": "author contact for the as-built surface levels"
+    },
+    {
+      "id": "spacing-to-pipe-assignment",
+      "statement": "Each section prints a sequence of segment lengths on a scale bar above the pipe groups. Which segment separates which pair of pipes, and where the bar begins relative to the longitudinal axis, are not printed. The text's statement that 'the distance between pipes pertaining to the same layer increases with depth' is consistent with the sequence but does not by itself assign the numbers.",
+      "blocks": "any transverse localisation of an individual pipe",
+      "resolution_route": "a higher-resolution or vector original of the figures, or author contact"
+    },
+    {
+      "id": "limestone-second-pipe-series",
+      "statement": "The limestone region is described as containing TWO series of pipe layers 'with the same properties as those embedded in the silt region'. The transversal section shows one series. Whether the second series lies at the same three depths is not published.",
+      "blocks": "counting limestone pipe targets above the nine shown in the section",
+      "resolution_route": "author contact"
+    },
+    {
+      "id": "masonry-depth-assignment",
+      "statement": "Figure 13(b) prints four depths against the masonry symbol spanning 1.95 m, while the text describes two masonry walls, one of them with three steps and a total height of about 65 cm. Which printed depth belongs to which wall or step is unsettled.",
+      "blocks": "using any masonry depth as a target depth",
+      "resolution_route": "author contact"
+    },
+    {
+      "id": "archive-index-missing",
+      "statement": "The archive's own index, List_Database_V1.ods, was not packaged -- only its stale lock file. The file/region/line association therefore rests on the paper's Tables 3-7 and on the archive's directory layout, which agree.",
+      "blocks": "nothing at present; recorded because it removes one independent check",
+      "resolution_route": "obtain the index from the authors"
+    }
+  ]
+}
