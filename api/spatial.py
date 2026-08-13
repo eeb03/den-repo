@@ -33,6 +33,7 @@ from database.frames_store import load_frames, save_frames, synthesize_frames_fr
 from database.models import SpatialDeclaration, gen_uuid
 from database.records_store import load_records, save_records
 from schemas.spatial import (
+    AcquisitionElevationDatum,
     Assumption,
     AxisKind,
     ControlPoint,
@@ -94,12 +95,51 @@ def _validated_crs(value: dict) -> dict:
     return ref.model_dump(mode="json")
 
 
+#: Which stored quantity a vertical datum is being declared FOR.
+#:
+#: A survey frame can carry more than one vertical quantity, and they do not
+#: share a datum. The 4TU GPR lines are the case that forced this: the frame's
+#: vertical AXIS is two-way time measured from instrument time zero, which has
+#: no geodetic datum at all, while the acquisition ELEVATION in the SEG-Y
+#: headers is a GNSS height that does. Declaring one datum for "the frame" would
+#: have to pick one of those and silently mislabel the other.
+VERTICAL_DATUM_APPLIES_TO = {
+    "acquisition_elevation": (
+        "the acquisition elevation stored with the survey -- the GNSS or "
+        "levelling height of the instrument position, not the depth axis"),
+    "vertical_axis": (
+        "the frame's own vertical axis, for an acquisition whose axis IS an "
+        "elevation or depth rather than a time"),
+}
+DEFAULT_VERTICAL_DATUM_APPLIES_TO = "vertical_axis"
+
+
 def _validated_vertical_datum(value: dict) -> dict:
+    """
+    What the vertical coordinates are measured from, and WHICH coordinates.
+
+    `applies_to` defaults to `vertical_axis`, which is what every caller before
+    it meant and keeps their behaviour unchanged. Naming
+    `acquisition_elevation` says the datum describes the stored elevation and
+    not the axis -- the only honest option when the axis is a time.
+    """
     code = str(_require(value.get("code"), "code")).strip()
+    applies_to = (value.get("applies_to") or DEFAULT_VERTICAL_DATUM_APPLIES_TO)
+    if applies_to not in VERTICAL_DATUM_APPLIES_TO:
+        raise DeclarationError(
+            f"applies_to must be one of {', '.join(sorted(VERTICAL_DATUM_APPLIES_TO))}; "
+            f"got {applies_to!r}")
+
     datum = VerticalDatum(
         code=code, provenance=CRSProvenance.SUPPLIED_BY_CALLER,
         name=value.get("name") or code)
-    return datum.model_dump(mode="json")
+    out = datum.model_dump(mode="json")
+    out["applies_to"] = applies_to
+    # Free text naming the exact stored field, where a caller knows it. Carried
+    # verbatim so a later reader can tell WHICH of several elevations was meant.
+    if value.get("field"):
+        out["field"] = str(value["field"]).strip()
+    return out
 
 
 def _validated_antenna_offset(value: dict) -> dict:
@@ -273,7 +313,16 @@ def _assumption_for(kind: DeclarationKind, value: dict, supplied_by: str) -> Ass
     """
     described = {
         DeclarationKind.CRS: f"horizontal reference {value.get('code')}",
-        DeclarationKind.VERTICAL_DATUM: f"vertical datum {value.get('code')}",
+        # NAMES THE QUANTITY, not just the code. "vertical datum WGS84
+        # ellipsoidal" on a frame whose axis is two-way time reads as a claim
+        # about the axis; the scope is what makes it true rather than false.
+        DeclarationKind.VERTICAL_DATUM: (
+            f"vertical datum {value.get('code')} for "
+            + ("the acquisition elevation"
+               + (f" ({value['field']})" if value.get("field") else "")
+               + ", NOT the vertical axis"
+               if value.get("applies_to") == "acquisition_elevation"
+               else "the vertical axis")),
         DeclarationKind.ANTENNA_OFFSET:
             f"{value.get('offset_m')} m from {value.get('measured_from')} to "
             f"{value.get('measured_to')} ({value.get('evidence')}); positive means the "
@@ -316,6 +365,10 @@ def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
         raise DeclarationError(f"no frame {frame_id!r} in this dataset")
 
     changed: list[str] = []
+    #: Frames whose VERTICAL AXIS the typed change deliberately did not touch,
+    #: each with a reason. The declaration is still recorded on those frames --
+    #: on the quantity it actually describes, and as an attributed assumption.
+    axis_untouched: list[dict] = []
     assumption = _assumption_for(kind, value, supplied_by)
 
     if kind == DeclarationKind.CRS:
@@ -325,8 +378,38 @@ def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
             changed.append(frame.frame_id)
 
     elif kind == DeclarationKind.VERTICAL_DATUM:
-        datum = VerticalDatum.model_validate(value)
+        datum = VerticalDatum.model_validate(
+            {k: v for k, v in value.items() if k not in ("applies_to", "field")})
+        applies_to = value.get("applies_to", DEFAULT_VERTICAL_DATUM_APPLIES_TO)
+
         for frame in targets:
+            # THE DEFAULT IS UNCHANGED, deliberately. A datum declared without
+            # `applies_to` lands on the frame's vertical axis exactly as it
+            # always has -- that is the Stage 12 workflow (datum, then depth
+            # origin, then the dimension settles) and it is the vertical
+            # reference of the SURVEY, not a claim about the axis's units.
+            #
+            # `acquisition_elevation` is the narrower case: the datum describes
+            # a stored elevation and says nothing about what the depth axis is
+            # referenced to. Writing it onto the axis would answer a question
+            # nobody asked, and would advance the vertical-reference dimension
+            # on evidence that does not bear on it. It goes to the frame's own
+            # slot for that quantity instead -- RECORDED, structurally, just not
+            # attached to the axis it does not describe.
+            if applies_to == "acquisition_elevation":
+                frame.acquisition_elevation_datum = AcquisitionElevationDatum(
+                    datum=datum, field=value.get("field"))
+                axis_untouched.append({
+                    "frame_id": frame.frame_id,
+                    "axis_kind": frame.vertical_axis.kind.value,
+                    "reason": (
+                        f"the datum describes {value.get('field') or 'the acquisition elevation'}, "
+                        f"not this frame's vertical axis, which is "
+                        f"{frame.vertical_axis.kind.value} measured from "
+                        f"{frame.vertical_axis.origin!r}"),
+                    "recorded_as": "an attributed assumption on the frame",
+                })
+                continue
             frame.vertical_axis = frame.vertical_axis.model_copy(
                 update={"vertical_datum": datum})
             changed.append(frame.frame_id)
@@ -385,14 +468,17 @@ def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
     elif kind == DeclarationKind.SURFACE_REFERENCE:
         changed = [f.frame_id for f in targets]
 
+    attributed = set(changed) | {s["frame_id"] for s in axis_untouched}
     for frame in frames:
-        if frame.frame_id in changed:
+        if frame.frame_id in attributed:
             frame.assumptions = [
                 a for a in (frame.assumptions or []) if a.key != assumption.key
             ] + [assumption]
 
     save_frames(dataset_id, frames)
-    return {"frames_changed": changed, "assumption": assumption.model_dump(mode="json")}
+    return {"frames_changed": changed,
+            "vertical_axis_not_changed": axis_untouched,
+            "assumption": assumption.model_dump(mode="json")}
 
 
 # ---------------------------------------------------------------------------

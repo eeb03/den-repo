@@ -36,7 +36,16 @@ const FIELDS: Record<
     title: string
     explain: string
     consequence: string
-    inputs: { name: string; label: string; placeholder?: string; hint?: string }[]
+    inputs: {
+      name: string
+      label: string
+      placeholder?: string
+      hint?: string
+      /** Renders a choice instead of free text, where the platform owns the vocabulary. */
+      options?: { value: string; label: string }[]
+      /** Omitted from the payload when left blank, rather than submitted empty. */
+      optional?: boolean
+    }[]
   }
 > = {
   crs: {
@@ -57,10 +66,31 @@ const FIELDS: Record<
   },
   vertical_datum: {
     title: 'Declare the vertical datum',
-    explain: 'What the vertical coordinates of this survey are measured from.',
+    explain:
+      'What a vertical coordinate of this survey is measured from — and which one. A frame can carry two: the vertical axis, and the acquisition elevation stored with each position. They need not share a datum.',
     consequence:
-      'Without this, no vertical coordinate here can be compared with one from any other source, and no absolute elevation can be computed.',
-    inputs: [{ name: 'code', label: 'Datum', placeholder: 'NAP' }],
+      'Without this, no vertical coordinate here can be compared with one from any other source, and no absolute elevation can be computed. A datum for the acquisition elevation does NOT say what the depth axis is measured from, does not place depth zero at the ground, and does not supply a propagation velocity — so it does not, on its own, produce a physical depth or an absolute elevation for anything in the subsurface.',
+    inputs: [
+      { name: 'code', label: 'Datum', placeholder: 'NAP' },
+      {
+        name: 'applies_to',
+        label: 'Which quantity',
+        options: [
+          { value: 'vertical_axis', label: 'The frame’s vertical axis' },
+          { value: 'acquisition_elevation', label: 'The acquisition elevation stored with each position' },
+        ],
+        hint:
+          'The axis is what depth or elevation samples are on — for a GPR that is travel time from instrument time zero, which no geodetic datum describes. The acquisition elevation is the instrument’s own height, usually from GNSS.',
+      },
+      {
+        name: 'field',
+        label: 'Which stored field',
+        optional: true,
+        placeholder: 'SEG-Y bytes 45-48 (Source Surface Elevation)',
+        hint:
+          'Optional, and only for an acquisition elevation. Name it in the source’s own words where a source stores more than one — they need not share a datum.',
+      },
+    ],
   },
   antenna_offset: {
     title: 'Declare where the depth axis begins',
@@ -166,6 +196,9 @@ export function DeclarationForm({
       const payload: Record<string, unknown> = {}
       for (const input of spec.inputs) {
         const raw = values[input.name] ?? ''
+        // An omitted optional field is ABSENT, not empty. Submitting "" would
+        // record that somebody named the field and named it nothing.
+        if (input.optional && raw.trim() === '') continue
         payload[input.name] =
           input.name === 'control_points' ? parseControlPoints(raw) : raw
       }
@@ -186,7 +219,9 @@ export function DeclarationForm({
     }
   }
 
-  const complete = suppliedBy.trim() !== '' && spec.inputs.every((i) => (values[i.name] ?? '').trim())
+  const complete =
+    suppliedBy.trim() !== '' &&
+    spec.inputs.every((i) => i.optional || (values[i.name] ?? '').trim())
 
   return (
     <form onSubmit={submit} data-declaration-form={kind} className="mt-3 space-y-3">
@@ -209,7 +244,27 @@ export function DeclarationForm({
           >
             {input.label}
           </label>
-          {input.name === 'control_points' ? (
+          {input.options ? (
+            /*
+              NOT PRESELECTED. The two quantities are genuinely different, and
+              a preselected one would be answered by the form rather than by
+              the person declaring — which is exactly how a GNSS elevation's
+              datum ends up asserted about a travel-time axis.
+            */
+            <select
+              id={`${kind}-${input.name}`}
+              value={values[input.name] ?? ''}
+              onChange={(e) => setValues({ ...values, [input.name]: e.target.value })}
+              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <option value="">choose which quantity this datum describes</option>
+              {input.options.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          ) : input.name === 'control_points' ? (
             <textarea
               id={`${kind}-${input.name}`}
               rows={3}

@@ -233,12 +233,17 @@ REASSESSMENT: tuple[DimensionAssessment, ...] = (
     DimensionAssessment(
         dimension="vertical datum of the GNSS elevation",
         before="UNDECLARED -- the converter recorded the value and refused to name its datum",
-        after="author-stated as WGS84 ellipsoidal, but NOT YET ATTACHABLE to a stored field",
+        after=("author-stated as WGS84 ellipsoidal, and DECLARED on the platform "
+               "against SEG-Y bytes 45-48, attributed to the author, unverified"),
         basis=EvidenceKind.AUTHOR_STATED, changed=True,
         detail=("this is the real gain: the datum was genuinely unknown and is now "
-                "stated by the dataset's author. It cannot be applied until the "
-                "field-mapping question is answered, because the candidates differ "
-                "by ~44 m"),
+                "stated by the dataset's author. WHICH of the two ~44 m-apart fields "
+                "holds it is Subterra's measurement against AHN, not the author's "
+                "statement, and the declaration records both parts separately. The "
+                "datum is attached to the ACQUISITION ELEVATION and not to the "
+                "vertical axis, which remains two-way time from instrument time "
+                "zero -- so nothing below the surface moved. See "
+                "docs/4tu-vertical-datum.md"),
     ),
     DimensionAssessment(
         dimension="surface elevation profile",

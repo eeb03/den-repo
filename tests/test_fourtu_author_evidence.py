@@ -121,10 +121,31 @@ def test_the_depth_origin_state_did_not_move_but_its_basis_did():
     assert d.basis is EvidenceKind.AUTHOR_STATED
 
 
-def test_the_vertical_datum_is_stated_but_not_yet_attachable():
+def test_the_vertical_datum_is_declared_and_still_attributed_to_the_author():
+    """
+    It became attachable once Subterra identified the field. The basis must stay
+    AUTHOR_STATED: recording the declaration does not make it Subterra's claim,
+    and the platform has surveyed none of these elevations.
+    """
     d = dimension("vertical datum of the GNSS elevation")
     assert d.basis is EvidenceKind.AUTHOR_STATED
-    assert "NOT YET ATTACHABLE" in d.after
+    assert "DECLARED on the platform" in d.after
+    assert "bytes 45-48" in d.after
+    assert "unverified" in d.after
+
+
+def test_the_declared_datum_did_not_move_anything_below_the_surface():
+    """
+    The gain is on the acquisition elevation. Recording it must not read as
+    progress on the depth axis, which is what a reader would most like it to be.
+    """
+    d = dimension("vertical datum of the GNSS elevation")
+    assert "ACQUISITION ELEVATION and not to the vertical axis" in d.detail
+
+    for name in ("propagation velocity",
+                 "vertical registration of subsurface points",
+                 "absolute elevation of a subsurface reflector"):
+        assert dimension(name).after.startswith("BLOCKED"), name
 
 
 def test_the_surface_profile_is_measured_in_file_not_author_stated():

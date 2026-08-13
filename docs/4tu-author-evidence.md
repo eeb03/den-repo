@@ -16,7 +16,7 @@ here can be checked against the words it was drawn from.
 
 | Question | Author evidence | File evidence | Current state | Legitimate next state |
 |---|---|---|---|---|
-| What datum are the GNSS elevations on? | **WGS84 ellipsoidal, not NAP** | two per-trace elevation fields, both populated on 314/314 traces | `acquisition_elevation_datum: "UNDECLARED"` | datum **known**, but not yet attachable to a field |
+| What datum are the GNSS elevations on? | **WGS84 ellipsoidal, not NAP** | two per-trace elevation fields, both populated on 314/314 traces | `acquisition_elevation_datum: "UNDECLARED"` | datum **known**; the field was identified by measurement and the datum is now declared — see `docs/4tu-vertical-datum.md` |
 | Which header field holds it? | *not stated* | bytes 41–44 ≈ 28.4 m, bytes 45–48 ≈ 72.35 m | both stored, neither named | **still unknown** — needs one more answer |
 | Was the GNSS antenna height handled? | **yes, constant, already accounted for during acquisition** | — | unknown | **resolved** (for the GNSS rover only) |
 | Does the GPR depth axis start at the ground? | **no — no time-zero correction, no air-gap removal, air path remains** | — | assumed not to | **confirmed not to**, magnitude still unknown |
@@ -78,7 +78,7 @@ the value this inference says is *not* the ellipsoidal one. So applying the
 author's datum to the field Subterra already stores would be wrong if the
 inference is right, and right only by accident if it is wrong.
 
-**Hence: the datum is known and not yet attachable.** One narrow question closes
+**Hence: the datum was known and not yet attachable.** One narrow question closed
 it — see §5.
 
 ## 4. What the response does not establish
@@ -117,7 +117,8 @@ Three questions, recorded in `evidence/fourtu_author.py` and **not yet sent**:
 Four dimensions move, four do not.
 
 **Moved:**
-- vertical datum of the GNSS elevation — UNDECLARED → author-stated (not yet attachable)
+- vertical datum of the GNSS elevation — UNDECLARED → author-stated, and since
+  declared against SEG-Y bytes 45-48 (`docs/4tu-vertical-datum.md`)
 - surface elevation profile — absent → representable, present on every trace
 - GNSS antenna height — unknown → resolved
 - depth-axis origin — BLOCKED (Subterra's cautious assumption) → BLOCKED (author-confirmed fact)

@@ -294,6 +294,40 @@ def assess_vertical(frames) -> DimensionState:
         and a.vertical_datum.provenance != CRSProvenance.NONE
     ]
     if not declared:
+        # A DATUM FOR THE STORED ELEVATIONS IS NOT A DATUM FOR THE AXIS, and the
+        # gap between them is the whole point of reporting them separately. The
+        # 4TU lines have a GNSS acquisition elevation whose datum an author has
+        # now stated, and a vertical axis of two-way time from instrument time
+        # zero that no geodetic datum describes. The dimension moves off
+        # "missing" because something IS now declared -- and stays unresolved,
+        # because the thing it actually asks about is still absent.
+        by_elevation = [(f, f.acquisition_elevation_datum) for f in frames
+                        if getattr(f, "acquisition_elevation_datum", None) is not None
+                        and f.acquisition_elevation_datum.datum.code]
+        if by_elevation:
+            codes = sorted({d.datum.code for _, d in by_elevation})
+            fields = sorted({d.field for _, d in by_elevation if d.field})
+            axis_kinds = sorted({a.kind.value for _, a in axes})
+            return _state(
+                D, "unresolved",
+                f"the acquisition elevations are declared as {', '.join(codes)}"
+                + (f" ({'; '.join(fields)})" if fields else "")
+                + f", but the vertical axis is {', '.join(axis_kinds)} and nothing says "
+                  f"what THAT is measured from; a datum for a stored elevation does not "
+                  f"reference the depth axis",
+                ["a declared vertical datum for the vertical axis itself",
+                 # Only where there IS a depth axis. Asking an elevation-axis
+                 # frame where its depth zero sits is asking about nothing.
+                 *(["where the depth axis zero sits relative to the ground"]
+                   if any(a.kind not in (AxisKind.ELEVATION_M, AxisKind.NONE)
+                          for _, a in axes) else [])],
+                action=DeclarationKind.VERTICAL_DATUM,
+                provenance=sorted({d.datum.provenance.value for _, d in by_elevation})[0],
+                codes=codes, acquisition_elevation_fields=fields,
+                validated=False,
+                validation_note=("Subterra has not surveyed these elevations; this is the "
+                                 "declaring party's statement about them"))
+
         return _state(D, "missing",
                       "no frame declares a vertical datum, so no vertical coordinate here "
                       "can be compared with one from any other source",

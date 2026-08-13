@@ -187,6 +187,9 @@ describe('declaring', () => {
     fireEvent.change(container.querySelector('#vertical_datum-code')!, {
       target: { value: 'NAP' },
     })
+    fireEvent.change(container.querySelector('#vertical_datum-applies_to')!, {
+      target: { value: 'vertical_axis' },
+    })
     expect(submit.disabled).toBe(true)
 
     fireEvent.change(container.querySelector('#vertical_datum-supplied-by')!, {
@@ -205,6 +208,9 @@ describe('declaring', () => {
     fireEvent.change(container.querySelector('#vertical_datum-code')!, {
       target: { value: 'NAP' },
     })
+    fireEvent.change(container.querySelector('#vertical_datum-applies_to')!, {
+      target: { value: 'vertical_axis' },
+    })
     fireEvent.change(container.querySelector('#vertical_datum-supplied-by')!, {
       target: { value: 'PDOK documentation' },
     })
@@ -214,8 +220,66 @@ describe('declaring', () => {
       expect(declareSpatialReference).toHaveBeenCalledWith(
         'd1',
         'vertical_datum',
-        { code: 'NAP' },
+        { code: 'NAP', applies_to: 'vertical_axis' },
         'PDOK documentation',
+      ),
+    )
+  })
+
+  /*
+    A frame carries two vertical quantities. Before this the form had one box,
+    so declaring a GNSS elevation's datum wrote it onto the travel-time axis --
+    asserting that instrument time zero is referenced to an ellipsoid.
+  */
+  it('makes the declarer say which vertical quantity the datum describes', () => {
+    const { container } = renderForm('vertical_datum')
+    const choice = container.querySelector('#vertical_datum-applies_to') as HTMLSelectElement
+
+    expect(choice).toBeTruthy()
+    expect(choice.value).toBe('')
+    expect([...choice.options].map((o) => o.value)).toContain('acquisition_elevation')
+
+    const submit = container.querySelector('[data-action="submit-declaration"]') as HTMLButtonElement
+    fireEvent.change(container.querySelector('#vertical_datum-code')!, { target: { value: 'NAP' } })
+    fireEvent.change(container.querySelector('#vertical_datum-supplied-by')!, {
+      target: { value: 'the site surveyor' },
+    })
+    expect(submit.disabled).toBe(true)
+  })
+
+  it('says an acquisition-elevation datum does not produce a depth or an elevation', () => {
+    const { container } = renderForm('vertical_datum')
+    const consequence = container.querySelector('[data-consequence]')?.textContent ?? ''
+
+    expect(consequence).toContain('does NOT say what the depth axis is measured from')
+    expect(consequence).toContain('does not place depth zero at the ground')
+    expect(consequence).toContain('does not supply a propagation velocity')
+  })
+
+  it('omits the stored-field name rather than submitting it empty', async () => {
+    declareSpatialReference.mockResolvedValue({
+      declaration: {},
+      applied: { frames_changed: [] },
+      spatial_reference: reference(),
+    })
+    const { container } = renderForm('vertical_datum')
+    fireEvent.change(container.querySelector('#vertical_datum-code')!, {
+      target: { value: 'WGS84 ellipsoidal' },
+    })
+    fireEvent.change(container.querySelector('#vertical_datum-applies_to')!, {
+      target: { value: 'acquisition_elevation' },
+    })
+    fireEvent.change(container.querySelector('#vertical_datum-supplied-by')!, {
+      target: { value: 'the dataset author, in correspondence' },
+    })
+    fireEvent.submit(container.querySelector('form')!)
+
+    await waitFor(() =>
+      expect(declareSpatialReference).toHaveBeenCalledWith(
+        'd1',
+        'vertical_datum',
+        { code: 'WGS84 ellipsoidal', applies_to: 'acquisition_elevation' },
+        'the dataset author, in correspondence',
       ),
     )
   })

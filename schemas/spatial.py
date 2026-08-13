@@ -261,6 +261,30 @@ class VerticalDatum(BaseModel):
         return self
 
 
+class AcquisitionElevationDatum(BaseModel):
+    """
+    What the ELEVATION STORED WITH THE SURVEY is measured from -- the GNSS or
+    levelling height of the instrument position, which is a different quantity
+    from the frame's own vertical axis and does not share its datum.
+
+    IT EXISTS BECAUSE ONE FRAME CARRIES TWO VERTICAL QUANTITIES. A 4TU GPR line
+    has a vertical axis of two-way travel time from instrument time zero -- which
+    no geodetic datum describes -- and, separately, a per-trace acquisition
+    elevation from a GNSS receiver, which one certainly does. Before this there
+    was one slot, so declaring the elevation's datum meant writing it onto the
+    time axis: asserting that instrument time zero is referenced to an ellipsoid.
+
+    `field` NAMES WHICH STORED ELEVATION, in the source's own words, because a
+    source may store more than one and they need not share a datum. The 4TU
+    SEG-Y files populate two elevation fields that differ by ~44 m.
+
+    KNOWING THIS DATUM DOES NOT PLACE THE DEPTH AXIS. It says where the
+    instrument was, not where the axis zero sits relative to the ground.
+    """
+    datum: VerticalDatum
+    field: Optional[str] = None
+
+
 class VerticalRelationshipKind(str, Enum):
     """
     How a subsurface depth axis relates to a surface elevation model.
