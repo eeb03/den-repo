@@ -133,23 +133,31 @@ def test_geographic_availability_reflects_the_data_not_a_default():
 # what the values are
 # ---------------------------------------------------------------------------
 
-def test_a_preprocessed_signal_is_labelled_a_statistic_not_amplitude():
+def test_a_preprocessed_signal_is_labelled_a_statistic_not_the_signal():
     """
     `preprocess_trace_local_anomaly` overwrites `signal` with the z-score.
-    Calling that amplitude presents statistical evidence as a physical
-    measurement.
+    Calling that the signal presents statistical evidence as a measurement.
     """
     semantics = describe_field("signal", anomaly_processed=True)
     assert semantics.is_statistic is True
     assert "z-score" in semantics.label.lower()
     assert semantics.units == "σ"
-    assert "not the amplitude" in semantics.description
+    assert "not the signal" in semantics.description
 
 
-def test_an_unprocessed_signal_is_labelled_amplitude():
+def test_an_unprocessed_signal_claims_neither_amplitude_nor_a_unit():
+    """
+    TIGHTENED IN STAGE 17, not weakened. This previously asserted the label said
+    "amplitude", which was itself an overclaim: `SubterraRecord.signal` is
+    documented as "raw or processed trace/measurement" and no converter
+    establishes a unit for it. The honest label says what the value IS -- the
+    stored sample -- and claims nothing about what it measures.
+    """
     semantics = describe_field("signal", anomaly_processed=False)
     assert semantics.is_statistic is False
-    assert "amplitude" in semantics.label.lower()
+    assert semantics.units is None
+    assert "amplitude" not in semantics.label.lower()
+    assert "no physical unit is established" in semantics.description
 
 
 # ---------------------------------------------------------------------------

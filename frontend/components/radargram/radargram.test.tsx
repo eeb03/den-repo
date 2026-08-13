@@ -582,3 +582,166 @@ describe('the grid is requested with what the viewer needs', () => {
     )
   })
 })
+
+/**
+ * The display-mode toggle.
+ *
+ * The property under test is that switching representation changes ONLY the
+ * numbers in the cells. A candidate that moved, an axis that changed, or a unit
+ * that appeared would each be the viewer asserting something the data does not.
+ */
+describe('the amplitude toggle', () => {
+  function preAnomalySemantics(): RadargramSemantics {
+    return semantics({
+      field: {
+        field: 'pre_anomaly_signal',
+        label: 'Pre-anomaly signal',
+        units: null,
+        description:
+          'the value each sample held immediately before local-anomaly processing replaced it with the z-score. It carries NO physical unit and no calibration, gain or antenna response is implied.',
+        is_statistic: false,
+        reliability_applies: false,
+        reliability_note:
+          'the reliability mask describes the anomaly statistic, not these values: a cell whose ring had too few neighbours still holds a perfectly good stored signal',
+      },
+    })
+  }
+
+  it('defaults to the anomaly view', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+
+    expect(
+      container.querySelector('[data-display-mode="signal"]')?.getAttribute('data-selected'),
+    ).toBe('true')
+    expect(getTraceGrid).toHaveBeenCalledWith(
+      'd1',
+      expect.objectContaining({ field: 'signal' }),
+    )
+  })
+
+  it('requests the pre-anomaly projection when toggled', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+
+    getTraceGrid.mockResolvedValue(
+      grid({ semantics: preAnomalySemantics(), grid: [[172, -340, null], [8, 32764, 5]] }),
+    )
+    fireEvent.click(container.querySelector('[data-display-mode="pre_anomaly_signal"]')!)
+
+    await waitFor(() =>
+      expect(getTraceGrid).toHaveBeenCalledWith(
+        'd1',
+        expect.objectContaining({ field: 'pre_anomaly_signal' }),
+      ),
+    )
+  })
+
+  it('shows the backend label and no invented unit', async () => {
+    getTraceGrid.mockResolvedValue(
+      grid({ semantics: preAnomalySemantics(), grid: [[172, -340, null], [8, 32764, 5]] }),
+    )
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+
+    const values = container.querySelector('[data-field-label]')?.parentElement
+    expect(values?.textContent).toContain('Pre-anomaly signal')
+    expect(values?.textContent).not.toMatch(/\(σ\)|\(m\)|\(dB\)|\(V\)/)
+    expect(container.textContent).not.toMatch(
+      /raw amplitude|calibrated|physical amplitude/i,
+    )
+  })
+
+  it('does not move a candidate when the representation changes', async () => {
+    const footprint = grid().candidate_footprints![0]!
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+
+    const before = container.querySelector('[data-candidate-marker]')!.getAttribute('style')
+
+    getTraceGrid.mockResolvedValue(
+      grid({
+        semantics: preAnomalySemantics(),
+        grid: [[172, -340, null], [8, 32764, 5]],
+        candidate_footprints: [footprint],
+      }),
+    )
+    fireEvent.click(container.querySelector('[data-display-mode="pre_anomaly_signal"]')!)
+    await waitFor(() =>
+      expect(getTraceGrid).toHaveBeenCalledWith(
+        'd1',
+        expect.objectContaining({ field: 'pre_anomaly_signal' }),
+      ),
+    )
+
+    expect(container.querySelector('[data-candidate-marker]')!.getAttribute('style')).toBe(
+      before,
+    )
+  })
+
+  it('stops fading unreliable cells where the mask does not describe the values', async () => {
+    getTraceGrid.mockResolvedValue(
+      grid({ semantics: preAnomalySemantics(), grid: [[172, -340, null], [8, 32764, 5]] }),
+    )
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+
+    expect(container.querySelector('[data-toggle-unreliable]')).toBeNull()
+    expect(
+      container.querySelector('[data-reliability-not-applicable]')?.textContent,
+    ).toMatch(/still holds a perfectly good stored signal/i)
+  })
+
+  it('keeps fading in the anomaly view, where the mask does describe them', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+
+    expect(container.querySelector('[data-toggle-unreliable]')).toBeTruthy()
+    expect(container.querySelector('[data-reliability-not-applicable]')).toBeNull()
+  })
+
+  it('missing cells stay missing in the pre-anomaly view', async () => {
+    getTraceGrid.mockResolvedValue(
+      grid({ semantics: preAnomalySemantics(), grid: [[172, -340, null], [8, 32764, 5]] }),
+    )
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+
+    expect(
+      container.querySelector('[data-radargram-canvas]')?.getAttribute('data-missing-cells'),
+    ).toBe('1')
+  })
+
+  it('does not refetch the candidate set when the representation changes', async () => {
+    /*
+     * The Stage 16 guarantee. Candidates are independent of how the signal is
+     * displayed, so a toggle must not trigger a second dataset-wide read.
+     */
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+    await waitFor(() => expect(getCandidates).toHaveBeenCalledTimes(1))
+
+    fireEvent.click(container.querySelector('[data-display-mode="pre_anomaly_signal"]')!)
+    await waitFor(() =>
+      expect(getTraceGrid).toHaveBeenCalledWith(
+        'd1',
+        expect.objectContaining({ field: 'pre_anomaly_signal' }),
+      ),
+    )
+
+    expect(getCandidates).toHaveBeenCalledTimes(1)
+  })
+})

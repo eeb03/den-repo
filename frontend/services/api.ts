@@ -50,6 +50,7 @@ import type {
   SpatialDeclaration,
   SpatialReference,
   InspectableCandidate,
+  RadargramField,
   TraceGrid,
 } from '@/types/subterra'
 
@@ -363,7 +364,7 @@ export const api = {
   getTraceGrid(
     datasetId: string,
     opts: {
-      field?: string
+      field?: RadargramField | string
       sourceFile?: string | null
       reliability?: boolean
       candidateFootprints?: boolean

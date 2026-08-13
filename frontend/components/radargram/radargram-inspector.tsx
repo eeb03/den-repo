@@ -11,8 +11,25 @@ import type {
   CandidateIntelligence,
   CandidateFootprint,
   InspectableCandidate,
+  RadargramField,
   TraceGrid,
 } from '@/types/subterra'
+
+/**
+ * The two representations a reviewer can look at.
+ *
+ * `signal` is what the record holds now — after local-anomaly preprocessing,
+ * the z-score. `pre_anomaly_signal` is what that same cell held immediately
+ * before. Both are projections of the SAME records onto the SAME grid, so
+ * switching cannot move a candidate or change an axis.
+ *
+ * The labels shown come from the backend's semantics, not from this list: what
+ * a projection MEANS is a scientific statement and belongs where it is tested.
+ */
+const DISPLAY_MODES: { field: RadargramField; short: string }[] = [
+  { field: 'signal', short: 'Local-anomaly z-score' },
+  { field: 'pre_anomaly_signal', short: 'Pre-anomaly signal' },
+]
 
 /**
  * Radargram inspection — the measured signal, with candidates on it.
@@ -39,20 +56,26 @@ import type {
  */
 export function RadargramInspector({ datasetId }: { datasetId: string }) {
   const [selectedLine, setSelectedLine] = useState<string | null>(null)
+  // Defaults to the anomaly view: the candidates were found in it, and
+  // changing what a reviewer sees first is not this toggle's job.
+  const [field, setField] = useState<RadargramField>('signal')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showUnreliable, setShowUnreliable] = useState(true)
   const [reviewError, setReviewError] = useState<string | null>(null)
   const [reviewing, setReviewing] = useState(false)
 
   const gridQuery = useSWR<TraceGrid>(
-    ['trace-grid', datasetId, selectedLine],
+    ['trace-grid', datasetId, selectedLine, field],
     () =>
       api.getTraceGrid(datasetId, {
+        field,
         sourceFile: selectedLine,
         reliability: true,
         candidateFootprints: true,
       }),
-    { revalidateOnFocus: false },
+    // `keepPreviousData` holds the current image on screen while the other
+    // projection loads, so a toggle does not blank the radargram.
+    { revalidateOnFocus: false, keepPreviousData: true },
   )
 
   /*
@@ -130,8 +153,11 @@ export function RadargramInspector({ datasetId }: { datasetId: string }) {
   const semantics = grid.semantics
   const vertical = semantics?.vertical
   const horizontal = semantics?.horizontal
-  const field = semantics?.field
+  const fieldSemantics = semantics?.field
   const lines = grid.available_source_files ?? []
+  // Defaults to true so a backend that has not yet been updated keeps Stage 15's
+  // behaviour rather than silently un-fading unreliable cells.
+  const reliabilityApplies = fieldSemantics?.reliability_applies !== false
   const unplaceable = footprints.filter((f) => !f.placeable)
 
   const domain = (() => {
@@ -165,8 +191,8 @@ export function RadargramInspector({ datasetId }: { datasetId: string }) {
       >
         <dl className="grid gap-x-6 gap-y-1 sm:grid-cols-3">
           <Field label="Values">
-            <span data-field-label>{field?.label ?? 'unknown'}</span>
-            {field?.units ? ` (${field.units})` : ''}
+            <span data-field-label>{fieldSemantics?.label ?? 'unknown'}</span>
+            {fieldSemantics?.units ? ` (${fieldSemantics.units})` : ''}
           </Field>
           <Field label="Vertical axis">
             <span data-vertical-label>{vertical?.label ?? 'unknown'}</span>
@@ -177,9 +203,9 @@ export function RadargramInspector({ datasetId }: { datasetId: string }) {
           </Field>
         </dl>
 
-        {field?.description && (
+        {fieldSemantics?.description && (
           <p data-field-description className="mt-2 text-muted-foreground">
-            {field.description}
+            {fieldSemantics.description}
           </p>
         )}
 
@@ -196,6 +222,39 @@ export function RadargramInspector({ datasetId }: { datasetId: string }) {
           </p>
         )}
       </section>
+
+      {/*
+        THE DISPLAY-MODE TOGGLE. It changes which stored value is projected into
+        each cell and nothing else -- not the grid, not the axes, not the
+        candidate footprints. `keepPreviousData` leaves the current image up
+        while the other projection loads, so the toggle never blanks the view.
+      */}
+      <div className="flex flex-wrap items-center gap-2 text-xs" data-display-modes>
+        <span className="text-muted-foreground">Showing:</span>
+        {DISPLAY_MODES.map((mode) => (
+          <button
+            key={mode.field}
+            type="button"
+            data-display-mode={mode.field}
+            data-selected={mode.field === field ? 'true' : 'false'}
+            aria-pressed={mode.field === field}
+            onClick={() => setField(mode.field)}
+            className={cn(
+              buttonVariants({
+                variant: mode.field === field ? 'default' : 'ghost',
+                size: 'sm',
+              }),
+            )}
+          >
+            {mode.short}
+          </button>
+        ))}
+        {gridQuery.isValidating && (
+          <span data-mode-loading className="text-muted-foreground">
+            loading…
+          </span>
+        )}
+      </div>
 
       {lines.length > 1 && (
         <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -227,25 +286,27 @@ export function RadargramInspector({ datasetId }: { datasetId: string }) {
               footprints={footprints}
               selectedId={selectedId}
               onSelect={setSelectedId}
-              showUnreliable={showUnreliable}
+              showUnreliable={showUnreliable && reliabilityApplies}
             />
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <RadargramScale
               domain={domain}
-              units={field?.units ?? null}
-              label={field?.label ?? ''}
+              units={fieldSemantics?.units ?? null}
+              label={fieldSemantics?.label ?? ''}
             />
-            <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <input
-                type="checkbox"
-                data-toggle-unreliable
-                checked={showUnreliable}
-                onChange={(e) => setShowUnreliable(e.target.checked)}
-              />
-              Fade unreliable cells
-            </label>
+            {reliabilityApplies && (
+              <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <input
+                  type="checkbox"
+                  data-toggle-unreliable
+                  checked={showUnreliable}
+                  onChange={(e) => setShowUnreliable(e.target.checked)}
+                />
+                Fade unreliable cells
+              </label>
+            )}
           </div>
 
           {/* Missing and unreliable, stated as counts rather than left to the eye. */}
@@ -257,6 +318,21 @@ export function RadargramInspector({ datasetId }: { datasetId: string }) {
               : 'No reliability information is available for this dataset.'}{' '}
             {semantics?.missing_note}
           </p>
+
+          {/*
+            The mask marks cells whose RING had too few neighbours, which is a
+            property of the anomaly statistic. In the pre-anomaly view those
+            same cells hold perfectly good stored values, so fading them would
+            present sound measurements as untrustworthy.
+          */}
+          {!reliabilityApplies && fieldSemantics?.reliability_note && (
+            <p
+              data-reliability-not-applicable
+              className="text-[11px] leading-relaxed text-muted-foreground"
+            >
+              Not faded here: {fieldSemantics.reliability_note}.
+            </p>
+          )}
         </div>
 
         <aside className="min-w-0 space-y-3">

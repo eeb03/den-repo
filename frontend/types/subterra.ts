@@ -882,16 +882,27 @@ export interface RadargramSemantics {
   field: {
     field: string
     label: string
+    /** null means no physical unit is established. Never print one anyway. */
     units: string | null
     description: string
     /** True when the values are a statistic computed FROM the signal. */
     is_statistic: boolean
+    /**
+     * Whether the reliability mask describes THESE values. It describes the
+     * anomaly statistic, so it does not apply to the pre-anomaly signal —
+     * an unreliable cell still holds a perfectly good stored value.
+     */
+    reliability_applies?: boolean
+    reliability_note?: string | null
   }
   unreliable_cells: number | null
   total_cells: number | null
   reliability_note: string
   missing_note: string
 }
+
+/** The signal representations the radargram can project. */
+export type RadargramField = 'signal' | 'pre_anomaly_signal'
 
 /** Where one candidate sits on one grid — or why it cannot be placed. */
 export interface CandidateFootprint {

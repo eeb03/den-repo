@@ -365,6 +365,15 @@ def _trace_depth_grid(records: list[SubterraRecord], field: str = "signal") -> t
     def get_value(r: SubterraRecord):
         if field == "signal":
             return r.signal[0] if r.signal else np.nan
+        if field == "pre_anomaly_signal":
+            # The value `signal` held immediately BEFORE the local-anomaly step
+            # overwrote it with the z-score. A cell that never went through that
+            # step has no such value, and NaN keeps it MISSING rather than
+            # falling back to `signal` -- which after preprocessing is the
+            # z-score, a different quantity entirely. Substituting one for the
+            # other would show a statistic while labelling it a signal.
+            value = (r.metadata or {}).get("pre_anomaly_signal")
+            return np.nan if value is None else value
         if field == "elevation":
             return r.elevation if r.elevation is not None else np.nan
         if field == "absolute_elevation_m":

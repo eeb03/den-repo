@@ -57,6 +57,11 @@ overlays mapped exactly to their supporting cells. 16 record-loading performance
 radargram page materialised 384 MB twice; concurrent grid+candidates went from
 28.2 s to 4.7 s and candidate retrieval from 22.9 s to 0.27 s. See
 `docs/record-loading.md`.
+17 amplitude inspection toggle — **complete**: the radargram can now show either
+the local-anomaly z-score or the pre-anomaly signal it was computed from, as two
+projections of one grid. Candidate footprints, axes and the reliability mask are
+identical between them; no unit is claimed for the pre-anomaly values because
+none is established. See `docs/radargram-display-modes.md`.
 14 ground-truth benchmarks — **complete**, with a negative headline: after the
 duplicate audit the 4TU corpus holds 107 independent positives and **6**
 independent negatives, which could only distinguish a detector of AUC 0.742 or

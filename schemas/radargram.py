@@ -12,11 +12,15 @@ viewer are scientific claims wearing the clothes of formatting:
      already made.
 
   2. What the grid's numbers ARE. `preprocess_trace_local_anomaly` OVERWRITES
-     `record.signal` with the local-anomaly z-score and keeps the amplitude in
-     `metadata["pre_anomaly_signal"]`. A viewer that reads `field="signal"` and
-     labels the result "amplitude" would present statistical evidence as a
-     physical measurement -- precisely the error
-     `_require_anomaly_processed` refuses in the other direction.
+     `record.signal` with the local-anomaly z-score and keeps the value it
+     replaced in `metadata["pre_anomaly_signal"]`. A viewer that reads
+     `field="signal"` and labels the result "amplitude" would present
+     statistical evidence as a physical measurement -- precisely the error
+     `_require_anomaly_processed` refuses in the other direction. Note that
+     neither projection is called amplitude: `SubterraRecord.signal` is
+     documented as "raw or processed trace/measurement" and no converter
+     establishes a unit for it, so the honest name for the preserved value is
+     the PRE-ANOMALY SIGNAL and nothing stronger.
 
 THE MAPPING IS EXACT OR IT IS REFUSED. `AnomalyEvidence.trace_range` holds real
 SEG-Y trace_index VALUES and `depth_range` holds real depth VALUES; the grid
@@ -194,14 +198,27 @@ def describe_horizontal_axis(trace_geographic: Optional[Sequence[bool]],
 # what the grid's values are
 # ---------------------------------------------------------------------------
 
+#: The projections a radargram may be displayed as. Validated rather than
+#: passed through, and an unknown one is refused: silently falling back from a
+#: signal to a statistic would relabel one quantity as the other.
+DISPLAYABLE_FIELDS = ("signal", "pre_anomaly_signal")
+
+
 class FieldSemantics(BaseModel):
     """
     What the numbers in the grid mean.
 
     Without this a viewer reads `field="signal"` and guesses. On a dataset that
     has been through trace-local anomaly preprocessing the guess is wrong: the
-    values are z-scores, and the amplitude they were computed from is somewhere
+    values are z-scores, and the signal they were computed from is somewhere
     else entirely.
+
+    `reliability_applies` is why this model gained a field. The reliability mask
+    marks cells whose RING had too few neighbours to estimate a background from.
+    That is a property of the anomaly statistic, and not of the signal the
+    statistic was computed from: measured on a real line, all 6,886 unreliable
+    cells still hold a perfectly good stored pre-anomaly value. Fading them in
+    the pre-anomaly view would present sound measurements as untrustworthy.
     """
     field: str
     label: str
@@ -209,25 +226,58 @@ class FieldSemantics(BaseModel):
     description: str
     #: True when the values are a statistic over the signal rather than signal.
     is_statistic: bool
+    #: Whether the reliability mask describes THESE values.
+    reliability_applies: bool = True
+    reliability_note: Optional[str] = None
 
 
 def describe_field(field: str, anomaly_processed: bool) -> FieldSemantics:
+    if field == "pre_anomaly_signal":
+        return FieldSemantics(
+            field=field,
+            label="Pre-anomaly signal",
+            # NO UNIT. The record model calls `signal` "raw or processed
+            # trace/measurement" and the converters document units for the time
+            # axis and never for amplitude. Printing one here would invent a
+            # calibration nobody performed.
+            units=None,
+            description=(
+                "the value each sample held immediately before local-anomaly "
+                "processing replaced it with the z-score. What that value is "
+                "depends on what ran before: for a dataset ingested with "
+                "gpr_local_anomaly it is the converter's stored sample value, "
+                "unmodified. It carries NO physical unit and no calibration, "
+                "gain or antenna response is implied."),
+            is_statistic=False,
+            reliability_applies=False,
+            reliability_note=(
+                "the reliability mask describes the anomaly statistic, not these "
+                "values: a cell whose ring had too few neighbours still holds a "
+                "perfectly good stored signal"),
+        )
     if field == "signal" and anomaly_processed:
         return FieldSemantics(
             field=field, label="Local-anomaly z-score", units="σ",
             description=(
                 "each cell is how far that sample sits from the background "
                 "estimated in a ring around it, in standard deviations. This is "
-                "a statistic computed FROM the amplitude, not the amplitude: the "
-                "recorded signal is preserved separately as pre_anomaly_signal."),
-            is_statistic=True)
+                "a statistic computed FROM the signal, not the signal: the "
+                "value it was computed from is preserved as pre_anomaly_signal."),
+            is_statistic=True,
+            reliability_applies=True,
+            reliability_note=(
+                "a cell whose ring had too few neighbours carries a z-score that "
+                "was forced to 0.0, which sits at the centre of the scale where a "
+                "genuine 'no anomaly' would sit"),
+        )
     if field == "signal":
         return FieldSemantics(
-            field=field, label="Recorded amplitude", units=None,
-            description=("the converter's recorded sample values, in whatever "
-                         "units the acquisition used; no anomaly preprocessing "
-                         "has been applied to this dataset"),
-            is_statistic=False)
+            field=field, label="Recorded signal", units=None,
+            description=("the converter's stored sample values; no anomaly "
+                         "preprocessing has been applied to this dataset, and no "
+                         "physical unit is established for them"),
+            is_statistic=False,
+            reliability_applies=False)
     if field in ("elevation", "absolute_elevation_m"):
         return FieldSemantics(
             field=field, label=field.replace("_", " ").capitalize(), units="m",

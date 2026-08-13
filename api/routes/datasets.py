@@ -958,15 +958,34 @@ def get_dataset_trace_grid(
     trace's native position along the survey line, so a single-line
     survey renders as a dense image instead of a mostly-empty lat/lon
     raster. Also returns each trace's (lat, lon) so a caller can
-    georeference any column. field="signal" (default), "elevation", or
-    "absolute_elevation_m". source_file selects which line when a dataset
-    holds several -- omit it to get the densest line PLUS the full
+    georeference any column. field="signal" (default), "pre_anomaly_signal",
+    "elevation", or "absolute_elevation_m". source_file selects which line when
+    a dataset holds several -- omit it to get the densest line PLUS the full
     "available_source_files" list, so a caller (e.g. the viewer) can offer
     an explicit choice instead of silently only ever showing one line.
+
+    THE TWO DISPLAY PROJECTIONS. `signal` is what the record holds now, which
+    after trace-local anomaly preprocessing is the z-score; `pre_anomaly_signal`
+    is the value that same cell held immediately before. They are projections of
+    the SAME records onto the SAME grid -- identical trace indices, depths,
+    axis semantics, reliability mask and candidate footprints -- so switching
+    between them cannot move a candidate or change an axis. Only the number in
+    each cell differs.
     """
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
+
+    # Refused rather than defaulted: falling back from a requested signal to the
+    # z-score would show a statistic under a signal's label.
+    from schemas.radargram import DISPLAYABLE_FIELDS
+
+    if field not in DISPLAYABLE_FIELDS and field not in ("elevation", "absolute_elevation_m"):
+        raise HTTPException(
+            status_code=422,
+            detail=(f"unknown field {field!r}; this endpoint projects "
+                    f"{', '.join(DISPLAYABLE_FIELDS)}, elevation or absolute_elevation_m"))
+
     records = load_records(dataset_id)
     if not records:
         raise HTTPException(status_code=404, detail="No stored records found for this dataset")
