@@ -166,10 +166,19 @@ this document.
 **10. Next highest-value dependency.**
 In order:
 
-1. **A reflector at or near zero depth.** This is the binding constraint on
+1. ~~**A reflector at or near zero depth.** This is the binding constraint on
    identifiability, and it is cheap in a controlled acquisition: a target at
    0.1–0.2 m alongside deeper ones collapses the t0/v correlation. No amount of
-   deep targets substitutes.
+   deep targets substitutes.~~
+   **CORRECTED BY STAGE 25 — see [`stage25-shallow-time-zero-audit.md`](stage25-shallow-time-zero-audit.md).**
+   A shallow *target* does not collapse the correlation: the confounding is
+   scale-invariant, depending on the depth set's coefficient of variation and
+   not on depth. BAM already holds a target at 94 mm and is confounded at
+   −0.939, no better than TU1208's 1.8 m targets. What is actually needed is a
+   **directly measured system delay** — an observation at d = 0, which
+   constrains t0 without passing through v. Read naively, the struck-out wording
+   above would have produced a cluster of shallow reflectors, which is the
+   *worst* of the designs tested (−0.965).
 2. **A published or measured along-line origin**, which is what gate 1 needs.
    For TU1208 that means author contact; for a new acquisition it is free.
 3. **A CMP gather**, which measures velocity independently of t0 and breaks the
