@@ -1341,3 +1341,21 @@ export interface SessionPayload {
   }[]
   datasets: string[]
 }
+
+/**
+ * Where a dataset came from, from `GET /api/datasets/{id}/acquisition`.
+ *
+ * THREE STATES, never collapsed: `acquisition` is null for a dataset that
+ * predates the acquisition boundary (`reason` explains why); `session` and
+ * `device` are null for an ordinary FileDrop, which is a source in its own
+ * right, not a session with a missing device; otherwise all three are
+ * present and the dataset came from a device session.
+ */
+export interface DatasetAcquisition {
+  dataset_id: string
+  acquisition: ImportJob | null
+  session: AcquisitionSession | null
+  device: Device | null
+  /** Present only when `acquisition` is null. */
+  reason?: string
+}

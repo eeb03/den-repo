@@ -31,6 +31,7 @@ import type {
   CandidateIntelligence,
   CandidateReviewStatus,
   Composition,
+  DatasetAcquisition,
   DatasetInfo,
   DatasetReport,
   AcquisitionSession,
@@ -252,6 +253,14 @@ export const api = {
    */
   getDatasetReport(id: string): Promise<DatasetReport> {
     return request(`/api/datasets/${encodeURIComponent(id)}/report`)
+  },
+
+  /**
+   * Where this dataset came from: device -> session -> acquisition ->
+   * dataset, or the reason no acquisition record exists.
+   */
+  getDatasetAcquisition(id: string): Promise<DatasetAcquisition> {
+    return request(`/api/datasets/${encodeURIComponent(id)}/acquisition`)
   },
 
   /* --------------------------- spatial reference -------------------------- */
