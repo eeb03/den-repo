@@ -30,7 +30,12 @@ import { DeclarationForm } from './declaration-form'
  * backend's own sentence. The component chooses which form to show and renders
  * what came back.
  */
-const DIMENSION_LABEL: Record<SpatialDimensionName, string> = {
+/**
+ * Exported so the read-only workspace summary (`AcquisitionPane`'s sibling,
+ * `SpatialAssessmentPane`) uses the same seven words rather than keeping a
+ * second copy that could drift.
+ */
+export const DIMENSION_LABEL: Record<SpatialDimensionName, string> = {
   horizontal_position: 'Horizontal position',
   crs: 'Coordinate reference system',
   vertical_reference: 'Vertical reference',
@@ -41,7 +46,9 @@ const DIMENSION_LABEL: Record<SpatialDimensionName, string> = {
 }
 
 /** States that mean the question is settled. Mirrors the backend's own set. */
-const RESOLVED = new Set(['available', 'declared', 'measured', 'derived'])
+export const RESOLVED_SPATIAL_STATES = new Set([
+  'available', 'declared', 'measured', 'derived',
+])
 
 export function SpatialReferenceView({ datasetId }: { datasetId: string }) {
   const { data, error, isLoading } = useSpatialReference(datasetId)
@@ -169,7 +176,7 @@ function DimensionRow({
   open: boolean
   onToggle: () => void
 }) {
-  const resolved = RESOLVED.has(dimension.state)
+  const resolved = RESOLVED_SPATIAL_STATES.has(dimension.state)
   return (
     <div
       data-dimension={dimension.dimension}

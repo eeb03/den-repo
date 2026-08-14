@@ -18,6 +18,7 @@ import { SpatialRefStatus } from '@/components/subterra/data-status'
 import { SelectionPane } from './selection-pane'
 import { SpatialPanes } from './spatial-panes'
 import { AcquisitionPane } from './acquisition-pane'
+import { SpatialAssessmentPane } from './spatial-assessment-pane'
 import { DatasetSummaryPane } from './dataset-summary-pane'
 import { DatasetSwitcher } from './dataset-switcher'
 import { ProvenancePane } from './provenance-pane'
@@ -89,6 +90,8 @@ export function DatasetWorkspace({ datasetId }: { datasetId: string }) {
             <DatasetSummaryPane datasetId={datasetId} />
 
             <AcquisitionPane datasetId={datasetId} />
+
+            <SpatialAssessmentPane datasetId={datasetId} />
 
             {/*
               The report answers what this workspace cannot: how far the
