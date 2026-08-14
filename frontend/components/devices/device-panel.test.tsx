@@ -18,6 +18,7 @@ const registerDevice = vi.fn()
 const createSession = vi.fn()
 const getSession = vi.fn()
 const moveSession = vi.fn()
+const getImportFormats = vi.fn()
 vi.mock('@/services/api', async () => {
   const actual = await vi.importActual<typeof import('@/services/api')>('@/services/api')
   return {
@@ -29,6 +30,7 @@ vi.mock('@/services/api', async () => {
       createSession: (id: string, b: unknown) => createSession(id, b),
       getSession: (id: string) => getSession(id),
       moveSession: (id: string, to: string) => moveSession(id, to),
+      getImportFormats: () => getImportFormats(),
     },
   }
 })
@@ -84,6 +86,12 @@ function sessionPayload(overrides: Partial<SessionPayload> = {}): SessionPayload
 
 async function renderPanel(devices: Device[] = [device()]) {
   listDevices.mockResolvedValue(devices)
+  getImportFormats.mockResolvedValue({
+    supported: ['.csv', '.sgy', '.dzt'],
+    recognized_unsupported: [],
+    max_upload_bytes: 2 * 1024 * 1024 * 1024,
+    note: 'x',
+  })
   const result = render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
       <DevicePanel />
@@ -99,6 +107,7 @@ beforeEach(() => {
   createSession.mockReset()
   getSession.mockReset()
   moveSession.mockReset()
+  getImportFormats.mockReset()
 })
 
 describe('no hardware is claimed', () => {
@@ -208,6 +217,75 @@ describe('simulated devices', () => {
   it('a physical device carries no simulation marker', async () => {
     const { container } = await renderPanel()
     expect(container.querySelector('[data-simulated]')).toBeNull()
+  })
+})
+
+describe('the device profile', () => {
+  it('reports frequency, channels and export formats declared on the device', async () => {
+    const { container } = await renderPanel([
+      device({
+        capabilities: {
+          modalities: ['gpr'],
+          frequency_mhz: 400,
+          channels: 2,
+          supported_export_formats: ['.sgy', '.dzt'],
+        },
+      }),
+    ])
+    expect(container.textContent).toContain('400 MHz')
+    expect(container.textContent).toContain('.sgy, .dzt')
+  })
+
+  it('shows the absence, not zero, when the profile is undeclared', async () => {
+    const { container } = await renderPanel([device({ capabilities: { modalities: ['gpr'] } })])
+    const frequency = Array.from(container.querySelectorAll('dt')).find(
+      (dt) => dt.textContent === 'Frequency',
+    )?.nextElementSibling
+    expect(frequency?.textContent).not.toContain('MHz')
+  })
+
+  it('offers export formats from the platform read registry, not a hardcoded list', async () => {
+    const { container } = await renderPanel([])
+    fireEvent.click(container.querySelector('[data-action="register-device"]')!)
+    await waitFor(() => expect(getImportFormats).toHaveBeenCalled())
+    const form = container.querySelector('[data-device-form]')!
+    await waitFor(() => expect(form.textContent).toContain('.sgy'))
+    expect(form.textContent).toContain('.dzt')
+  })
+
+  it('sends the declared profile fields as capabilities, and omits blank ones', async () => {
+    registerDevice.mockResolvedValue({ device: device() })
+    const { container } = await renderPanel([])
+    fireEvent.click(container.querySelector('[data-action="register-device"]')!)
+    await waitFor(() => expect(getImportFormats).toHaveBeenCalled())
+
+    fireEvent.change(container.querySelector('#device-frequency_mhz')!, {
+      target: { value: '400' },
+    })
+    fireEvent.change(container.querySelector('#device-channels')!, {
+      target: { value: '2' },
+    })
+    const sgyBox = Array.from(container.querySelectorAll('label')).find(
+      (l) => l.textContent === '.sgy',
+    )?.querySelector('input')
+    fireEvent.click(sgyBox!)
+    fireEvent.submit(container.querySelector('form')!)
+
+    await waitFor(() => expect(registerDevice).toHaveBeenCalled())
+    const sent = registerDevice.mock.calls[0]?.[0] as {
+      capabilities?: {
+        frequency_mhz?: number
+        channels?: number
+        sampling_configuration?: Record<string, number>
+        supported_export_formats?: string[]
+      }
+    }
+    expect(sent.capabilities?.frequency_mhz).toBe(400)
+    expect(sent.capabilities?.channels).toBe(2)
+    expect(sent.capabilities?.supported_export_formats).toEqual(['.sgy'])
+    // sample_interval_ns / samples_per_trace were left blank -- undeclared,
+    // not sent as zero.
+    expect(sent.capabilities?.sampling_configuration).toEqual({})
   })
 })
 

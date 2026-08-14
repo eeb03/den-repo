@@ -1274,6 +1274,14 @@ export interface Device {
     reports_position?: boolean
     reports_orientation?: boolean
     reports_absolute_time?: boolean
+    /** Declared operating/antenna frequency in MHz. Absent means undeclared. */
+    frequency_mhz?: number | null
+    /** Declared channel count. Absent means undeclared. */
+    channels?: number | null
+    /** Free-form, e.g. { sample_interval_ns, samples_per_trace }. */
+    sampling_configuration?: Record<string, unknown>
+    /** File formats this instrument can write, from the platform's own read registry. */
+    supported_export_formats?: string[]
     notes?: string | null
   }
   identity_source: 'user_declared' | 'device_reported'

@@ -65,6 +65,38 @@ records, on frames, and in spatial declarations, where they already carry
 provenance. A test asserts the model has no field for a coordinate, an
 orientation, a datum, a depth or a velocity.
 
+## The DeviceProfile
+
+`Device.capabilities` (`schemas/devices.py::DeviceCapabilities`) carries the
+instrument's declared profile: `manufacturer`, `model`, `device_type` live on
+the `Device` row itself; `modalities`, `reports_position`,
+`reports_orientation`, `reports_absolute_time`, `frequency_mhz`, `channels`,
+`sampling_configuration` and `supported_export_formats` live on
+`capabilities`.
+
+**Every field is optional and user-declared, never inferred.** A blank
+`frequency_mhz` means nobody has said, not "unknown" spelled as zero. Nothing
+here reads a value from a dropped file, a SEG-Y header or a session — those
+are read paths that exist elsewhere (`converters/*.py` for a file,
+`SessionEvidence` for a session) and stay separate on purpose: what a person
+typed into a device form is a different kind of claim from what a file
+declared.
+
+`sampling_configuration` is a free-form dict for the same reason
+`SessionEvidence.acquisition_parameters` is: instruments vary in what they
+configure, and this is recorded verbatim, interpreted by nobody here.
+
+`supported_export_formats` is validated against `converters/registry.py`'s
+own `supported_extensions()` — the same registry `GET /api/imports/formats`
+serves to the import screen. A device profile can declare only formats
+Subterra can actually read, never a second, independently maintained list
+that could drift and promise support that does not exist.
+
+**Capability ≠ evidence, still.** A profile field describes what the
+instrument *can* do; it says nothing about what a particular session
+*produced*. `SessionEvidence` remains the only place that records whether a
+session actually provided a position, an orientation or an absolute time.
+
 ## User-declared is not device-reported
 
 `identity_source` is fixed at `user_declared` and is **not a request field**. A

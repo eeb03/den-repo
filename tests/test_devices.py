@@ -179,6 +179,53 @@ def test_an_unknown_modality_is_refused(env):
 
 
 # ---------------------------------------------------------------------------
+# DeviceProfile: declared facts about the instrument, still not a measurement
+# ---------------------------------------------------------------------------
+
+def test_the_profile_fields_are_declared_and_stored(env):
+    client = signed_in()
+    body = register(client, capabilities={
+        "modalities": ["gpr"], "reports_position": True,
+        "reports_orientation": False, "reports_absolute_time": True,
+        "frequency_mhz": 400.0, "channels": 2,
+        "sampling_configuration": {"sample_interval_ns": 0.4, "samples_per_trace": 512},
+        "supported_export_formats": [".sgy", ".dzt"],
+    }).json()["device"]
+
+    assert body["capabilities"]["frequency_mhz"] == 400.0
+    assert body["capabilities"]["channels"] == 2
+    assert body["capabilities"]["sampling_configuration"] == {
+        "sample_interval_ns": 0.4, "samples_per_trace": 512,
+    }
+    assert body["capabilities"]["supported_export_formats"] == [".sgy", ".dzt"]
+
+
+def test_the_profile_fields_default_to_absent_not_invented(env):
+    """A device with no declared frequency, channels or export formats reports
+    that absence -- it is not filled in with a typical or zero value."""
+    body = register(client := signed_in()).json()["device"]
+
+    assert body["capabilities"]["frequency_mhz"] is None
+    assert body["capabilities"]["channels"] is None
+    assert body["capabilities"]["sampling_configuration"] == {}
+    assert body["capabilities"]["supported_export_formats"] == []
+
+
+def test_supported_export_formats_must_be_readable_by_the_platform(env):
+    """
+    Not a second hardcoded list: a declared export format must be one
+    `converters/registry.py` actually dispatches on, so a device profile can
+    never promise a format Subterra cannot ingest.
+    """
+    client = signed_in()
+    response = register(client, capabilities={
+        "modalities": ["gpr"],
+        "supported_export_formats": [".not_a_real_format"],
+    })
+    assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
 # capability is not evidence
 # ---------------------------------------------------------------------------
 

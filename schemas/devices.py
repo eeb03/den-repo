@@ -31,7 +31,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from schemas.subterra_record import SensorType
 
@@ -159,7 +159,39 @@ class DeviceCapabilities(BaseModel):
     reports_position: bool = False
     reports_orientation: bool = False
     reports_absolute_time: bool = False
+    #: Declared operating/antenna frequency in MHz -- the unit GPR equipment
+    #: specs use (see converters/mala_converter.py, gssi_converter.py
+    #: `antenna_frequency_mhz`). Absent means nobody has said, not "unknown 0".
+    frequency_mhz: Optional[float] = None
+    #: Declared channel count. A single-channel unit and a multi-channel array
+    #: are different instruments; this is what the operator says the unit has,
+    #: never inferred from a file.
+    channels: Optional[int] = None
+    #: Declared sampling configuration, e.g. {"sample_interval_ns": 0.4,
+    #: "samples_per_trace": 512}. Free-form for the same reason
+    #: `SessionEvidence.acquisition_parameters` below is: instruments vary in
+    #: what they configure, and this is recorded verbatim, interpreted by
+    #: nobody here.
+    sampling_configuration: dict[str, Any] = Field(default_factory=dict)
+    #: File formats this instrument can write, chosen from the platform's own
+    #: read registry (`converters/registry.py`) so a declared export format is
+    #: guaranteed to be one Subterra can actually ingest -- never a second,
+    #: independently maintained format list.
+    supported_export_formats: list[str] = Field(default_factory=list)
     notes: Optional[str] = None
+
+    @field_validator("supported_export_formats")
+    @classmethod
+    def _export_formats_are_known(cls, value: list[str]) -> list[str]:
+        from converters.registry import supported_extensions
+        known = supported_extensions()
+        unknown = [f for f in value if f not in known]
+        if unknown:
+            raise ValueError(
+                f"unsupported export format(s) {unknown}; Subterra reads "
+                f"{sorted(known)}"
+            )
+        return value
 
     def describes(self, modality: SensorType) -> bool:
         return modality in self.modalities

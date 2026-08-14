@@ -164,7 +164,7 @@ export const api = {
     serial_number?: string
     label?: string
     kind?: 'physical' | 'simulated'
-    capabilities?: Record<string, unknown>
+    capabilities?: Device['capabilities']
   }): Promise<{ device: Device }> {
     return postJson('/api/devices', body)
   },

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useSWRConfig } from 'swr'
 import { ApiError, api } from '@/services/api'
-import { useDevices } from '@/hooks/use-subterra'
+import { useDevices, useImportFormats } from '@/hooks/use-subterra'
 import { Panel, PanelBody, PanelHeader, Field } from '@/components/subterra/panel'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -39,6 +39,10 @@ export function DevicePanel() {
   // SWR rather than a manual effect: the repo fetches this way everywhere, and
   // setting state inside an effect is what the lint rule is there to stop.
   const { data: devices } = useDevices()
+  // The export-format picker offers exactly what the platform can read, from
+  // the same registry the import screen does -- never a second hardcoded
+  // list that could promise a format Subterra cannot actually ingest.
+  const { data: importFormats } = useImportFormats()
   const { mutate } = useSWRConfig()
   const [session, setSession] = useState<SessionPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -57,6 +61,14 @@ export function DevicePanel() {
     reports_position: false,
     reports_orientation: false,
     reports_absolute_time: false,
+    // The DeviceProfile: declared facts about the instrument, not a
+    // measurement and not a hardware connection. Every field stays optional
+    // -- an empty string here means undeclared, not zero.
+    frequency_mhz: '',
+    channels: '',
+    sample_interval_ns: '',
+    samples_per_trace: '',
+    supported_export_formats: [] as string[],
   })
 
   function fail(err: unknown) {
@@ -72,6 +84,17 @@ export function DevicePanel() {
     setBusy(true)
     setError(null)
     try {
+      // Sampling configuration is free-form on the backend; only the keys the
+      // operator actually filled in are sent, so a blank field means
+      // undeclared rather than a fabricated 0.
+      const samplingConfiguration: Record<string, number> = {}
+      if (form.sample_interval_ns !== '') {
+        samplingConfiguration.sample_interval_ns = Number(form.sample_interval_ns)
+      }
+      if (form.samples_per_trace !== '') {
+        samplingConfiguration.samples_per_trace = Number(form.samples_per_trace)
+      }
+
       await api.registerDevice({
         device_type: form.device_type,
         manufacturer: form.manufacturer || undefined,
@@ -83,9 +106,23 @@ export function DevicePanel() {
           reports_position: form.reports_position,
           reports_orientation: form.reports_orientation,
           reports_absolute_time: form.reports_absolute_time,
+          frequency_mhz: form.frequency_mhz === '' ? undefined : Number(form.frequency_mhz),
+          channels: form.channels === '' ? undefined : Number(form.channels),
+          sampling_configuration: samplingConfiguration,
+          supported_export_formats: form.supported_export_formats,
         },
       })
-      setForm({ ...form, manufacturer: '', model: '', serial_number: '' })
+      setForm({
+        ...form,
+        manufacturer: '',
+        model: '',
+        serial_number: '',
+        frequency_mhz: '',
+        channels: '',
+        sample_interval_ns: '',
+        samples_per_trace: '',
+        supported_export_formats: [],
+      })
       setRegistering(false)
       await mutate('devices')
     } catch (err) {
@@ -172,6 +209,19 @@ export function DevicePanel() {
                   )}
                 </Field>
                 <Field label="Recorded">{formatDateTime(device.created_at)}</Field>
+                <Field label="Frequency">
+                  {device.capabilities.frequency_mhz != null
+                    ? `${device.capabilities.frequency_mhz} MHz`
+                    : NO_VALUE}
+                </Field>
+                <Field label="Channels">
+                  {device.capabilities.channels ?? NO_VALUE}
+                </Field>
+                <Field label="Export formats">
+                  {device.capabilities.supported_export_formats?.length
+                    ? device.capabilities.supported_export_formats.join(', ')
+                    : NO_VALUE}
+                </Field>
               </dl>
               <button
                 type="button"
@@ -246,6 +296,81 @@ export function DevicePanel() {
                   What the instrument is capable of — not what any session actually
                   provided. Each session records that separately.
                 </p>
+              </fieldset>
+
+              {/*
+                THE DEVICE PROFILE. Declared facts about the instrument, same
+                as everything else on this form -- not a measurement, and not
+                evidence that any session actually used these settings. Every
+                field stays optional: leaving one blank is undeclared, not
+                zero.
+              */}
+              <fieldset className="space-y-2 pt-1">
+                <legend className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                  Device profile
+                </legend>
+                <div className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      ['frequency_mhz', 'Frequency (MHz)'],
+                      ['channels', 'Channels'],
+                      ['sample_interval_ns', 'Sample interval (ns)'],
+                      ['samples_per_trace', 'Samples per trace'],
+                    ] as const
+                  ).map(([name, label]) => (
+                    <div key={name}>
+                      <label
+                        htmlFor={`device-${name}`}
+                        className="block font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground"
+                      >
+                        {label}
+                      </label>
+                      <input
+                        id={`device-${name}`}
+                        type="number"
+                        inputMode="decimal"
+                        value={form[name]}
+                        onChange={(e) => setForm({ ...form, [name]: e.target.value })}
+                        className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                    Export formats
+                  </p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                    File formats this instrument can write, from the formats
+                    Subterra can actually read.
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-2">
+                    {importFormats?.supported.map((ext) => {
+                      const checked = form.supported_export_formats.includes(ext)
+                      return (
+                        <label
+                          key={ext}
+                          className="flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() =>
+                              setForm({
+                                ...form,
+                                supported_export_formats: checked
+                                  ? form.supported_export_formats.filter((f) => f !== ext)
+                                  : [...form.supported_export_formats, ext],
+                              })
+                            }
+                          />
+                          {ext}
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
               </fieldset>
 
               <label className="flex items-center gap-2 text-xs text-muted-foreground">
