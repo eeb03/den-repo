@@ -113,6 +113,51 @@ describe('a dataset with a stored candidate set', () => {
     const link = container.querySelector('a')
     expect(link?.getAttribute('href')).toBe('/datasets/d1/candidates')
   })
+
+  it('prints benchmark.summary verbatim, from the payload', async () => {
+    getCandidates.mockResolvedValue(
+      available({
+        benchmark: {
+          method: 'ring_local_anomaly_connected_components', method_version: '1.0.0',
+          summary: 'This method performs at approximately chance on both benchmarks it '
+            + 'has been scored against.',
+          measurements: [], caveat: '',
+        },
+      }),
+    )
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-candidate-regions]')).toBeTruthy())
+    const summary = container.querySelector('[data-benchmark-summary]')
+    expect(summary?.textContent).toBe(
+      'This method performs at approximately chance on both benchmarks it has '
+      + 'been scored against.',
+    )
+  })
+
+  it('never renders benchmark.measurements or any performance number', async () => {
+    getCandidates.mockResolvedValue(
+      available({
+        benchmark: {
+          method: 'ring_local_anomaly_connected_components', method_version: '1.0.0',
+          summary: 'This method performs at approximately chance.',
+          measurements: [
+            {
+              benchmark: 'bam-concrete-gpr', arm: '1.5 GHz', precision: 0.1351, recall: 0.0652,
+              source: 'artifacts/bam/score_1_5_GHz_Rot00.json',
+            },
+          ],
+          caveat: 'The 4TU separation rests on seven attested-empty trenches.',
+        },
+      }),
+    )
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-candidate-regions]')).toBeTruthy())
+    expect(container.textContent).not.toContain('0.1351')
+    expect(container.textContent).not.toContain('bam-concrete-gpr')
+    expect(container.textContent).not.toContain('attested-empty trenches')
+  })
 })
 
 describe('a dataset with no candidate set', () => {
@@ -128,6 +173,14 @@ describe('a dataset with no candidate set', () => {
     expect(container.textContent).toContain('candidate generation has not been run')
     // No count/classification block for the absent case.
     expect(container.querySelector('[data-classification-status]')).toBeNull()
+  })
+
+  it('does not print a benchmark sentence over a set that does not exist', async () => {
+    getCandidates.mockResolvedValue(blocked())
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-candidate-regions]')).toBeTruthy())
+    expect(container.querySelector('[data-benchmark-summary]')).toBeNull()
   })
 })
 

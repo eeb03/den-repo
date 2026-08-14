@@ -15,12 +15,16 @@ import { formatCount } from '@/lib/format'
  *
  * CANDIDATE IS NOT DETECTION, and this pane cannot make it read as one:
  * it prints `data.definition` verbatim (the platform's own words for the
- * distinction), the region count, and `classification_status` -- which is
- * structurally `BLOCKED` -- with its stored reason. It never touches
- * `candidate_score`, a per-candidate localisation/depth certainty, or any
- * shape class: those stay on the candidates page, along with the generate
- * / regenerate control. This pane only says whether a candidate region
- * summary exists, not what is in it.
+ * distinction), `data.benchmark.summary` verbatim (the same "performs at
+ * approximately chance" sentence the candidates page puts above its own
+ * list, from the payload -- not a paraphrase, not a number typed here that
+ * could drift from what the benchmark actually produced), the region
+ * count, and `classification_status` -- which is structurally `BLOCKED` --
+ * with its stored reason. It never touches `candidate_score`,
+ * `benchmark.measurements`, a per-candidate localisation/depth certainty,
+ * or any shape class: those stay on the candidates page, along with the
+ * generate / regenerate control. This pane only says whether a candidate
+ * region summary exists, not what is in it.
  *
  * `status: 'blocked'` (no candidate set has ever been generated, or cannot
  * be) renders as an explicit absence, in the platform's own `status_reason`
@@ -53,6 +57,14 @@ export function CandidateRegionsPane({ datasetId }: { datasetId: string }) {
             <StateBox kind="empty" title="No candidate set" detail={data.status_reason} />
           ) : (
             <dl className="space-y-0">
+              {/*
+                Above the count, deliberately -- the candidates page puts
+                this same sentence above its own list, because it is the
+                context that decides how the count below should be read.
+              */}
+              <p data-benchmark-summary className="text-[11px] leading-relaxed text-foreground">
+                {data.benchmark.summary}
+              </p>
               <Field label="Regions">{formatCount(data.candidate_count)}</Field>
               <Field label="Classification">
                 <span data-classification-status className="text-foreground">
