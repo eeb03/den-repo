@@ -52,12 +52,21 @@ from schemas.spatial import AxisKind, CRSKind, CRSProvenance, PositionKind, alon
 #: can tell whether it is still reading what it thinks it is.
 REPORT_VERSION = "1.1"
 
-#: The order `process_gpr_traces` actually applies these steps in:
-#: background removal needs every trace in the line at once, then dewow and
-#: gain run per trace. Naming this once here is what lets `build_signal_chain`
-#: report the chain in the order it really ran, rather than a client
-#: re-guessing it from an unordered dict.
-SIGNAL_CHAIN_STEP_ORDER: tuple[str, ...] = ("background_removal", "dewow", "gain")
+#: The order the recorded signal chain is reported in. `time_zero` comes
+#: first because it is a property of the acquisition itself (whatever a
+#: converter recorded about it, or the fact nothing was), independent of
+#: whether `process_gpr_traces` has run at all. The other three are the order
+#: `process_gpr_traces` actually applies them in: background removal needs
+#: every trace in the line at once, then dewow and gain run per trace. Naming
+#: this once here is what lets `build_signal_chain` report the chain in the
+#: order it really ran, rather than a client re-guessing it from an unordered
+#: dict.
+SIGNAL_CHAIN_STEP_ORDER: tuple[str, ...] = ("time_zero", "background_removal", "dewow", "gain")
+
+#: The survey-frame assumption key a converter stamps when it records a
+#: time-zero-related header field but does not apply it as a correction
+#: (e.g. GSSI's `rhf_position`). See `converters/gssi_converter.py`.
+TIME_ZERO_ASSUMPTION_KEY = "time_zero_offset_not_applied"
 
 
 class Capability(str, Enum):
@@ -307,21 +316,32 @@ class SignalProcessingStep(BaseModel):
     `parameters` holds only what was actually recorded for a step that ran;
     a step that did not run carries no parameters, because there are none to
     report.
+
+    `reason` is only populated for `time_zero`, the one step whose `ran`
+    alone cannot say why: `false` might mean a converter recorded and
+    withheld an offset, or that nothing about time-zero was ever recorded.
+    The other three steps are self-explanatory from their name and `ran`.
     """
     step: str
     ran: bool
     parameters: dict[str, Any] = Field(default_factory=dict)
+    reason: Optional[str] = None
 
 
 class SignalProcessingChain(BaseModel):
     """
     The recorded Phase 5 signal chain for this dataset -- READ, not re-run.
 
-    `recorded` is False when no record carries a `processing_applied` entry.
+    `recorded` is False only when NEITHER a `processing_applied` entry NOR a
+    time-zero claim (see `TIME_ZERO_ASSUMPTION_KEY`) exists for this dataset.
     That is not an error and not "nothing ran": it means Subterra was never
     told what happened, and `steps` stays empty rather than presenting an
     invented default chain (dewow/background-removal/gain are not assumed to
     have run just because they are the platform's own defaults).
+
+    Once `recorded` is True, `steps[0]` is always `time_zero` -- never
+    omitted -- because a GPR record's time origin is a fact worth stating
+    even when nothing else about the chain is known yet.
     """
     recorded: bool
     reason: str = Field(..., min_length=1)
@@ -742,22 +762,82 @@ def build_geometry(records, frames, bounds=None, spans=None) -> SurveyGeometry:
     )
 
 
-def build_signal_chain(applied: Optional[dict]) -> SignalProcessingChain:
+def _time_zero_claim(frames) -> Optional[Any]:
+    """The first frame's `time_zero_offset_not_applied` assumption, if any."""
+    for f in frames:
+        claim = f.assumption(TIME_ZERO_ASSUMPTION_KEY)
+        if claim is not None:
+            return claim
+    return None
+
+
+def _time_zero_step(applied: Optional[dict], claim: Optional[Any]) -> SignalProcessingStep:
+    """
+    ALWAYS RETURNS A STEP -- this is only called once the chain as a whole is
+    already known to be `recorded`, and `time_zero` is never omitted from it.
+
+    Reads, in order: (1) `processing_applied`'s own time-zero keys, if a
+    future step of `process_gpr_traces` ever stamps them -- none does today;
+    (2) the survey-frame assumption a converter already stamped (GSSI's
+    `rhf_position`, recorded but explicitly not applied); (3) otherwise the
+    honest fact that no time-zero correction is applied and nothing was
+    recorded about one.
+    """
+    if applied:
+        time_zero_keys = [k for k in applied if k == "time_zero" or k.startswith("time_zero_")]
+        if time_zero_keys:
+            ran = bool(applied.get("time_zero"))
+            parameters = {
+                k: v for k, v in applied.items()
+                if k != "time_zero" and k.startswith("time_zero_") and v is not None}
+            return SignalProcessingStep(step="time_zero", ran=ran, parameters=parameters)
+
+    if claim is not None:
+        return SignalProcessingStep(
+            step="time_zero", ran=False,
+            parameters={TIME_ZERO_ASSUMPTION_KEY: claim.value},
+            # The converter's own basis already says this was recorded and
+            # withheld -- reused verbatim rather than paraphrased.
+            reason=claim.basis)
+
+    return SignalProcessingStep(
+        step="time_zero", ran=False,
+        reason="process_gpr_traces does not apply a time-zero correction, and no "
+               "time-zero claim was recorded for this dataset's frames")
+
+
+def build_signal_chain(applied: Optional[dict], frames=None) -> SignalProcessingChain:
     """
     `applied` is the `processing_applied` dict already read off a record's
     metadata by the caller (`api.reports._processing_applied`) -- the same
     dict the `preprocessing` `ProcessingStage` reads, so the two cannot
-    disagree about what ran. PURE: reads only what is passed in, re-runs
-    nothing, invents nothing.
+    disagree about what ran. `frames` supplies the survey frames a converter
+    may have stamped a time-zero claim onto (see `TIME_ZERO_ASSUMPTION_KEY`).
+    PURE: reads only what is passed in, re-runs nothing, invents nothing.
     """
-    if not applied:
+    frames = frames or []
+    claim = _time_zero_claim(frames)
+
+    if not applied and claim is None:
         return SignalProcessingChain(
             recorded=False,
             reason="no record carries a processing_applied entry -- preprocessing "
                    "was not recorded for this dataset")
 
-    steps = []
-    for name in SIGNAL_CHAIN_STEP_ORDER:
+    time_zero_step = _time_zero_step(applied, claim)
+
+    if not applied:
+        # A time-zero claim exists, but process_gpr_traces has not stamped
+        # anything -- the other three steps have no evidence to report.
+        return SignalProcessingChain(
+            recorded=True,
+            reason="a time-zero claim is recorded for this dataset's frames; "
+                   "process_gpr_traces has not stamped a processing_applied entry, "
+                   "so background removal, dewow and gain are not reported",
+            steps=[time_zero_step])
+
+    steps = [time_zero_step]
+    for name in SIGNAL_CHAIN_STEP_ORDER[1:]:
         ran = bool(applied.get(name))
         parameters: dict[str, Any] = {}
         if ran and name == "dewow" and applied.get("dewow_window") is not None:

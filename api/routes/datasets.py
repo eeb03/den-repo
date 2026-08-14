@@ -1339,11 +1339,14 @@ def get_dataset_signal_chain(dataset_id: str, db: Session = Depends(get_db),
         raise HTTPException(status_code=404, detail="Dataset not found")
 
     from api.reports import _processing_applied
+    from database.frames_store import load_frames, synthesize_frames_from_records
     from database.records_store import load_records
     from schemas.dataset_report import build_signal_chain
 
     records = load_records(dataset_id)
-    return build_signal_chain(_processing_applied(records)).model_dump(mode="json")
+    frames = load_frames(dataset_id) or (
+        synthesize_frames_from_records(records) if records else [])
+    return build_signal_chain(_processing_applied(records), frames).model_dump(mode="json")
 
 
 @router.get("/{dataset_id}/report")

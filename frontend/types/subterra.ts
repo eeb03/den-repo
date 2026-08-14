@@ -1047,23 +1047,31 @@ export interface CandidateIntelligence {
 }
 
 /**
- * The order `process_gpr_traces` actually applies signal-processing steps
- * in: background removal (needs the whole line at once), then dewow, then
- * gain, both per trace.
+ * `time_zero` comes first, always present once the chain is `recorded` --
+ * a property of the acquisition itself, independent of whether
+ * `process_gpr_traces` ran. The other three are the order
+ * `process_gpr_traces` actually applies them in: background removal (needs
+ * the whole line at once), then dewow, then gain, both per trace.
  */
-export type SignalProcessingStepName = 'background_removal' | 'dewow' | 'gain'
+export type SignalProcessingStepName = 'time_zero' | 'background_removal' | 'dewow' | 'gain'
 
 export interface SignalProcessingStep {
   step: SignalProcessingStepName
   ran: boolean
   /** Only what was actually recorded for a step that ran; empty otherwise. */
   parameters: Record<string, unknown>
+  /**
+   * Only populated for `time_zero`: `ran=false` alone cannot say whether a
+   * converter recorded and withheld an offset, or nothing was recorded at
+   * all. The other three steps are self-explanatory from name + `ran`.
+   */
+  reason: string | null
 }
 
 /**
- * The recorded Phase 5 signal chain, read from `processing_applied` -- never
- * re-run, never a synthetic default chain. `recorded` is false when no
- * record carries a `processing_applied` entry; `steps` stays empty then.
+ * The recorded Phase 5 signal chain, read from `processing_applied` and any
+ * stored time-zero claim -- never re-run, never a synthetic default chain.
+ * `recorded` is false only when NEITHER exists; `steps` stays empty then.
  */
 export interface SignalProcessingChain {
   recorded: boolean

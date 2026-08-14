@@ -385,7 +385,7 @@ def build_dataset_report(dataset, *, now: Optional[datetime] = None) -> DatasetR
         volume=volume,
         spatial=SpatialReport(horizontal=horizontal, vertical=vertical, geometry=geometry),
         processing=_processing_stages(dataset, records, frames, applied),
-        signal_chain=build_signal_chain(applied),
+        signal_chain=build_signal_chain(applied, frames),
         quality=quality,
         candidates=candidates,
         readiness=assess_readiness(volume, horizontal, vertical, quality, candidates),

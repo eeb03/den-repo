@@ -43,9 +43,14 @@ function recorded(overrides: Partial<SignalProcessingChain> = {}): SignalProcess
     recorded: true,
     reason: 'read from the processing_applied entry recorded on this dataset\'s records',
     steps: [
-      { step: 'background_removal', ran: true, parameters: {} },
-      { step: 'dewow', ran: true, parameters: { dewow_window: 15 } },
-      { step: 'gain', ran: true, parameters: { gain_type: 'linear', gain_power: 1.0 } },
+      {
+        step: 'time_zero', ran: false, parameters: {},
+        reason: 'process_gpr_traces does not apply a time-zero correction, and no '
+          + 'time-zero claim was recorded for this dataset\'s frames',
+      },
+      { step: 'background_removal', ran: true, parameters: {}, reason: null },
+      { step: 'dewow', ran: true, parameters: { dewow_window: 15 }, reason: null },
+      { step: 'gain', ran: true, parameters: { gain_type: 'linear', gain_power: 1.0 }, reason: null },
     ],
     ...overrides,
   }
@@ -82,9 +87,10 @@ describe('the recorded chain, rendered verbatim', () => {
     await waitFor(() => expect(container.querySelector('[data-signal-chain]')).toBeTruthy())
     const steps = container.querySelectorAll('[data-step]')
     expect(Array.from(steps).map((s) => s.getAttribute('data-step'))).toEqual([
-      'background_removal', 'dewow', 'gain',
+      'time_zero', 'background_removal', 'dewow', 'gain',
     ])
-    for (const step of steps) {
+    expect(container.querySelector('[data-step="time_zero"]')?.getAttribute('data-ran')).toBe('false')
+    for (const step of container.querySelectorAll('[data-step]:not([data-step="time_zero"])')) {
       expect(step.getAttribute('data-ran')).toBe('true')
     }
   })
@@ -105,9 +111,9 @@ describe('the recorded chain, rendered verbatim', () => {
     getSignalChain.mockResolvedValue(
       recorded({
         steps: [
-          { step: 'background_removal', ran: true, parameters: {} },
-          { step: 'dewow', ran: false, parameters: {} },
-          { step: 'gain', ran: false, parameters: {} },
+          { step: 'background_removal', ran: true, parameters: {}, reason: null },
+          { step: 'dewow', ran: false, parameters: {}, reason: null },
+          { step: 'gain', ran: false, parameters: {}, reason: null },
         ],
       }),
     )
@@ -117,6 +123,30 @@ describe('the recorded chain, rendered verbatim', () => {
     const dewow = container.querySelector('[data-step="dewow"]')
     expect(dewow?.getAttribute('data-ran')).toBe('false')
     expect(dewow?.textContent).not.toContain('dewow_window')
+  })
+
+  it('prints the time_zero reason, and the recorded value when a converter claim exists', async () => {
+    getSignalChain.mockResolvedValue(
+      recorded({
+        steps: [
+          {
+            step: 'time_zero', ran: false,
+            parameters: { time_zero_offset_not_applied: 99.04 },
+            reason: 'the header\'s rhf_position is 99.04 ns, but it is NOT applied.',
+          },
+          { step: 'background_removal', ran: true, parameters: {}, reason: null },
+          { step: 'dewow', ran: true, parameters: { dewow_window: 15 }, reason: null },
+          { step: 'gain', ran: true, parameters: { gain_type: 'linear', gain_power: 1.0 }, reason: null },
+        ],
+      }),
+    )
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-signal-chain]')).toBeTruthy())
+    const timeZero = container.querySelector('[data-step="time_zero"]')
+    expect(timeZero?.getAttribute('data-ran')).toBe('false')
+    expect(timeZero?.textContent).toContain('NOT applied')
+    expect(timeZero?.textContent).toContain('time_zero_offset_not_applied: 99.04')
   })
 
   it('offers no reprocess or edit control', async () => {

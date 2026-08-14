@@ -21,6 +21,7 @@ from api.reports import build_dataset_report
 from fusion.vertical_reference import assess
 from schemas.dataset_report import (
     SIGNAL_CHAIN_STEP_ORDER,
+    TIME_ZERO_ASSUMPTION_KEY,
     CandidateSummary,
     Capability,
     DatasetReport,
@@ -36,6 +37,7 @@ from schemas.dataset_report import (
     build_volume,
 )
 from schemas.spatial import (
+    Assumption,
     AxisKind,
     CRSKind,
     CRSProvenance,
@@ -60,7 +62,8 @@ from validators.dataset_validator import (
 # builders
 # ---------------------------------------------------------------------------
 
-def frame(frame_id="d:line1", *, crs=None, axis=None, geo_tie=None, n_positions=10):
+def frame(frame_id="d:line1", *, crs=None, axis=None, geo_tie=None, n_positions=10,
+          assumptions=None):
     return SurveyFrame(
         frame_id=frame_id, dataset_id="d", modality=SensorType.GPR,
         source_format="segy", source_file=f"{frame_id}.sgy",
@@ -69,7 +72,7 @@ def frame(frame_id="d:line1", *, crs=None, axis=None, geo_tie=None, n_positions=
             kind=AxisKind.TWO_WAY_TIME_NS, units="ns",
             origin="instrument time zero", positive_down=True, n_samples=512,
             sample_interval=0.4),
-        n_positions=n_positions, geo_tie=geo_tie,
+        n_positions=n_positions, geo_tie=geo_tie, assumptions=assumptions or [],
     )
 
 
@@ -506,8 +509,13 @@ def test_the_chain_reports_every_step_in_the_order_it_actually_ran():
     chain = build_signal_chain(applied)
     assert chain.recorded is True
     assert [s.step for s in chain.steps] == list(SIGNAL_CHAIN_STEP_ORDER)
-    assert [s.step for s in chain.steps] == ["background_removal", "dewow", "gain"]
-    assert all(s.ran for s in chain.steps)
+    assert [s.step for s in chain.steps] == ["time_zero", "background_removal", "dewow", "gain"]
+    # time_zero has no evidence here (no applied keys, no frame claim) -- it
+    # is still present, just not ran.
+    math_steps = [s for s in chain.steps if s.step != "time_zero"]
+    assert all(s.ran for s in math_steps)
+    time_zero = next(s for s in chain.steps if s.step == "time_zero")
+    assert time_zero.ran is False
 
 
 def test_parameters_are_named_verbatim_for_the_steps_that_carry_them():
@@ -567,9 +575,111 @@ def test_the_chain_reads_the_same_processing_applied_entry_the_preprocessing_sta
 
     report = build_dataset_report(FakeDataset(id="d"))
     assert report.signal_chain.recorded is True
-    assert all(s.ran for s in report.signal_chain.steps)
+    math_steps = [s for s in report.signal_chain.steps if s.step != "time_zero"]
+    assert all(s.ran for s in math_steps)
     preprocessing = next(p for p in report.processing if p.stage == "preprocessing")
     assert preprocessing.status == "completed"
+
+
+# ---------------------------------------------------------------------------
+# the time_zero step: a converter's recorded-but-withheld claim, never
+# promoted to a correction, never omitted once the chain is recorded
+# ---------------------------------------------------------------------------
+
+def _time_zero_claim(value=99.04):
+    return Assumption(
+        key=TIME_ZERO_ASSUMPTION_KEY, value=value,
+        basis=(
+            f"the header's rhf_position is {value} ns, but it is NOT applied. "
+            f"The axis starts at instrument time-zero and the raw value is "
+            f"preserved here."
+        ),
+        verified=False,
+    )
+
+
+def test_a_frame_claim_makes_time_zero_the_first_step_ran_false_verbatim():
+    applied = {
+        "dewow": True, "dewow_window": 15, "background_removal": True,
+        "gain": True, "gain_type": "linear", "gain_power": 1.0,
+    }
+    claimant = frame(assumptions=[_time_zero_claim(99.04)])
+    chain = build_signal_chain(applied, [claimant])
+
+    assert chain.steps[0].step == "time_zero"
+    assert chain.steps[0].ran is False
+    assert chain.steps[0].parameters == {TIME_ZERO_ASSUMPTION_KEY: 99.04}
+    assert "NOT applied" in chain.steps[0].reason
+    assert "99.04" in chain.steps[0].reason
+
+
+def test_recorded_with_no_time_zero_claim_still_names_time_zero_first_not_omitted():
+    applied = {
+        "dewow": True, "dewow_window": 15, "background_removal": True,
+        "gain": True, "gain_type": "linear", "gain_power": 1.0,
+    }
+    chain = build_signal_chain(applied, [frame()])   # no assumption on this frame
+
+    assert chain.steps[0].step == "time_zero"
+    assert chain.steps[0].ran is False
+    assert chain.steps[0].parameters == {}
+    assert "does not apply a time-zero correction" in chain.steps[0].reason
+    assert "none" in chain.steps[0].reason.lower() or "no" in chain.steps[0].reason.lower()
+
+
+def test_a_claim_alone_with_no_processing_applied_still_recorded():
+    """process_gpr_traces never ran, but a converter already recorded a
+    time-zero claim -- that alone makes the chain `recorded`, with only the
+    time_zero step (no evidence exists for the other three)."""
+    claimant = frame(assumptions=[_time_zero_claim(-10)])
+    chain = build_signal_chain(None, [claimant])
+
+    assert chain.recorded is True
+    assert [s.step for s in chain.steps] == ["time_zero"]
+    assert chain.steps[0].ran is False
+    assert chain.steps[0].parameters == {TIME_ZERO_ASSUMPTION_KEY: -10}
+
+
+def test_no_processing_applied_and_no_claim_stays_not_recorded():
+    """The existing not-recorded meaning survives unchanged when nothing at
+    all was recorded -- no processing_applied, no time-zero claim."""
+    chain = build_signal_chain(None, [frame()])
+    assert chain.recorded is False
+    assert chain.steps == []
+    assert "not recorded" in chain.reason
+
+
+def test_the_first_frames_claim_is_used_when_several_frames_are_present():
+    claimant = frame("d:line1", assumptions=[_time_zero_claim(5.0)])
+    bystander = frame("d:line2")
+    chain = build_signal_chain(None, [claimant, bystander])
+    assert chain.steps[0].parameters == {TIME_ZERO_ASSUMPTION_KEY: 5.0}
+
+
+def test_the_report_reads_a_stored_frame_claim_end_to_end(stored):
+    from database.frames_store import save_frames
+    from database.records_store import save_records
+
+    save_records("d", geographic_records(3))
+    save_frames("d", [frame(assumptions=[_time_zero_claim(99.04)])])
+
+    report = build_dataset_report(FakeDataset(id="d"))
+    assert report.signal_chain.recorded is True
+    assert report.signal_chain.steps[0].step == "time_zero"
+    assert report.signal_chain.steps[0].parameters == {TIME_ZERO_ASSUMPTION_KEY: 99.04}
+
+
+def test_the_signal_chain_endpoint_and_the_report_still_agree_with_a_time_zero_claim(api, stored):
+    from database.frames_store import save_frames
+    from database.records_store import save_records
+
+    save_records("ds1", geographic_records(3))
+    save_frames("ds1", [frame(assumptions=[_time_zero_claim(99.04)])])
+
+    thin = api.get("/api/datasets/ds1/signal-chain").json()
+    report = api.get("/api/datasets/ds1/report").json()
+    assert thin == report["signal_chain"]
+    assert thin["steps"][0]["step"] == "time_zero"
 
 
 # ---------------------------------------------------------------------------
@@ -715,9 +825,11 @@ def test_the_signal_chain_endpoint_reports_the_recorded_steps_in_order(api, stor
 
     body = api.get("/api/datasets/ds1/signal-chain").json()
     assert body["recorded"] is True
-    assert [s["step"] for s in body["steps"]] == ["background_removal", "dewow", "gain"]
-    assert all(s["ran"] for s in body["steps"])
+    assert [s["step"] for s in body["steps"]] == \
+        ["time_zero", "background_removal", "dewow", "gain"]
     by_step = {s["step"]: s for s in body["steps"]}
+    assert by_step["time_zero"]["ran"] is False
+    assert by_step["background_removal"]["ran"] is True
     assert by_step["dewow"]["parameters"] == {"dewow_window": 15}
     assert by_step["gain"]["parameters"] == {"gain_type": "linear", "gain_power": 1.0}
 
