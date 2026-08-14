@@ -21,6 +21,11 @@ import { NO_VALUE, formatDateTime } from '@/lib/format'
  * as an absence. A FileDrop dataset says so explicitly -- a file is a
  * source in its own right, not a session with a missing device. Neither
  * state is reconstructed here; both are exactly what the endpoint returned.
+ *
+ * `survey_area` and `coordinate_system` are the operator's own words, not
+ * measurements. Neither settles Stage 8's spatial assessment -- a session
+ * can claim "EPSG:32633" and the dataset's `crs` dimension stays exactly
+ * what the frames and declarations actually say.
  */
 export function AcquisitionPane({ datasetId }: { datasetId: string }) {
   const { data, error, isLoading } = useDatasetAcquisition(datasetId)
@@ -72,6 +77,14 @@ export function AcquisitionPane({ datasetId }: { datasetId: string }) {
           )}
           {data.session.survey_area && (
             <Field label="Survey area">{data.session.survey_area}</Field>
+          )}
+          {data.session.coordinate_system && (
+            // A declared claim, not a Stage 8 registration -- see the
+            // module docstring. Rendered as the operator's own words, with
+            // no EPSG validation and no resolve control.
+            <Field label="Coordinate system (declared)">
+              {data.session.coordinate_system}
+            </Field>
           )}
           <Field label="Acquired">
             {formatDateTime(data.acquisition?.created_at)}

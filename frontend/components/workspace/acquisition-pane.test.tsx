@@ -71,6 +71,7 @@ describe('a dataset produced through a device session', () => {
       operator: 'field team',
       notes: null,
       survey_area: null,
+      coordinate_system: null,
       evidence: { position_provided: false },
       failure_stage: null,
       failure_message: null,
@@ -153,6 +154,26 @@ describe('a dataset produced through a device session', () => {
 
     await screen.findByText('IDS Stream C')
     expect(container.textContent).not.toMatch(/survey area/i)
+  })
+
+  it('shows the declared coordinate system claim when the session has one', async () => {
+    getDatasetAcquisition.mockResolvedValue({
+      ...payload,
+      session: { ...payload.session!, coordinate_system: 'EPSG:32633' },
+    })
+    const { container } = view()
+
+    await screen.findByText('IDS Stream C')
+    expect(container.textContent).toContain('EPSG:32633')
+  })
+
+  it('shows no coordinate system row when the session has none, never EPSG:4326', async () => {
+    getDatasetAcquisition.mockResolvedValue(payload) // coordinate_system: null
+    const { container } = view()
+
+    await screen.findByText('IDS Stream C')
+    expect(container.textContent).not.toContain('EPSG:4326')
+    expect(container.textContent).not.toMatch(/coordinate system/i)
   })
 })
 

@@ -69,6 +69,7 @@ function sessionPayload(overrides: Partial<SessionPayload> = {}): SessionPayload
       operator: 'field team',
       notes: null,
       survey_area: null,
+      coordinate_system: null,
       evidence: { position_provided: false },
       failure_stage: null,
       failure_message: null,
@@ -362,6 +363,7 @@ describe('the declared survey area', () => {
     await waitFor(() => expect(createSession).toHaveBeenCalled())
     expect(createSession).toHaveBeenCalledWith('dev1', {
       survey_area: 'North field, behind the barn',
+      coordinate_system: undefined,
     })
   })
 
@@ -373,7 +375,49 @@ describe('the declared survey area', () => {
     fireEvent.click(container.querySelector('[data-action="start-session"]')!)
 
     await waitFor(() => expect(createSession).toHaveBeenCalled())
-    expect(createSession).toHaveBeenCalledWith('dev1', { survey_area: undefined })
+    expect(createSession).toHaveBeenCalledWith('dev1', {
+      survey_area: undefined,
+      coordinate_system: undefined,
+    })
+  })
+})
+
+describe('the declared coordinate system', () => {
+  it('sends the claim typed for that device when starting a session', async () => {
+    createSession.mockResolvedValue({ session: sessionPayload().session, device: device() })
+    getSession.mockResolvedValue(sessionPayload())
+    const { container } = await renderPanel()
+
+    fireEvent.change(container.querySelector('[data-coordinate-system-draft]')!, {
+      target: { value: 'EPSG:32633' },
+    })
+    fireEvent.click(container.querySelector('[data-action="start-session"]')!)
+
+    await waitFor(() => expect(createSession).toHaveBeenCalled())
+    expect(createSession).toHaveBeenCalledWith('dev1', {
+      survey_area: undefined,
+      coordinate_system: 'EPSG:32633',
+    })
+  })
+
+  it('never sends a default EPSG code when left blank', async () => {
+    createSession.mockResolvedValue({ session: sessionPayload().session, device: device() })
+    getSession.mockResolvedValue(sessionPayload())
+    const { container } = await renderPanel()
+
+    fireEvent.click(container.querySelector('[data-action="start-session"]')!)
+
+    await waitFor(() => expect(createSession).toHaveBeenCalled())
+    const sent = createSession.mock.calls[0]?.[1] as { coordinate_system?: string }
+    expect(sent.coordinate_system).toBeUndefined()
+  })
+
+  it('offers no EPSG dropdown or resolve control -- a plain declared claim', async () => {
+    const { container } = await renderPanel()
+    const input = container.querySelector('[data-coordinate-system-draft]')
+    expect(input?.tagName).toBe('INPUT')
+    expect((input as HTMLInputElement | null)?.type).toBe('text')
+    expect(container.querySelector('select')).toBeNull()
   })
 })
 

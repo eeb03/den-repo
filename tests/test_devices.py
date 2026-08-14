@@ -373,6 +373,55 @@ def test_a_session_with_no_declared_survey_area_reports_null(env):
     assert body["survey_area"] is None
 
 
+def test_a_session_declares_the_coordinate_system_verbatim(env):
+    """A claim in the operator's own words -- not a spatial registration, not
+    validated against an EPSG registry, and never defaulted."""
+    client = signed_in()
+    device_id = register(client).json()["device"]["id"]
+    body = new_session(client, device_id, coordinate_system="local site grid").json()["session"]
+
+    assert body["coordinate_system"] == "local site grid"
+
+    fetched = client.get(f"/api/sessions/{body['id']}").json()["session"]
+    assert fetched["coordinate_system"] == "local site grid"
+
+
+def test_a_session_with_no_declared_coordinate_system_reports_null_never_epsg4326(env):
+    """`Dataset.coordinate_system` defaults to "EPSG:4326" -- a known trap.
+    The session field must never inherit it."""
+    client = signed_in()
+    device_id = register(client).json()["device"]["id"]
+    body = new_session(client, device_id).json()["session"]
+
+    assert body["coordinate_system"] is None
+
+
+def test_a_declared_session_coordinate_system_does_not_touch_stage_8(env):
+    """
+    A session-declared CRS is a claim about the survey, not a spatial
+    registration. It must not settle Stage 8's `crs` dimension, write
+    Dataset.coordinate_system, or create a SpatialDeclaration -- only
+    POST /api/spatial/{id}/declarations does that.
+    """
+    client = signed_in()
+    device_id = register(client).json()["device"]["id"]
+    session_id = new_session(client, device_id, coordinate_system="EPSG:32633").json()["session"]["id"]
+    move(client, session_id, "READY")
+    job_id = acquire(client, session_id).json()["job"]["id"]
+    client.post(f"/api/imports/jobs/{job_id}/accept")
+    runner._execute(job_id)
+    dataset_id = client.get(f"/api/imports/jobs/{job_id}").json()["job"]["dataset_id"]
+
+    spatial = client.get(f"/api/spatial/{dataset_id}").json()
+    crs_dimension = next(d for d in spatial["dimensions"] if d["dimension"] == "crs")
+    assert crs_dimension["state"] != "declared"
+    assert client.get(f"/api/spatial/{dataset_id}/declarations").json()["declarations"] == []
+
+    # The claim itself still reaches the acquisition chain, verbatim.
+    provenance = client.get(f"/api/datasets/{dataset_id}/acquisition").json()
+    assert provenance["session"]["coordinate_system"] == "EPSG:32633"
+
+
 def test_the_lifecycle_runs_created_ready_acquiring_completed(env):
     client = signed_in()
     device_id = register(client).json()["device"]["id"]

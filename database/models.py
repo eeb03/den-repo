@@ -402,6 +402,14 @@ class AcquisitionSession(Base):
     #: records: this is declared, that is derived, and neither feeds the
     #: other. It does not feed Stage 8; Stage 8 still owns CRS / vertical / ties.
     survey_area = Column(String, nullable=True)
+    #: What the operator said this scan was referenced to, in their own
+    #: words -- "EPSG:32633", "local site grid", "tape measure only". NOT a
+    #: spatial registration and NOT `Dataset.coordinate_system` (a legacy
+    #: column whose default is the trap "EPSG:4326" -- see
+    #: test_frame_read_path). No default here, ever: absence is `null`.
+    #: Stage 8 (SpatialDeclaration, the seven-dimension assessment, frame
+    #: SpatialRef/CRSProvenance) remains the only thing that settles a CRS.
+    coordinate_system = Column(String, nullable=True)
 
     #: What this session ACTUALLY provided. See schemas/devices.py::SessionEvidence.
     evidence = Column(JSON, nullable=False, default=dict)
@@ -425,6 +433,7 @@ class AcquisitionSession(Base):
             "operator": self.operator,
             "notes": self.notes,
             "survey_area": self.survey_area,
+            "coordinate_system": self.coordinate_system,
             "evidence": self.evidence or {},
             "failure_stage": self.failure_stage,
             "failure_message": self.failure_message,

@@ -67,6 +67,7 @@ function sessionPayload(overrides: Partial<SessionPayload> = {}): SessionPayload
       operator: null,
       notes: null,
       survey_area: null,
+      coordinate_system: null,
       evidence: { position_provided: false },
       failure_stage: null,
       failure_message: null,

@@ -77,6 +77,14 @@ class CreateSessionRequest(BaseModel):
     #: -- that is computed from positioned records; this is declared, the
     #: same kind of claim as `operator`. Create-time only, like `operator`.
     survey_area: Optional[str] = Field(default=None, max_length=500)
+    #: What the operator said this scan was referenced to, in their own
+    #: words -- "EPSG:32633", "local site grid", "tape measure only". NOT a
+    #: spatial registration, NOT validated against an EPSG registry (a
+    #: validated code would look like one), and NOT `Dataset.coordinate_system`
+    #: (whose default "EPSG:4326" is a known trap). No default, ever. Stage 8
+    #: (SpatialDeclaration, the seven-dimension assessment) remains the only
+    #: thing that settles a CRS. Create-time only, like `operator`.
+    coordinate_system: Optional[str] = Field(default=None, max_length=200)
 
 
 class SessionEvidenceRequest(BaseModel):
@@ -192,6 +200,7 @@ def create_session(device_id: str, body: CreateSessionRequest,
         id=gen_uuid(), device_id=device.id, owner_id=user.id,
         state=SessionState.CREATED.value, label=body.label,
         operator=body.operator, notes=body.notes, survey_area=body.survey_area,
+        coordinate_system=body.coordinate_system,
         evidence=SessionEvidence().model_dump(mode="json"),
         created_at=datetime.utcnow(),
     )

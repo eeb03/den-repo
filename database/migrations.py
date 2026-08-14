@@ -284,6 +284,26 @@ def _session_survey_area(engine: Engine) -> None:
         logger.info("migration 009: added acquisition_sessions.survey_area")
 
 
+def _session_coordinate_system(engine: Engine) -> None:
+    """
+    010 — what the operator said a scan was referenced to.
+
+    One additive nullable column on `acquisition_sessions`, the case
+    `create_all` cannot handle for a table 006 already created. NO DEFAULT,
+    ever: `Dataset.coordinate_system` defaults to "EPSG:4326" and that
+    default is a known trap (see test_frame_read_path). A session migrated
+    in place declares nothing, so its coordinate_system stays null -- never
+    backfilled from Dataset.coordinate_system, a frame's CRS, or
+    DatasetInfo.coordinate_system.
+    """
+    if _has_table(engine, "acquisition_sessions") and not _has_column(
+            engine, "acquisition_sessions", "coordinate_system"):
+        with engine.begin() as conn:
+            conn.execute(
+                text("ALTER TABLE acquisition_sessions ADD COLUMN coordinate_system VARCHAR"))
+        logger.info("migration 010: added acquisition_sessions.coordinate_system")
+
+
 MIGRATIONS: list[Migration] = [
     Migration(
         id="001_dataset_owner_id",
@@ -329,6 +349,11 @@ MIGRATIONS: list[Migration] = [
         id="009_session_survey_area",
         description="add nullable acquisition_sessions.survey_area (declared site description)",
         apply=_session_survey_area,
+    ),
+    Migration(
+        id="010_session_coordinate_system",
+        description="add nullable acquisition_sessions.coordinate_system (declared CRS claim, no default)",
+        apply=_session_coordinate_system,
     ),
 ]
 

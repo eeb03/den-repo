@@ -1319,6 +1319,15 @@ export interface AcquisitionSession {
    * (a computed lat/lon span) -- this is declared, that is derived.
    */
   survey_area: string | null
+  /**
+   * What the operator said this scan was referenced to, in their own words
+   * -- "EPSG:32633", "local site grid", "tape measure only". NOT a spatial
+   * registration and never defaulted (in particular, never `EPSG:4326`,
+   * `Dataset.coordinate_system`'s legacy default). Stage 8
+   * (SpatialDeclaration, the seven-dimension assessment) remains the only
+   * thing that settles a CRS.
+   */
+  coordinate_system: string | null
   evidence: {
     position_provided?: boolean
     position_source?: string | null
