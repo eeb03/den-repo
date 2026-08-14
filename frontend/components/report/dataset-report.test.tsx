@@ -115,6 +115,11 @@ function report(overrides: Partial<DatasetReport> = {}): DatasetReport {
       { stage: 'format_identification', status: 'completed', detail: 'segy', parameters: {}, at: null },
       { stage: 'preprocessing', status: 'not_run', detail: 'no record carries a processing_applied entry', parameters: {}, at: null },
     ],
+    signal_chain: {
+      recorded: false,
+      reason: 'no record carries a processing_applied entry -- preprocessing was not recorded for this dataset',
+      steps: [],
+    },
     quality: {
       stored_score: 0.8,
       computed_score: 0.8,

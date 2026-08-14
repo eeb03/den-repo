@@ -53,6 +53,14 @@ export function useDatasetAcquisition(datasetId: string | undefined) {
   )
 }
 
+export function useSignalChain(datasetId: string | undefined) {
+  return useSWR(
+    datasetId ? ['signal-chain', datasetId] : null,
+    () => api.getSignalChain(datasetId as string),
+    options,
+  )
+}
+
 export function useSpatialReference(datasetId: string | undefined) {
   return useSWR(
     datasetId ? ['spatial-reference', datasetId] : null,

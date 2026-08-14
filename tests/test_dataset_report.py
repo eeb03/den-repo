@@ -20,6 +20,7 @@ import pytest
 from api.reports import build_dataset_report
 from fusion.vertical_reference import assess
 from schemas.dataset_report import (
+    SIGNAL_CHAIN_STEP_ORDER,
     CandidateSummary,
     Capability,
     DatasetReport,
@@ -30,6 +31,7 @@ from schemas.dataset_report import (
     build_geometry,
     build_horizontal,
     build_identity,
+    build_signal_chain,
     build_vertical,
     build_volume,
 )
@@ -479,6 +481,98 @@ def test_a_dataset_with_no_candidate_analysis_says_not_analysed():
 
 
 # ---------------------------------------------------------------------------
+# the Phase 5 signal-processing chain: recorded, not re-run, never invented
+# ---------------------------------------------------------------------------
+
+def test_no_applied_entry_means_not_recorded_not_an_error():
+    chain = build_signal_chain(None)
+    assert chain.recorded is False
+    assert chain.steps == []
+    assert "not recorded" in chain.reason
+
+
+def test_an_empty_dict_is_treated_the_same_as_no_entry():
+    chain = build_signal_chain({})
+    assert chain.recorded is False
+    assert chain.steps == []
+
+
+def test_the_chain_reports_every_step_in_the_order_it_actually_ran():
+    applied = {
+        "dewow": True, "dewow_window": 15,
+        "background_removal": True,
+        "gain": True, "gain_type": "linear", "gain_power": 1.0,
+    }
+    chain = build_signal_chain(applied)
+    assert chain.recorded is True
+    assert [s.step for s in chain.steps] == list(SIGNAL_CHAIN_STEP_ORDER)
+    assert [s.step for s in chain.steps] == ["background_removal", "dewow", "gain"]
+    assert all(s.ran for s in chain.steps)
+
+
+def test_parameters_are_named_verbatim_for_the_steps_that_carry_them():
+    applied = {
+        "dewow": True, "dewow_window": 21,
+        "background_removal": True,
+        "gain": True, "gain_type": "agc", "gain_power": 2.0,
+    }
+    chain = build_signal_chain(applied)
+    by_step = {s.step: s for s in chain.steps}
+    assert by_step["dewow"].parameters == {"dewow_window": 21}
+    assert by_step["gain"].parameters == {"gain_type": "agc", "gain_power": 2.0}
+    # background_removal carries no recorded parameters -- nothing is invented.
+    assert by_step["background_removal"].parameters == {}
+
+
+def test_a_step_that_did_not_run_carries_no_parameters():
+    applied = {
+        "dewow": False, "dewow_window": None,
+        "background_removal": True,
+        "gain": False, "gain_type": None, "gain_power": None,
+    }
+    chain = build_signal_chain(applied)
+    by_step = {s.step: s for s in chain.steps}
+    assert by_step["dewow"].ran is False
+    assert by_step["dewow"].parameters == {}
+    assert by_step["gain"].ran is False
+    assert by_step["gain"].parameters == {}
+    assert by_step["background_removal"].ran is True
+
+
+def test_the_chain_never_invents_a_default_when_nothing_was_run(stored):
+    """A record with no `processing_applied` entry at all -- e.g. depth-slice
+    CSVs process_gpr_traces has nothing to act on -- must not read as the
+    platform's own dewow/background/gain defaults having applied."""
+    from database.records_store import save_records
+
+    save_records("d", geographic_records(3))
+    report = build_dataset_report(FakeDataset(id="d"))
+    assert report.signal_chain.recorded is False
+    assert report.signal_chain.steps == []
+
+
+def test_the_chain_reads_the_same_processing_applied_entry_the_preprocessing_stage_reads(stored):
+    """One definition, not two that could disagree about what ran."""
+    from database.records_store import save_records
+
+    applied = {
+        "dewow": True, "dewow_window": 15,
+        "background_removal": True,
+        "gain": True, "gain_type": "linear", "gain_power": 1.0,
+    }
+    records = geographic_records(3)
+    for r in records:
+        r.metadata["processing_applied"] = applied
+    save_records("d", records)
+
+    report = build_dataset_report(FakeDataset(id="d"))
+    assert report.signal_chain.recorded is True
+    assert all(s.ran for s in report.signal_chain.steps)
+    preprocessing = next(p for p in report.processing if p.stage == "preprocessing")
+    assert preprocessing.status == "completed"
+
+
+# ---------------------------------------------------------------------------
 # the whole report, assembled
 # ---------------------------------------------------------------------------
 
@@ -582,13 +676,70 @@ def api(stored):
 def test_the_report_endpoint_returns_the_whole_report(api):
     body = api.get("/api/datasets/ds1/report").json()
     assert body["report_version"]
-    for section in ("identity", "volume", "spatial", "processing",
+    for section in ("identity", "volume", "spatial", "processing", "signal_chain",
                     "quality", "candidates", "readiness", "provenance"):
         assert section in body, f"the report is missing {section}"
 
 
 def test_a_nonexistent_dataset_is_a_404(api):
     assert api.get("/api/datasets/does-not-exist/report").status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# GET /{id}/signal-chain -- the thin route the workspace pane calls, kept
+# separate from /report because the report is too slow for every page open
+# ---------------------------------------------------------------------------
+
+def test_a_nonexistent_dataset_is_a_404_for_signal_chain(api):
+    assert api.get("/api/datasets/does-not-exist/signal-chain").status_code == 404
+
+
+def test_the_signal_chain_endpoint_reports_not_recorded_for_a_dataset_with_no_processing(api):
+    body = api.get("/api/datasets/ds1/signal-chain").json()
+    assert body["recorded"] is False
+    assert body["steps"] == []
+
+
+def test_the_signal_chain_endpoint_reports_the_recorded_steps_in_order(api, stored):
+    from database.records_store import save_records
+
+    applied = {
+        "dewow": True, "dewow_window": 15,
+        "background_removal": True,
+        "gain": True, "gain_type": "linear", "gain_power": 1.0,
+    }
+    records = geographic_records(3)
+    for r in records:
+        r.metadata["processing_applied"] = applied
+    save_records("ds1", records)
+
+    body = api.get("/api/datasets/ds1/signal-chain").json()
+    assert body["recorded"] is True
+    assert [s["step"] for s in body["steps"]] == ["background_removal", "dewow", "gain"]
+    assert all(s["ran"] for s in body["steps"])
+    by_step = {s["step"]: s for s in body["steps"]}
+    assert by_step["dewow"]["parameters"] == {"dewow_window": 15}
+    assert by_step["gain"]["parameters"] == {"gain_type": "linear", "gain_power": 1.0}
+
+
+def test_the_signal_chain_endpoint_and_the_report_agree(api, stored):
+    """One route is thin and one is not, but both call `build_signal_chain`
+    on the same `processing_applied` entry -- they must not disagree."""
+    from database.records_store import save_records
+
+    applied = {
+        "dewow": True, "dewow_window": 15,
+        "background_removal": True,
+        "gain": True, "gain_type": "linear", "gain_power": 1.0,
+    }
+    records = geographic_records(3)
+    for r in records:
+        r.metadata["processing_applied"] = applied
+    save_records("ds1", records)
+
+    thin = api.get("/api/datasets/ds1/signal-chain").json()
+    report = api.get("/api/datasets/ds1/report").json()
+    assert thin == report["signal_chain"]
 
 
 def test_a_dataset_with_no_records_reports_rather_than_404ing(api):

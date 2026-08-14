@@ -48,6 +48,7 @@ import type {
   SelectionResolution,
   SessionPayload,
   SessionState,
+  SignalProcessingChain,
   SpatialDeclaration,
   SpatialReference,
   InspectableCandidate,
@@ -269,6 +270,18 @@ export const api = {
    */
   getDatasetAcquisition(id: string): Promise<DatasetAcquisition> {
     return request(`/api/datasets/${encodeURIComponent(id)}/acquisition`)
+  },
+
+  /**
+   * The recorded Phase 5 signal-processing chain, read from
+   * `processing_applied` on this dataset's records -- never re-run.
+   *
+   * Deliberately separate from `getDatasetReport`: the full report is known
+   * to take tens of seconds to build, and this is called on every dataset
+   * open, the same way acquisition and spatial readiness are.
+   */
+  getSignalChain(id: string): Promise<SignalProcessingChain> {
+    return request(`/api/datasets/${encodeURIComponent(id)}/signal-chain`)
   },
 
   /* --------------------------- spatial reference -------------------------- */

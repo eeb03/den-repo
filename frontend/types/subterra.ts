@@ -1046,6 +1046,31 @@ export interface CandidateIntelligence {
   benchmark: BenchmarkContext
 }
 
+/**
+ * The order `process_gpr_traces` actually applies signal-processing steps
+ * in: background removal (needs the whole line at once), then dewow, then
+ * gain, both per trace.
+ */
+export type SignalProcessingStepName = 'background_removal' | 'dewow' | 'gain'
+
+export interface SignalProcessingStep {
+  step: SignalProcessingStepName
+  ran: boolean
+  /** Only what was actually recorded for a step that ran; empty otherwise. */
+  parameters: Record<string, unknown>
+}
+
+/**
+ * The recorded Phase 5 signal chain, read from `processing_applied` -- never
+ * re-run, never a synthetic default chain. `recorded` is false when no
+ * record carries a `processing_applied` entry; `steps` stays empty then.
+ */
+export interface SignalProcessingChain {
+  recorded: boolean
+  reason: string
+  steps: SignalProcessingStep[]
+}
+
 export interface DatasetReport {
   report_version: string
   generated_at: string
@@ -1129,6 +1154,7 @@ export interface DatasetReport {
     parameters: Record<string, unknown>
     at: string | null
   }[]
+  signal_chain: SignalProcessingChain
   quality: {
     stored_score: number | null
     computed_score: number | null

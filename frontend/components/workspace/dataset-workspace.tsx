@@ -19,6 +19,7 @@ import { SelectionPane } from './selection-pane'
 import { SpatialPanes } from './spatial-panes'
 import { AcquisitionPane } from './acquisition-pane'
 import { SpatialAssessmentPane } from './spatial-assessment-pane'
+import { SignalChainPane } from './signal-chain-pane'
 import { DatasetSummaryPane } from './dataset-summary-pane'
 import { DatasetSwitcher } from './dataset-switcher'
 import { ProvenancePane } from './provenance-pane'
@@ -92,6 +93,8 @@ export function DatasetWorkspace({ datasetId }: { datasetId: string }) {
             <AcquisitionPane datasetId={datasetId} />
 
             <SpatialAssessmentPane datasetId={datasetId} />
+
+            <SignalChainPane datasetId={datasetId} />
 
             {/*
               The report answers what this workspace cannot: how far the

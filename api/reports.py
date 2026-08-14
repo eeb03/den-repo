@@ -37,6 +37,7 @@ from schemas.dataset_report import (
     build_geometry,
     build_horizontal,
     build_identity,
+    build_signal_chain,
     build_vertical,
 )
 from schemas.labels import LabelKind
@@ -143,7 +144,18 @@ def _signal_quality_placeholder() -> QualityDimension:
                "defects are counted under signal_integrity"))
 
 
-def _processing_stages(dataset, records, frames) -> list[ProcessingStage]:
+def _processing_applied(records) -> Optional[dict]:
+    """
+    The `processing_applied` dict `process_gpr_traces` stamped onto a record's
+    metadata, or None when no record carries one. The single reader for this
+    value -- `_processing_stages` and `build_signal_chain` both call this
+    rather than each re-deriving it, so they cannot disagree about what ran.
+    """
+    sample = next((r for r in records if "processing_applied" in (r.metadata or {})), None)
+    return (sample.metadata or {}).get("processing_applied") if sample else None
+
+
+def _processing_stages(dataset, records, frames, applied: Optional[dict]) -> list[ProcessingStage]:
     """
     What actually happened to this dataset, read from stored evidence.
 
@@ -153,8 +165,6 @@ def _processing_stages(dataset, records, frames) -> list[ProcessingStage]:
     """
     extra = getattr(dataset, "extra_metadata", None) or {}
     formats = sorted({f.source_format for f in frames if getattr(f, "source_format", None)})
-    sample = next((r for r in records if "processing_applied" in (r.metadata or {})), None)
-    applied = (sample.metadata or {}).get("processing_applied") if sample else None
     velocity = next(
         (f.vertical_axis.conversion for f in frames
          if getattr(f, "vertical_axis", None) and f.vertical_axis.conversion), None)
@@ -367,13 +377,15 @@ def build_dataset_report(dataset, *, now: Optional[datetime] = None) -> DatasetR
     )
 
     candidates = _candidate_summary(dataset_id)
+    applied = _processing_applied(records)
 
     return DatasetReport(
         generated_at=now or datetime.utcnow(),
         identity=identity,
         volume=volume,
         spatial=SpatialReport(horizontal=horizontal, vertical=vertical, geometry=geometry),
-        processing=_processing_stages(dataset, records, frames),
+        processing=_processing_stages(dataset, records, frames, applied),
+        signal_chain=build_signal_chain(applied),
         quality=quality,
         candidates=candidates,
         readiness=assess_readiness(volume, horizontal, vertical, quality, candidates),

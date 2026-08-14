@@ -50,7 +50,14 @@ from schemas.spatial import AxisKind, CRSKind, CRSProvenance, PositionKind, alon
 
 #: Bumped when the SHAPE of the report changes, so a consumer that stored one
 #: can tell whether it is still reading what it thinks it is.
-REPORT_VERSION = "1.0"
+REPORT_VERSION = "1.1"
+
+#: The order `process_gpr_traces` actually applies these steps in:
+#: background removal needs every trace in the line at once, then dewow and
+#: gain run per trace. Naming this once here is what lets `build_signal_chain`
+#: report the chain in the order it really ran, rather than a client
+#: re-guessing it from an unordered dict.
+SIGNAL_CHAIN_STEP_ORDER: tuple[str, ...] = ("background_removal", "dewow", "gain")
 
 
 class Capability(str, Enum):
@@ -290,6 +297,37 @@ class ProcessingStage(BaseModel):
     at: Optional[datetime] = None
 
 
+class SignalProcessingStep(BaseModel):
+    """
+    One step of the recorded GPR signal-processing chain, in the order
+    `process_gpr_traces` actually applies it (see `SIGNAL_CHAIN_STEP_ORDER`).
+
+    `ran` is read directly from the stored `processing_applied` flag for this
+    step -- never inferred from whether a parameter happens to be present.
+    `parameters` holds only what was actually recorded for a step that ran;
+    a step that did not run carries no parameters, because there are none to
+    report.
+    """
+    step: str
+    ran: bool
+    parameters: dict[str, Any] = Field(default_factory=dict)
+
+
+class SignalProcessingChain(BaseModel):
+    """
+    The recorded Phase 5 signal chain for this dataset -- READ, not re-run.
+
+    `recorded` is False when no record carries a `processing_applied` entry.
+    That is not an error and not "nothing ran": it means Subterra was never
+    told what happened, and `steps` stays empty rather than presenting an
+    invented default chain (dewow/background-removal/gain are not assumed to
+    have run just because they are the platform's own defaults).
+    """
+    recorded: bool
+    reason: str = Field(..., min_length=1)
+    steps: list[SignalProcessingStep] = Field(default_factory=list)
+
+
 class CandidateSummary(BaseModel):
     """
     What candidate analysis has produced, described as candidates.
@@ -357,6 +395,10 @@ class DatasetReport(BaseModel):
     volume: DatasetVolume
     spatial: SpatialReport
     processing: list[ProcessingStage] = Field(default_factory=list)
+    #: The Phase 5 ordered signal-processing chain -- see `SignalProcessingChain`.
+    #: A more structured, orderable sibling of the `preprocessing` entry in
+    #: `processing` above; that entry is unchanged and still exists.
+    signal_chain: SignalProcessingChain
     quality: QualityReport
     candidates: CandidateSummary
     readiness: list[CapabilityAssessment] = Field(default_factory=list)
@@ -698,6 +740,39 @@ def build_geometry(records, frames, bounds=None, spans=None) -> SurveyGeometry:
         along_track_extent_m=along_track,
         reasons=reasons,
     )
+
+
+def build_signal_chain(applied: Optional[dict]) -> SignalProcessingChain:
+    """
+    `applied` is the `processing_applied` dict already read off a record's
+    metadata by the caller (`api.reports._processing_applied`) -- the same
+    dict the `preprocessing` `ProcessingStage` reads, so the two cannot
+    disagree about what ran. PURE: reads only what is passed in, re-runs
+    nothing, invents nothing.
+    """
+    if not applied:
+        return SignalProcessingChain(
+            recorded=False,
+            reason="no record carries a processing_applied entry -- preprocessing "
+                   "was not recorded for this dataset")
+
+    steps = []
+    for name in SIGNAL_CHAIN_STEP_ORDER:
+        ran = bool(applied.get(name))
+        parameters: dict[str, Any] = {}
+        if ran and name == "dewow" and applied.get("dewow_window") is not None:
+            parameters["dewow_window"] = applied["dewow_window"]
+        if ran and name == "gain":
+            if applied.get("gain_type") is not None:
+                parameters["gain_type"] = applied["gain_type"]
+            if applied.get("gain_power") is not None:
+                parameters["gain_power"] = applied["gain_power"]
+        steps.append(SignalProcessingStep(step=name, ran=ran, parameters=parameters))
+
+    return SignalProcessingChain(
+        recorded=True,
+        reason="read from the processing_applied entry recorded on this dataset's records",
+        steps=steps)
 
 
 def assess_readiness(
