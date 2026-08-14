@@ -291,6 +291,46 @@ def test_a_surface_model_with_an_elevation_axis_and_a_datum_is_available():
 
 
 # ---------------------------------------------------------------------------
+# assess_surface names the linked surface, verbatim
+# ---------------------------------------------------------------------------
+
+def test_the_available_reason_names_the_linked_dataset_and_its_recorded_codes():
+    result = assess([frame()], geo_records(),
+                    surface=[frame("dem:tile", crs=GEOGRAPHIC, axis=SURFACE_GOOD,
+                                   dataset_id="dem")])
+    reason = result.dimension(SpatialDimension.SURFACE_REFERENCE).reason
+    assert "dem" in reason
+    assert "NAP" in reason
+    assert "EPSG:4326" in reason
+    # Never paraphrased into a model name or a category.
+    assert "COP30" not in reason
+    assert "terrain model" not in reason.lower()
+
+
+def test_the_unvalidated_reason_still_names_the_linked_dataset():
+    result = assess([frame()], geo_records(),
+                    surface=[frame("dem:tile", crs=GEOGRAPHIC, axis=SURFACE_BARE,
+                                   dataset_id="dem")])
+    dimension = result.dimension(SpatialDimension.SURFACE_REFERENCE)
+    # Naming the dataset does not promote the state.
+    assert dimension.state == "unvalidated"
+    assert "dem" in dimension.reason
+
+
+def test_more_than_one_surface_frame_names_distinct_codes_as_a_sorted_list():
+    good_a = frame("dem:a", crs=SpatialRef(kind=CRSKind.PROJECTED, code="EPSG:32633",
+                                           crs_provenance=CRSProvenance.DECLARED_BY_SOURCE),
+                   axis=SURFACE_GOOD, dataset_id="dem")
+    good_b = frame("dem:b", crs=SpatialRef(kind=CRSKind.PROJECTED, code="EPSG:32634",
+                                           crs_provenance=CRSProvenance.DECLARED_BY_SOURCE),
+                   axis=SURFACE_GOOD, dataset_id="dem")
+    result = assess([frame()], geo_records(), surface=[good_a, good_b])
+    reason = result.dimension(SpatialDimension.SURFACE_REFERENCE).reason
+    assert "EPSG:32633" in reason
+    assert "EPSG:32634" in reason
+
+
+# ---------------------------------------------------------------------------
 # the distinctions that must not collapse
 # ---------------------------------------------------------------------------
 
@@ -731,6 +771,25 @@ def test_linking_an_unusable_dem_does_not_make_it_a_surface_reference(env):
                        {"surface_dataset_id": "dem"})
     assert response.status_code == 201
     assert _state(response.json()["spatial_reference"], "surface_reference") == "unvalidated"
+
+
+def test_linking_a_usable_dem_names_it_in_the_reason(env):
+    Session, _ = env
+    client = signed_in()
+    seed(Session, client, "survey")
+    seed(Session, client, "good_dem",
+        frames=[frame("good_dem:tile", dataset_id="good_dem", axis=SURFACE_GOOD)],
+        records=geo_records(dataset_id="good_dem"), name="a DEM")
+
+    response = declare(client, "survey", DeclarationKind.SURFACE_REFERENCE,
+                       {"surface_dataset_id": "good_dem"})
+    assert response.status_code == 201
+    after = response.json()["spatial_reference"]
+    assert _state(after, "surface_reference") == "available"
+    reason = next(d for d in after["dimensions"]
+                 if d["dimension"] == "surface_reference")["reason"]
+    assert "good_dem" in reason
+    assert "NAP" in reason
 
 
 def test_changing_a_spatial_reference_marks_downstream_products_stale(env):

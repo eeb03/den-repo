@@ -500,6 +500,43 @@ def assess_depth(frames) -> DimensionState:
                   provenance="declared_by_source", frames=[f.frame_id for f, _ in direct])
 
 
+def _surface_identity_clause(surface_frames) -> str:
+    """
+    Names what is already on the linked surface frames, verbatim: which
+    dataset, and -- where actually present -- the recorded vertical-datum and
+    CRS codes.
+
+    NEVER PARAPHRASED. The linked dataset is named by its id, not a model
+    name like "COP30" or "AHN" that Subterra was never told; a datum code is
+    reported only when a frame actually carries one, never inferred from the
+    dataset's reputation. A single value is named plainly; more than one
+    distinct value is named as a sorted list, the same determinism
+    `_position_source_clause` uses.
+    """
+    if not surface_frames:
+        return ""
+
+    dataset_ids = sorted({f.dataset_id for f in surface_frames})
+    datum_codes = sorted({
+        f.vertical_axis.vertical_datum.code
+        for f in surface_frames
+        if getattr(f.vertical_axis, "vertical_datum", None) and f.vertical_axis.vertical_datum.code
+    })
+    crs_codes = sorted({
+        f.spatial_ref.code for f in surface_frames if getattr(f.spatial_ref, "code", None)
+    })
+
+    parts = [f"dataset {dataset_ids[0]}" if len(dataset_ids) == 1
+             else f"datasets {', '.join(dataset_ids)}"]
+    if datum_codes:
+        parts.append(f"vertical datum {datum_codes[0]}" if len(datum_codes) == 1
+                     else f"vertical datums {', '.join(datum_codes)}")
+    if crs_codes:
+        parts.append(f"CRS {crs_codes[0]}" if len(crs_codes) == 1
+                     else f"CRS values {', '.join(crs_codes)}")
+    return "; ".join(parts)
+
+
 def assess_surface(frames, surface_frames) -> DimensionState:
     """
     Whether a surface elevation model is linked AND usable.
@@ -510,6 +547,11 @@ def assess_surface(frames, surface_frames) -> DimensionState:
     and not one of its 196 records carries an elevation. It is a DEM that can
     anchor nothing, and calling it a surface reference because the file exists
     would put a fabricated Z under every later reconstruction.
+
+    THE REASON NAMES THE LINKED SURFACE, not just that one exists: which
+    dataset, and its recorded vertical-datum and CRS codes where present. See
+    `_surface_identity_clause`. Naming them does not change the state --
+    an unvalidated surface stays unvalidated whatever its CRS code is.
     """
     D = SpatialDimension.SURFACE_REFERENCE
     if not surface_frames:
@@ -533,9 +575,11 @@ def assess_surface(frames, surface_frames) -> DimensionState:
             continue
         usable.append(frame.frame_id)
 
+    identity = _surface_identity_clause(surface_frames)
+
     if not usable:
         return _state(D, "unvalidated",
-                      "a surface model is linked but cannot anchor anything: "
+                      f"a surface model is linked but cannot anchor anything ({identity}): "
                       + "; ".join(problems),
                       ["a surface model whose vertical axis is an elevation with a "
                        "declared datum -- for the DEM held here that means re-ingesting "
@@ -543,9 +587,11 @@ def assess_surface(frames, surface_frames) -> DimensionState:
                       action=DeclarationKind.SURFACE_REFERENCE, provenance="unavailable",
                       problems=problems)
 
+    usable_frames = [f for f in surface_frames if f.frame_id in usable]
+    usable_identity = _surface_identity_clause(usable_frames)
     return _state(D, "available",
                   f"{len(usable)} surface frame(s) carry an elevation axis with a declared "
-                  f"datum", provenance="declared_by_source", frames=usable)
+                  f"datum ({usable_identity})", provenance="declared_by_source", frames=usable)
 
 
 #: Keys `assess_orientation` accepts as an orientation declaration.
