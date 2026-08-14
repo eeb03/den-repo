@@ -22,6 +22,7 @@ import { SpatialAssessmentPane } from './spatial-assessment-pane'
 import { SignalChainPane } from './signal-chain-pane'
 import { CandidateRegionsPane } from './candidate-regions-pane'
 import { DatasetSummaryPane } from './dataset-summary-pane'
+import { ModalityCompositionPane } from './modality-composition-pane'
 import { DatasetSwitcher } from './dataset-switcher'
 import { ProvenancePane } from './provenance-pane'
 import {
@@ -90,6 +91,8 @@ export function DatasetWorkspace({ datasetId }: { datasetId: string }) {
           <PanelHeader title="Dataset" />
           <PanelBody className="pt-0">
             <DatasetSummaryPane datasetId={datasetId} />
+
+            <ModalityCompositionPane datasetId={datasetId} />
 
             <AcquisitionPane datasetId={datasetId} />
 
