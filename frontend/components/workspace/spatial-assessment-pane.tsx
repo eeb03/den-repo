@@ -33,6 +33,12 @@ import { cn } from '@/lib/utils'
  * A session's declared `coordinate_system` / `vertical_reference` (see
  * `AcquisitionPane`) are the operator's own words and never appear here --
  * this pane is the Stage 8 assessment, not a session claim.
+ *
+ * `common_frame` is printed the same way: `state` and `reason` verbatim, at
+ * the same weight as a dimension. It is a COMPOSITION of the seven
+ * dimensions above, not an eighth one -- `inputs_present` says only that
+ * every Phase 4 input is itself resolved, never that a frame has been
+ * computed. No control here changes it; it is derived, not declared.
  */
 export function SpatialAssessmentPane({ datasetId }: { datasetId: string }) {
   const { data, error, isLoading } = useSpatialReference(datasetId)
@@ -77,6 +83,38 @@ export function SpatialAssessmentPane({ datasetId }: { datasetId: string }) {
               </div>
             )
           })}
+
+          {/*
+            THE COMPOSITION, NOT AN EIGHTH DIMENSION. `common_frame.state` is
+            `incomplete` or `inputs_present` -- never a word that could be
+            read as "a frame exists", because none does: this states only
+            whether the six Phase 4 inputs are each individually resolved.
+            Same weight as a dimension row, same rule for unresolved-as-result.
+          */}
+          <div
+            data-common-frame
+            data-state={data.common_frame.state}
+            className="border-t border-border/60 pt-2"
+          >
+            <div className="flex items-baseline justify-between gap-3">
+              <span
+                className={cn(
+                  'text-xs',
+                  data.common_frame.state === 'inputs_present'
+                    ? 'text-foreground'
+                    : 'text-muted-foreground',
+                )}
+              >
+                Common spatial frame
+              </span>
+              <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                {data.common_frame.state}
+              </span>
+            </div>
+            <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+              {data.common_frame.reason}
+            </p>
+          </div>
 
           <Link
             href={`/datasets/${encodeURIComponent(datasetId)}/spatial`}

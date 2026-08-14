@@ -44,8 +44,8 @@ from pydantic import BaseModel, Field
 
 from schemas.spatial import AxisKind, CRSKind, CRSProvenance, along_track_extents_m
 
-#: Bumped when the shape of an assessment changes.
-SPATIAL_CONTRACT_VERSION = "1.0"
+#: Bumped when the shape of an assessment changes. 1.1 adds `common_frame`.
+SPATIAL_CONTRACT_VERSION = "1.1"
 
 
 class DeclarationKind(str, Enum):
@@ -123,11 +123,50 @@ class DimensionState(BaseModel):
         return self.state in _RESOLVED_STATES
 
 
+#: The Phase 4 inputs to the common spatial frame -- horizontal position,
+#: CRS, vertical reference, orientation, surface reference, survey geometry.
+#: `depth_conversion` is a dimension in its own right and is deliberately
+#: excluded: it is not one of the inputs a common frame composes.
+COMMON_FRAME_INPUTS: tuple[SpatialDimension, ...] = (
+    SpatialDimension.HORIZONTAL_POSITION,
+    SpatialDimension.CRS,
+    SpatialDimension.VERTICAL_REFERENCE,
+    SpatialDimension.ORIENTATION,
+    SpatialDimension.SURFACE_REFERENCE,
+    SpatialDimension.SURVEY_GEOMETRY,
+)
+
+
+class CommonFrameComposition(BaseModel):
+    """
+    Whether the Phase 4 inputs are each individually settled -- NOT whether a
+    common spatial frame has been computed. Nothing in this module computes a
+    frame; that composition (Phase 9 reconstruction) is later, unbuilt work.
+
+    STATE VOCABULARY IS DELIBERATELY NARROW: `incomplete` or
+    `inputs_present`, never `available`, `declared`, `registered` or `ready`.
+    Every one of those would be read as "a frame exists", which this never
+    asserts -- `inputs_present` says only that every listed input is itself
+    resolved. It is not a `SpatialDimension` and does not appear in
+    `SpatialReference.dimensions`: it is a statement ABOUT the seven
+    dimensions, not an eighth one.
+    """
+    state: str
+    reason: str = Field(..., min_length=1)
+    #: The dimension keys this composition depends on, so a reader does not
+    #: have to re-derive the list from `COMMON_FRAME_INPUTS`.
+    inputs: list[SpatialDimension] = Field(default_factory=list)
+
+
 class SpatialReference(BaseModel):
     """The whole spatial picture for one dataset."""
     contract_version: str = SPATIAL_CONTRACT_VERSION
     dataset_id: str
     dimensions: list[DimensionState] = Field(default_factory=list)
+    #: Whether the Phase 4 inputs are each individually resolved -- NOT
+    #: whether a common spatial frame has been computed. See
+    #: `CommonFrameComposition`.
+    common_frame: CommonFrameComposition
     #: Declarations currently in force, newest first.
     declarations: list[dict] = Field(default_factory=list)
     #: True when a declaration landed after something derived from spatial
@@ -141,6 +180,39 @@ class SpatialReference(BaseModel):
     @property
     def unresolved(self) -> list[SpatialDimension]:
         return [d.dimension for d in self.dimensions if not d.resolved]
+
+
+def assess_common_frame(dimensions: list[DimensionState]) -> CommonFrameComposition:
+    """
+    Composes the six Phase 4 inputs' ALREADY-COMPUTED states into one
+    readiness statement.
+
+    PURE COMPOSITION, nothing more. Takes the `DimensionState` objects
+    `assess_spatial_reference` already produced and reads nothing else: no
+    frame, no record, no session, no `fusion.vertical_reference.assess`.
+    "Resolved" is `DimensionState.resolved` -- the same property
+    `SpatialReference.unresolved` already uses, not a second definition that
+    could disagree about which states count as settled.
+    """
+    by_dim = {d.dimension: d for d in dimensions}
+    blocking = sorted(
+        (d for d in COMMON_FRAME_INPUTS if d in by_dim and not by_dim[d].resolved),
+        key=lambda d: d.value,
+    )
+    if blocking:
+        parts = "; ".join(f"{d.value}: {by_dim[d].state}" for d in blocking)
+        return CommonFrameComposition(
+            state="incomplete",
+            reason=f"not every Phase 4 input is resolved yet -- {parts}",
+            inputs=list(COMMON_FRAME_INPUTS))
+
+    return CommonFrameComposition(
+        state="inputs_present",
+        reason=(
+            "every Phase 4 input is individually resolved, but no common spatial "
+            "frame has been computed from them -- this states that the inputs "
+            "are ready, not that a frame exists"),
+        inputs=list(COMMON_FRAME_INPUTS))
 
 
 # ---------------------------------------------------------------------------
@@ -719,17 +791,21 @@ def assess_spatial_reference(
     """The seven questions, answered from what is stored."""
     surface_frames = list(surface_frames or [])
     stale = list(stale_products or [])
+    dimensions = [
+        assess_horizontal(frames, records),
+        assess_crs(frames),
+        assess_vertical(frames),
+        assess_depth(frames),
+        assess_surface(frames, surface_frames),
+        assess_orientation(frames, records),
+        assess_geometry(frames, records),
+    ]
     return SpatialReference(
         dataset_id=dataset_id,
-        dimensions=[
-            assess_horizontal(frames, records),
-            assess_crs(frames),
-            assess_vertical(frames),
-            assess_depth(frames),
-            assess_surface(frames, surface_frames),
-            assess_orientation(frames, records),
-            assess_geometry(frames, records),
-        ],
+        dimensions=dimensions,
+        # Composed from the seven DimensionState objects above -- nothing
+        # else. See assess_common_frame.
+        common_frame=assess_common_frame(dimensions),
         declarations=list(declarations or []),
         has_stale_products=bool(stale),
         stale_products=stale,

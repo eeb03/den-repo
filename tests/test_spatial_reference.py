@@ -29,6 +29,7 @@ from api.main import app
 from database.models import Dataset, FusionSample, SpatialDeclaration
 from database.session import Base, get_db
 from schemas.spatial import (
+    Assumption,
     AxisKind,
     CRSKind,
     CRSProvenance,
@@ -41,8 +42,11 @@ from schemas.spatial import (
     VerticalDatum,
 )
 from schemas.spatial_reference import (
+    COMMON_FRAME_INPUTS,
+    SPATIAL_CONTRACT_VERSION,
     DeclarationKind,
     SpatialDimension,
+    assess_common_frame,
     assess_spatial_reference,
 )
 from schemas.subterra_record import SensorType, SubterraRecord
@@ -71,6 +75,12 @@ SURFACE_GOOD = VerticalAxis(
     kind=AxisKind.ELEVATION_M, units="m", origin="NAP", positive_down=False,
     vertical_datum=VerticalDatum(code="NAP", provenance=CRSProvenance.SUPPLIED_BY_CALLER,
                                  name="NAP"))
+
+
+def orientation_assumption(heading_deg=47.0, reference="true_north"):
+    return Assumption(
+        key="declared_orientation", value={"heading_deg": heading_deg, "reference": reference},
+        basis="SUPPLIED BY CALLER through the spatial reference workflow", verified=False)
 
 
 def frame(frame_id="d:line1", *, crs=GEOGRAPHIC, axis=TIME_AXIS, dataset_id="d",
@@ -384,6 +394,97 @@ def test_the_geometry_reason_never_invents_a_layout_word():
 
 
 # ---------------------------------------------------------------------------
+# common_frame: a composition of the seven dimension states, not an eighth
+# dimension and not a computed frame
+# ---------------------------------------------------------------------------
+
+def test_common_frame_is_not_a_dimension():
+    result = assess([frame()], geo_records())
+    assert "common_frame" not in {d.dimension.value for d in result.dimensions}
+    assert len(result.dimensions) == len(SpatialDimension)
+
+
+def test_common_frame_is_incomplete_by_default_and_names_every_blocking_input():
+    """The corpus-typical dataset: geographic and declared CRS, nothing else."""
+    result = assess([frame(crs=GEOGRAPHIC)], geo_records())
+    assert result.common_frame.state == "incomplete"
+    reason = result.common_frame.reason
+    # horizontal_position and crs are resolved (available / declared) and must
+    # NOT be named as blocking; the rest must be.
+    assert "horizontal_position:" not in reason
+    assert "crs:" not in reason
+    assert "vertical_reference: missing" in reason
+    assert "orientation: missing" in reason
+    assert "surface_reference: unavailable" in reason
+    # survey_geometry IS resolved here (the frame reports n_positions), so it
+    # must not be named either.
+    assert "survey_geometry:" not in reason
+
+
+def test_common_frame_never_claims_a_frame_exists():
+    """
+    The composition's own `state` is one of exactly two words, neither of
+    which could be read as "a frame exists". This is checked directly against
+    `state`, not by scanning `reason` for the word "available" -- a BLOCKING
+    dimension's own state (e.g. "unavailable") legitimately contains that
+    substring, and a reason quoting it verbatim is correct, not a violation.
+    """
+    result = assess([frame(crs=GEOGRAPHIC)], geo_records())
+    assert result.common_frame.state not in (
+        "available", "declared", "registered", "ready", "georeferenced")
+
+
+def test_common_frame_is_inputs_present_when_every_input_is_resolved():
+    """
+    Every Phase 4 input resolved: geographic + declared CRS, a declared
+    vertical datum on an elevation axis (so no subsurface origin-offset is
+    asked for), a declared orientation, a linked+usable surface, and a frame
+    that reports its own position count.
+    """
+    main = frame(crs=GEOGRAPHIC, axis=SURFACE_GOOD, assumptions=[orientation_assumption()])
+    surface = frame("dem:tile", crs=GEOGRAPHIC, axis=SURFACE_GOOD, dataset_id="dem")
+    result = assess([main], geo_records(), surface=[surface])
+
+    # Sanity: every listed input is actually resolved, not just the composition.
+    for dimension in COMMON_FRAME_INPUTS:
+        assert result.dimension(dimension).resolved, (
+            f"{dimension.value} is {result.dimension(dimension).state}")
+
+    assert result.common_frame.state == "inputs_present"
+    reason = result.common_frame.reason.lower()
+    assert "not" in reason and "computed" in reason
+    assert "a common spatial frame" in reason or "frame" in reason
+
+
+def test_common_frame_state_vocabulary_is_only_two_words():
+    empty = assess([], [])
+    typical = assess([frame(crs=GEOGRAPHIC)], geo_records())
+    assert empty.common_frame.state in ("incomplete", "inputs_present")
+    assert typical.common_frame.state in ("incomplete", "inputs_present")
+
+
+def test_depth_conversion_is_not_a_common_frame_input():
+    """depth_conversion is a dimension in its own right; it must not appear
+    in the blocking list even when it is unavailable."""
+    result = assess([frame(crs=GEOGRAPHIC, axis=TIME_AXIS)], geo_records())
+    assert result.dimension(SpatialDimension.DEPTH_CONVERSION).state == "unavailable"
+    assert "depth_conversion" not in result.common_frame.reason
+
+
+def test_common_frame_reads_only_the_already_computed_dimension_states():
+    """A direct unit check: assess_common_frame takes DimensionState objects,
+    not frames or records -- there is no way for it to re-derive anything."""
+    import inspect
+
+    params = list(inspect.signature(assess_common_frame).parameters)
+    assert params == ["dimensions"]
+
+
+def test_the_contract_version_was_bumped_for_the_shape_change():
+    assert SPATIAL_CONTRACT_VERSION == "1.1"
+
+
+# ---------------------------------------------------------------------------
 # the distinctions that must not collapse
 # ---------------------------------------------------------------------------
 
@@ -635,6 +736,19 @@ def test_the_spatial_endpoint_reports_every_dimension(env):
     assert {d["dimension"] for d in body["dimensions"]} == {d.value for d in SpatialDimension}
     for dimension in body["dimensions"]:
         assert dimension["reason"]
+
+
+def test_the_spatial_endpoint_reports_the_common_frame_composition(env):
+    Session, _ = env
+    client = signed_in()
+    seed(Session, client)
+
+    body = client.get("/api/spatial/d").json()
+    assert body["contract_version"] == SPATIAL_CONTRACT_VERSION
+    assert "common_frame" not in {d["dimension"] for d in body["dimensions"]}
+    assert body["common_frame"]["state"] in ("incomplete", "inputs_present")
+    assert body["common_frame"]["reason"]
+    assert set(body["common_frame"]["inputs"]) == {d.value for d in COMMON_FRAME_INPUTS}
 
 
 def test_the_vocabulary_names_the_orientation_declaration(env):

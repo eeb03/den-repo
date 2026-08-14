@@ -127,6 +127,26 @@ export function SpatialReferenceView({ datasetId }: { datasetId: string }) {
             </PanelBody>
           </Panel>
 
+          {/*
+            THE COMPOSITION, NOT AN EIGHTH DIMENSION. Read-only, like the
+            dimensions above -- `common_frame.state` is `incomplete` or
+            `inputs_present`, never a word that could be read as "a frame
+            exists", because none does. No declare control here either.
+          */}
+          <Panel>
+            <PanelHeader title="Common spatial frame" />
+            <PanelBody>
+              <div data-common-frame data-state={data.common_frame.state}>
+                <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                  {data.common_frame.state}
+                </span>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {data.common_frame.reason}
+                </p>
+              </div>
+            </PanelBody>
+          </Panel>
+
           <Panel>
             <PanelHeader title="Declarations" count={data.declarations.length} />
             <PanelBody>

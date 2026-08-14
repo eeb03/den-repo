@@ -80,6 +80,14 @@ function reference(overrides: Partial<SpatialReference> = {}): SpatialReference 
         detail: {},
       },
     ],
+    common_frame: {
+      state: 'incomplete',
+      reason: 'not every Phase 4 input is resolved yet -- crs: inferred; orientation: unresolved',
+      inputs: [
+        'horizontal_position', 'crs', 'vertical_reference', 'orientation',
+        'surface_reference', 'survey_geometry',
+      ],
+    },
     declarations: [],
     has_stale_products: false,
     stale_products: [],
@@ -223,5 +231,43 @@ describe('a session-declared claim never appears here', () => {
     ]) {
       expect(container.textContent).not.toContain(label)
     }
+  })
+})
+
+describe('the common spatial frame composition', () => {
+  it('is printed at the same weight as a dimension, verbatim', async () => {
+    getSpatialReference.mockResolvedValue(reference())
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-common-frame]')).toBeTruthy())
+    const node = container.querySelector('[data-common-frame]')
+    expect(node?.getAttribute('data-state')).toBe('incomplete')
+    expect(node?.textContent).toContain('not every Phase 4 input is resolved yet')
+  })
+
+  it('is not rendered as one of the seven dimensions', async () => {
+    getSpatialReference.mockResolvedValue(reference())
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-common-frame]')).toBeTruthy())
+    expect(container.querySelector('[data-dimension="common_frame"]')).toBeNull()
+  })
+
+  it('never claims a frame has been computed when inputs are present', async () => {
+    getSpatialReference.mockResolvedValue(
+      reference({
+        common_frame: {
+          state: 'inputs_present',
+          reason: 'every Phase 4 input is individually resolved, but no common spatial frame has been computed from them',
+          inputs: ['horizontal_position', 'crs', 'vertical_reference', 'orientation', 'surface_reference', 'survey_geometry'],
+        },
+      }),
+    )
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-common-frame]')).toBeTruthy())
+    const node = container.querySelector('[data-common-frame]')
+    expect(node?.getAttribute('data-state')).toBe('inputs_present')
+    expect(node?.textContent).toContain('no common spatial frame has been computed')
   })
 })

@@ -98,6 +98,14 @@ function reference(overrides: Partial<SpatialReference> = {}): SpatialReference 
         action: null,
       }),
     ],
+    common_frame: {
+      state: 'incomplete',
+      reason: 'not every Phase 4 input is resolved yet -- orientation: missing; vertical_reference: missing',
+      inputs: [
+        'horizontal_position', 'crs', 'vertical_reference', 'orientation',
+        'surface_reference', 'survey_geometry',
+      ],
+    },
     declarations: [],
     has_stale_products: false,
     stale_products: [],
@@ -403,6 +411,18 @@ describe('declaring', () => {
         'outside the physically plausible range',
       ),
     )
+  })
+})
+
+describe('the common spatial frame composition', () => {
+  it('renders the composition state and reason verbatim, read-only', async () => {
+    const { container } = await renderView()
+    const node = container.querySelector('[data-common-frame]')
+    expect(node?.getAttribute('data-state')).toBe('incomplete')
+    expect(node?.textContent).toContain('not every Phase 4 input is resolved yet')
+    // No declare control on the composition itself.
+    expect(node?.querySelector('button')).toBeNull()
+    expect(node?.querySelector('form')).toBeNull()
   })
 })
 

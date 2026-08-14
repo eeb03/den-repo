@@ -1202,10 +1202,25 @@ export interface SpatialDeclaration {
   active: boolean
 }
 
+/**
+ * Whether the Phase 4 inputs are each individually resolved -- NOT whether a
+ * common spatial frame has been computed. `state` is deliberately narrow:
+ * `incomplete` or `inputs_present`, never `available` / `declared` /
+ * `registered` / `ready`, none of which this ever asserts. Not a
+ * `SpatialDimension` and not one of `SpatialReference.dimensions` -- a
+ * statement about the seven dimensions, not an eighth one.
+ */
+export interface CommonFrameComposition {
+  state: string
+  reason: string
+  inputs: SpatialDimensionName[]
+}
+
 export interface SpatialReference {
   contract_version: string
   dataset_id: string
   dimensions: DimensionState[]
+  common_frame: CommonFrameComposition
   declarations: SpatialDeclaration[]
   has_stale_products: boolean
   stale_products: string[]
