@@ -18,7 +18,7 @@ from sqlalchemy import Column, DateTime, MetaData, String, Table, create_engine,
 from sqlalchemy.orm import sessionmaker
 
 from database.migrations import MIGRATIONS, applied_migrations, run_migrations
-from database.models import Dataset, ImportJob, User
+from database.models import Dataset, Device, ImportJob, User
 from database.session import Base
 
 
@@ -80,6 +80,53 @@ def test_a_pre_ownership_database_is_repaired(engine):
         assert len(rows) == 1
         assert rows[0].name == "existing survey"
         assert rows[0].owner_id is None
+
+
+def _legacy_devices_table(engine):
+    """The `devices` table exactly as migration 006 created it, before
+    `adapter` was a field on the model."""
+    meta = MetaData()
+    Table(
+        "devices",
+        meta,
+        *[
+            Column(c.name, c.type, primary_key=c.primary_key, nullable=c.nullable)
+            for c in Device.__table__.columns
+            if c.name != "adapter"
+        ],
+    )
+    meta.create_all(bind=engine)
+
+
+def test_a_pre_adapter_device_database_is_repaired(engine):
+    _legacy_devices_table(engine)
+    assert not _has_column(engine, "devices", "adapter")
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO devices (id, device_type, capabilities, identity_source, kind) "
+                "VALUES ('dev1', 'gpr', '{}', 'user_declared', 'physical')"
+            )
+        )
+
+    Session = sessionmaker(bind=engine)
+
+    # Before the migration the new model cannot read the old table at all.
+    with Session() as s, pytest.raises(Exception) as excinfo:
+        s.query(Device).all()
+    assert "adapter" in str(excinfo.value)
+
+    Base.metadata.create_all(bind=engine)     # brings in the other tables
+    run_migrations(engine)
+
+    # After it, the existing row is intact, readable, and its adapter is
+    # undeclared -- never filled in with file_drop.
+    with Session() as s:
+        rows = s.query(Device).all()
+        assert len(rows) == 1
+        assert rows[0].device_type == "gpr"
+        assert rows[0].adapter is None
 
 
 def _has_column(engine, table, column) -> bool:

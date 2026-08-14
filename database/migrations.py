@@ -250,6 +250,23 @@ def _ingest_options(engine: Engine) -> None:
         logger.info("migration 007: added import_jobs.ingest_options")
 
 
+def _device_adapter(engine: Engine) -> None:
+    """
+    008 — how a device's evidence is meant to arrive.
+
+    One additive nullable column on `devices`, which `create_all` cannot add
+    to a table that already exists (created by 006, before `adapter` was a
+    field on the model). Nullable and never defaulted: a device migrated in
+    place has an undeclared adapter, exactly as a device recorded before this
+    column existed actually is. Filling it in with `file_drop` would assert a
+    transport nobody declared.
+    """
+    if _has_table(engine, "devices") and not _has_column(engine, "devices", "adapter"):
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE devices ADD COLUMN adapter JSON"))
+        logger.info("migration 008: added devices.adapter")
+
+
 MIGRATIONS: list[Migration] = [
     Migration(
         id="001_dataset_owner_id",
@@ -285,6 +302,11 @@ MIGRATIONS: list[Migration] = [
         id="007_ingest_options",
         description="add ingest_options to import_jobs (user declarations about how to read a file)",
         apply=_ingest_options,
+    ),
+    Migration(
+        id="008_device_adapter",
+        description="add nullable devices.adapter (how a device's evidence is meant to arrive)",
+        apply=_device_adapter,
     ),
 ]
 
