@@ -80,6 +80,9 @@ def vocabulary():
             {"value": DeclarationKind.SURFACE_REFERENCE.value,
              "declares": "another dataset asserted to be this survey's surface model",
              "requires": ["surface_dataset_id"]},
+            {"value": DeclarationKind.ORIENTATION.value,
+             "declares": "antenna heading -- not a track bearing, not an IMU record",
+             "requires": ["heading_deg", "reference"]},
         ],
         "rules": [
             "a declaration is a CLAIM, recorded with its author; it is never a measurement",
@@ -89,6 +92,8 @@ def vocabulary():
             "a GeoTie writes registered_position and never overwrites the acquisition's own "
             "position",
             "linking a surface model does not make it usable; assess_surface decides that",
+            "an orientation declaration is a claim about antenna heading, never a track "
+            "bearing inferred from positions",
         ],
     }
 

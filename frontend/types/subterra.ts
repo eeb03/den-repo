@@ -1175,6 +1175,7 @@ export type DeclarationKind =
   | 'depth_conversion'
   | 'geo_tie'
   | 'surface_reference'
+  | 'orientation'
 
 export interface DimensionState {
   dimension: SpatialDimensionName

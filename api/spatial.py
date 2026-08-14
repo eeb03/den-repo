@@ -39,6 +39,7 @@ from schemas.spatial import (
     ControlPoint,
     CRSKind,
     CRSProvenance,
+    NorthReference,
     SpatialRef,
     VerticalDatum,
 )
@@ -280,6 +281,35 @@ def _validated_surface_reference(value: dict) -> dict:
     return {"surface_dataset_id": surface_id, "note": value.get("note")}
 
 
+def _validated_orientation(value: dict) -> dict:
+    """
+    A claim about antenna heading -- not a track bearing, not an IMU record.
+
+    NO DEFAULT REFERENCE. True, magnetic and grid north disagree by amounts
+    that vary with location and date, so a heading with an assumed reference
+    would misattribute that difference to the antenna.
+    """
+    raw_heading = _require(value.get("heading_deg"), "heading_deg")
+    try:
+        heading = float(raw_heading)
+    except (TypeError, ValueError):
+        raise DeclarationError(f"heading_deg {raw_heading!r} is not a number")
+    if heading != heading or abs(heading) == float("inf"):
+        raise DeclarationError("heading_deg is not finite")
+    if not 0.0 <= heading < 360.0:
+        raise DeclarationError("heading_deg must be within [0, 360)")
+
+    raw_reference = _require(value.get("reference"), "reference")
+    try:
+        reference = NorthReference(raw_reference)
+    except ValueError:
+        raise DeclarationError(
+            f"reference must be one of {', '.join(r.value for r in NorthReference)}, "
+            f"not {raw_reference!r}")
+
+    return {"heading_deg": heading, "reference": reference.value}
+
+
 _VALIDATORS = {
     DeclarationKind.CRS: _validated_crs,
     DeclarationKind.VERTICAL_DATUM: _validated_vertical_datum,
@@ -287,6 +317,7 @@ _VALIDATORS = {
     DeclarationKind.DEPTH_CONVERSION: _validated_depth_conversion,
     DeclarationKind.GEO_TIE: _validated_geo_tie,
     DeclarationKind.SURFACE_REFERENCE: _validated_surface_reference,
+    DeclarationKind.ORIENTATION: _validated_orientation,
 }
 
 
@@ -333,11 +364,25 @@ def _assumption_for(kind: DeclarationKind, value: dict, supplied_by: str) -> Ass
             f"{len(value.get('control_points') or [])} control point(s)",
         DeclarationKind.SURFACE_REFERENCE:
             f"surface model {value.get('surface_dataset_id')}",
+        DeclarationKind.ORIENTATION:
+            f"antenna heading {value.get('heading_deg')} deg from {value.get('reference')}",
     }[kind]
+    # ORIENTATION carries a structured {heading_deg, reference} value rather
+    # than the single-scalar `or`-chain below, for two reasons: neither field
+    # alone identifies the claim, and a heading of exactly 0.0 (due north) is
+    # a real, valid value that the `or`-chain would treat as falsy and skip.
+    # `assess_orientation` reads this dict back to name the heading verbatim.
+    if kind == DeclarationKind.ORIENTATION:
+        assumption_value: Any = {
+            "heading_deg": value.get("heading_deg"), "reference": value.get("reference"),
+        }
+    else:
+        assumption_value = (value.get("code") or value.get("velocity_m_per_ns")
+                            or value.get("offset_m") or value.get("surface_dataset_id")
+                            or supplied_by)
     return Assumption(
         key=f"declared_{kind.value}",
-        value=value.get("code") or value.get("velocity_m_per_ns")
-        or value.get("offset_m") or value.get("surface_dataset_id") or supplied_by,
+        value=assumption_value,
         basis=(f"SUPPLIED BY CALLER through the spatial reference workflow: {described}, "
                f"asserted by {supplied_by!r}. This is a declaration, not a measurement."),
         verified=False,
@@ -466,6 +511,14 @@ def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
         logger.info("geo tie registered %d record(s) in %s", registered, dataset_id)
 
     elif kind == DeclarationKind.SURFACE_REFERENCE:
+        changed = [f.frame_id for f in targets]
+
+    elif kind == DeclarationKind.ORIENTATION:
+        # A claim about antenna heading, not a track bearing and not an IMU
+        # record. Nothing structured on the frame describes an orientation --
+        # unlike CRS or the vertical axis, there is no dedicated field to
+        # write. The declaration lives entirely as the frame Assumption
+        # attached below, which `assess_orientation` reads back.
         changed = [f.frame_id for f in targets]
 
     attributed = set(changed) | {s["frame_id"] for s in axis_untouched}

@@ -323,6 +323,21 @@ class OriginReference(str, Enum):
     SENSOR_HOUSING = "sensor_housing"
 
 
+class NorthReference(str, Enum):
+    """
+    WHAT A DECLARED ANTENNA HEADING IS MEASURED FROM.
+
+    True, magnetic and grid north disagree with each other by amounts that
+    vary with location and date -- sometimes by tens of degrees -- so a
+    heading with no stated reference is not a usable claim, and defaulting one
+    silently would misattribute the difference to the antenna. No member of
+    this enum is the default; a declaration must name one.
+    """
+    TRUE_NORTH = "true_north"
+    MAGNETIC_NORTH = "magnetic_north"
+    GRID_NORTH = "grid_north"
+
+
 class OffsetEvidence(str, Enum):
     """
     WHERE an offset came from. Ordered by how much the world vouches for it.

@@ -43,6 +43,8 @@ const FIELDS: Record<
       hint?: string
       /** Renders a choice instead of free text, where the platform owns the vocabulary. */
       options?: { value: string; label: string }[]
+      /** The unselected option's own text, when `options` is set. */
+      selectPlaceholder?: string
       /** Omitted from the payload when left blank, rather than submitted empty. */
       optional?: boolean
     }[]
@@ -79,6 +81,7 @@ const FIELDS: Record<
           { value: 'vertical_axis', label: 'The frame’s vertical axis' },
           { value: 'acquisition_elevation', label: 'The acquisition elevation stored with each position' },
         ],
+        selectPlaceholder: 'choose which quantity this datum describes',
         hint:
           'The axis is what depth or elevation samples are on — for a GPR that is travel time from instrument time zero, which no geodetic datum describes. The acquisition elevation is the instrument’s own height, usually from GNSS.',
       },
@@ -155,6 +158,32 @@ const FIELDS: Record<
       'Linking is not validating. Whether the linked model can actually anchor anything is decided by its own frames — it needs an elevation axis and a declared vertical datum, and a DEM without them will be reported as unvalidated however confidently it was linked.',
     inputs: [
       { name: 'surface_dataset_id', label: 'Surface dataset ID', placeholder: 'a dataset id' },
+    ],
+  },
+  orientation: {
+    title: 'Declare the antenna heading',
+    explain:
+      'Which direction the antenna faced — not which direction the acquisition travelled. A line of positions implies a bearing; bearing is not orientation.',
+    consequence:
+      'Recorded as a claim, not a measurement: nothing here checks the number against anything. This does not come from an IMU and is not inferred from the track — declaring it here only records what somebody says the heading was.',
+    inputs: [
+      {
+        name: 'heading_deg',
+        label: 'Heading (degrees)',
+        placeholder: '47.0',
+        hint: '0 up to but not including 360',
+      },
+      {
+        name: 'reference',
+        label: 'Measured from',
+        options: [
+          { value: 'true_north', label: 'True north' },
+          { value: 'magnetic_north', label: 'Magnetic north' },
+          { value: 'grid_north', label: 'Grid north' },
+        ],
+        selectPlaceholder: 'choose what the heading is measured from',
+        hint: 'True, magnetic and grid north disagree by degrees to tens of degrees — there is no default.',
+      },
     ],
   },
 }
@@ -257,7 +286,7 @@ export function DeclarationForm({
               onChange={(e) => setValues({ ...values, [input.name]: e.target.value })}
               className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             >
-              <option value="">choose which quantity this datum describes</option>
+              <option value="">{input.selectPlaceholder ?? 'choose one'}</option>
               {input.options.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}

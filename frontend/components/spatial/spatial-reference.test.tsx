@@ -88,7 +88,7 @@ function reference(overrides: Partial<SpatialReference> = {}): SpatialReference 
         reason:
           'no frame declares an orientation, and none is inferred: a track bearing says where the acquisition went, not how the sensor was oriented',
         missing: ['an IMU record, or a declared antenna orientation'],
-        action: null,
+        action: 'orientation',
       }),
       dimension({
         dimension: 'survey_geometry',
@@ -155,8 +155,9 @@ describe('the seven dimensions', () => {
 
   it('offers an action only where a declaration can resolve it', async () => {
     const { container } = await renderView()
-    // Orientation is unresolved but no declaration fixes it — it needs an IMU.
-    expect(container.querySelector('[data-action="resolve-orientation"]')).toBeNull()
+    // Orientation is now declarable through the same workflow: a typed
+    // heading is a claim, same as a typed CRS.
+    expect(container.querySelector('[data-action="resolve-orientation"]')).toBeTruthy()
     expect(container.querySelector('[data-action="resolve-vertical_reference"]')).toBeTruthy()
   })
 })
@@ -173,7 +174,9 @@ describe('declaring', () => {
   it('prefills no scientific value anywhere', () => {
     // A default velocity or antenna height would be a fabricated measurement
     // wearing a placeholder's clothes.
-    for (const kind of ['depth_conversion', 'antenna_offset', 'crs', 'vertical_datum'] as const) {
+    for (const kind of [
+      'depth_conversion', 'antenna_offset', 'crs', 'vertical_datum', 'orientation',
+    ] as const) {
       const { container } = renderForm(kind)
       for (const input of container.querySelectorAll('input, textarea')) {
         expect((input as HTMLInputElement).value).toBe('')
@@ -316,6 +319,69 @@ describe('declaring', () => {
     const { container } = renderForm('crs')
     const consequence = container.querySelector('[data-consequence]')?.textContent ?? ''
     expect(consequence).toContain('does not verify a CRS against the coordinate values')
+  })
+
+  it('says an antenna heading is a claim, not an IMU record or a track bearing', () => {
+    const { container } = renderForm('orientation')
+    const consequence = container.querySelector('[data-consequence]')?.textContent ?? ''
+    expect(consequence).toContain('not a measurement')
+    expect(consequence).toContain('not inferred from the track')
+    expect(container.textContent).not.toMatch(/northeast|along-track/i)
+  })
+
+  it('preselects no reference for the declared heading', () => {
+    const { container } = renderForm('orientation')
+    const reference = container.querySelector('#orientation-reference') as HTMLSelectElement
+    expect(reference).toBeTruthy()
+    expect(reference.value).toBe('')
+    expect([...reference.options].map((o) => o.value)).toEqual(
+      expect.arrayContaining(['true_north', 'magnetic_north', 'grid_north']),
+    )
+  })
+
+  it('cannot be submitted without both a heading and a reference', () => {
+    const { container } = renderForm('orientation')
+    const submit = container.querySelector('[data-action="submit-declaration"]') as HTMLButtonElement
+    fireEvent.change(container.querySelector('#orientation-heading_deg')!, {
+      target: { value: '47.0' },
+    })
+    fireEvent.change(container.querySelector('#orientation-supplied-by')!, {
+      target: { value: 'field notes 2020' },
+    })
+    expect(submit.disabled).toBe(true)
+
+    fireEvent.change(container.querySelector('#orientation-reference')!, {
+      target: { value: 'true_north' },
+    })
+    expect(submit.disabled).toBe(false)
+  })
+
+  it('sends the declared heading and reference', async () => {
+    declareSpatialReference.mockResolvedValue({
+      declaration: {},
+      applied: { frames_changed: [] },
+      spatial_reference: reference(),
+    })
+    const { container } = renderForm('orientation')
+    fireEvent.change(container.querySelector('#orientation-heading_deg')!, {
+      target: { value: '47.0' },
+    })
+    fireEvent.change(container.querySelector('#orientation-reference')!, {
+      target: { value: 'true_north' },
+    })
+    fireEvent.change(container.querySelector('#orientation-supplied-by')!, {
+      target: { value: 'field notes 2020' },
+    })
+    fireEvent.submit(container.querySelector('form')!)
+
+    await waitFor(() =>
+      expect(declareSpatialReference).toHaveBeenCalledWith(
+        'd1',
+        'orientation',
+        { heading_deg: '47.0', reference: 'true_north' },
+        'field notes 2020',
+      ),
+    )
   })
 
   it('shows the backend refusal verbatim', async () => {

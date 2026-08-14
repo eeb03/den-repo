@@ -68,6 +68,8 @@ class DeclarationKind(str, Enum):
     GEO_TIE = "geo_tie"
     #: Another dataset asserted to be this survey's surface elevation model.
     SURFACE_REFERENCE = "surface_reference"
+    #: A claim about antenna heading -- not a track bearing, not an IMU record.
+    ORIENTATION = "orientation"
 
 
 class SpatialDimension(str, Enum):
@@ -546,6 +548,17 @@ def assess_surface(frames, surface_frames) -> DimensionState:
                   f"datum", provenance="declared_by_source", frames=usable)
 
 
+#: Keys `assess_orientation` accepts as an orientation declaration.
+#: `declared_orientation` is what `api.spatial._assumption_for` actually
+#: writes (the same `declared_{kind}` convention every other declaration
+#: uses); the other three are kept for whatever future writer -- an IMU
+#: importer, say -- names its assumption differently. The reader and the
+#: writer must agree, so a new writer key belongs here too.
+_ORIENTATION_ASSUMPTION_KEYS = (
+    "orientation", "heading", "antenna_orientation", "declared_orientation",
+)
+
+
 def assess_orientation(frames, records) -> DimensionState:
     """
     Whether the acquisition's heading is known.
@@ -553,23 +566,39 @@ def assess_orientation(frames, records) -> DimensionState:
     NOT INFERRED FROM POSITIONS. A line of geographic positions implies a
     bearing, but bearing is not orientation: it says where the cart went, not
     which way the antenna faced or how it was tilted. That needs an IMU or a
-    declaration, and neither exists here yet, so this reports `missing` rather
-    than quietly reporting a track bearing under an orientation label.
+    declaration -- Stage 8 now accepts the declaration
+    (`DeclarationKind.ORIENTATION`) but still infers nothing, so this reports
+    `missing` rather than quietly reporting a track bearing under an
+    orientation label.
+
+    THE REASON NAMES THE DECLARED HEADING VERBATIM, when one is a structured
+    `{heading_deg, reference}` claim -- "47.0" and "true_north", never
+    "northeast" or "along-track". An assumption written by some other future
+    source, with a free-text value, still counts as declared but cannot be
+    named this precisely.
     """
     D = SpatialDimension.ORIENTATION
-    declared = [
-        f.frame_id for f in frames
-        if any(a.key in ("orientation", "heading", "antenna_orientation")
-               for a in getattr(f, "assumptions", []) or [])
-    ]
+    declared: list[str] = []
+    headings: list[str] = []
+    for f in frames:
+        for a in getattr(f, "assumptions", []) or []:
+            if a.key not in _ORIENTATION_ASSUMPTION_KEYS:
+                continue
+            declared.append(f.frame_id)
+            if isinstance(a.value, dict) and "heading_deg" in a.value:
+                headings.append(f"{a.value['heading_deg']} deg from {a.value.get('reference')}")
+            break
+
     if declared:
-        return _state(D, "available", "orientation is declared on the frame",
+        reason = (f"orientation is declared: {', '.join(sorted(set(headings)))}"
+                  if headings else "orientation is declared on the frame")
+        return _state(D, "available", reason,
                       provenance="supplied_by_caller", frames=declared)
     return _state(D, "missing",
                   "no frame declares an orientation, and none is inferred: a track bearing "
                   "says where the acquisition went, not how the sensor was oriented",
                   ["an IMU record, or a declared antenna orientation"],
-                  provenance="unavailable")
+                  action=DeclarationKind.ORIENTATION, provenance="unavailable")
 
 
 def assess_geometry(frames, records) -> DimensionState:

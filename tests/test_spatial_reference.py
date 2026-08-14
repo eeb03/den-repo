@@ -430,6 +430,47 @@ def test_a_two_point_tie_is_usable_but_never_verified():
     assert value["rms_residual_m"] is None
 
 
+def test_an_orientation_declaration_requires_a_heading_and_a_reference():
+    with pytest.raises(service.DeclarationError):
+        service.validate_declaration(DeclarationKind.ORIENTATION, {})
+    with pytest.raises(service.DeclarationError):
+        service.validate_declaration(DeclarationKind.ORIENTATION, {"heading_deg": 47.0})
+    with pytest.raises(service.DeclarationError) as exc:
+        service.validate_declaration(
+            DeclarationKind.ORIENTATION, {"heading_deg": 47.0, "reference": "moon_north"})
+    assert "reference must be one of" in str(exc.value)
+
+
+def test_an_orientation_heading_has_no_default_reference():
+    """True, magnetic and grid north disagree by amounts that vary with
+    location and date; assuming one would misattribute the difference."""
+    with pytest.raises(service.DeclarationError):
+        service.validate_declaration(DeclarationKind.ORIENTATION, {"heading_deg": 0.0})
+
+
+def test_an_orientation_heading_must_be_a_compass_bearing():
+    with pytest.raises(service.DeclarationError):
+        service.validate_declaration(
+            DeclarationKind.ORIENTATION, {"heading_deg": 360.0, "reference": "true_north"})
+    with pytest.raises(service.DeclarationError):
+        service.validate_declaration(
+            DeclarationKind.ORIENTATION, {"heading_deg": -1.0, "reference": "true_north"})
+
+    value = service.validate_declaration(
+        DeclarationKind.ORIENTATION, {"heading_deg": 0.0, "reference": "grid_north"})
+    assert value == {"heading_deg": 0.0, "reference": "grid_north"}
+
+
+def test_orientation_is_recorded_as_a_claim_not_a_measurement():
+    assumption = service._assumption_for(
+        DeclarationKind.ORIENTATION, {"heading_deg": 47.0, "reference": "true_north"},
+        "field notes 2020")
+    assert assumption.key == "declared_orientation"
+    assert assumption.value == {"heading_deg": 47.0, "reference": "true_north"}
+    assert assumption.verified is False
+    assert "declaration, not a measurement" in assumption.basis
+
+
 # ---------------------------------------------------------------------------
 # the API
 # ---------------------------------------------------------------------------
@@ -503,6 +544,13 @@ def test_the_spatial_endpoint_reports_every_dimension(env):
         assert dimension["reason"]
 
 
+def test_the_vocabulary_names_the_orientation_declaration(env):
+    client = signed_in()
+    body = client.get("/api/spatial/vocabulary").json()
+    kinds = {k["value"] for k in body["declaration_kinds"]}
+    assert DeclarationKind.ORIENTATION.value in kinds
+
+
 def test_declaring_a_vertical_datum_moves_the_question_to_the_depth_origin(env):
     """
     Stage 12 corrected this. A datum alone used to resolve the dimension, but a
@@ -535,6 +583,57 @@ def test_declaring_a_vertical_datum_moves_the_question_to_the_depth_origin(env):
     assert resolved.status_code == 201
     assert _state(resolved.json()["spatial_reference"], "vertical_reference") == "declared"
     assert _state(client.get("/api/spatial/d").json(), "vertical_reference") == "declared"
+
+
+def test_declaring_an_orientation_resolves_the_dimension_and_names_it_verbatim(env):
+    Session, _ = env
+    client = signed_in()
+    seed(Session, client)
+
+    before = client.get("/api/spatial/d").json()
+    assert _state(before, "orientation") == "missing"
+    orientation = next(d for d in before["dimensions"] if d["dimension"] == "orientation")
+    assert orientation["action"] == DeclarationKind.ORIENTATION.value
+
+    response = declare(client, "d", DeclarationKind.ORIENTATION,
+                       {"heading_deg": 47.0, "reference": "true_north"})
+    assert response.status_code == 201
+    after = response.json()["spatial_reference"]
+    assert _state(after, "orientation") == "available"
+    reason = next(d for d in after["dimensions"] if d["dimension"] == "orientation")["reason"]
+    # Named verbatim -- the number and the reference, never a compass word
+    # and never "along-track" or "bearing".
+    assert "47.0" in reason
+    assert "true_north" in reason
+    assert "northeast" not in reason.lower()
+    assert "bearing" not in reason.lower()
+
+    assert _state(client.get("/api/spatial/d").json(), "orientation") == "available"
+
+
+def test_geographic_positions_alone_do_not_declare_an_orientation(env):
+    """A line of positions implies a bearing, not an orientation -- the two
+    are different questions, and this dimension answers the second one."""
+    Session, _ = env
+    client = signed_in()
+    seed(Session, client)
+
+    assert _state(client.get("/api/spatial/d").json(), "orientation") == "missing"
+
+
+def test_an_orientation_declaration_does_not_touch_the_other_dimensions(env):
+    Session, _ = env
+    client = signed_in()
+    seed(Session, client)
+
+    before = client.get("/api/spatial/d").json()
+    response = declare(client, "d", DeclarationKind.ORIENTATION,
+                       {"heading_deg": 90.0, "reference": "magnetic_north"})
+    after = response.json()["spatial_reference"]
+
+    for dimension in ("horizontal_position", "crs", "vertical_reference",
+                      "depth_conversion", "surface_reference", "survey_geometry"):
+        assert _state(before, dimension) == _state(after, dimension)
 
 
 def _state(body, dimension):
