@@ -36,6 +36,7 @@ from schemas.dataset_report import (
     build_vertical,
     build_volume,
 )
+from schemas.provenance import LOCAL_ANOMALY_BASIS
 from schemas.spatial import (
     Assumption,
     AxisKind,
@@ -680,6 +681,85 @@ def test_the_signal_chain_endpoint_and_the_report_still_agree_with_a_time_zero_c
     report = api.get("/api/datasets/ds1/report").json()
     assert thin == report["signal_chain"]
     assert thin["steps"][0]["step"] == "time_zero"
+
+
+# ---------------------------------------------------------------------------
+# the local_anomaly step: only when preprocess_trace_local_anomaly actually
+# overwrote record.signal with a z-score, never invented, reason shared
+# verbatim with the provenance projection
+# ---------------------------------------------------------------------------
+
+_APPLIED = {
+    "dewow": True, "dewow_window": 15, "background_removal": True,
+    "gain": True, "gain_type": "linear", "gain_power": 1.0,
+}
+
+
+def test_anomaly_reliable_appends_local_anomaly_last_ran_true_reason_verbatim():
+    local_anomaly = {"anomaly_reliable": True, "pre_anomaly_signal": 0.42,
+                      "trace_depth_grid_shape": [482, 72]}
+    chain = build_signal_chain(_APPLIED, [frame()], local_anomaly)
+
+    assert [s.step for s in chain.steps] == \
+        ["time_zero", "background_removal", "dewow", "gain", "local_anomaly"]
+    last = chain.steps[-1]
+    assert last.ran is True
+    assert last.reason == LOCAL_ANOMALY_BASIS
+    assert "not a physical unit" in last.reason
+    assert last.parameters == {"trace_depth_grid_shape": [482, 72]}
+    # The raw per-record amplitude is not summarised at chain level -- there
+    # is no single "the" value across every record.
+    assert "pre_anomaly_signal" not in last.parameters
+
+
+def test_anomaly_reliable_false_still_means_the_step_ran():
+    """`anomaly_reliable=False` says a CELL had too few ring neighbours, not
+    that the step never ran -- presence of the key is what matters."""
+    local_anomaly = {"anomaly_reliable": False}
+    chain = build_signal_chain(_APPLIED, [frame()], local_anomaly)
+    last = chain.steps[-1]
+    assert last.step == "local_anomaly"
+    assert last.ran is True
+
+
+def test_no_anomaly_reliable_stamp_does_not_grow_a_local_anomaly_step():
+    chain = build_signal_chain(_APPLIED, [frame()], None)
+    assert [s.step for s in chain.steps] == \
+        ["time_zero", "background_removal", "dewow", "gain"]
+
+
+def test_anomaly_reliable_alone_makes_recorded_true_with_only_time_zero_and_local_anomaly():
+    """process_gpr_traces never ran (no processing_applied), but
+    preprocess_trace_local_anomaly did -- gpr_local_anomaly mode."""
+    local_anomaly = {"anomaly_reliable": True}
+    chain = build_signal_chain(None, [frame()], local_anomaly)
+
+    assert chain.recorded is True
+    assert [s.step for s in chain.steps] == ["time_zero", "local_anomaly"]
+    assert chain.steps[0].ran is False       # time_zero: no evidence either way
+    assert chain.steps[1].ran is True        # local_anomaly: it ran
+
+
+def test_no_processing_applied_no_time_zero_and_no_anomaly_stamp_stays_not_recorded():
+    chain = build_signal_chain(None, [frame()], None)
+    assert chain.recorded is False
+    assert chain.steps == []
+
+
+def test_the_signal_chain_endpoint_and_the_report_agree_with_an_anomaly_stamp(api, stored):
+    from database.records_store import save_records
+
+    records = geographic_records(3)
+    for r in records:
+        r.metadata["anomaly_reliable"] = True
+        r.metadata["trace_depth_grid_shape"] = [10, 3]
+    save_records("ds1", records)
+
+    thin = api.get("/api/datasets/ds1/signal-chain").json()
+    report = api.get("/api/datasets/ds1/report").json()
+    assert thin == report["signal_chain"]
+    assert thin["steps"][-1]["step"] == "local_anomaly"
+    assert thin["steps"][-1]["reason"] == LOCAL_ANOMALY_BASIS
 
 
 # ---------------------------------------------------------------------------

@@ -159,3 +159,61 @@ describe('the recorded chain, rendered verbatim', () => {
     expect(container.querySelector('input')).toBeNull()
   })
 })
+
+describe('the local_anomaly step', () => {
+  it('is appended last, ran, and never presents the z-score as amplitude', async () => {
+    getSignalChain.mockResolvedValue(
+      recorded({
+        steps: [
+          ...recorded().steps,
+          {
+            step: 'local_anomaly', ran: true,
+            parameters: { trace_depth_grid_shape: [482, 72] },
+            reason: 'ring-based local anomaly z-score, a statistic derived from the '
+              + 'processed amplitude -- not a physical unit',
+          },
+        ],
+      }),
+    )
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-signal-chain]')).toBeTruthy())
+    const steps = container.querySelectorAll('[data-step]')
+    expect(Array.from(steps).map((s) => s.getAttribute('data-step'))).toEqual([
+      'time_zero', 'background_removal', 'dewow', 'gain', 'local_anomaly',
+    ])
+    const localAnomaly = container.querySelector('[data-step="local_anomaly"]')
+    expect(localAnomaly?.getAttribute('data-ran')).toBe('true')
+    expect(localAnomaly?.textContent).toContain('not a physical unit')
+    expect(localAnomaly?.textContent).toContain('trace_depth_grid_shape')
+  })
+
+  it('is omitted entirely when no anomaly_reliable stamp exists', async () => {
+    getSignalChain.mockResolvedValue(recorded())
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-signal-chain]')).toBeTruthy())
+    expect(container.querySelector('[data-step="local_anomaly"]')).toBeNull()
+    const steps = container.querySelectorAll('[data-step]')
+    expect(Array.from(steps).map((s) => s.getAttribute('data-step'))).toEqual([
+      'time_zero', 'background_removal', 'dewow', 'gain',
+    ])
+  })
+
+  it('still offers no reprocess or edit control when local_anomaly is present', async () => {
+    getSignalChain.mockResolvedValue(
+      recorded({
+        steps: [
+          ...recorded().steps,
+          { step: 'local_anomaly', ran: true, parameters: {}, reason: 'not a physical unit' },
+        ],
+      }),
+    )
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-signal-chain]')).toBeTruthy())
+    expect(container.querySelector('button')).toBeNull()
+    expect(container.querySelector('form')).toBeNull()
+    expect(container.querySelector('input')).toBeNull()
+  })
+})

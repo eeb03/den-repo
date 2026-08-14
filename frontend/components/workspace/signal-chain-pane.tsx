@@ -11,6 +11,7 @@ const STEP_LABEL: Record<string, string> = {
   background_removal: 'Background removal',
   dewow: 'Dewow',
   gain: 'Gain',
+  local_anomaly: 'Local anomaly (z-score)',
 }
 
 function formatParameters(parameters: Record<string, unknown>): string | null {
@@ -24,13 +25,13 @@ function formatParameters(parameters: Record<string, unknown>): string | null {
  * The Phase 5 recorded signal-processing chain, from
  * `GET /api/datasets/{id}/signal-chain`.
  *
- * READ, NOT RE-RUN. `time_zero` / `background_removal` / `dewow` / `gain`,
- * in that order -- never a client-side default chain. `ran` and
- * `parameters` are read verbatim from the stored `processing_applied` entry
- * or, for `time_zero`, a converter's own recorded claim; a step this
- * dataset's records never carried is not invented, and a step that ran with
- * no recorded parameter (the boolean-only `background_removal`) shows none
- * rather than a guess.
+ * READ, NOT RE-RUN. `time_zero` / `background_removal` / `dewow` / `gain` /
+ * `local_anomaly`, in that order -- never a client-side default chain.
+ * `ran` and `parameters` are read verbatim from the stored
+ * `processing_applied` entry, a converter's own recorded time-zero claim, or
+ * the local-anomaly stamp; a step this dataset's records never carried is
+ * not invented, and a step that ran with no recorded parameter (the
+ * boolean-only `background_removal`) shows none rather than a guess.
  *
  * `time_zero` is always the first step once the chain is recorded, even
  * when nothing else is known -- it is a property of the acquisition, not of
@@ -38,6 +39,14 @@ function formatParameters(parameters: Record<string, unknown>): string | null {
  * recorded and withheld a time-zero offset, or nothing about one was
  * recorded at all; either way `ran` stays false, because Subterra applies
  * no time-zero correction.
+ *
+ * `local_anomaly` is the opposite: it is OMITTED entirely unless
+ * `preprocess_trace_local_anomaly` actually ran (that step overwrites
+ * `record.signal` with a ring-statistic z-score). When present it is
+ * `ran: true` with a `reason` stating plainly that this is a derived
+ * statistic, not a physical unit -- the same sentence the provenance
+ * projection gives this quantity, so a chain that includes this step cannot
+ * be mistaken for one still showing gained amplitude.
  *
  * DELIBERATELY A SEPARATE, THIN CALL FROM THE DATASET REPORT. The report is
  * slow to build on a dataset of any size; this pane loads on every dataset

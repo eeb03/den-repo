@@ -41,6 +41,16 @@ from schemas.spatial import (
 )
 
 
+#: What `preprocess_trace_local_anomaly` leaves in `record.signal` once it has
+#: run -- shared verbatim with `schemas.dataset_report.build_signal_chain` so
+#: the provenance pane and the signal chain cannot describe the same
+#: overwritten samples in two different sentences.
+LOCAL_ANOMALY_BASIS = (
+    "ring-based local anomaly z-score, a statistic derived from the "
+    "processed amplitude -- not a physical unit"
+)
+
+
 class ProvenanceClass(str, Enum):
     MEASURED = "measured"
     DECLARED_BY_SOURCE = "declared_by_source"
@@ -207,9 +217,7 @@ def record_provenance(record, frame=None) -> list[QuantityProvenance]:
 
     # --- signal ---
     if meta.get("anomaly_reliable") is not None:
-        out.append(_q("signal", ProvenanceClass.DERIVED,
-                      "ring-based local anomaly z-score, a statistic derived from the "
-                      "processed amplitude -- not a physical unit",
+        out.append(_q("signal", ProvenanceClass.DERIVED, LOCAL_ANOMALY_BASIS,
                       verified=bool(meta.get("anomaly_reliable")),
                       source="preprocess_trace_local_anomaly"))
     elif meta.get("processing_applied"):

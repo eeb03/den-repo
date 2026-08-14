@@ -155,6 +155,19 @@ def _processing_applied(records) -> Optional[dict]:
     return (sample.metadata or {}).get("processing_applied") if sample else None
 
 
+def _local_anomaly_stamp(records) -> Optional[dict]:
+    """
+    The metadata dict of the first record `preprocess_trace_local_anomaly`
+    touched (`anomaly_reliable` present, even `False`, is the presence
+    signal), or None. The single reader for this value -- both
+    `build_signal_chain` and `schemas.provenance.frame_provenance` read
+    `anomaly_reliable` off record metadata, so this does not add a second
+    definition of "did local anomaly run", only a shared lookup for it.
+    """
+    sample = next((r for r in records if (r.metadata or {}).get("anomaly_reliable") is not None), None)
+    return sample.metadata if sample else None
+
+
 def _processing_stages(dataset, records, frames, applied: Optional[dict]) -> list[ProcessingStage]:
     """
     What actually happened to this dataset, read from stored evidence.
@@ -378,6 +391,7 @@ def build_dataset_report(dataset, *, now: Optional[datetime] = None) -> DatasetR
 
     candidates = _candidate_summary(dataset_id)
     applied = _processing_applied(records)
+    local_anomaly = _local_anomaly_stamp(records)
 
     return DatasetReport(
         generated_at=now or datetime.utcnow(),
@@ -385,7 +399,7 @@ def build_dataset_report(dataset, *, now: Optional[datetime] = None) -> DatasetR
         volume=volume,
         spatial=SpatialReport(horizontal=horizontal, vertical=vertical, geometry=geometry),
         processing=_processing_stages(dataset, records, frames, applied),
-        signal_chain=build_signal_chain(applied, frames),
+        signal_chain=build_signal_chain(applied, frames, local_anomaly),
         quality=quality,
         candidates=candidates,
         readiness=assess_readiness(volume, horizontal, vertical, quality, candidates),

@@ -1323,22 +1323,22 @@ def get_dataset_acquisition(dataset_id: str, db: Session = Depends(get_db),
 def get_dataset_signal_chain(dataset_id: str, db: Session = Depends(get_db),
     _dataset=Depends(require_dataset_access)):
     """
-    The recorded Phase 5 signal-processing chain, read straight from
-    `processing_applied` on this dataset's records -- never re-run.
+    The recorded Phase 5 signal-processing chain, read straight from stored
+    evidence on this dataset's records and frames -- never re-run.
 
     A THIN ROUTE, DELIBERATELY SEPARATE FROM `/report`. The full report is
     known to take tens of seconds to build on a dataset of any size (quality
     scoring and candidate staleness walk every record); the workspace shows
     this chain on every dataset open, the same way it shows acquisition and
     spatial readiness, so it cannot wait on that. This route does only what
-    the chain needs: load the records, read the one field, hand it to the
-    same `build_signal_chain` the full report also calls, so the two can
-    never disagree about what ran.
+    the chain needs: load the records and frames, read the same handful of
+    fields, hand them to the same `build_signal_chain` the full report also
+    calls, so the two can never disagree about what ran.
     """
     if not db.query(Dataset).filter(Dataset.id == dataset_id).first():
         raise HTTPException(status_code=404, detail="Dataset not found")
 
-    from api.reports import _processing_applied
+    from api.reports import _local_anomaly_stamp, _processing_applied
     from database.frames_store import load_frames, synthesize_frames_from_records
     from database.records_store import load_records
     from schemas.dataset_report import build_signal_chain
@@ -1346,7 +1346,9 @@ def get_dataset_signal_chain(dataset_id: str, db: Session = Depends(get_db),
     records = load_records(dataset_id)
     frames = load_frames(dataset_id) or (
         synthesize_frames_from_records(records) if records else [])
-    return build_signal_chain(_processing_applied(records), frames).model_dump(mode="json")
+    return build_signal_chain(
+        _processing_applied(records), frames, _local_anomaly_stamp(records),
+    ).model_dump(mode="json")
 
 
 @router.get("/{dataset_id}/report")

@@ -45,22 +45,26 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-from schemas.provenance import ProvenanceClass, QuantityProvenance
+from schemas.provenance import LOCAL_ANOMALY_BASIS, ProvenanceClass, QuantityProvenance
 from schemas.spatial import AxisKind, CRSKind, CRSProvenance, PositionKind, along_track_extents_m
 
 #: Bumped when the SHAPE of the report changes, so a consumer that stored one
 #: can tell whether it is still reading what it thinks it is.
 REPORT_VERSION = "1.1"
 
-#: The order the recorded signal chain is reported in. `time_zero` comes
-#: first because it is a property of the acquisition itself (whatever a
-#: converter recorded about it, or the fact nothing was), independent of
-#: whether `process_gpr_traces` has run at all. The other three are the order
-#: `process_gpr_traces` actually applies them in: background removal needs
-#: every trace in the line at once, then dewow and gain run per trace. Naming
-#: this once here is what lets `build_signal_chain` report the chain in the
-#: order it really ran, rather than a client re-guessing it from an unordered
-#: dict.
+#: The order the four ALWAYS-ATTEMPTED chain steps are reported in.
+#: `time_zero` comes first because it is a property of the acquisition
+#: itself (whatever a converter recorded about it, or the fact nothing was),
+#: independent of whether `process_gpr_traces` has run at all. The other
+#: three are the order `process_gpr_traces` actually applies them in:
+#: background removal needs every trace in the line at once, then dewow and
+#: gain run per trace. Naming this once here is what lets `build_signal_chain`
+#: report the chain in the order it really ran, rather than a client
+#: re-guessing it from an unordered dict.
+#:
+#: `local_anomaly` (see `_local_anomaly_step`) is NOT in this tuple: unlike
+#: these four, it is not a property of every GPR record -- it is appended
+#: last, only when `preprocess_trace_local_anomaly` has actually run.
 SIGNAL_CHAIN_STEP_ORDER: tuple[str, ...] = ("time_zero", "background_removal", "dewow", "gain")
 
 #: The survey-frame assumption key a converter stamps when it records a
@@ -806,19 +810,49 @@ def _time_zero_step(applied: Optional[dict], claim: Optional[Any]) -> SignalProc
                "time-zero claim was recorded for this dataset's frames")
 
 
-def build_signal_chain(applied: Optional[dict], frames=None) -> SignalProcessingChain:
+def _local_anomaly_step(local_anomaly: Optional[dict]) -> Optional[SignalProcessingStep]:
+    """
+    `local_anomaly` is the metadata dict of the first record
+    `preprocess_trace_local_anomaly` touched, or None -- `anomaly_reliable`
+    being present (even `False`) is the presence signal that it ran at all;
+    its value says only whether THAT record's cell had enough ring
+    neighbours, not whether the step ran.
+
+    Returns None (step omitted entirely) when it never ran -- unlike
+    `time_zero`, this is not a property of every GPR record, and a chain
+    that ends at `gain` correctly means the stored samples are still
+    whatever `process_gpr_traces` left. `reason` reuses
+    `schemas.provenance.LOCAL_ANOMALY_BASIS` verbatim -- the same sentence
+    the provenance projection gives this quantity, so a viewer reading the
+    signal chain and a viewer reading provenance are told the same fact.
+    """
+    if local_anomaly is None:
+        return None
+    parameters: dict[str, Any] = {}
+    if local_anomaly.get("trace_depth_grid_shape") is not None:
+        parameters["trace_depth_grid_shape"] = local_anomaly["trace_depth_grid_shape"]
+    return SignalProcessingStep(
+        step="local_anomaly", ran=True, parameters=parameters, reason=LOCAL_ANOMALY_BASIS)
+
+
+def build_signal_chain(
+    applied: Optional[dict], frames=None, local_anomaly: Optional[dict] = None,
+) -> SignalProcessingChain:
     """
     `applied` is the `processing_applied` dict already read off a record's
     metadata by the caller (`api.reports._processing_applied`) -- the same
     dict the `preprocessing` `ProcessingStage` reads, so the two cannot
     disagree about what ran. `frames` supplies the survey frames a converter
     may have stamped a time-zero claim onto (see `TIME_ZERO_ASSUMPTION_KEY`).
+    `local_anomaly` is the first record's metadata dict carrying
+    `anomaly_reliable`, if any (`api.reports._local_anomaly_stamp`).
     PURE: reads only what is passed in, re-runs nothing, invents nothing.
     """
     frames = frames or []
     claim = _time_zero_claim(frames)
+    local_anomaly_step = _local_anomaly_step(local_anomaly)
 
-    if not applied and claim is None:
+    if not applied and claim is None and local_anomaly_step is None:
         return SignalProcessingChain(
             recorded=False,
             reason="no record carries a processing_applied entry -- preprocessing "
@@ -827,14 +861,25 @@ def build_signal_chain(applied: Optional[dict], frames=None) -> SignalProcessing
     time_zero_step = _time_zero_step(applied, claim)
 
     if not applied:
-        # A time-zero claim exists, but process_gpr_traces has not stamped
-        # anything -- the other three steps have no evidence to report.
+        # Only whichever of a time-zero claim / a local-anomaly stamp exist;
+        # process_gpr_traces has not stamped anything, so background
+        # removal, dewow and gain have no evidence to report.
+        parts = []
+        if claim is not None:
+            parts.append("a time-zero claim")
+        if local_anomaly_step is not None:
+            parts.append("a local-anomaly z-score")
+        named = " and ".join(parts)
+        steps = [time_zero_step]
+        if local_anomaly_step is not None:
+            steps.append(local_anomaly_step)
         return SignalProcessingChain(
             recorded=True,
-            reason="a time-zero claim is recorded for this dataset's frames; "
-                   "process_gpr_traces has not stamped a processing_applied entry, "
-                   "so background removal, dewow and gain are not reported",
-            steps=[time_zero_step])
+            reason=(
+                f"{named} {'is' if len(parts) == 1 else 'are'} recorded for this "
+                f"dataset; process_gpr_traces has not stamped a processing_applied "
+                f"entry, so background removal, dewow and gain are not reported"),
+            steps=steps)
 
     steps = [time_zero_step]
     for name in SIGNAL_CHAIN_STEP_ORDER[1:]:
@@ -848,6 +893,8 @@ def build_signal_chain(applied: Optional[dict], frames=None) -> SignalProcessing
             if applied.get("gain_power") is not None:
                 parameters["gain_power"] = applied["gain_power"]
         steps.append(SignalProcessingStep(step=name, ran=ran, parameters=parameters))
+    if local_anomaly_step is not None:
+        steps.append(local_anomaly_step)
 
     return SignalProcessingChain(
         recorded=True,
