@@ -571,11 +571,14 @@ function SessionView({
           {session.state === 'READY' || session.state === 'ACQUIRING' ? (
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
               This session can receive acquisitions. Import a file from{' '}
-              <Link href="/import" className="text-primary underline-offset-4 hover:underline">
+              <Link
+                href={`/import?session=${encodeURIComponent(session.id)}`}
+                className="text-primary underline-offset-4 hover:underline"
+              >
                 Import
               </Link>{' '}
               — a session produces evidence through the same acquisition boundary a
-              dropped file does.
+              dropped file does, attributed to this session.
             </p>
           ) : null}
 

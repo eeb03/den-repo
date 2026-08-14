@@ -435,6 +435,7 @@ export const api = {
     file: File,
     sensorType: string,
     review = false,
+    sessionId?: string,
   ): Promise<{ job: ImportJob }> {
     const form = new FormData()
     form.append('file', file)
@@ -443,6 +444,11 @@ export const api = {
     // arrived before anything is ingested. Defaulting to false keeps the
     // original immediate behaviour for callers that never asked for a review.
     form.append('review', String(review))
+    // Attributes this acquisition to a device session -- Stage 10's
+    // convergence with FileDrop. Omitted entirely (not sent as an empty
+    // string) when there is no session, so an ordinary drop still produces
+    // session_id: null on the backend rather than an empty-string claim.
+    if (sessionId) form.append('session_id', sessionId)
     // No content-type header: the browser must set the multipart boundary.
     return request('/api/imports', { method: 'POST', body: form })
   },

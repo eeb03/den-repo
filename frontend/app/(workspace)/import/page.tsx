@@ -1,17 +1,21 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { Suspense, useCallback, useRef, useState } from 'react'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { FileUp, Upload } from 'lucide-react'
 import { AppHeader } from '@/components/shell/app-header'
 import { Panel, PanelBody, PanelHeader } from '@/components/subterra/panel'
+import { QueryState } from '@/components/subterra/query-state'
 import { StateBox } from '@/components/subterra/state-box'
 import { AcquisitionReview } from '@/components/import/acquisition-review'
 import { buttonVariants } from '@/components/ui/button'
 import { FormatVerdict, classify, type Verdict } from '@/components/import/format-check'
 import { ImportFailure, ImportReport } from '@/components/import/import-report'
 import { JobState, StageTrack } from '@/components/import/job-progress'
-import { useImportFormats, useImportJob } from '@/hooks/use-subterra'
+import { useImportFormats, useImportJob, useSession } from '@/hooks/use-subterra'
 import { api, ApiError } from '@/services/api'
+import { NO_VALUE } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { ImportJob } from '@/types/subterra'
 
@@ -29,6 +33,22 @@ import type { ImportJob } from '@/types/subterra'
 const SENSOR_TYPES = ['gpr', 'lidar', 'seismic', 'magnetometer', 'satellite', 'other']
 
 export default function ImportPage() {
+  // Suspense because the page reads the session id from the query string.
+  return (
+    <Suspense>
+      <ImportPageContent />
+    </Suspense>
+  )
+}
+
+function ImportPageContent() {
+  // `?session=<id>` is Stage 10's convergence with FileDrop: a device
+  // session's "Import" link carries its id here so the acquisition this page
+  // produces is attributed to that session rather than landing as an
+  // ordinary, unattributed drop. Bare /import (no param) is unchanged.
+  const sessionId = useSearchParams().get('session') ?? undefined
+  const { data: session, error: sessionError, isLoading: sessionLoading } =
+    useSession(sessionId)
   const { data: formats, error: formatsError, isLoading } = useImportFormats()
   const [file, setFile] = useState<File | null>(null)
   const [sensorType, setSensorType] = useState('gpr')
@@ -63,17 +83,19 @@ export default function ImportPage() {
       // review=true: the acquisition stops at the boundary and reports what
       // arrived, so the decision to spend an ingestion is made by somebody who
       // has been told what the file is.
-      const { job: created } = await api.createImport(file, sensorType, true)
+      const { job: created } = await api.createImport(file, sensorType, true, sessionId)
       setJobId(created.id)
       setHeld(created)
     } catch (err) {
+      // The backend's own refusal, verbatim -- e.g. a session that has ended
+      // (409) or one that is not yours (404). No new refusal vocabulary here.
       setSubmitError(
         err instanceof ApiError ? err.detail : `upload failed: ${String(err)}`,
       )
     } finally {
       setSubmitting(false)
     }
-  }, [file, sensorType])
+  }, [file, sensorType, sessionId])
 
   // A job that was refused at the format gate comes back already FAILED.
   const shown: ImportJob | undefined = job ?? held ?? undefined
@@ -91,6 +113,56 @@ export default function ImportPage() {
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
         <div className="mx-auto max-w-4xl space-y-4">
+          {/*
+            THE ATTRIBUTION, STATED ONCE, UP FRONT. A session declares no
+            evidence at creation, and a file dropped here without this banner
+            would look identical to an ordinary drop -- the whole point of
+            carrying `session_id` through is that it does not. This is not a
+            connection or a permission check: any open session may still
+            receive an acquisition even with no declared adapter, and a
+            closed one is refused by the backend at submit time, in its own
+            words, via the ordinary error path below.
+          */}
+          {sessionId && (
+            <Panel>
+              <PanelBody>
+                <QueryState
+                  isLoading={sessionLoading}
+                  error={sessionError}
+                  absenceTitle="Session unavailable"
+                  errorTitle="Could not load the session"
+                  skeletonRows={1}
+                />
+                {session && (
+                  <div
+                    data-session-attribution
+                    className="flex flex-wrap items-center gap-x-2 gap-y-1"
+                  >
+                    <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-prov-measured">
+                      Attributed to session
+                    </span>
+                    <span className="text-sm text-foreground">
+                      {[session.device?.manufacturer, session.device?.model]
+                        .filter(Boolean)
+                        .join(' ') ||
+                        session.device?.device_type ||
+                        NO_VALUE}
+                    </span>
+                    <span className="font-mono text-[11px] text-muted-foreground">
+                      ({session.session.state})
+                    </span>
+                    <Link
+                      href="/import"
+                      className="ml-auto text-xs text-primary underline-offset-4 hover:underline"
+                    >
+                      Import without a session
+                    </Link>
+                  </div>
+                )}
+              </PanelBody>
+            </Panel>
+          )}
+
           {shown?.state === 'SUCCEEDED' && shown.dataset_id ? (
             <Panel>
               <PanelBody>

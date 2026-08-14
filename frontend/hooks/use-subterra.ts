@@ -61,6 +61,14 @@ export function useCandidates(datasetId: string | undefined) {
   )
 }
 
+export function useSession(sessionId: string | undefined) {
+  return useSWR(
+    sessionId ? ['session', sessionId] : null,
+    () => api.getSession(sessionId as string),
+    options,
+  )
+}
+
 export function useDevices() {
   return useSWR('devices', () => api.listDevices(), options)
 }

@@ -398,7 +398,7 @@ describe('sessions', () => {
     }
   })
 
-  it('points acquisitions at the same import boundary a dropped file uses', async () => {
+  it('points acquisitions at the same import boundary a dropped file uses, attributed to this session', async () => {
     const open = sessionPayload()
     open.session.state = 'READY'
     createSession.mockResolvedValue({ session: open.session, device: device() })
@@ -409,7 +409,7 @@ describe('sessions', () => {
     await waitFor(() => expect(container.querySelector('[data-session]')).toBeTruthy())
     const text = container.textContent ?? ''
     expect(text).toContain('the same acquisition boundary')
-    expect(container.querySelector('a[href="/import"]')).toBeTruthy()
+    expect(container.querySelector(`a[href="/import?session=${open.session.id}"]`)).toBeTruthy()
   })
 
   it('shows a session failure with its stage', async () => {
