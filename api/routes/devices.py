@@ -85,6 +85,15 @@ class CreateSessionRequest(BaseModel):
     #: (SpatialDeclaration, the seven-dimension assessment) remains the only
     #: thing that settles a CRS. Create-time only, like `operator`.
     coordinate_system: Optional[str] = Field(default=None, max_length=200)
+    #: What the operator said this scan's verticals were measured from, in
+    #: their own words -- "NAP", "ground surface", "tape from the slab". NOT
+    #: a vertical registration, NOT validated against a datum registry, and
+    #: NOT confused with `depth_conversion` (a file with a depth column has
+    #: not declared a vertical reference). No default, ever. Stage 8's
+    #: `vertical_reference` dimension and `fusion.vertical_reference.assess`
+    #: remain the only things that settle a vertical registration.
+    #: Create-time only, like `operator`.
+    vertical_reference: Optional[str] = Field(default=None, max_length=200)
 
 
 class SessionEvidenceRequest(BaseModel):
@@ -200,7 +209,7 @@ def create_session(device_id: str, body: CreateSessionRequest,
         id=gen_uuid(), device_id=device.id, owner_id=user.id,
         state=SessionState.CREATED.value, label=body.label,
         operator=body.operator, notes=body.notes, survey_area=body.survey_area,
-        coordinate_system=body.coordinate_system,
+        coordinate_system=body.coordinate_system, vertical_reference=body.vertical_reference,
         evidence=SessionEvidence().model_dump(mode="json"),
         created_at=datetime.utcnow(),
     )

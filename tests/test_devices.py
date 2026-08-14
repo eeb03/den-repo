@@ -422,6 +422,57 @@ def test_a_declared_session_coordinate_system_does_not_touch_stage_8(env):
     assert provenance["session"]["coordinate_system"] == "EPSG:32633"
 
 
+def test_a_session_declares_the_vertical_reference_verbatim(env):
+    client = signed_in()
+    device_id = register(client).json()["device"]["id"]
+    body = new_session(client, device_id, vertical_reference="tape from the slab").json()["session"]
+
+    assert body["vertical_reference"] == "tape from the slab"
+
+    fetched = client.get(f"/api/sessions/{body['id']}").json()["session"]
+    assert fetched["vertical_reference"] == "tape from the slab"
+
+
+def test_a_session_with_no_declared_vertical_reference_reports_null(env):
+    """Never defaulted to "ground surface", "WGS84 ellipsoid", or "EGM96"."""
+    client = signed_in()
+    device_id = register(client).json()["device"]["id"]
+    body = new_session(client, device_id).json()["session"]
+
+    assert body["vertical_reference"] is None
+
+
+def test_a_declared_session_vertical_reference_does_not_touch_stage_8(env):
+    """
+    A session-declared vertical reference is a claim, not a vertical
+    registration. It must not settle Stage 8's `vertical_reference`
+    dimension, write a frame VerticalDatum, or create a SpatialDeclaration.
+
+    Asserts on the `vertical_reference` dimension specifically, not
+    `depth_conversion`: the devices CSV fixture has a `depth` column, so
+    `depth_conversion` may already be `declared` from the file itself, and
+    that is unrelated to this claim.
+    """
+    client = signed_in()
+    device_id = register(client).json()["device"]["id"]
+    session_id = new_session(
+        client, device_id, vertical_reference="NAP").json()["session"]["id"]
+    move(client, session_id, "READY")
+    job_id = acquire(client, session_id).json()["job"]["id"]
+    client.post(f"/api/imports/jobs/{job_id}/accept")
+    runner._execute(job_id)
+    dataset_id = client.get(f"/api/imports/jobs/{job_id}").json()["job"]["dataset_id"]
+
+    spatial = client.get(f"/api/spatial/{dataset_id}").json()
+    vertical_dimension = next(
+        d for d in spatial["dimensions"] if d["dimension"] == "vertical_reference")
+    assert vertical_dimension["state"] != "declared"
+    assert client.get(f"/api/spatial/{dataset_id}/declarations").json()["declarations"] == []
+
+    provenance = client.get(f"/api/datasets/{dataset_id}/acquisition").json()
+    assert provenance["session"]["vertical_reference"] == "NAP"
+
+
 def test_the_lifecycle_runs_created_ready_acquiring_completed(env):
     client = signed_in()
     device_id = register(client).json()["device"]["id"]

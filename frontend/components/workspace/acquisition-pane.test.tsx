@@ -72,6 +72,7 @@ describe('a dataset produced through a device session', () => {
       notes: null,
       survey_area: null,
       coordinate_system: null,
+      vertical_reference: null,
       evidence: { position_provided: false },
       failure_stage: null,
       failure_message: null,
@@ -174,6 +175,25 @@ describe('a dataset produced through a device session', () => {
     await screen.findByText('IDS Stream C')
     expect(container.textContent).not.toContain('EPSG:4326')
     expect(container.textContent).not.toMatch(/coordinate system/i)
+  })
+
+  it('shows the declared vertical reference claim when the session has one', async () => {
+    getDatasetAcquisition.mockResolvedValue({
+      ...payload,
+      session: { ...payload.session!, vertical_reference: 'NAP' },
+    })
+    const { container } = view()
+
+    await screen.findByText('IDS Stream C')
+    expect(container.textContent).toContain('NAP')
+  })
+
+  it('shows no vertical reference row when the session has none, never a fabricated datum', async () => {
+    getDatasetAcquisition.mockResolvedValue(payload) // vertical_reference: null
+    const { container } = view()
+
+    await screen.findByText('IDS Stream C')
+    expect(container.textContent).not.toMatch(/vertical reference/i)
   })
 })
 

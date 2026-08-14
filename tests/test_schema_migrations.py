@@ -224,6 +224,54 @@ def test_a_pre_coordinate_system_session_database_is_repaired(engine):
         assert rows[0].coordinate_system is None
 
 
+def _legacy_sessions_table_without_vertical_reference(engine):
+    """The `acquisition_sessions` table with `coordinate_system` (010)
+    already applied, but before `vertical_reference` (011) was a field."""
+    meta = MetaData()
+    Table(
+        "acquisition_sessions",
+        meta,
+        *[
+            Column(c.name, c.type, primary_key=c.primary_key, nullable=c.nullable)
+            for c in AcquisitionSession.__table__.columns
+            if c.name != "vertical_reference"
+        ],
+    )
+    meta.create_all(bind=engine)
+
+
+def test_a_pre_vertical_reference_session_database_is_repaired(engine):
+    _legacy_sessions_table_without_vertical_reference(engine)
+    assert not _has_column(engine, "acquisition_sessions", "vertical_reference")
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO acquisition_sessions "
+                "(id, device_id, state, evidence) "
+                "VALUES ('s1', 'dev1', 'CREATED', '{}')"
+            )
+        )
+
+    Session = sessionmaker(bind=engine)
+
+    with Session() as s, pytest.raises(Exception) as excinfo:
+        s.query(AcquisitionSession).all()
+    assert "vertical_reference" in str(excinfo.value)
+
+    Base.metadata.create_all(bind=engine)
+    run_migrations(engine)
+
+    # After it, the existing session is intact, readable, and its vertical
+    # reference is undeclared -- never backfilled with "ground surface" or
+    # anything else.
+    with Session() as s:
+        rows = s.query(AcquisitionSession).all()
+        assert len(rows) == 1
+        assert rows[0].state == "CREATED"
+        assert rows[0].vertical_reference is None
+
+
 def _has_column(engine, table, column) -> bool:
     if not inspect(engine).has_table(table):
         return False

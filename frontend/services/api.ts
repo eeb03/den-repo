@@ -183,6 +183,7 @@ export const api = {
       notes?: string
       survey_area?: string
       coordinate_system?: string
+      vertical_reference?: string
     },
   ): Promise<{ session: AcquisitionSession; device: Device }> {
     return postJson(`/api/devices/${encodeURIComponent(deviceId)}/sessions`, body)

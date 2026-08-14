@@ -22,10 +22,11 @@ import { NO_VALUE, formatDateTime } from '@/lib/format'
  * source in its own right, not a session with a missing device. Neither
  * state is reconstructed here; both are exactly what the endpoint returned.
  *
- * `survey_area` and `coordinate_system` are the operator's own words, not
- * measurements. Neither settles Stage 8's spatial assessment -- a session
- * can claim "EPSG:32633" and the dataset's `crs` dimension stays exactly
- * what the frames and declarations actually say.
+ * `survey_area`, `coordinate_system` and `vertical_reference` are the
+ * operator's own words, not measurements. None of them settles Stage 8's
+ * spatial assessment -- a session can claim "EPSG:32633" or "NAP" and the
+ * dataset's `crs` / `vertical_reference` dimensions stay exactly what the
+ * frames and declarations actually say.
  */
 export function AcquisitionPane({ datasetId }: { datasetId: string }) {
   const { data, error, isLoading } = useDatasetAcquisition(datasetId)
@@ -84,6 +85,13 @@ export function AcquisitionPane({ datasetId }: { datasetId: string }) {
             // no EPSG validation and no resolve control.
             <Field label="Coordinate system (declared)">
               {data.session.coordinate_system}
+            </Field>
+          )}
+          {data.session.vertical_reference && (
+            // Same rule as coordinate_system: a declared claim, not a
+            // Stage 8 vertical registration.
+            <Field label="Vertical reference (declared)">
+              {data.session.vertical_reference}
             </Field>
           )}
           <Field label="Acquired">

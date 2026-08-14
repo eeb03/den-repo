@@ -1328,6 +1328,14 @@ export interface AcquisitionSession {
    * thing that settles a CRS.
    */
   coordinate_system: string | null
+  /**
+   * What the operator said this scan's verticals were measured from, in
+   * their own words -- "NAP", "ground surface", "tape from the slab". NOT
+   * a vertical registration and never defaulted. Stage 8's
+   * `vertical_reference` dimension and `fusion.vertical_reference.assess`
+   * remain the only things that settle a vertical registration.
+   */
+  vertical_reference: string | null
   evidence: {
     position_provided?: boolean
     position_source?: string | null

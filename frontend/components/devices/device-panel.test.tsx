@@ -70,6 +70,7 @@ function sessionPayload(overrides: Partial<SessionPayload> = {}): SessionPayload
       notes: null,
       survey_area: null,
       coordinate_system: null,
+      vertical_reference: null,
       evidence: { position_provided: false },
       failure_stage: null,
       failure_message: null,
@@ -364,6 +365,7 @@ describe('the declared survey area', () => {
     expect(createSession).toHaveBeenCalledWith('dev1', {
       survey_area: 'North field, behind the barn',
       coordinate_system: undefined,
+      vertical_reference: undefined,
     })
   })
 
@@ -378,6 +380,7 @@ describe('the declared survey area', () => {
     expect(createSession).toHaveBeenCalledWith('dev1', {
       survey_area: undefined,
       coordinate_system: undefined,
+      vertical_reference: undefined,
     })
   })
 })
@@ -397,6 +400,7 @@ describe('the declared coordinate system', () => {
     expect(createSession).toHaveBeenCalledWith('dev1', {
       survey_area: undefined,
       coordinate_system: 'EPSG:32633',
+      vertical_reference: undefined,
     })
   })
 
@@ -415,6 +419,46 @@ describe('the declared coordinate system', () => {
   it('offers no EPSG dropdown or resolve control -- a plain declared claim', async () => {
     const { container } = await renderPanel()
     const input = container.querySelector('[data-coordinate-system-draft]')
+    expect(input?.tagName).toBe('INPUT')
+    expect((input as HTMLInputElement | null)?.type).toBe('text')
+    expect(container.querySelector('select')).toBeNull()
+  })
+})
+
+describe('the declared vertical reference', () => {
+  it('sends the claim typed for that device when starting a session', async () => {
+    createSession.mockResolvedValue({ session: sessionPayload().session, device: device() })
+    getSession.mockResolvedValue(sessionPayload())
+    const { container } = await renderPanel()
+
+    fireEvent.change(container.querySelector('[data-vertical-reference-draft]')!, {
+      target: { value: 'tape from the slab' },
+    })
+    fireEvent.click(container.querySelector('[data-action="start-session"]')!)
+
+    await waitFor(() => expect(createSession).toHaveBeenCalled())
+    expect(createSession).toHaveBeenCalledWith('dev1', {
+      survey_area: undefined,
+      coordinate_system: undefined,
+      vertical_reference: 'tape from the slab',
+    })
+  })
+
+  it('never sends a default datum when left blank', async () => {
+    createSession.mockResolvedValue({ session: sessionPayload().session, device: device() })
+    getSession.mockResolvedValue(sessionPayload())
+    const { container } = await renderPanel()
+
+    fireEvent.click(container.querySelector('[data-action="start-session"]')!)
+
+    await waitFor(() => expect(createSession).toHaveBeenCalled())
+    const sent = createSession.mock.calls[0]?.[1] as { vertical_reference?: string }
+    expect(sent.vertical_reference).toBeUndefined()
+  })
+
+  it('offers no datum dropdown or resolve control -- a plain declared claim', async () => {
+    const { container } = await renderPanel()
+    const input = container.querySelector('[data-vertical-reference-draft]')
     expect(input?.tagName).toBe('INPUT')
     expect((input as HTMLInputElement | null)?.type).toBe('text')
     expect(container.querySelector('select')).toBeNull()

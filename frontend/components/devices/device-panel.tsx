@@ -58,6 +58,12 @@ export function DevicePanel() {
   // a claim, not a spatial registration, and never a default EPSG code.
   // Same per-device draft pattern as survey area.
   const [coordinateSystemDrafts, setCoordinateSystemDrafts] = useState<Record<string, string>>({})
+  // What the operator says this scan's verticals were measured from, in
+  // their own words -- a claim, not a vertical registration, and never a
+  // default datum. Same per-device draft pattern as the other two.
+  const [verticalReferenceDrafts, setVerticalReferenceDrafts] = useState<Record<string, string>>(
+    {},
+  )
   const [form, setForm] = useState({
     manufacturer: '',
     model: '',
@@ -156,13 +162,16 @@ export function DevicePanel() {
     try {
       const surveyArea = surveyAreaDrafts[deviceId]?.trim()
       const coordinateSystem = coordinateSystemDrafts[deviceId]?.trim()
+      const verticalReference = verticalReferenceDrafts[deviceId]?.trim()
       const { session: created } = await api.createSession(deviceId, {
         survey_area: surveyArea || undefined,
         coordinate_system: coordinateSystem || undefined,
+        vertical_reference: verticalReference || undefined,
       })
       setSession(await api.getSession(created.id))
       setSurveyAreaDrafts((prev) => ({ ...prev, [deviceId]: '' }))
       setCoordinateSystemDrafts((prev) => ({ ...prev, [deviceId]: '' }))
+      setVerticalReferenceDrafts((prev) => ({ ...prev, [deviceId]: '' }))
     } catch (err) {
       fail(err)
     } finally {
@@ -277,6 +286,20 @@ export function DevicePanel() {
                   value={coordinateSystemDrafts[device.id] ?? ''}
                   onChange={(e) =>
                     setCoordinateSystemDrafts((prev) => ({ ...prev, [device.id]: e.target.value }))
+                  }
+                  className="h-7 min-w-0 flex-1 rounded-lg border border-border bg-background px-2 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                />
+                <label className="sr-only" htmlFor={`vertical-reference-${device.id}`}>
+                  Vertical reference claim (optional)
+                </label>
+                <input
+                  id={`vertical-reference-${device.id}`}
+                  data-vertical-reference-draft
+                  type="text"
+                  placeholder="Vertical reference claim (optional)"
+                  value={verticalReferenceDrafts[device.id] ?? ''}
+                  onChange={(e) =>
+                    setVerticalReferenceDrafts((prev) => ({ ...prev, [device.id]: e.target.value }))
                   }
                   className="h-7 min-w-0 flex-1 rounded-lg border border-border bg-background px-2 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 />

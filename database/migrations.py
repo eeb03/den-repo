@@ -304,6 +304,25 @@ def _session_coordinate_system(engine: Engine) -> None:
         logger.info("migration 010: added acquisition_sessions.coordinate_system")
 
 
+def _session_vertical_reference(engine: Engine) -> None:
+    """
+    011 — what the operator said a scan's verticals were measured from.
+
+    One additive nullable column on `acquisition_sessions`. NO DEFAULT, ever
+    -- not "ground surface", not "WGS84 ellipsoid", not "EGM96". A session
+    migrated in place declares nothing, so its vertical_reference stays null
+    -- never backfilled from a frame VerticalDatum, acquisition_elevation_datum,
+    a SEG-Y elevation field, Dataset.depth_range_*, or
+    fusion.vertical_reference.assess.
+    """
+    if _has_table(engine, "acquisition_sessions") and not _has_column(
+            engine, "acquisition_sessions", "vertical_reference"):
+        with engine.begin() as conn:
+            conn.execute(
+                text("ALTER TABLE acquisition_sessions ADD COLUMN vertical_reference VARCHAR"))
+        logger.info("migration 011: added acquisition_sessions.vertical_reference")
+
+
 MIGRATIONS: list[Migration] = [
     Migration(
         id="001_dataset_owner_id",
@@ -354,6 +373,11 @@ MIGRATIONS: list[Migration] = [
         id="010_session_coordinate_system",
         description="add nullable acquisition_sessions.coordinate_system (declared CRS claim, no default)",
         apply=_session_coordinate_system,
+    ),
+    Migration(
+        id="011_session_vertical_reference",
+        description="add nullable acquisition_sessions.vertical_reference (declared vertical claim, no default)",
+        apply=_session_vertical_reference,
     ),
 ]
 

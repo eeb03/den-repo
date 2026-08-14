@@ -410,6 +410,15 @@ class AcquisitionSession(Base):
     #: Stage 8 (SpatialDeclaration, the seven-dimension assessment, frame
     #: SpatialRef/CRSProvenance) remains the only thing that settles a CRS.
     coordinate_system = Column(String, nullable=True)
+    #: What the operator said this scan's verticals were measured from, in
+    #: their own words -- "NAP", "ground surface", "WGS84 ellipsoid,
+    #: unstated", "tape from the slab". NOT a vertical registration, NOT a
+    #: `VerticalDatum` on a frame, NOT `acquisition_elevation_datum`, and NOT
+    #: `depth_conversion` (a file with a depth column has not declared a
+    #: vertical reference). No default here, ever. Stage 8's
+    #: `vertical_reference` dimension and `fusion.vertical_reference.assess`
+    #: remain the only things that settle a vertical registration.
+    vertical_reference = Column(String, nullable=True)
 
     #: What this session ACTUALLY provided. See schemas/devices.py::SessionEvidence.
     evidence = Column(JSON, nullable=False, default=dict)
@@ -434,6 +443,7 @@ class AcquisitionSession(Base):
             "notes": self.notes,
             "survey_area": self.survey_area,
             "coordinate_system": self.coordinate_system,
+            "vertical_reference": self.vertical_reference,
             "evidence": self.evidence or {},
             "failure_stage": self.failure_stage,
             "failure_message": self.failure_message,
