@@ -267,6 +267,23 @@ def _device_adapter(engine: Engine) -> None:
         logger.info("migration 008: added devices.adapter")
 
 
+def _session_survey_area(engine: Engine) -> None:
+    """
+    009 — where the operator said a scan happened.
+
+    One additive nullable column on `acquisition_sessions`, the case
+    `create_all` cannot handle for a table 006 already created. A session
+    migrated in place has no survey area, exactly as it actually has none --
+    nothing here backfills a site name, a dataset name, or the computed
+    DatasetInfo.survey_area_m.
+    """
+    if _has_table(engine, "acquisition_sessions") and not _has_column(
+            engine, "acquisition_sessions", "survey_area"):
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE acquisition_sessions ADD COLUMN survey_area VARCHAR"))
+        logger.info("migration 009: added acquisition_sessions.survey_area")
+
+
 MIGRATIONS: list[Migration] = [
     Migration(
         id="001_dataset_owner_id",
@@ -307,6 +324,11 @@ MIGRATIONS: list[Migration] = [
         id="008_device_adapter",
         description="add nullable devices.adapter (how a device's evidence is meant to arrive)",
         apply=_device_adapter,
+    ),
+    Migration(
+        id="009_session_survey_area",
+        description="add nullable acquisition_sessions.survey_area (declared site description)",
+        apply=_session_survey_area,
     ),
 ]
 

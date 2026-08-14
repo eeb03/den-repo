@@ -70,6 +70,7 @@ describe('a dataset produced through a device session', () => {
       label: null,
       operator: 'field team',
       notes: null,
+      survey_area: null,
       evidence: { position_provided: false },
       failure_stage: null,
       failure_message: null,
@@ -133,6 +134,25 @@ describe('a dataset produced through a device session', () => {
 
     await screen.findByText('IDS Stream C')
     expect(container.querySelector('a[href="/devices"]')).toBeTruthy()
+  })
+
+  it('shows the declared survey area when the session has one', async () => {
+    getDatasetAcquisition.mockResolvedValue({
+      ...payload,
+      session: { ...payload.session!, survey_area: 'North field, behind the barn' },
+    })
+    const { container } = view()
+
+    await screen.findByText('IDS Stream C')
+    expect(container.textContent).toContain('North field, behind the barn')
+  })
+
+  it('shows no survey area row when the session has none, never a fabricated one', async () => {
+    getDatasetAcquisition.mockResolvedValue(payload) // survey_area: null
+    const { container } = view()
+
+    await screen.findByText('IDS Stream C')
+    expect(container.textContent).not.toMatch(/survey area/i)
   })
 })
 

@@ -177,7 +177,7 @@ export const api = {
 
   createSession(
     deviceId: string,
-    body: { label?: string; operator?: string; notes?: string },
+    body: { label?: string; operator?: string; notes?: string; survey_area?: string },
   ): Promise<{ session: AcquisitionSession; device: Device }> {
     return postJson(`/api/devices/${encodeURIComponent(deviceId)}/sessions`, body)
   },

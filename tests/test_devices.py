@@ -352,6 +352,27 @@ def test_a_session_starts_created_with_no_evidence(env):
     assert body["evidence"]["position_provided"] is False
 
 
+def test_a_session_declares_the_survey_area_verbatim(env):
+    """A site description in the operator's own words -- not a geometry, not
+    DatasetInfo.survey_area_m, and not inferred from anything."""
+    client = signed_in()
+    device_id = register(client).json()["device"]["id"]
+    body = new_session(client, device_id, survey_area="North field, behind the barn").json()["session"]
+
+    assert body["survey_area"] == "North field, behind the barn"
+
+    fetched = client.get(f"/api/sessions/{body['id']}").json()["session"]
+    assert fetched["survey_area"] == "North field, behind the barn"
+
+
+def test_a_session_with_no_declared_survey_area_reports_null(env):
+    client = signed_in()
+    device_id = register(client).json()["device"]["id"]
+    body = new_session(client, device_id).json()["session"]
+
+    assert body["survey_area"] is None
+
+
 def test_the_lifecycle_runs_created_ready_acquiring_completed(env):
     client = signed_in()
     device_id = register(client).json()["device"]["id"]
@@ -591,6 +612,20 @@ def test_a_dataset_traces_back_to_its_session_and_device(env):
     assert provenance["session"]["operator"] == "field team"
     assert provenance["device"]["serial_number"] == "SN-9"
     assert provenance["device"]["identity_source"] == "user_declared"
+
+
+def test_the_declared_survey_area_reaches_the_dataset_acquisition_chain(env):
+    client = signed_in()
+    device_id = register(client).json()["device"]["id"]
+    session_id = new_session(client, device_id, survey_area="North field").json()["session"]["id"]
+    move(client, session_id, "READY")
+    job_id = acquire(client, session_id).json()["job"]["id"]
+    client.post(f"/api/imports/jobs/{job_id}/accept")
+    runner._execute(job_id)
+    dataset_id = client.get(f"/api/imports/jobs/{job_id}").json()["job"]["dataset_id"]
+
+    provenance = client.get(f"/api/datasets/{dataset_id}/acquisition").json()
+    assert provenance["session"]["survey_area"] == "North field"
 
 
 def test_a_filedrop_dataset_reports_no_device(env):

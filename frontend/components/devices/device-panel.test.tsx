@@ -68,6 +68,7 @@ function sessionPayload(overrides: Partial<SessionPayload> = {}): SessionPayload
       label: null,
       operator: 'field team',
       notes: null,
+      survey_area: null,
       evidence: { position_provided: false },
       failure_stage: null,
       failure_message: null,
@@ -344,6 +345,35 @@ describe('the device adapter', () => {
     await waitFor(() => expect(registerDevice).toHaveBeenCalled())
     const sent = registerDevice.mock.calls[0]?.[0] as { adapter?: unknown }
     expect(sent.adapter).toBeUndefined()
+  })
+})
+
+describe('the declared survey area', () => {
+  it('sends the survey area typed for that device when starting a session', async () => {
+    createSession.mockResolvedValue({ session: sessionPayload().session, device: device() })
+    getSession.mockResolvedValue(sessionPayload())
+    const { container } = await renderPanel()
+
+    fireEvent.change(container.querySelector('[data-survey-area-draft]')!, {
+      target: { value: 'North field, behind the barn' },
+    })
+    fireEvent.click(container.querySelector('[data-action="start-session"]')!)
+
+    await waitFor(() => expect(createSession).toHaveBeenCalled())
+    expect(createSession).toHaveBeenCalledWith('dev1', {
+      survey_area: 'North field, behind the barn',
+    })
+  })
+
+  it('omits the field entirely when left blank, never an empty string', async () => {
+    createSession.mockResolvedValue({ session: sessionPayload().session, device: device() })
+    getSession.mockResolvedValue(sessionPayload())
+    const { container } = await renderPanel()
+
+    fireEvent.click(container.querySelector('[data-action="start-session"]')!)
+
+    await waitFor(() => expect(createSession).toHaveBeenCalled())
+    expect(createSession).toHaveBeenCalledWith('dev1', { survey_area: undefined })
   })
 })
 

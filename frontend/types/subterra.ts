@@ -1313,6 +1313,12 @@ export interface AcquisitionSession {
   label: string | null
   operator: string | null
   notes: string | null
+  /**
+   * Where the operator said this scan happened, in their own words. NOT a
+   * geometry, a CRS or a bounding box, and not `DatasetInfo.survey_area_m`
+   * (a computed lat/lon span) -- this is declared, that is derived.
+   */
+  survey_area: string | null
   evidence: {
     position_provided?: boolean
     position_source?: string | null

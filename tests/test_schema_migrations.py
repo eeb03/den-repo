@@ -18,7 +18,7 @@ from sqlalchemy import Column, DateTime, MetaData, String, Table, create_engine,
 from sqlalchemy.orm import sessionmaker
 
 from database.migrations import MIGRATIONS, applied_migrations, run_migrations
-from database.models import Dataset, Device, ImportJob, User
+from database.models import AcquisitionSession, Dataset, Device, ImportJob, User
 from database.session import Base
 
 
@@ -127,6 +127,53 @@ def test_a_pre_adapter_device_database_is_repaired(engine):
         assert len(rows) == 1
         assert rows[0].device_type == "gpr"
         assert rows[0].adapter is None
+
+
+def _legacy_sessions_table(engine):
+    """The `acquisition_sessions` table exactly as migration 006 created it,
+    before `survey_area` was a field on the model."""
+    meta = MetaData()
+    Table(
+        "acquisition_sessions",
+        meta,
+        *[
+            Column(c.name, c.type, primary_key=c.primary_key, nullable=c.nullable)
+            for c in AcquisitionSession.__table__.columns
+            if c.name != "survey_area"
+        ],
+    )
+    meta.create_all(bind=engine)
+
+
+def test_a_pre_survey_area_session_database_is_repaired(engine):
+    _legacy_sessions_table(engine)
+    assert not _has_column(engine, "acquisition_sessions", "survey_area")
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO acquisition_sessions "
+                "(id, device_id, state, evidence) "
+                "VALUES ('s1', 'dev1', 'CREATED', '{}')"
+            )
+        )
+
+    Session = sessionmaker(bind=engine)
+
+    with Session() as s, pytest.raises(Exception) as excinfo:
+        s.query(AcquisitionSession).all()
+    assert "survey_area" in str(excinfo.value)
+
+    Base.metadata.create_all(bind=engine)
+    run_migrations(engine)
+
+    # After it, the existing session is intact, readable, and its survey
+    # area is undeclared -- never backfilled with a site name.
+    with Session() as s:
+        rows = s.query(AcquisitionSession).all()
+        assert len(rows) == 1
+        assert rows[0].state == "CREATED"
+        assert rows[0].survey_area is None
 
 
 def _has_column(engine, table, column) -> bool:

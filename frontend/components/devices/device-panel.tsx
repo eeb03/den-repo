@@ -48,6 +48,12 @@ export function DevicePanel() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [registering, setRegistering] = useState(false)
+  // Where the operator says a scan is about to happen, in their own words --
+  // a site description, not a geometry, and not read back from any dataset.
+  // Keyed per device since several devices can each start a session. Blank
+  // sends nothing, never an empty string that would look like a declared
+  // site.
+  const [surveyAreaDrafts, setSurveyAreaDrafts] = useState<Record<string, string>>({})
   const [form, setForm] = useState({
     manufacturer: '',
     model: '',
@@ -144,8 +150,12 @@ export function DevicePanel() {
     setBusy(true)
     setError(null)
     try {
-      const { session: created } = await api.createSession(deviceId, {})
+      const surveyArea = surveyAreaDrafts[deviceId]?.trim()
+      const { session: created } = await api.createSession(deviceId, {
+        survey_area: surveyArea || undefined,
+      })
       setSession(await api.getSession(created.id))
+      setSurveyAreaDrafts((prev) => ({ ...prev, [deviceId]: '' }))
     } catch (err) {
       fail(err)
     } finally {
@@ -234,15 +244,31 @@ export function DevicePanel() {
                   {device.adapter?.transport ?? NO_VALUE}
                 </Field>
               </dl>
-              <button
-                type="button"
-                data-action="start-session"
-                disabled={busy}
-                onClick={() => startSession(device.id)}
-                className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'mt-2')}
-              >
-                New acquisition session
-              </button>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <label className="sr-only" htmlFor={`survey-area-${device.id}`}>
+                  Survey area (optional)
+                </label>
+                <input
+                  id={`survey-area-${device.id}`}
+                  data-survey-area-draft
+                  type="text"
+                  placeholder="Survey area (optional)"
+                  value={surveyAreaDrafts[device.id] ?? ''}
+                  onChange={(e) =>
+                    setSurveyAreaDrafts((prev) => ({ ...prev, [device.id]: e.target.value }))
+                  }
+                  className="h-7 min-w-0 flex-1 rounded-lg border border-border bg-background px-2 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                />
+                <button
+                  type="button"
+                  data-action="start-session"
+                  disabled={busy}
+                  onClick={() => startSession(device.id)}
+                  className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                >
+                  New acquisition session
+                </button>
+              </div>
             </div>
           ))}
 

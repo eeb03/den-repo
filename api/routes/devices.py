@@ -72,6 +72,11 @@ class CreateSessionRequest(BaseModel):
     #: Who ran it, in their own words. Provenance, not an account.
     operator: Optional[str] = Field(default=None, max_length=200)
     notes: Optional[str] = Field(default=None, max_length=2000)
+    #: Where the operator said this scan happened, in their own words. NOT a
+    #: geometry, a CRS, or a bounding box, and not DatasetInfo.survey_area_m
+    #: -- that is computed from positioned records; this is declared, the
+    #: same kind of claim as `operator`. Create-time only, like `operator`.
+    survey_area: Optional[str] = Field(default=None, max_length=500)
 
 
 class SessionEvidenceRequest(BaseModel):
@@ -186,7 +191,7 @@ def create_session(device_id: str, body: CreateSessionRequest,
     session = AcquisitionSession(
         id=gen_uuid(), device_id=device.id, owner_id=user.id,
         state=SessionState.CREATED.value, label=body.label,
-        operator=body.operator, notes=body.notes,
+        operator=body.operator, notes=body.notes, survey_area=body.survey_area,
         evidence=SessionEvidence().model_dump(mode="json"),
         created_at=datetime.utcnow(),
     )

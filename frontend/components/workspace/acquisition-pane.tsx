@@ -36,14 +36,7 @@ export function AcquisitionPane({ datasetId }: { datasetId: string }) {
       />
 
       {data && !data.acquisition && (
-        <StateBox
-          kind="empty"
-          title="No acquisition record"
-          detail={
-            data.reason ??
-            'This dataset predates the acquisition boundary, so how its source file arrived was never recorded.'
-          }
-        />
+        <StateBox kind="empty" title="No acquisition record" detail={data.reason} />
       )}
 
       {data && data.acquisition && !data.session && (
@@ -76,6 +69,9 @@ export function AcquisitionPane({ datasetId }: { datasetId: string }) {
           <Field label="Session">{data.session.state}</Field>
           {data.session.operator && (
             <Field label="Operator">{data.session.operator}</Field>
+          )}
+          {data.session.survey_area && (
+            <Field label="Survey area">{data.session.survey_area}</Field>
           )}
           <Field label="Acquired">
             {formatDateTime(data.acquisition?.created_at)}

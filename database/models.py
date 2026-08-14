@@ -395,6 +395,13 @@ class AcquisitionSession(Base):
     #: Who ran it, in their own words. Provenance, not an account.
     operator = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
+    #: Where the operator said this scan happened, in their own words. NOT a
+    #: geometry, a CRS, or a bounding box -- a site description, the same
+    #: kind of claim as `operator`. Not to be confused with
+    #: DatasetInfo.survey_area_m, the computed lat/lon span from positioned
+    #: records: this is declared, that is derived, and neither feeds the
+    #: other. It does not feed Stage 8; Stage 8 still owns CRS / vertical / ties.
+    survey_area = Column(String, nullable=True)
 
     #: What this session ACTUALLY provided. See schemas/devices.py::SessionEvidence.
     evidence = Column(JSON, nullable=False, default=dict)
@@ -417,6 +424,7 @@ class AcquisitionSession(Base):
             "label": self.label,
             "operator": self.operator,
             "notes": self.notes,
+            "survey_area": self.survey_area,
             "evidence": self.evidence or {},
             "failure_stage": self.failure_stage,
             "failure_message": self.failure_message,
