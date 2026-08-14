@@ -160,6 +160,110 @@ describe('a dataset with a stored candidate set', () => {
   })
 })
 
+describe('generation identity', () => {
+  it('prints method and version from the payload when generation is recorded', async () => {
+    getCandidates.mockResolvedValue(
+      available({
+        generation: {
+          method: 'ring_local_anomaly_connected_components', method_version: '2.3.1',
+          parameters: { threshold: 3.0, min_cells: 3, min_trace_span: 1 },
+          generated_at: '2026-08-13T09:00:00Z', dataset_id: 'd1',
+          input_fingerprint: 'abc123', declared_reference_at: null,
+          n_source_files: 1, n_records: 24000, seed: null,
+          deterministic: true, determinism_note: 'no randomness is used',
+        },
+      }),
+    )
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-candidate-regions]')).toBeTruthy())
+    const generation = container.querySelector('[data-generation]')
+    expect(generation?.textContent).toBe('ring_local_anomaly_connected_components v2.3.1')
+  })
+
+  it('prints "unrecorded" when generation is null', async () => {
+    getCandidates.mockResolvedValue(available({ generation: null }))
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-candidate-regions]')).toBeTruthy())
+    const generation = container.querySelector('[data-generation]')
+    expect(generation?.textContent).toBe('unrecorded')
+  })
+
+  it('never renders generation parameters, fingerprint, seed, or record counts', async () => {
+    getCandidates.mockResolvedValue(
+      available({
+        generation: {
+          method: 'ring_local_anomaly_connected_components', method_version: '1.0.0',
+          parameters: { threshold: 3.0, min_cells: 3, min_trace_span: 1 },
+          generated_at: '2026-08-13T09:00:00Z', dataset_id: 'd1',
+          input_fingerprint: 'fingerprint-xyz-999', declared_reference_at: null,
+          n_source_files: 1, n_records: 24000, seed: 42,
+          deterministic: true, determinism_note: 'no randomness is used',
+        },
+      }),
+    )
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-candidate-regions]')).toBeTruthy())
+    expect(container.textContent).not.toContain('fingerprint-xyz-999')
+    expect(container.textContent).not.toContain('24000')
+    expect(container.textContent).not.toContain('threshold')
+  })
+})
+
+describe('staleness', () => {
+  it('prints a banner with the stored reasons and note, verbatim, when stale', async () => {
+    getCandidates.mockResolvedValue(
+      available({
+        staleness: {
+          is_stale: true,
+          reasons: ['3 records were added after this set was generated'],
+          checks_performed: ['method version', 'records'],
+          checks_skipped: [],
+          note: 'nothing is recomputed automatically',
+        },
+      }),
+    )
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-candidate-regions]')).toBeTruthy())
+    const stale = container.querySelector('[data-stale]')
+    expect(stale).toBeTruthy()
+    expect(stale?.textContent).toContain('no longer matches the dataset')
+    expect(stale?.textContent).toContain('3 records were added after this set was generated')
+    expect(stale?.textContent).toContain('nothing is recomputed automatically')
+  })
+
+  it('does not hide the count or the benchmark summary when the set is stale', async () => {
+    getCandidates.mockResolvedValue(
+      available({
+        staleness: {
+          is_stale: true, reasons: ['records changed'], checks_performed: [],
+          checks_skipped: [], note: 'nothing is recomputed automatically',
+        },
+      }),
+    )
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-candidate-regions]')).toBeTruthy())
+    expect(container.textContent).toContain('7')
+    expect(container.querySelector('[data-benchmark-summary]')).toBeTruthy()
+  })
+
+  it('prints no stale banner and no "fresh"/"current" badge when not stale', async () => {
+    getCandidates.mockResolvedValue(available())
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-candidate-regions]')).toBeTruthy())
+    expect(container.querySelector('[data-stale]')).toBeNull()
+    const text = container.textContent?.toLowerCase() ?? ''
+    expect(text).not.toContain('fresh')
+    expect(text).not.toContain('up to date')
+    expect(text).not.toMatch(/\bcurrent\b/)
+  })
+})
+
 describe('a dataset with no candidate set', () => {
   it('shows an explicit absence, not an error and not a synthetic empty finding', async () => {
     getCandidates.mockResolvedValue(blocked())
@@ -181,6 +285,32 @@ describe('a dataset with no candidate set', () => {
 
     await waitFor(() => expect(container.querySelector('[data-candidate-regions]')).toBeTruthy())
     expect(container.querySelector('[data-benchmark-summary]')).toBeNull()
+  })
+
+  it('shows no generation identity, no stale banner, even when the fixture carries them', async () => {
+    getCandidates.mockResolvedValue(
+      blocked({
+        generation: {
+          method: 'ring_local_anomaly_connected_components', method_version: '1.0.0',
+          parameters: { threshold: 3.0, min_cells: 3, min_trace_span: 1 },
+          generated_at: '2026-08-13T09:00:00Z', dataset_id: 'd1',
+          input_fingerprint: 'abc123', declared_reference_at: null,
+          n_source_files: 1, n_records: 24000, seed: null,
+          deterministic: true, determinism_note: 'no randomness is used',
+        },
+        staleness: {
+          is_stale: true, reasons: ['records changed'], checks_performed: [],
+          checks_skipped: [], note: 'nothing is recomputed automatically',
+        },
+      }),
+    )
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-candidate-regions]')).toBeTruthy())
+    expect(container.querySelector('[data-generation]')).toBeNull()
+    expect(container.querySelector('[data-stale]')).toBeNull()
+    expect(container.textContent).not.toContain('unrecorded')
+    expect(container.textContent).not.toContain('no longer matches the dataset')
   })
 })
 
