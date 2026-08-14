@@ -42,7 +42,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-from schemas.spatial import AxisKind, CRSKind, CRSProvenance
+from schemas.spatial import AxisKind, CRSKind, CRSProvenance, along_track_extents_m
 
 #: Bumped when the shape of an assessment changes.
 SPATIAL_CONTRACT_VERSION = "1.0"
@@ -647,21 +647,65 @@ def assess_orientation(frames, records) -> DimensionState:
                   action=DeclarationKind.ORIENTATION, provenance="unavailable")
 
 
+def _geometry_identity_clause(frames, extents: dict[str, float]) -> str:
+    """
+    Names each frame's own position count and, where records already carry
+    odometry `along_track_m`, its along-track extent -- verbatim, sorted by
+    `frame_id` for the same determinism `_position_source_clause` and
+    `_surface_identity_clause` use.
+
+    `extents` is `along_track_extents_m(records)`, the SAME measurement
+    `dataset_report.build_geometry` uses for the survey volume, so this
+    dimension cannot report a different extent for the same records.
+
+    NEVER A LINE SPACING, AN ORIENTATION, OR A LAYOUT WORD. "grid", "area"
+    and "trajectory" all imply a 2D shape that along-track distance alone
+    does not establish.
+    """
+    parts = []
+    for f in sorted(frames, key=lambda frame: frame.frame_id):
+        n = getattr(f, "n_positions", None)
+        if n is None:
+            continue
+        piece = f"{f.frame_id}: {n:,} position(s)"
+        extent = extents.get(f.frame_id)
+        if extent is not None:
+            piece += f", {extent:,} m along-track"
+        parts.append(piece)
+    return "; ".join(parts)
+
+
 def assess_geometry(frames, records) -> DimensionState:
-    """Whether the shape of the acquisition is known."""
+    """
+    Whether the shape of the acquisition is known.
+
+    THE REASON NAMES WHAT IS ALREADY STORED: each frame's own `frame_id` and
+    `n_positions`, and -- when records carry recorded odometry
+    `along_track_m` -- the along-track extent already measured for the
+    survey volume (`along_track_extents_m`, shared with
+    `dataset_report.build_geometry`). Never a line spacing, an orientation,
+    or a trajectory: none of those follow from a position count or an
+    along-track distance alone, and inventing one would describe a survey
+    layout that was never surveyed.
+    """
     D = SpatialDimension.SURVEY_GEOMETRY
     if not frames:
         return _state(D, "missing", "no survey frame is stored", ["a survey frame"])
 
     positioned = [f for f in frames if getattr(f, "n_positions", None)]
+    extents = along_track_extents_m(records)
+    identity = _geometry_identity_clause(frames, extents)
+
     if len(positioned) == len(frames):
         return _state(D, "available",
-                      f"{len(frames)} frame(s), each reporting its own position count",
+                      f"{len(frames)} frame(s), each reporting its own position count "
+                      f"({identity})",
                       frames=[f.frame_id for f in frames],
                       n_positions={f.frame_id: f.n_positions for f in frames})
     if positioned:
         return _state(D, "partial",
-                      f"{len(positioned)} of {len(frames)} frame(s) report a position count",
+                      f"{len(positioned)} of {len(frames)} frame(s) report a position count "
+                      f"({identity})",
                       ["position counts for the remaining frames"])
     return _state(D, "missing",
                   "no frame reports how many positions it contains",

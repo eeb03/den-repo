@@ -46,7 +46,7 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 from schemas.provenance import ProvenanceClass, QuantityProvenance
-from schemas.spatial import AxisKind, CRSKind, CRSProvenance, PositionKind
+from schemas.spatial import AxisKind, CRSKind, CRSProvenance, PositionKind, along_track_extents_m
 
 #: Bumped when the SHAPE of the report changes, so a consumer that stored one
 #: can tell whether it is still reading what it thinks it is.
@@ -678,15 +678,7 @@ def build_geometry(records, frames, bounds=None, spans=None) -> SurveyGeometry:
     them for `/info` -- passing them in keeps one implementation rather than a
     second one that could disagree about the size of the same survey.
     """
-    along_track: dict[str, float] = {}
-    by_frame: dict[str, list[float]] = {}
-    for r in records:
-        pos = getattr(r, "position", None)
-        if getattr(pos, "kind", None) == PositionKind.ODOMETRY.value:
-            by_frame.setdefault(getattr(r, "frame_id", "") or "", []).append(pos.along_track_m)
-    for frame_id, values in by_frame.items():
-        if len(values) > 1:
-            along_track[frame_id] = round(max(values) - min(values), 3)
+    along_track = along_track_extents_m(records)
 
     reasons: list[str] = []
     if bounds is None:

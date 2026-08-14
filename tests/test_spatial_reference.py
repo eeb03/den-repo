@@ -331,6 +331,59 @@ def test_more_than_one_surface_frame_names_distinct_codes_as_a_sorted_list():
 
 
 # ---------------------------------------------------------------------------
+# assess_geometry names the recorded frames and along-track extent, verbatim
+# ---------------------------------------------------------------------------
+
+def test_the_available_geometry_reason_names_each_frames_id_and_position_count():
+    result = assess([frame("d:line1", n_positions=10)], geo_records())
+    reason = result.dimension(SpatialDimension.SURVEY_GEOMETRY).reason
+    assert "d:line1" in reason
+    assert "10 position(s)" in reason
+
+
+def test_the_available_geometry_reason_names_the_along_track_extent():
+    """Uses the SAME measurement dataset_report.build_geometry uses, so the
+    two cannot disagree about the size of the same survey."""
+    result = assess([frame("d:line1", n_positions=10, crs=ACQUISITION)],
+                    odometry_records(n=5, dataset_id="d"))
+    reason = result.dimension(SpatialDimension.SURVEY_GEOMETRY).reason
+    # along_track_m = 0, 2, 4, 6, 8 -> extent 8.0
+    assert "8.0 m along-track" in reason
+
+
+def test_multiple_frames_are_named_as_a_sorted_list_by_frame_id():
+    frame_b = frame("d:line2", n_positions=5, dataset_id="d")
+    frame_a = frame("d:line1", n_positions=10, dataset_id="d")
+    result = assess([frame_b, frame_a], geo_records())
+    reason = result.dimension(SpatialDimension.SURVEY_GEOMETRY).reason
+    assert "d:line1" in reason
+    assert "d:line2" in reason
+    # Sorted by frame_id, not insertion order.
+    assert reason.index("d:line1") < reason.index("d:line2")
+
+
+def test_naming_the_extent_does_not_promote_a_partial_dimension():
+    named = frame("d:line1", n_positions=10, dataset_id="d")
+    unnamed = SurveyFrame(
+        frame_id="d:line2", dataset_id="d", modality=SensorType.GPR,
+        source_format="segy", source_file="line2.sgy",
+        spatial_ref=GEOGRAPHIC, vertical_axis=TIME_AXIS, n_positions=None)
+    result = assess([named, unnamed], geo_records())
+    dimension = result.dimension(SpatialDimension.SURVEY_GEOMETRY)
+    assert dimension.state == "partial"
+    assert "d:line1" in dimension.reason
+    assert "d:line2" not in dimension.reason
+
+
+def test_the_geometry_reason_never_invents_a_layout_word():
+    result = assess([frame("d:line1", n_positions=10, crs=ACQUISITION)],
+                    odometry_records(n=5, dataset_id="d"))
+    reason = result.dimension(SpatialDimension.SURVEY_GEOMETRY).reason.lower()
+    for invented in ("grid", "line survey", "area", "trajectory", "orientation", "spacing"):
+        assert invented not in reason
+
+
+# ---------------------------------------------------------------------------
 # the distinctions that must not collapse
 # ---------------------------------------------------------------------------
 

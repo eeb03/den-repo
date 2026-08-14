@@ -564,6 +564,33 @@ def effective_position(record):
     return registered if registered is not None else getattr(record, "position", None)
 
 
+def along_track_extents_m(records) -> dict[str, float]:
+    """
+    Per-frame along-track distance, from recorded odometry positions only.
+
+    ONE DEFINITION, used by `dataset_report.build_geometry` (survey volume)
+    and `spatial_reference.assess_geometry` (the Stage 8 dimension), so the
+    two cannot disagree about the size of the same survey. `max - min` of
+    `along_track_m`, per frame, and only when a frame has more than one such
+    value -- a single position has no extent to report, and reporting zero
+    would look like a measurement rather than an absence.
+
+    NEVER A LINE SPACING, AN ORIENTATION OR A TRAJECTORY. Those need
+    Earth-referenced positions to mean anything; an along-track distance
+    exists whether or not the acquisition is geolocated at all.
+    """
+    by_frame: dict[str, list[float]] = {}
+    for r in records:
+        pos = getattr(r, "position", None)
+        if getattr(pos, "kind", None) == PositionKind.ODOMETRY.value:
+            by_frame.setdefault(getattr(r, "frame_id", "") or "", []).append(pos.along_track_m)
+    return {
+        frame_id: round(max(values) - min(values), 3)
+        for frame_id, values in by_frame.items()
+        if len(values) > 1
+    }
+
+
 def position_provenance(record) -> str:
     """
     Whether a record's effective position is native, registered, or derived.
