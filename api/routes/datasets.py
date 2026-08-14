@@ -715,8 +715,14 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
             # KMZ is the FALLBACK, applied only when the headers cannot
             # supply a geographic position -- it never overwrites one.
             #
-            # Either way this sets latitude/longitude only; `record.position`
-            # always keeps what the file itself reported.
+            # WHEN THE FALLBACK DOES RUN IT REPLACES `record.position`. It sets
+            # latitude/longitude AND a GeographicPosition, because a KMZ track
+            # is a real geographic position and `position` is the platform's
+            # single source of spatial truth (georeference_records_by_trace).
+            # A projected header position, which is what this branch means by
+            # "no geographic view", is therefore superseded -- not kept. The
+            # header numbers survive in metadata["segy_x"]/["segy_y"], written
+            # by SEGYConverter, so nothing the file reported is lost.
             stem = file_path.stem
             needs_fallback = records_needing_kmz_fallback(records)
             if stem in kmz_lookup and len(records) > 0 and needs_fallback:
@@ -728,9 +734,10 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
                         value="kmz_fallback",
                         basis=(
                             "the file's own headers did not yield a geographic position "
-                            "(absent, or projected with no declared CRS), so latitude/longitude "
-                            "were taken from the matching KMZ track. record.position still holds "
-                            "the header-derived position where one exists."
+                            "(absent, or projected with no declared CRS), so latitude, longitude "
+                            "AND record.position were taken from the matching KMZ track. Any "
+                            "projected header position is superseded, not retained; the header "
+                            "coordinates themselves are preserved in metadata segy_x/segy_y."
                         ),
                         verified=True,
                     ))

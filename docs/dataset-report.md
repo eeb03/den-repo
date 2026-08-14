@@ -189,9 +189,14 @@ currently held rather than assumed.
 - **Whether the four INGV datasets are the same survey.** Four rows, three
   names, two of them byte-identical in record count. `v3` appears twice.
   Duplicate management is stage 7, but it affects any per-site registration.
-- **SEG-Y header positions vs the KMZ.** An open follow-up recorded earlier:
-  headers vary per trace, contradicting the KMZ module's docstring. Until
-  resolved, which of the two is authoritative for a given line is unsettled.
+- ~~**SEG-Y header positions vs the KMZ.**~~ **Resolved 2026-08-06**, and kept
+  here because the earlier entry said the opposite. The headers are a genuine
+  per-trace track, not the static placeholder this project once recorded them
+  as: 67/72 and 66/66 distinct positions, track lengths agreeing with the KMZ to
+  ~0.02%, mean residuals 0.74 m and 1.22 m. **SEG-Y header positions are
+  authoritative where usable**; the KMZ is the fallback, used only when the
+  headers cannot yield a geographic position. See the CORRECTION in
+  `ingestion/kmz_georeference.py`.
 
 ### Required evidence
 
