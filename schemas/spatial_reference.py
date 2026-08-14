@@ -160,6 +160,43 @@ def _state(dimension, state, reason, missing=None, action=None, provenance=None,
         action=action, provenance=provenance, detail=detail)
 
 
+#: A record's own metadata has no `position_source` key. Bucketed separately
+#: from the literal string `"none"`, which some converters (see
+#: `converters/gssi_converter.py`) write deliberately to mean something
+#: different: a position was attempted and none could be derived. Collapsing
+#: the two would invent a source for a record that never named one.
+_NO_POSITION_SOURCE = "no declared position source"
+
+
+def _position_source_counts(records) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for record in records:
+        source = record.metadata.get("position_source")
+        key = source if source else _NO_POSITION_SOURCE
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def _position_source_clause(records) -> str:
+    """
+    A clause naming the recorded `position_source` values verbatim, for
+    appending to `assess_horizontal`'s reason.
+
+    NEVER PARAPHRASED. `gssi_dzg_gnss` is reported as `gssi_dzg_gnss`, not
+    "GNSS" -- a wheel encoder and a satellite fix are different evidence, and
+    collapsing their names would hide which one a record actually had. Counts
+    appear only when more than one bucket is present; a single uniform source
+    needs no count, since the record total is already stated in the sentence
+    this clause is appended to.
+    """
+    counts = _position_source_counts(records)
+    if len(counts) == 1:
+        (only,) = counts
+        return f"position source: {only}"
+    parts = ", ".join(f"{source} ({count:,})" for source, count in sorted(counts.items()))
+    return f"position sources: {parts}"
+
+
 def assess_horizontal(frames, records) -> DimensionState:
     """
     Whether the measurements have a horizontal position at all.
@@ -169,6 +206,15 @@ def assess_horizontal(frames, records) -> DimensionState:
     frame with easting/northing and no declared projection has the opposite
     problem. Reporting one number for both would hide whichever failure the
     other dataset did not have.
+
+    THE REASON NAMES WHAT PRODUCED THE POSITIONS, not just whether they
+    exist: `metadata.position_source` is already stamped by every converter
+    that sets one (`gssi_dzg_gnss`, `mala_cor_gnss`, `gssi_survey_wheel`,
+    `mala_wheel_odometry`, `ids_wheel_odometry`, `segy_header`,
+    `kmz_fallback`, or the literal `"none"`), and this dimension's state
+    vocabulary is unaffected by which source it was -- a wheel-odometry
+    source does not make a position geographic, and a GNSS source does not
+    promote one that is not.
     """
     D = SpatialDimension.HORIZONTAL_POSITION
     if not records:
@@ -187,15 +233,17 @@ def assess_horizontal(frames, records) -> DimensionState:
     geographic = kinds.get(PositionKind.GEOGRAPHIC.value, 0)
     none = kinds.get(PositionKind.NONE.value, 0)
     tied = [f.frame_id for f in frames if getattr(f, "geo_tie", None)]
+    source_clause = _position_source_clause(records)
 
     if geographic == total:
         return _state(D, "available",
-                      f"every one of {total:,} record(s) carries a geographic position",
+                      f"every one of {total:,} record(s) carries a geographic position "
+                      f"({source_clause})",
                       provenance="registered" if tied else "measured",
                       position_kinds=kinds, geo_tie_frames=tied)
     if none == total:
         return _state(D, "missing",
-                      "no record carries a horizontal position",
+                      f"no record carries a horizontal position ({source_clause})",
                       ["positions from the acquisition, or a GeoTie supplying them"],
                       action=DeclarationKind.GEO_TIE, provenance="unavailable",
                       position_kinds=kinds)
@@ -204,12 +252,13 @@ def assess_horizontal(frames, records) -> DimensionState:
         # projected coordinates. Whether they CAN be is the CRS's question.
         return _state(D, "partial",
                       "positions exist but are not geographic; whether they can be placed "
-                      "on Earth depends on the coordinate reference system",
+                      f"on Earth depends on the coordinate reference system ({source_clause})",
                       ["a declared CRS, or a GeoTie for an along-track acquisition"],
                       action=DeclarationKind.GEO_TIE, provenance="measured",
                       position_kinds=kinds)
     return _state(D, "partial",
-                  f"{geographic:,} of {total:,} record(s) carry a geographic position",
+                  f"{geographic:,} of {total:,} record(s) carry a geographic position "
+                  f"({source_clause})",
                   ["positions for the remaining records"],
                   action=DeclarationKind.GEO_TIE, provenance="measured",
                   position_kinds=kinds)

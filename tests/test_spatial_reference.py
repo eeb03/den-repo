@@ -143,6 +143,105 @@ def test_dataset_c_no_horizontal_position():
         DeclarationKind.GEO_TIE
 
 
+# ---------------------------------------------------------------------------
+# assess_horizontal names the recorded position_source, verbatim
+# ---------------------------------------------------------------------------
+
+def _record_with_source(i, position, source, dataset_id="d"):
+    r = record(i, position, dataset_id)
+    if source is not None:
+        r.metadata["position_source"] = source
+    return r
+
+
+def test_the_reason_names_a_single_position_source_verbatim():
+    records = [_record_with_source(i, None, "gssi_dzg_gnss") for i in range(4)]
+    result = assess([frame(crs=GEOGRAPHIC)], records)
+    reason = result.dimension(SpatialDimension.HORIZONTAL_POSITION).reason
+    assert "gssi_dzg_gnss" in reason
+    # Never paraphrased into a category.
+    assert "GNSS" not in reason
+
+
+def test_a_record_with_no_position_source_key_is_reported_as_such_not_invented_as_none():
+    records = [_record_with_source(i, None, None) for i in range(3)]
+    result = assess([frame(crs=GEOGRAPHIC)], records)
+    reason = result.dimension(SpatialDimension.HORIZONTAL_POSITION).reason
+    assert "position source: no declared position source" in reason
+    # The literal string "none" is itself a real position_source value some
+    # converters write (see gssi_converter.py) to mean "attempted and could
+    # not derive one" -- a missing key must not be reported the same way.
+    assert "position source: none" not in reason
+
+
+def test_more_than_one_source_is_named_with_counts():
+    records = (
+        [_record_with_source(i, None, "gssi_dzg_gnss") for i in range(3)]
+        + [_record_with_source(i + 3, None, "segy_header") for i in range(2)]
+    )
+    result = assess([frame(crs=GEOGRAPHIC)], records)
+    reason = result.dimension(SpatialDimension.HORIZONTAL_POSITION).reason
+    assert "gssi_dzg_gnss (3)" in reason
+    assert "segy_header (2)" in reason
+
+
+def test_a_wheel_odometry_source_does_not_promote_a_position_to_geographic():
+    records = [
+        SubterraRecord(
+            dataset_id="d", sensor_type=SensorType.GPR,
+            position=OdometryPosition(along_track_m=i * 2.0, path_id=None),
+            latitude=None, longitude=None, frame_id="d:line1",
+            signal=[0.1, 0.2],
+            metadata={"source_file": "line1.sgy", "trace_index": i,
+                     "position_source": "mala_wheel_odometry"})
+        for i in range(4)
+    ]
+    result = assess([frame(crs=ACQUISITION)], records)
+    dimension = result.dimension(SpatialDimension.HORIZONTAL_POSITION)
+    # Vocabulary is unchanged by the source: odometry positions are still
+    # "partial" (they exist but are not geographic), never "available".
+    assert dimension.state == "partial"
+    assert "mala_wheel_odometry" in dimension.reason
+
+
+def test_a_gnss_source_does_not_promote_a_non_geographic_position_either():
+    """A record can claim a GNSS source in its metadata while its actual
+    stored position is not geographic (e.g. a fix that failed to parse).
+    The declared source names evidence provenance; it is not itself a
+    position, so it cannot promote the state."""
+    records = [
+        SubterraRecord(
+            dataset_id="d", sensor_type=SensorType.GPR,
+            position=OdometryPosition(along_track_m=i * 2.0, path_id=None),
+            latitude=None, longitude=None, frame_id="d:line1",
+            signal=[0.1, 0.2],
+            metadata={"source_file": "line1.sgy", "trace_index": i,
+                     "position_source": "gssi_dzg_gnss"})
+        for i in range(4)
+    ]
+    result = assess([frame(crs=ACQUISITION)], records)
+    assert result.dimension(SpatialDimension.HORIZONTAL_POSITION).state == "partial"
+
+
+def test_kmz_fallback_stays_whatever_position_kind_the_record_actually_has():
+    records = [_record_with_source(i, None, "kmz_fallback") for i in range(3)]
+    result = assess([frame(crs=GEOGRAPHIC)], records)
+    dimension = result.dimension(SpatialDimension.HORIZONTAL_POSITION)
+    assert dimension.state == "available"
+    assert "kmz_fallback" in dimension.reason
+
+
+def test_a_missing_horizontal_position_still_names_its_source():
+    records = [
+        _record_with_source(i, NoPosition(reason="the format provides none"), "none")
+        for i in range(3)
+    ]
+    result = assess([frame(crs=SpatialRef(kind=CRSKind.UNKNOWN))], records)
+    dimension = result.dimension(SpatialDimension.HORIZONTAL_POSITION)
+    assert dimension.state == "missing"
+    assert "position source: none" in dimension.reason
+
+
 def test_dataset_d_relative_frame_becomes_available_with_a_tie():
     """Relative geometry existing is not absolute geolocation existing."""
     from ingestion.geo_tie import apply_geo_tie, build_geo_tie
