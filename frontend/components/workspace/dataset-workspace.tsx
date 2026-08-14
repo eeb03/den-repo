@@ -22,6 +22,7 @@ import { DatasetSwitcher } from './dataset-switcher'
 import { ProvenancePane } from './provenance-pane'
 import {
   useLabels,
+  useDatasets,
   useLayers,
   useObjects,
 } from '@/hooks/use-subterra'
@@ -42,6 +43,8 @@ import { isGeographic, type Selection } from '@/types/subterra'
 export function DatasetWorkspace({ datasetId }: { datasetId: string }) {
   const [selection, setSelection] = useState<Selection | null>(null)
 
+  // The switcher already lists every dataset, so the name costs no request.
+  const dataset = useDatasets().data?.find((d) => d.id === datasetId)
   const layers = useLayers(datasetId)
   const objects = useObjects(datasetId)
   const labels = useLabels(datasetId)
@@ -64,8 +67,15 @@ export function DatasetWorkspace({ datasetId }: { datasetId: string }) {
 
   return (
     <>
+      {/*
+        The NAME leads and the id follows. A rename has to be visible here or
+        the user cannot tell which dataset they renamed -- the list and the
+        report already show it. Falling back to the id rather than to a
+        placeholder means the header never claims a name the platform does not
+        have yet, which is the same rule the rest of the workspace follows.
+      */}
       <AppHeader
-        title="Dataset workspace"
+        title={dataset?.name ?? 'Dataset workspace'}
         subtitle={datasetId}
         actions={<DatasetSwitcher datasetId={datasetId} />}
       />
