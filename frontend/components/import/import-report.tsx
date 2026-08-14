@@ -98,11 +98,20 @@ export function ImportReport({ job, onReset }: { job: ImportJob; onReset: () => 
   )
 
   // Read straight off each stored SurveyFrame's vertical axis -- never
-  // assumed. Every dataset held so far leaves this undeclared, but that is a
-  // fact about the data, not a constant this screen is allowed to assert.
+  // assumed. `vertical_datum` is a VerticalDatum object ({code, provenance,
+  // name}), not a string: `code` may be set without a real declaration only
+  // when provenance is "none", so both must hold for this to count as
+  // declared (mirrors the dataset report's own extraction).
   const verticalDatums = (data?.survey_frames ?? [])
-    .map((f: SurveyFrameSummary) => (f.vertical_axis as { vertical_datum?: unknown })?.vertical_datum)
-    .filter(Boolean)
+    .map(
+      (f: SurveyFrameSummary) =>
+        (f.vertical_axis as { vertical_datum?: { code?: string | null; provenance?: string } })
+          ?.vertical_datum,
+    )
+    .filter((d): d is { code?: string | null; provenance?: string } =>
+      Boolean(d?.code && d.provenance !== 'none'),
+    )
+    .map((d) => d.code as string)
   const verticalDatumDeclared = verticalDatums.length > 0
   const surveyFrameCount = data?.survey_frames?.length ?? 0
 
