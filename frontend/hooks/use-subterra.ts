@@ -53,6 +53,14 @@ export function useSpatialReference(datasetId: string | undefined) {
   )
 }
 
+export function useCandidates(datasetId: string | undefined) {
+  return useSWR(
+    datasetId ? ['candidates', datasetId] : null,
+    () => api.getCandidates(datasetId as string),
+    options,
+  )
+}
+
 export function useDevices() {
   return useSWR('devices', () => api.listDevices(), options)
 }
