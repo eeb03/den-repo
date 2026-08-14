@@ -64,6 +64,12 @@ export function DevicePanel() {
   const [verticalReferenceDrafts, setVerticalReferenceDrafts] = useState<Record<string, string>>(
     {},
   )
+  // What the operator says was applied to this scan before it entered
+  // Subterra, in their own words -- not Subterra's own pipeline mode, and
+  // never a default. Same per-device draft pattern as the other three.
+  const [processingVersionDrafts, setProcessingVersionDrafts] = useState<Record<string, string>>(
+    {},
+  )
   const [form, setForm] = useState({
     manufacturer: '',
     model: '',
@@ -163,15 +169,18 @@ export function DevicePanel() {
       const surveyArea = surveyAreaDrafts[deviceId]?.trim()
       const coordinateSystem = coordinateSystemDrafts[deviceId]?.trim()
       const verticalReference = verticalReferenceDrafts[deviceId]?.trim()
+      const processingVersion = processingVersionDrafts[deviceId]?.trim()
       const { session: created } = await api.createSession(deviceId, {
         survey_area: surveyArea || undefined,
         coordinate_system: coordinateSystem || undefined,
         vertical_reference: verticalReference || undefined,
+        processing_version: processingVersion || undefined,
       })
       setSession(await api.getSession(created.id))
       setSurveyAreaDrafts((prev) => ({ ...prev, [deviceId]: '' }))
       setCoordinateSystemDrafts((prev) => ({ ...prev, [deviceId]: '' }))
       setVerticalReferenceDrafts((prev) => ({ ...prev, [deviceId]: '' }))
+      setProcessingVersionDrafts((prev) => ({ ...prev, [deviceId]: '' }))
     } catch (err) {
       fail(err)
     } finally {
@@ -300,6 +309,20 @@ export function DevicePanel() {
                   value={verticalReferenceDrafts[device.id] ?? ''}
                   onChange={(e) =>
                     setVerticalReferenceDrafts((prev) => ({ ...prev, [device.id]: e.target.value }))
+                  }
+                  className="h-7 min-w-0 flex-1 rounded-lg border border-border bg-background px-2 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                />
+                <label className="sr-only" htmlFor={`processing-version-${device.id}`}>
+                  Processing version claim (optional)
+                </label>
+                <input
+                  id={`processing-version-${device.id}`}
+                  data-processing-version-draft
+                  type="text"
+                  placeholder="Processing version claim (optional)"
+                  value={processingVersionDrafts[device.id] ?? ''}
+                  onChange={(e) =>
+                    setProcessingVersionDrafts((prev) => ({ ...prev, [device.id]: e.target.value }))
                   }
                   className="h-7 min-w-0 flex-1 rounded-lg border border-border bg-background px-2 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 />

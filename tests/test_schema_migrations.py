@@ -272,6 +272,54 @@ def test_a_pre_vertical_reference_session_database_is_repaired(engine):
         assert rows[0].vertical_reference is None
 
 
+def _legacy_sessions_table_without_processing_version(engine):
+    """The `acquisition_sessions` table with `vertical_reference` (011)
+    already applied, but before `processing_version` (012) was a field."""
+    meta = MetaData()
+    Table(
+        "acquisition_sessions",
+        meta,
+        *[
+            Column(c.name, c.type, primary_key=c.primary_key, nullable=c.nullable)
+            for c in AcquisitionSession.__table__.columns
+            if c.name != "processing_version"
+        ],
+    )
+    meta.create_all(bind=engine)
+
+
+def test_a_pre_processing_version_session_database_is_repaired(engine):
+    _legacy_sessions_table_without_processing_version(engine)
+    assert not _has_column(engine, "acquisition_sessions", "processing_version")
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO acquisition_sessions "
+                "(id, device_id, state, evidence) "
+                "VALUES ('s1', 'dev1', 'CREATED', '{}')"
+            )
+        )
+
+    Session = sessionmaker(bind=engine)
+
+    with Session() as s, pytest.raises(Exception) as excinfo:
+        s.query(AcquisitionSession).all()
+    assert "processing_version" in str(excinfo.value)
+
+    Base.metadata.create_all(bind=engine)
+    run_migrations(engine)
+
+    # After it, the existing session is intact, readable, and its
+    # processing version is undeclared -- never backfilled with "gpr_full"
+    # or anything else.
+    with Session() as s:
+        rows = s.query(AcquisitionSession).all()
+        assert len(rows) == 1
+        assert rows[0].state == "CREATED"
+        assert rows[0].processing_version is None
+
+
 def _has_column(engine, table, column) -> bool:
     if not inspect(engine).has_table(table):
         return False

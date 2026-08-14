@@ -73,6 +73,7 @@ describe('a dataset produced through a device session', () => {
       survey_area: null,
       coordinate_system: null,
       vertical_reference: null,
+      processing_version: null,
       evidence: { position_provided: false },
       failure_stage: null,
       failure_message: null,
@@ -194,6 +195,25 @@ describe('a dataset produced through a device session', () => {
 
     await screen.findByText('IDS Stream C')
     expect(container.textContent).not.toMatch(/vertical reference/i)
+  })
+
+  it('shows the declared processing version claim when the session has one', async () => {
+    getDatasetAcquisition.mockResolvedValue({
+      ...payload,
+      session: { ...payload.session!, processing_version: 'RADAN 7.6 time-zero applied' },
+    })
+    const { container } = view()
+
+    await screen.findByText('IDS Stream C')
+    expect(container.textContent).toContain('RADAN 7.6 time-zero applied')
+  })
+
+  it('shows no processing version row when the session has none, never a fabricated mode', async () => {
+    getDatasetAcquisition.mockResolvedValue(payload) // processing_version: null
+    const { container } = view()
+
+    await screen.findByText('IDS Stream C')
+    expect(container.textContent).not.toMatch(/processing version/i)
   })
 })
 

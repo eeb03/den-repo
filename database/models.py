@@ -419,6 +419,15 @@ class AcquisitionSession(Base):
     #: `vertical_reference` dimension and `fusion.vertical_reference.assess`
     #: remain the only things that settle a vertical registration.
     vertical_reference = Column(String, nullable=True)
+    #: What the operator said was applied to this scan before it entered
+    #: Subterra, in their own words -- "raw, no onboard processing", "IDS
+    #: Stream C dewow on", "RADAN 7.6 time-zero applied". NOT Subterra's own
+    #: pipeline: it does not set `Dataset.extra_metadata.last_preprocessing_mode`,
+    #: does not change which pipeline mode ingest runs, and is not a git SHA
+    #: or `Dataset.version`. Onboard processing applied before the file
+    #: arrives is something Subterra cannot observe; that is why this field
+    #: exists. No default here, ever.
+    processing_version = Column(String, nullable=True)
 
     #: What this session ACTUALLY provided. See schemas/devices.py::SessionEvidence.
     evidence = Column(JSON, nullable=False, default=dict)
@@ -444,6 +453,7 @@ class AcquisitionSession(Base):
             "survey_area": self.survey_area,
             "coordinate_system": self.coordinate_system,
             "vertical_reference": self.vertical_reference,
+            "processing_version": self.processing_version,
             "evidence": self.evidence or {},
             "failure_stage": self.failure_stage,
             "failure_message": self.failure_message,

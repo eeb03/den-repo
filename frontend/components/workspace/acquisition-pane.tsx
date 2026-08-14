@@ -22,11 +22,13 @@ import { NO_VALUE, formatDateTime } from '@/lib/format'
  * source in its own right, not a session with a missing device. Neither
  * state is reconstructed here; both are exactly what the endpoint returned.
  *
- * `survey_area`, `coordinate_system` and `vertical_reference` are the
- * operator's own words, not measurements. None of them settles Stage 8's
- * spatial assessment -- a session can claim "EPSG:32633" or "NAP" and the
- * dataset's `crs` / `vertical_reference` dimensions stay exactly what the
- * frames and declarations actually say.
+ * `survey_area`, `coordinate_system`, `vertical_reference` and
+ * `processing_version` are the operator's own words, not measurements or
+ * pipeline state. None of them settles Stage 8's spatial assessment or
+ * Subterra's own preprocessing record -- a session can claim "EPSG:32633",
+ * "NAP" or "RADAN 7.6 time-zero applied" and the dataset's `crs` /
+ * `vertical_reference` dimensions and `last_preprocessing_mode` stay
+ * exactly what the frames, declarations and ingest actually recorded.
  */
 export function AcquisitionPane({ datasetId }: { datasetId: string }) {
   const { data, error, isLoading } = useDatasetAcquisition(datasetId)
@@ -92,6 +94,13 @@ export function AcquisitionPane({ datasetId }: { datasetId: string }) {
             // Stage 8 vertical registration.
             <Field label="Vertical reference (declared)">
               {data.session.vertical_reference}
+            </Field>
+          )}
+          {data.session.processing_version && (
+            // Not Subterra's own pipeline mode -- see the module docstring.
+            // A claim about onboard processing Subterra cannot observe.
+            <Field label="Processing version (declared)">
+              {data.session.processing_version}
             </Field>
           )}
           <Field label="Acquired">

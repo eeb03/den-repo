@@ -323,6 +323,26 @@ def _session_vertical_reference(engine: Engine) -> None:
         logger.info("migration 011: added acquisition_sessions.vertical_reference")
 
 
+def _session_processing_version(engine: Engine) -> None:
+    """
+    012 — what the operator said was applied to a scan before it entered
+    Subterra.
+
+    One additive nullable column on `acquisition_sessions`. NO DEFAULT, ever
+    -- not "gpr_full", not "trace", not a git SHA, not "1". A session
+    migrated in place declares nothing, so its processing_version stays null
+    -- never backfilled from Dataset.extra_metadata.last_preprocessing_mode,
+    ImportJob.ingest_options, Dataset.version, Device.firmware_version, or
+    the provenance chain.
+    """
+    if _has_table(engine, "acquisition_sessions") and not _has_column(
+            engine, "acquisition_sessions", "processing_version"):
+        with engine.begin() as conn:
+            conn.execute(
+                text("ALTER TABLE acquisition_sessions ADD COLUMN processing_version VARCHAR"))
+        logger.info("migration 012: added acquisition_sessions.processing_version")
+
+
 MIGRATIONS: list[Migration] = [
     Migration(
         id="001_dataset_owner_id",
@@ -378,6 +398,11 @@ MIGRATIONS: list[Migration] = [
         id="011_session_vertical_reference",
         description="add nullable acquisition_sessions.vertical_reference (declared vertical claim, no default)",
         apply=_session_vertical_reference,
+    ),
+    Migration(
+        id="012_session_processing_version",
+        description="add nullable acquisition_sessions.processing_version (declared onboard-processing claim, no default)",
+        apply=_session_processing_version,
     ),
 ]
 

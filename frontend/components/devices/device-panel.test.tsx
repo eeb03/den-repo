@@ -71,6 +71,7 @@ function sessionPayload(overrides: Partial<SessionPayload> = {}): SessionPayload
       survey_area: null,
       coordinate_system: null,
       vertical_reference: null,
+      processing_version: null,
       evidence: { position_provided: false },
       failure_stage: null,
       failure_message: null,
@@ -366,6 +367,7 @@ describe('the declared survey area', () => {
       survey_area: 'North field, behind the barn',
       coordinate_system: undefined,
       vertical_reference: undefined,
+      processing_version: undefined,
     })
   })
 
@@ -381,6 +383,7 @@ describe('the declared survey area', () => {
       survey_area: undefined,
       coordinate_system: undefined,
       vertical_reference: undefined,
+      processing_version: undefined,
     })
   })
 })
@@ -401,6 +404,7 @@ describe('the declared coordinate system', () => {
       survey_area: undefined,
       coordinate_system: 'EPSG:32633',
       vertical_reference: undefined,
+      processing_version: undefined,
     })
   })
 
@@ -441,6 +445,7 @@ describe('the declared vertical reference', () => {
       survey_area: undefined,
       coordinate_system: undefined,
       vertical_reference: 'tape from the slab',
+      processing_version: undefined,
     })
   })
 
@@ -459,6 +464,47 @@ describe('the declared vertical reference', () => {
   it('offers no datum dropdown or resolve control -- a plain declared claim', async () => {
     const { container } = await renderPanel()
     const input = container.querySelector('[data-vertical-reference-draft]')
+    expect(input?.tagName).toBe('INPUT')
+    expect((input as HTMLInputElement | null)?.type).toBe('text')
+    expect(container.querySelector('select')).toBeNull()
+  })
+})
+
+describe('the declared processing version', () => {
+  it('sends the claim typed for that device when starting a session', async () => {
+    createSession.mockResolvedValue({ session: sessionPayload().session, device: device() })
+    getSession.mockResolvedValue(sessionPayload())
+    const { container } = await renderPanel()
+
+    fireEvent.change(container.querySelector('[data-processing-version-draft]')!, {
+      target: { value: 'RADAN 7.6 time-zero applied' },
+    })
+    fireEvent.click(container.querySelector('[data-action="start-session"]')!)
+
+    await waitFor(() => expect(createSession).toHaveBeenCalled())
+    expect(createSession).toHaveBeenCalledWith('dev1', {
+      survey_area: undefined,
+      coordinate_system: undefined,
+      vertical_reference: undefined,
+      processing_version: 'RADAN 7.6 time-zero applied',
+    })
+  })
+
+  it('never sends a default mode or pipeline name when left blank', async () => {
+    createSession.mockResolvedValue({ session: sessionPayload().session, device: device() })
+    getSession.mockResolvedValue(sessionPayload())
+    const { container } = await renderPanel()
+
+    fireEvent.click(container.querySelector('[data-action="start-session"]')!)
+
+    await waitFor(() => expect(createSession).toHaveBeenCalled())
+    const sent = createSession.mock.calls[0]?.[1] as { processing_version?: string }
+    expect(sent.processing_version).toBeUndefined()
+  })
+
+  it('offers no mode dropdown or pipeline picker -- a plain declared claim', async () => {
+    const { container } = await renderPanel()
+    const input = container.querySelector('[data-processing-version-draft]')
     expect(input?.tagName).toBe('INPUT')
     expect((input as HTMLInputElement | null)?.type).toBe('text')
     expect(container.querySelector('select')).toBeNull()

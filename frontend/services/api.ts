@@ -184,6 +184,7 @@ export const api = {
       survey_area?: string
       coordinate_system?: string
       vertical_reference?: string
+      processing_version?: string
     },
   ): Promise<{ session: AcquisitionSession; device: Device }> {
     return postJson(`/api/devices/${encodeURIComponent(deviceId)}/sessions`, body)

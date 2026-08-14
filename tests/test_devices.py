@@ -473,6 +473,53 @@ def test_a_declared_session_vertical_reference_does_not_touch_stage_8(env):
     assert provenance["session"]["vertical_reference"] == "NAP"
 
 
+def test_a_session_declares_the_processing_version_verbatim(env):
+    client = signed_in()
+    device_id = register(client).json()["device"]["id"]
+    body = new_session(
+        client, device_id, processing_version="RADAN 7.6 time-zero applied").json()["session"]
+
+    assert body["processing_version"] == "RADAN 7.6 time-zero applied"
+
+    fetched = client.get(f"/api/sessions/{body['id']}").json()["session"]
+    assert fetched["processing_version"] == "RADAN 7.6 time-zero applied"
+
+
+def test_a_session_with_no_declared_processing_version_reports_null(env):
+    """Never defaulted to "gpr_full", "trace", a git SHA, or "1"."""
+    client = signed_in()
+    device_id = register(client).json()["device"]["id"]
+    body = new_session(client, device_id).json()["session"]
+
+    assert body["processing_version"] is None
+
+
+def test_a_declared_processing_version_does_not_change_what_ingest_records(env):
+    """
+    A session-declared processing claim describes onboard processing
+    Subterra cannot observe. It must not become Dataset's own
+    last_preprocessing_mode -- a claim of "RADAN 7.6 time-zero applied" is
+    not a Subterra pipeline mode, and ingest keeps recording its own mode
+    independently.
+    """
+    client = signed_in()
+    device_id = register(client).json()["device"]["id"]
+    session_id = new_session(
+        client, device_id, processing_version="RADAN 7.6 time-zero applied",
+    ).json()["session"]["id"]
+    move(client, session_id, "READY")
+    job_id = acquire(client, session_id).json()["job"]["id"]
+    client.post(f"/api/imports/jobs/{job_id}/accept")
+    runner._execute(job_id)
+    dataset_id = client.get(f"/api/imports/jobs/{job_id}").json()["job"]["dataset_id"]
+
+    info = client.get(f"/api/datasets/{dataset_id}/info").json()
+    assert info["last_preprocessing_mode"] != "RADAN 7.6 time-zero applied"
+
+    provenance = client.get(f"/api/datasets/{dataset_id}/acquisition").json()
+    assert provenance["session"]["processing_version"] == "RADAN 7.6 time-zero applied"
+
+
 def test_the_lifecycle_runs_created_ready_acquiring_completed(env):
     client = signed_in()
     device_id = register(client).json()["device"]["id"]

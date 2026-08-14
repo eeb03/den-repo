@@ -1336,6 +1336,13 @@ export interface AcquisitionSession {
    * remain the only things that settle a vertical registration.
    */
   vertical_reference: string | null
+  /**
+   * What the operator said was applied to this scan before it entered
+   * Subterra, in their own words -- "raw, no onboard processing", "RADAN
+   * 7.6 time-zero applied". NOT Subterra's own pipeline mode
+   * (`DatasetInfo.last_preprocessing_mode`) and never defaulted.
+   */
+  processing_version: string | null
   evidence: {
     position_provided?: boolean
     position_source?: string | null

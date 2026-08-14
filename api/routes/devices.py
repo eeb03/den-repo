@@ -94,6 +94,13 @@ class CreateSessionRequest(BaseModel):
     #: remain the only things that settle a vertical registration.
     #: Create-time only, like `operator`.
     vertical_reference: Optional[str] = Field(default=None, max_length=200)
+    #: What the operator said was applied to this scan before it entered
+    #: Subterra, in their own words -- "raw, no onboard processing", "RADAN
+    #: 7.6 time-zero applied". NOT Subterra's own pipeline: does not set
+    #: `last_preprocessing_mode`, does not change which pipeline mode ingest
+    #: runs, and is not a git SHA or a version number. Create-time only,
+    #: like `operator` and the other session claims.
+    processing_version: Optional[str] = Field(default=None, max_length=200)
 
 
 class SessionEvidenceRequest(BaseModel):
@@ -210,6 +217,7 @@ def create_session(device_id: str, body: CreateSessionRequest,
         state=SessionState.CREATED.value, label=body.label,
         operator=body.operator, notes=body.notes, survey_area=body.survey_area,
         coordinate_system=body.coordinate_system, vertical_reference=body.vertical_reference,
+        processing_version=body.processing_version,
         evidence=SessionEvidence().model_dump(mode="json"),
         created_at=datetime.utcnow(),
     )
