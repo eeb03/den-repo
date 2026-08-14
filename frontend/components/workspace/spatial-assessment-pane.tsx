@@ -114,6 +114,28 @@ export function SpatialAssessmentPane({ datasetId }: { datasetId: string }) {
             <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
               {data.common_frame.reason}
             </p>
+            {/*
+              Sibling of `state`, not a new value of it: `agree` / `disagree`
+              / `undetermined` only. Names the codes verbatim -- never a
+              paraphrase like "same datum" or "spatially registered".
+            */}
+            <div className="mt-1 flex items-baseline justify-between gap-3">
+              <span className="text-[11px] text-muted-foreground">Agreement</span>
+              <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                {data.common_frame.agreement}
+              </span>
+            </div>
+            <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+              CRS:{' '}
+              {data.common_frame.crs_codes.length
+                ? data.common_frame.crs_codes.join(', ')
+                : 'none recorded'}
+              {' · '}
+              Vertical datum:{' '}
+              {data.common_frame.vertical_datum_codes.length
+                ? data.common_frame.vertical_datum_codes.join(', ')
+                : 'none recorded'}
+            </p>
           </div>
 
           <Link

@@ -1214,6 +1214,11 @@ export interface CommonFrameComposition {
   state: string
   reason: string
   inputs: SpatialDimensionName[]
+  /** Distinct recorded CRS / vertical-datum codes from RESOLVED inputs only, sorted, verbatim. */
+  crs_codes: string[]
+  vertical_datum_codes: string[]
+  /** Sibling of `state`: `agree` / `disagree` / `undetermined` only. `undetermined` unless `state === 'inputs_present'`. */
+  agreement: string
 }
 
 export interface SpatialReference {

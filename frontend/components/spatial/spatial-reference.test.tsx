@@ -105,6 +105,9 @@ function reference(overrides: Partial<SpatialReference> = {}): SpatialReference 
         'horizontal_position', 'crs', 'vertical_reference', 'orientation',
         'surface_reference', 'survey_geometry',
       ],
+      crs_codes: ['EPSG:4326'],
+      vertical_datum_codes: [],
+      agreement: 'undetermined',
     },
     declarations: [],
     has_stale_products: false,
@@ -421,6 +424,31 @@ describe('the common spatial frame composition', () => {
     expect(node?.getAttribute('data-state')).toBe('incomplete')
     expect(node?.textContent).toContain('not every Phase 4 input is resolved yet')
     // No declare control on the composition itself.
+    expect(node?.querySelector('button')).toBeNull()
+    expect(node?.querySelector('form')).toBeNull()
+  })
+
+  it('prints the recorded CRS/vertical-datum identity and the agreement value verbatim', async () => {
+    const { container } = await renderView(
+      reference({
+        common_frame: {
+          state: 'inputs_present',
+          reason: 'every Phase 4 input is individually resolved, and they agree',
+          inputs: [
+            'horizontal_position', 'crs', 'vertical_reference', 'orientation',
+            'surface_reference', 'survey_geometry',
+          ],
+          crs_codes: ['EPSG:4326'],
+          vertical_datum_codes: ['NAP'],
+          agreement: 'agree',
+        },
+      }),
+    )
+    const node = container.querySelector('[data-common-frame]')
+    expect(node?.querySelector('[data-agreement]')?.getAttribute('data-agreement')).toBe('agree')
+    expect(node?.textContent).toContain('EPSG:4326')
+    expect(node?.textContent).toContain('NAP')
+    // Still no declare control.
     expect(node?.querySelector('button')).toBeNull()
     expect(node?.querySelector('form')).toBeNull()
   })

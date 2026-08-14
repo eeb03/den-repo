@@ -143,6 +143,27 @@ export function SpatialReferenceView({ datasetId }: { datasetId: string }) {
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                   {data.common_frame.reason}
                 </p>
+                {/*
+                  Agreement is a sibling of `state`, not a new value of it:
+                  `agree` / `disagree` / `undetermined` only. Codes are named
+                  verbatim, never paraphrased.
+                */}
+                <div data-agreement={data.common_frame.agreement} className="mt-2">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                    Agreement: {data.common_frame.agreement}
+                  </span>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    CRS:{' '}
+                    {data.common_frame.crs_codes.length
+                      ? data.common_frame.crs_codes.join(', ')
+                      : 'none recorded'}
+                    {' · '}
+                    Vertical datum:{' '}
+                    {data.common_frame.vertical_datum_codes.length
+                      ? data.common_frame.vertical_datum_codes.join(', ')
+                      : 'none recorded'}
+                  </p>
+                </div>
               </div>
             </PanelBody>
           </Panel>

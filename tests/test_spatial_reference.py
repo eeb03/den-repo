@@ -481,7 +481,102 @@ def test_common_frame_reads_only_the_already_computed_dimension_states():
 
 
 def test_the_contract_version_was_bumped_for_the_shape_change():
-    assert SPATIAL_CONTRACT_VERSION == "1.1"
+    assert SPATIAL_CONTRACT_VERSION == "1.2"
+
+
+# ---------------------------------------------------------------------------
+# common_frame identity: the CRS / vertical-datum codes the composition would
+# have to share, and whether the resolved inputs agree on them
+# ---------------------------------------------------------------------------
+
+def test_common_frame_agreement_is_undetermined_while_incomplete():
+    """Slice-6 meaning of `incomplete` is unchanged: agreement cannot be
+    judged before the inputs are all resolved, even though the resolved ones
+    (CRS here) already carry a code."""
+    result = assess([frame(crs=GEOGRAPHIC)], geo_records())
+    assert result.common_frame.state == "incomplete"
+    assert result.common_frame.agreement == "undetermined"
+    # The resolved CRS still contributes its code -- this is not gated on
+    # the composition being inputs_present, only on the dimension being
+    # resolved.
+    assert result.common_frame.crs_codes == ["EPSG:4326"]
+    assert result.common_frame.vertical_datum_codes == []
+
+
+def test_an_inferred_crs_never_contributes_a_code_to_the_identity():
+    """An inferred CRS carries a code in `detail`, but `inferred` is not a
+    resolved state -- an unconfirmed code must not become part of the
+    recorded identity."""
+    result = assess([frame(crs=INFERRED)], geo_records())
+    assert state_of(result, SpatialDimension.CRS) == "inferred"
+    assert result.common_frame.crs_codes == []
+
+
+def test_common_frame_agrees_when_resolved_inputs_name_one_crs_and_one_datum():
+    main = frame(crs=GEOGRAPHIC, axis=SURFACE_GOOD, assumptions=[orientation_assumption()])
+    surface = frame("dem:tile", crs=GEOGRAPHIC, axis=SURFACE_GOOD, dataset_id="dem")
+    result = assess([main], geo_records(), surface=[surface])
+
+    assert result.common_frame.state == "inputs_present"
+    assert result.common_frame.crs_codes == ["EPSG:4326"]
+    assert result.common_frame.vertical_datum_codes == ["NAP"]
+    assert result.common_frame.agreement == "agree"
+    assert "EPSG:4326" in result.common_frame.reason
+    assert "NAP" in result.common_frame.reason
+
+
+def test_common_frame_disagrees_when_the_crs_codes_differ():
+    projected = SpatialRef(kind=CRSKind.PROJECTED, code="EPSG:28992",
+                           crs_provenance=CRSProvenance.DECLARED_BY_SOURCE)
+    main = frame(crs=GEOGRAPHIC, axis=SURFACE_GOOD, assumptions=[orientation_assumption()])
+    surface = frame("dem:tile", crs=projected, axis=SURFACE_GOOD, dataset_id="dem")
+    result = assess([main], geo_records(), surface=[surface])
+
+    assert result.common_frame.state == "inputs_present"
+    assert result.common_frame.crs_codes == ["EPSG:28992", "EPSG:4326"]
+    assert result.common_frame.agreement == "disagree"
+    # Both sides named verbatim.
+    assert "EPSG:28992" in result.common_frame.reason
+    assert "EPSG:4326" in result.common_frame.reason
+    for paraphrase in ("same datum", "on earth", "spatially registered"):
+        assert paraphrase not in result.common_frame.reason.lower()
+
+
+def test_common_frame_disagrees_when_the_vertical_datum_codes_differ():
+    msl = VerticalAxis(kind=AxisKind.ELEVATION_M, units="m", origin="MSL", positive_down=False,
+                       vertical_datum=VerticalDatum(code="MSL",
+                                                    provenance=CRSProvenance.SUPPLIED_BY_CALLER,
+                                                    name="MSL"))
+    main = frame(crs=GEOGRAPHIC, axis=SURFACE_GOOD, assumptions=[orientation_assumption()])
+    surface = frame("dem:tile", crs=GEOGRAPHIC, axis=msl, dataset_id="dem")
+    result = assess([main], geo_records(), surface=[surface])
+
+    assert result.common_frame.state == "inputs_present"
+    assert result.common_frame.vertical_datum_codes == ["MSL", "NAP"]
+    assert result.common_frame.agreement == "disagree"
+    assert "MSL" in result.common_frame.reason
+    assert "NAP" in result.common_frame.reason
+
+
+def test_common_frame_agreement_vocabulary_never_claims_registration():
+    result = assess([frame(crs=GEOGRAPHIC)], geo_records())
+    assert result.common_frame.agreement not in (
+        "available", "declared", "registered", "ready", "georeferenced")
+
+
+def test_assess_surface_gains_codes_in_detail_without_changing_its_own_report():
+    """The surface dimension's own state/reason/missing/action must be
+    identical to before this slice -- only `detail` may grow."""
+    baseline = assess([frame()], geo_records(),
+                      surface=[frame("dem:tile", crs=GEOGRAPHIC, axis=SURFACE_GOOD,
+                                     dataset_id="dem")])
+    surface = baseline.dimension(SpatialDimension.SURFACE_REFERENCE)
+    assert surface.state == "available"
+    assert "dem" in surface.reason
+    assert surface.missing == []
+    assert surface.action is None
+    assert surface.detail["crs_codes"] == ["EPSG:4326"]
+    assert surface.detail["datum_codes"] == ["NAP"]
 
 
 # ---------------------------------------------------------------------------
@@ -749,6 +844,9 @@ def test_the_spatial_endpoint_reports_the_common_frame_composition(env):
     assert body["common_frame"]["state"] in ("incomplete", "inputs_present")
     assert body["common_frame"]["reason"]
     assert set(body["common_frame"]["inputs"]) == {d.value for d in COMMON_FRAME_INPUTS}
+    assert body["common_frame"]["agreement"] in ("agree", "disagree", "undetermined")
+    assert isinstance(body["common_frame"]["crs_codes"], list)
+    assert isinstance(body["common_frame"]["vertical_datum_codes"], list)
 
 
 def test_the_vocabulary_names_the_orientation_declaration(env):

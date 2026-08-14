@@ -45,7 +45,7 @@ from pydantic import BaseModel, Field
 from schemas.spatial import AxisKind, CRSKind, CRSProvenance, along_track_extents_m
 
 #: Bumped when the shape of an assessment changes. 1.1 adds `common_frame`.
-SPATIAL_CONTRACT_VERSION = "1.1"
+SPATIAL_CONTRACT_VERSION = "1.2"
 
 
 class DeclarationKind(str, Enum):
@@ -156,6 +156,18 @@ class CommonFrameComposition(BaseModel):
     #: The dimension keys this composition depends on, so a reader does not
     #: have to re-derive the list from `COMMON_FRAME_INPUTS`.
     inputs: list[SpatialDimension] = Field(default_factory=list)
+    #: The distinct CRS / vertical-datum codes contributed by RESOLVED inputs
+    #: only, verbatim, sorted. An unresolved input (e.g. an `inferred` CRS)
+    #: contributes nothing here even if it happens to carry a code -- these
+    #: lists name what the composition would have to share, not a guess.
+    crs_codes: list[str] = Field(default_factory=list)
+    vertical_datum_codes: list[str] = Field(default_factory=list)
+    #: Sibling of `state`, not a value of it. `agree` / `disagree` /
+    #: `undetermined` only -- never `available`, `declared`, `registered`,
+    #: `ready`, or `georeferenced`. `undetermined` whenever `state` is not
+    #: `inputs_present`; a frame cannot be judged to agree or disagree before
+    #: its inputs are all resolved.
+    agreement: str = "undetermined"
 
 
 class SpatialReference(BaseModel):
@@ -182,10 +194,30 @@ class SpatialReference(BaseModel):
         return [d.dimension for d in self.dimensions if not d.resolved]
 
 
+def _resolved_codes(state: Optional[DimensionState], *keys: str) -> set[str]:
+    """
+    Codes recorded in a dimension's `detail`, but only when that dimension is
+    itself resolved. An unresolved dimension (e.g. an `inferred` CRS that
+    still carries a code in `detail`) contributes nothing -- an unconfirmed
+    code never becomes part of a recorded identity.
+    """
+    if state is None or not state.resolved:
+        return set()
+    codes: set[str] = set()
+    for key in keys:
+        codes.update(state.detail.get(key) or ())
+    return codes
+
+
+def _codes_text(codes: list[str]) -> str:
+    return ", ".join(codes) if codes else "none recorded"
+
+
 def assess_common_frame(dimensions: list[DimensionState]) -> CommonFrameComposition:
     """
     Composes the six Phase 4 inputs' ALREADY-COMPUTED states into one
-    readiness statement.
+    readiness statement, plus the CRS / vertical-datum identity those inputs
+    would have to share to compose a frame, and whether they do.
 
     PURE COMPOSITION, nothing more. Takes the `DimensionState` objects
     `assess_spatial_reference` already produced and reads nothing else: no
@@ -195,6 +227,13 @@ def assess_common_frame(dimensions: list[DimensionState]) -> CommonFrameComposit
     could disagree about which states count as settled.
     """
     by_dim = {d.dimension: d for d in dimensions}
+    crs_codes = sorted(
+        _resolved_codes(by_dim.get(SpatialDimension.CRS), "codes")
+        | _resolved_codes(by_dim.get(SpatialDimension.SURFACE_REFERENCE), "crs_codes"))
+    vertical_datum_codes = sorted(
+        _resolved_codes(by_dim.get(SpatialDimension.VERTICAL_REFERENCE), "codes")
+        | _resolved_codes(by_dim.get(SpatialDimension.SURFACE_REFERENCE), "datum_codes"))
+
     blocking = sorted(
         (d for d in COMMON_FRAME_INPUTS if d in by_dim and not by_dim[d].resolved),
         key=lambda d: d.value,
@@ -204,15 +243,34 @@ def assess_common_frame(dimensions: list[DimensionState]) -> CommonFrameComposit
         return CommonFrameComposition(
             state="incomplete",
             reason=f"not every Phase 4 input is resolved yet -- {parts}",
-            inputs=list(COMMON_FRAME_INPUTS))
+            inputs=list(COMMON_FRAME_INPUTS),
+            crs_codes=crs_codes,
+            vertical_datum_codes=vertical_datum_codes,
+            agreement="undetermined")
+
+    agree = len(crs_codes) == 1 and len(vertical_datum_codes) == 1
+    if agree:
+        reason = (
+            "every Phase 4 input is individually resolved, but no common spatial "
+            "frame has been computed from them -- this states that the inputs "
+            f"are ready, not that a frame exists; they agree on one CRS "
+            f"({crs_codes[0]}) and one vertical datum ({vertical_datum_codes[0]})")
+    else:
+        reason = (
+            "every Phase 4 input is individually resolved, but no common spatial "
+            "frame has been computed from them -- this states that the inputs "
+            "are ready, not that a frame exists; the resolved inputs do not name "
+            f"a single CRS and vertical datum: CRS recorded as "
+            f"{_codes_text(crs_codes)}; vertical datum recorded as "
+            f"{_codes_text(vertical_datum_codes)}")
 
     return CommonFrameComposition(
         state="inputs_present",
-        reason=(
-            "every Phase 4 input is individually resolved, but no common spatial "
-            "frame has been computed from them -- this states that the inputs "
-            "are ready, not that a frame exists"),
-        inputs=list(COMMON_FRAME_INPUTS))
+        reason=reason,
+        inputs=list(COMMON_FRAME_INPUTS),
+        crs_codes=crs_codes,
+        vertical_datum_codes=vertical_datum_codes,
+        agreement="agree" if agree else "disagree")
 
 
 # ---------------------------------------------------------------------------
@@ -661,9 +719,21 @@ def assess_surface(frames, surface_frames) -> DimensionState:
 
     usable_frames = [f for f in surface_frames if f.frame_id in usable]
     usable_identity = _surface_identity_clause(usable_frames)
+    # Same codes _surface_identity_clause already names in the reason, as
+    # structured lists -- so assess_common_frame can read them without
+    # parsing that sentence back apart.
+    usable_datum_codes = sorted({
+        f.vertical_axis.vertical_datum.code
+        for f in usable_frames
+        if getattr(f.vertical_axis, "vertical_datum", None) and f.vertical_axis.vertical_datum.code
+    })
+    usable_crs_codes = sorted({
+        f.spatial_ref.code for f in usable_frames if getattr(f.spatial_ref, "code", None)
+    })
     return _state(D, "available",
                   f"{len(usable)} surface frame(s) carry an elevation axis with a declared "
-                  f"datum ({usable_identity})", provenance="declared_by_source", frames=usable)
+                  f"datum ({usable_identity})", provenance="declared_by_source", frames=usable,
+                  crs_codes=usable_crs_codes, datum_codes=usable_datum_codes)
 
 
 #: Keys `assess_orientation` accepts as an orientation declaration.

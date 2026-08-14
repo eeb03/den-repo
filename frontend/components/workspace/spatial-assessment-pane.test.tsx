@@ -87,6 +87,9 @@ function reference(overrides: Partial<SpatialReference> = {}): SpatialReference 
         'horizontal_position', 'crs', 'vertical_reference', 'orientation',
         'surface_reference', 'survey_geometry',
       ],
+      crs_codes: [],
+      vertical_datum_codes: [],
+      agreement: 'undetermined',
     },
     declarations: [],
     has_stale_products: false,
@@ -260,6 +263,9 @@ describe('the common spatial frame composition', () => {
           state: 'inputs_present',
           reason: 'every Phase 4 input is individually resolved, but no common spatial frame has been computed from them',
           inputs: ['horizontal_position', 'crs', 'vertical_reference', 'orientation', 'surface_reference', 'survey_geometry'],
+          crs_codes: ['EPSG:4326'],
+          vertical_datum_codes: ['NAP'],
+          agreement: 'agree',
         },
       }),
     )
@@ -269,5 +275,29 @@ describe('the common spatial frame composition', () => {
     const node = container.querySelector('[data-common-frame]')
     expect(node?.getAttribute('data-state')).toBe('inputs_present')
     expect(node?.textContent).toContain('no common spatial frame has been computed')
+  })
+
+  it('prints the recorded CRS/vertical-datum identity and the agreement value verbatim', async () => {
+    getSpatialReference.mockResolvedValue(
+      reference({
+        common_frame: {
+          state: 'inputs_present',
+          reason: 'every Phase 4 input is individually resolved, but they do not agree',
+          inputs: ['horizontal_position', 'crs', 'vertical_reference', 'orientation', 'surface_reference', 'survey_geometry'],
+          crs_codes: ['EPSG:28992', 'EPSG:4326'],
+          vertical_datum_codes: ['MSL', 'NAP'],
+          agreement: 'disagree',
+        },
+      }),
+    )
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-common-frame]')).toBeTruthy())
+    const node = container.querySelector('[data-common-frame]')
+    expect(node?.textContent).toContain('disagree')
+    expect(node?.textContent).toContain('EPSG:28992')
+    expect(node?.textContent).toContain('EPSG:4326')
+    expect(node?.textContent).toContain('MSL')
+    expect(node?.textContent).toContain('NAP')
   })
 })
