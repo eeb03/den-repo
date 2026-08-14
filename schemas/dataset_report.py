@@ -349,10 +349,14 @@ class SignalProcessingChain(BaseModel):
     """
     The recorded Phase 5 signal chain for this dataset -- READ, not re-run.
 
-    `recorded` is False only when NEITHER a `processing_applied` entry NOR a
-    time-zero claim (see `TIME_ZERO_ASSUMPTION_KEY`) exists for this dataset.
-    That is not an error and not "nothing ran": it means Subterra was never
-    told what happened, and `steps` stays empty rather than presenting an
+    `recorded` is False either when NEITHER a `processing_applied` entry NOR
+    a time-zero claim (see `TIME_ZERO_ASSUMPTION_KEY`) exists for this
+    dataset, or when the recorded modality composition names at least one
+    modality and none of them is `gpr` (see `build_signal_chain`) -- those
+    two are different absences with different `reason` text, never
+    conflated: the first means Subterra was never told what happened to a
+    GPR acquisition, the second means the GPR chain does not apply at all.
+    Neither is an error, and `steps` stays empty rather than presenting an
     invented default chain (dewow/background-removal/gain are not assumed to
     have run just because they are the platform's own defaults).
 
@@ -469,11 +473,19 @@ def _distinct(values) -> list[str]:
     return sorted({str(v) for v in values if v not in (None, "")})
 
 
+def frame_modalities(frames) -> list[str]:
+    """
+    Sorted distinct `frame.modality` values, verbatim. The single definition
+    `build_identity` and the signal-chain routes (report assembler and the
+    thin `GET /{id}/signal-chain`) all share, so they cannot compute two
+    different recorded compositions for the same frames.
+    """
+    return _distinct(getattr(getattr(f, "modality", None), "value", None) for f in frames)
+
+
 def build_identity(dataset, frames, undeclared_extra: Optional[list[str]] = None) -> DatasetIdentity:
     source_files = _distinct(getattr(f, "source_file", None) for f in frames)
-    modalities = _distinct(
-        getattr(getattr(f, "modality", None), "value", None) for f in frames
-    )
+    modalities = frame_modalities(frames)
     extra = getattr(dataset, "extra_metadata", None) or {}
 
     identity = DatasetIdentity(
@@ -851,6 +863,7 @@ def _local_anomaly_step(local_anomaly: Optional[dict]) -> Optional[SignalProcess
 
 def build_signal_chain(
     applied: Optional[dict], frames=None, local_anomaly: Optional[dict] = None,
+    recorded_modalities: Optional[list[str]] = None,
 ) -> SignalProcessingChain:
     """
     `applied` is the `processing_applied` dict already read off a record's
@@ -860,8 +873,29 @@ def build_signal_chain(
     may have stamped a time-zero claim onto (see `TIME_ZERO_ASSUMPTION_KEY`).
     `local_anomaly` is the first record's metadata dict carrying
     `anomaly_reliable`, if any (`api.reports._local_anomaly_stamp`).
+    `recorded_modalities` is the same sorted list `frame_modalities` /
+    `identity.recorded_modalities` already computed for these frames.
     PURE: reads only what is passed in, re-runs nothing, invents nothing.
+
+    THE CHAIN IS A GPR CHAIN. `time_zero` / `background_removal` / `dewow` /
+    `gain` are what `process_gpr_traces` does; none of it applies to a LiDAR
+    tile or a DEM. When `recorded_modalities` names at least one modality and
+    none of them is `gpr`, this returns unrecorded outright -- "preprocessing
+    was not recorded" would be the wrong absence for a dataset that was never
+    a GPR acquisition, and would read as a logging gap rather than a chain
+    that does not apply. An EMPTY composition (no frame records a modality)
+    is not this case: that keeps today's ordinary not-recorded behaviour,
+    the same as an unset `declared_sensor_type` -- the same rule as slices 1
+    and 2, never falling back to the ingest declaration.
     """
+    if recorded_modalities and "gpr" not in recorded_modalities:
+        return SignalProcessingChain(
+            recorded=False,
+            reason=(
+                f"this dataset's recorded modality composition is "
+                f"{', '.join(recorded_modalities)}; the GPR signal-processing chain "
+                f"(time-zero, background removal, dewow, gain) does not apply to it"))
+
     frames = frames or []
     claim = _time_zero_claim(frames)
     local_anomaly_step = _local_anomaly_step(local_anomaly)
@@ -922,6 +956,7 @@ def assess_readiness(
     vertical: VerticalReference,
     quality: QualityReport,
     candidates: CandidateSummary,
+    recorded_modalities: Optional[list[str]] = None,
 ) -> list[CapabilityAssessment]:
     """
     What Subterra may legitimately do with this dataset right now.
@@ -929,6 +964,14 @@ def assess_readiness(
     Read this as a chain: each capability names what it waits on, so a blocked
     3D reconstruction reads as "because the vertical registration is blocked",
     not as an eighth unrelated failure.
+
+    `recorded_modalities` (see `frame_modalities` / `identity.recorded_modalities`)
+    only affects `candidate_analysis`: the detector is a GPR-trace detector,
+    and a non-empty composition with no `gpr` in it blocks that capability
+    outright, regardless of signal or frame count. `signal_processing` is
+    deliberately untouched by this -- it means "records carry sample values",
+    not "the Phase 5 GPR chain can run", and retargeting it would be a
+    different capability's meaning, not a Phase 7 naming fix.
     """
     out: list[CapabilityAssessment] = []
 
@@ -1007,7 +1050,21 @@ def assess_readiness(
     # A radargram needs a signal and a frame identity; it does not need a
     # position. That is why candidate analysis can be READY on a dataset whose
     # horizontal registration is blocked -- the anomaly is in the trace.
-    if volume.records_with_signal and volume.frame_count:
+    #
+    # The detector is a GPR-trace detector. A non-empty composition that
+    # names no `gpr` -- a LiDAR tile, a DEM -- blocks this outright: signal
+    # values and a frame identity are not enough, because the capability
+    # itself does not apply to those samples. An EMPTY composition is not
+    # this case and falls through to the ordinary signal/frame check, the
+    # same rule slices 1 and 2 already established.
+    if recorded_modalities and "gpr" not in recorded_modalities:
+        add(Capability.CANDIDATE_ANALYSIS, Readiness.BLOCKED,
+            f"this dataset's recorded modality composition is "
+            f"{', '.join(recorded_modalities)}; candidate analysis is a GPR-trace "
+            f"capability and does not apply to it",
+            ["a GPR acquisition, or frames recording GPR traces"],
+            [Capability.SIGNAL_PROCESSING])
+    elif volume.records_with_signal and volume.frame_count:
         add(Capability.CANDIDATE_ANALYSIS, Readiness.READY,
             "traces can be reconstructed per frame, which is what candidate analysis "
             "requires; a position is not needed to find an anomaly in a trace"

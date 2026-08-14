@@ -160,7 +160,7 @@ class FakeDataset:
         self.updated_at = kw.get("updated_at", datetime(2026, 1, 1))
 
 
-def all_readiness(records, frames):
+def all_readiness(records, frames, recorded_modalities=None):
     """Every capability assessed, from constructed data alone."""
     dims = quality_dimensions(records)
     return assess_readiness(
@@ -170,11 +170,13 @@ def all_readiness(records, frames):
         QualityReport(computed_score=score_from_dimensions(dims) if dims else None,
                       dimensions=dims),
         CandidateSummary(),
+        recorded_modalities,
     )
 
 
-def readiness_of(records, frames, capability):
-    return next(c for c in all_readiness(records, frames) if c.capability == capability)
+def readiness_of(records, frames, capability, recorded_modalities=None):
+    return next(c for c in all_readiness(records, frames, recorded_modalities)
+                if c.capability == capability)
 
 
 # ---------------------------------------------------------------------------
@@ -359,12 +361,149 @@ def test_candidate_analysis_is_ready_without_any_position():
     """
     An anomaly lives in a trace. Requiring a position for candidate analysis
     would block the one thing an unpositioned GPR line CAN support.
+
+    Not passing recorded_modalities pins that the default (None) preserves
+    this exact behaviour -- existing callers that never learned about Phase 7
+    composition must not change readiness.
     """
     records = [record(i) for i in range(3)]
     c = readiness_of(records, [frame()], Capability.CANDIDATE_ANALYSIS)
     assert c.readiness == Readiness.READY
     assert readiness_of(records, [frame()], Capability.HORIZONTAL_REGISTRATION).readiness \
         == Readiness.BLOCKED
+
+
+# ---------------------------------------------------------------------------
+# Phase 7, third slice: the GPR chain and candidate analysis do not apply
+# when the recorded composition has no gpr in it
+# ---------------------------------------------------------------------------
+
+def test_a_non_gpr_composition_blocks_candidate_analysis_even_with_signal_and_frames():
+    """A LiDAR tile has samples and a frame; the detector still does not
+    apply to it, and that must not read as 'no signal, no grouping'."""
+    records = [record(i) for i in range(3)]
+    c = readiness_of(records, [frame()], Capability.CANDIDATE_ANALYSIS,
+                     recorded_modalities=["lidar"])
+    assert c.readiness == Readiness.BLOCKED
+    assert "lidar" in c.reason
+    assert "GPR-trace capability" in c.reason
+    assert c.missing  # never empty
+
+
+def test_a_gpr_only_composition_leaves_candidate_analysis_unchanged():
+    records = [record(i) for i in range(3)]
+    with_composition = readiness_of(records, [frame()], Capability.CANDIDATE_ANALYSIS,
+                                     recorded_modalities=["gpr"])
+    without = readiness_of(records, [frame()], Capability.CANDIDATE_ANALYSIS)
+    assert with_composition.readiness == without.readiness == Readiness.READY
+    assert with_composition.reason == without.reason
+
+
+def test_a_mixed_gpr_and_lidar_composition_still_follows_the_gpr_side():
+    records = [record(i) for i in range(3)]
+    c = readiness_of(records, [frame()], Capability.CANDIDATE_ANALYSIS,
+                     recorded_modalities=["gpr", "lidar"])
+    assert c.readiness == Readiness.READY
+    for invented in ("fused", "aligned", "ready for fusion", "multi-modal"):
+        assert invented not in c.reason.lower()
+
+
+def test_an_empty_composition_does_not_change_candidate_analysis():
+    """No frame records a modality: falls through to the ordinary
+    signal/frame check, never inventing gpr from a declaration this
+    function never even receives."""
+    records = [record(i) for i in range(3)]
+    c = readiness_of(records, [frame()], Capability.CANDIDATE_ANALYSIS,
+                     recorded_modalities=[])
+    without = readiness_of(records, [frame()], Capability.CANDIDATE_ANALYSIS)
+    assert c.readiness == without.readiness == Readiness.READY
+
+
+def test_a_non_gpr_composition_with_no_signal_still_names_the_composition():
+    """The composition-based block takes priority over the generic
+    no-signal-no-frame reason -- the real cause is named, not the symptom."""
+    c = readiness_of([], [], Capability.CANDIDATE_ANALYSIS, recorded_modalities=["lidar"])
+    assert c.readiness == Readiness.BLOCKED
+    assert "lidar" in c.reason
+
+
+def test_signal_processing_readiness_is_untouched_by_composition():
+    """signal_processing still means 'records carry sample values' -- Phase 7
+    does not retarget it at the GPR chain."""
+    records = [record(i) for i in range(3)]
+    with_lidar = readiness_of(records, [frame()], Capability.SIGNAL_PROCESSING,
+                               recorded_modalities=["lidar"])
+    without = readiness_of(records, [frame()], Capability.SIGNAL_PROCESSING)
+    assert with_lidar.readiness == without.readiness
+    assert with_lidar.reason == without.reason
+
+
+def test_a_non_gpr_signal_chain_is_unrecorded_and_names_the_composition_not_a_logging_gap():
+    chain = build_signal_chain(
+        {"dewow": True, "dewow_window": 15, "background_removal": True,
+         "gain": True, "gain_type": "linear", "gain_power": 1.0},
+        [frame()], None, recorded_modalities=["lidar"])
+    assert chain.recorded is False
+    assert chain.steps == []
+    assert "lidar" in chain.reason
+    assert "does not apply" in chain.reason
+    assert "was not recorded" not in chain.reason
+
+
+def test_a_non_gpr_composition_overrides_even_a_time_zero_claim():
+    """The composition gate is unconditional -- it does not matter what else
+    was recorded, a non-GPR dataset never gets the GPR chain."""
+    claimant = frame(assumptions=[_time_zero_claim(99.04)])
+    chain = build_signal_chain(None, [claimant], None, recorded_modalities=["lidar"])
+    assert chain.recorded is False
+    assert chain.steps == []
+
+
+def test_a_gpr_only_composition_leaves_the_signal_chain_unchanged():
+    applied = {"dewow": True, "dewow_window": 15, "background_removal": True,
+               "gain": True, "gain_type": "linear", "gain_power": 1.0}
+    with_composition = build_signal_chain(applied, [frame()], None, recorded_modalities=["gpr"])
+    without = build_signal_chain(applied, [frame()], None)
+    assert with_composition.recorded == without.recorded is True
+    assert [s.step for s in with_composition.steps] == [s.step for s in without.steps]
+    assert with_composition.reason == without.reason
+
+
+def test_a_mixed_composition_still_runs_the_gpr_chain_no_fusion_language():
+    applied = {"dewow": True, "dewow_window": 15, "background_removal": True,
+               "gain": True, "gain_type": "linear", "gain_power": 1.0}
+    chain = build_signal_chain(applied, [frame()], None, recorded_modalities=["gpr", "lidar"])
+    assert chain.recorded is True
+    assert [s.step for s in chain.steps] == \
+        ["time_zero", "background_removal", "dewow", "gain"]
+    for invented in ("fused", "aligned", "ready for fusion", "multi-modal"):
+        assert invented not in chain.reason.lower()
+
+
+def test_an_empty_composition_does_not_change_the_signal_chain():
+    chain_empty_list = build_signal_chain(None, [frame()], None, recorded_modalities=[])
+    chain_default = build_signal_chain(None, [frame()], None)
+    assert chain_empty_list.recorded == chain_default.recorded is False
+    assert chain_empty_list.reason == chain_default.reason
+
+
+def test_the_signal_chain_endpoint_and_the_report_agree_on_a_non_gpr_composition(api, stored):
+    from database.frames_store import save_frames
+    from database.records_store import save_records
+
+    save_records("ds1", geographic_records(3))
+    save_frames("ds1", [frame(modality=SensorType.LIDAR)])
+
+    thin = api.get("/api/datasets/ds1/signal-chain").json()
+    report = api.get("/api/datasets/ds1/report").json()
+    assert thin == report["signal_chain"]
+    assert thin["recorded"] is False
+    assert "lidar" in thin["reason"]
+
+    candidate_analysis = next(
+        c for c in report["readiness"] if c["capability"] == "candidate_analysis")
+    assert candidate_analysis["readiness"] == "blocked"
+    assert "lidar" in candidate_analysis["reason"]
 
 
 def test_object_classification_is_blocked_for_every_dataset():

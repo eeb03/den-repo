@@ -54,6 +54,16 @@ function formatParameters(parameters: Record<string, unknown>): string | null {
  * both the report and this route derive from the same `build_signal_chain`
  * so they cannot disagree about what ran.
  *
+ * `recorded: false` HAS TWO DIFFERENT CAUSES, and the title here is
+ * deliberately neutral between them rather than guessing which applies: a
+ * GPR dataset Subterra was simply never told about, or a dataset whose
+ * recorded modality composition has no `gpr` in it at all, for which the
+ * chain does not apply. Titling this "Preprocessing not recorded" would be
+ * wrong for the second case -- it would read as an unlogged GPR chain on a
+ * LiDAR tile or a DEM. No second vocabulary is invented to distinguish the
+ * two: `data.reason` (the backend's own words, printed verbatim as the
+ * `StateBox` detail) already says which one it is.
+ *
  * NO REPROCESS CONTROL, no parameter editor, no quality score. Raw and
  * processed amplitude stay distinguishable elsewhere (provenance); this
  * pane only names what already happened.
@@ -74,7 +84,7 @@ export function SignalChainPane({ datasetId }: { datasetId: string }) {
       />
 
       {data && !data.recorded && (
-        <StateBox kind="empty" title="Preprocessing not recorded" detail={data.reason} />
+        <StateBox kind="empty" title="No signal chain" detail={data.reason} />
       )}
 
       {data && data.recorded && (

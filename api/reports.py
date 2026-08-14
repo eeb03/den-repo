@@ -405,9 +405,10 @@ def build_dataset_report(dataset, *, now: Optional[datetime] = None) -> DatasetR
         volume=volume,
         spatial=SpatialReport(horizontal=horizontal, vertical=vertical, geometry=geometry),
         processing=_processing_stages(dataset, records, frames, applied),
-        signal_chain=build_signal_chain(applied, frames, local_anomaly),
+        signal_chain=build_signal_chain(applied, frames, local_anomaly, identity.recorded_modalities),
         quality=quality,
         candidates=candidates,
-        readiness=assess_readiness(volume, horizontal, vertical, quality, candidates),
+        readiness=assess_readiness(
+            volume, horizontal, vertical, quality, candidates, identity.recorded_modalities),
         provenance=[e for f in frames for e in frame_provenance(f)],
     )

@@ -70,12 +70,34 @@ afterEach(cleanup)
 describe('a dataset with no recorded processing', () => {
   it('states that preprocessing was not recorded, not an error and not a default chain', async () => {
     getSignalChain.mockResolvedValue(notRecorded())
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-state-kind]')).toBeTruthy())
+    expect(container.querySelector('[data-state-kind]')?.getAttribute('data-state-kind')).toBe('empty')
+    expect(container.textContent).toContain(
+      'no record carries a processing_applied entry',
+    )
+    expect(container.querySelector('[data-signal-chain]')).toBeNull()
+  })
+})
+
+describe('a dataset whose recorded composition has no gpr', () => {
+  it('uses a neutral title, never "not recorded", and prints the backend reason verbatim', async () => {
+    getSignalChain.mockResolvedValue(
+      notRecorded({
+        reason: "this dataset's recorded modality composition is lidar; the GPR "
+          + 'signal-processing chain (time-zero, background removal, dewow, gain) '
+          + 'does not apply to it',
+      }),
+    )
     const { container, getByText } = view()
 
     await waitFor(() => expect(container.querySelector('[data-state-kind]')).toBeTruthy())
     expect(container.querySelector('[data-state-kind]')?.getAttribute('data-state-kind')).toBe('empty')
-    expect(getByText('Preprocessing not recorded')).toBeTruthy()
-    expect(container.querySelector('[data-signal-chain]')).toBeNull()
+    expect(getByText('No signal chain')).toBeTruthy()
+    expect(container.textContent).not.toContain('Preprocessing not recorded')
+    expect(container.textContent).toContain('does not apply to it')
+    expect(container.textContent).toContain('lidar')
   })
 })
 

@@ -1332,8 +1332,10 @@ def get_dataset_signal_chain(dataset_id: str, db: Session = Depends(get_db),
     this chain on every dataset open, the same way it shows acquisition and
     spatial readiness, so it cannot wait on that. This route does only what
     the chain needs: load the records and frames, read the same handful of
-    fields, hand them to the same `build_signal_chain` the full report also
-    calls, so the two can never disagree about what ran.
+    fields (including the recorded modality composition, so a non-GPR
+    dataset gets the right absence rather than "not recorded"), hand them
+    to the same `build_signal_chain` the full report also calls, so the two
+    can never disagree about what ran.
     """
     if not db.query(Dataset).filter(Dataset.id == dataset_id).first():
         raise HTTPException(status_code=404, detail="Dataset not found")
@@ -1341,13 +1343,14 @@ def get_dataset_signal_chain(dataset_id: str, db: Session = Depends(get_db),
     from api.reports import _local_anomaly_stamp, _processing_applied
     from database.frames_store import load_frames, synthesize_frames_from_records
     from database.records_store import load_records
-    from schemas.dataset_report import build_signal_chain
+    from schemas.dataset_report import build_signal_chain, frame_modalities
 
     records = load_records(dataset_id)
     frames = load_frames(dataset_id) or (
         synthesize_frames_from_records(records) if records else [])
     return build_signal_chain(
         _processing_applied(records), frames, _local_anomaly_stamp(records),
+        frame_modalities(frames),
     ).model_dump(mode="json")
 
 
