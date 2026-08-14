@@ -339,6 +339,10 @@ class Device(Base):
 
     #: What this device CAN produce. See schemas/devices.py::DeviceCapabilities.
     capabilities = Column(JSON, nullable=False, default=dict)
+    #: HOW this device's evidence is meant to arrive. See
+    #: schemas/devices.py::DeviceAdapter. NULL means undeclared -- a device
+    #: with no adapter is valid, and absence must never default to file_drop.
+    adapter = Column(JSON, nullable=True)
     #: "user_declared" | "device_reported". Only the first is currently written.
     identity_source = Column(String, nullable=False, default="user_declared")
     #: "physical" | "simulated".
@@ -358,6 +362,7 @@ class Device(Base):
             "serial_number": self.serial_number,
             "firmware_version": self.firmware_version,
             "capabilities": self.capabilities or {},
+            "adapter": self.adapter,
             "identity_source": self.identity_source,
             "kind": self.kind,
             "is_simulated": self.kind == "simulated",

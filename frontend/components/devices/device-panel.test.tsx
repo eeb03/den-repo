@@ -48,6 +48,7 @@ function device(overrides: Partial<Device> = {}): Device {
     serial_number: 'SN-9',
     firmware_version: null,
     capabilities: { modalities: ['gpr'], reports_position: true },
+    adapter: null,
     identity_source: 'user_declared',
     kind: 'physical',
     is_simulated: false,
@@ -286,6 +287,63 @@ describe('the device profile', () => {
     // sample_interval_ns / samples_per_trace were left blank -- undeclared,
     // not sent as zero.
     expect(sent.capabilities?.sampling_configuration).toEqual({})
+  })
+})
+
+describe('the device adapter', () => {
+  it('shows the declared transport on the saved card', async () => {
+    const { container } = await renderPanel([
+      device({ adapter: { transport: 'file_drop' } }),
+    ])
+    expect(container.textContent).toContain('file_drop')
+  })
+
+  it('shows the absence, not file_drop, when no adapter is declared', async () => {
+    const { container } = await renderPanel([device({ adapter: null })])
+    const row = Array.from(container.querySelectorAll('dt')).find(
+      (dt) => dt.textContent === 'Evidence arrives via',
+    )?.nextElementSibling
+    expect(row?.textContent).not.toContain('file_drop')
+  })
+
+  it('offers no selectable network or serial option', async () => {
+    const { container } = await renderPanel([])
+    fireEvent.click(container.querySelector('[data-action="register-device"]')!)
+    const form = container.querySelector('[data-device-form]')!
+    expect(form.querySelector('#device-network')).toBeNull()
+    expect(form.querySelector('#device-serial')).toBeNull()
+    // Named, so an operator knows the platform recognises them --
+    expect(form.textContent).toMatch(/network/i)
+    // -- but never as a claim that either one works, matching the same
+    // phrase-not-word rule the "no hardware is claimed" tests use: "cannot
+    // connect" is the disclaimer, not the claim it disclaims.
+    const text = (form.textContent ?? '').toLowerCase()
+    for (const claim of ['connected to', 'will connect', 'connects to', 'pair with']) {
+      expect(text).not.toContain(claim)
+    }
+  })
+
+  it('sends a file_drop adapter only when declared, and nothing otherwise', async () => {
+    registerDevice.mockResolvedValue({ device: device() })
+    const { container } = await renderPanel([])
+    fireEvent.click(container.querySelector('[data-action="register-device"]')!)
+    fireEvent.click(container.querySelector('#device-file_drop')!)
+    fireEvent.submit(container.querySelector('form')!)
+
+    await waitFor(() => expect(registerDevice).toHaveBeenCalled())
+    const sent = registerDevice.mock.calls[0]?.[0] as { adapter?: { transport: string } }
+    expect(sent.adapter).toEqual({ transport: 'file_drop' })
+  })
+
+  it('omits the adapter entirely when the operator leaves it undeclared', async () => {
+    registerDevice.mockResolvedValue({ device: device() })
+    const { container } = await renderPanel([])
+    fireEvent.click(container.querySelector('[data-action="register-device"]')!)
+    fireEvent.submit(container.querySelector('form')!)
+
+    await waitFor(() => expect(registerDevice).toHaveBeenCalled())
+    const sent = registerDevice.mock.calls[0]?.[0] as { adapter?: unknown }
+    expect(sent.adapter).toBeUndefined()
   })
 })
 

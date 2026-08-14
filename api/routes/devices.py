@@ -34,6 +34,7 @@ from database.session import get_db
 from schemas.devices import (
     ACCEPTS_ACQUISITIONS,
     FAILURE_STAGES,
+    DeviceAdapter,
     DeviceCapabilities,
     DeviceKind,
     IdentitySource,
@@ -57,6 +58,10 @@ class RegisterDeviceRequest(BaseModel):
     firmware_version: Optional[str] = Field(default=None, max_length=200)
     label: Optional[str] = Field(default=None, max_length=200)
     capabilities: DeviceCapabilities = Field(default_factory=DeviceCapabilities)
+    #: HOW this device's evidence is meant to arrive. Absent by default: a
+    #: device with no declared adapter is valid and must not default to
+    #: file_drop. See schemas/devices.py::DeviceAdapter.
+    adapter: Optional[DeviceAdapter] = None
     #: Whether this record stands for real hardware or a stand-in. A simulated
     #: device is marked for ever after, in every dataset its sessions produce.
     kind: DeviceKind = DeviceKind.PHYSICAL
@@ -136,6 +141,7 @@ def register_device(body: RegisterDeviceRequest, db: Session = Depends(get_db),
         firmware_version=body.firmware_version,
         label=body.label,
         capabilities=body.capabilities.model_dump(mode="json"),
+        adapter=body.adapter.model_dump(mode="json") if body.adapter else None,
         identity_source=IdentitySource.USER_DECLARED.value,
         kind=body.kind.value,
         created_at=datetime.utcnow(),

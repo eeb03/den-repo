@@ -69,6 +69,12 @@ export function DevicePanel() {
     sample_interval_ns: '',
     samples_per_trace: '',
     supported_export_formats: [] as string[],
+    // HOW this device's evidence is meant to arrive -- not a connection.
+    // Unchecked (the default) means undeclared, never "file_drop" by
+    // default. There is no way to select network or serial: neither is
+    // implemented, and a selectable option that would only 422 on submit
+    // would look like a working choice.
+    file_drop: false,
   })
 
   function fail(err: unknown) {
@@ -111,6 +117,7 @@ export function DevicePanel() {
           sampling_configuration: samplingConfiguration,
           supported_export_formats: form.supported_export_formats,
         },
+        adapter: form.file_drop ? { transport: 'file_drop' } : undefined,
       })
       setForm({
         ...form,
@@ -122,6 +129,7 @@ export function DevicePanel() {
         sample_interval_ns: '',
         samples_per_trace: '',
         supported_export_formats: [],
+        file_drop: false,
       })
       setRegistering(false)
       await mutate('devices')
@@ -221,6 +229,9 @@ export function DevicePanel() {
                   {device.capabilities.supported_export_formats?.length
                     ? device.capabilities.supported_export_formats.join(', ')
                     : NO_VALUE}
+                </Field>
+                <Field label="Evidence arrives via">
+                  {device.adapter?.transport ?? NO_VALUE}
                 </Field>
               </dl>
               <button
@@ -371,6 +382,34 @@ export function DevicePanel() {
                     })}
                   </div>
                 </div>
+              </fieldset>
+
+              {/*
+                THE DEVICE ADAPTER. Declares HOW this device's evidence is
+                meant to arrive -- not a connection, and not evidence that
+                anything has arrived. Only file drop is offered as a real
+                choice: network and serial are named below so the operator
+                knows the platform recognises them, but neither is a button
+                that could look like it connects to anything.
+              */}
+              <fieldset className="space-y-1 pt-1">
+                <legend className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                  How this device&rsquo;s evidence arrives
+                </legend>
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input
+                    id="device-file_drop"
+                    type="checkbox"
+                    checked={form.file_drop}
+                    onChange={(e) => setForm({ ...form, file_drop: e.target.checked })}
+                  />
+                  Files this device writes are dropped into Import
+                </label>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Network and serial transports are named in the platform but
+                  not implemented — Subterra cannot connect to either, and
+                  neither is offered as an option here.
+                </p>
               </fieldset>
 
               <label className="flex items-center gap-2 text-xs text-muted-foreground">

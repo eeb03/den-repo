@@ -1284,6 +1284,12 @@ export interface Device {
     supported_export_formats?: string[]
     notes?: string | null
   }
+  /**
+   * HOW this device's evidence is meant to arrive -- not a connection, a
+   * session, or a capability. `null` means undeclared; a device with no
+   * adapter is valid and this must never be filled in with `file_drop`.
+   */
+  adapter: { transport: 'file_drop' | 'network' | 'serial' } | null
   identity_source: 'user_declared' | 'device_reported'
   kind: 'physical' | 'simulated'
   is_simulated: boolean

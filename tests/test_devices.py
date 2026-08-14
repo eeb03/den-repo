@@ -226,6 +226,63 @@ def test_supported_export_formats_must_be_readable_by_the_platform(env):
 
 
 # ---------------------------------------------------------------------------
+# DeviceAdapter: HOW evidence is meant to arrive -- neither capability nor
+# evidence
+# ---------------------------------------------------------------------------
+
+def test_a_file_drop_adapter_round_trips(env):
+    client = signed_in()
+    body = register(client, adapter={"transport": "file_drop"}).json()["device"]
+    assert body["adapter"] == {"transport": "file_drop"}
+
+
+def test_a_device_with_no_declared_adapter_reports_absence_not_file_drop(env):
+    """A device with no adapter is valid, and the absence must not be
+    quietly filled in with the one implemented transport."""
+    body = register(client := signed_in()).json()["device"]
+    assert body["adapter"] is None
+
+
+@pytest.mark.parametrize("transport", ["network", "serial"])
+def test_an_unimplemented_transport_is_refused(env, transport):
+    client = signed_in()
+    response = register(client, adapter={"transport": transport})
+    assert response.status_code == 422
+    detail = str(response.json()["detail"]).lower()
+    assert "could not connect" not in detail
+    assert "device unavailable" not in detail
+    assert "timeout" not in detail
+    assert transport in detail
+
+
+def test_an_unknown_transport_is_refused(env):
+    client = signed_in()
+    assert register(client, adapter={"transport": "bluetooth"}).status_code == 422
+
+
+def test_the_adapter_travels_into_the_session_payload(env):
+    client = signed_in()
+    device_id = register(client, adapter={"transport": "file_drop"}).json()["device"]["id"]
+    session_id = new_session(client, device_id).json()["session"]["id"]
+
+    payload = client.get(f"/api/sessions/{session_id}").json()
+    assert payload["device"]["adapter"] == {"transport": "file_drop"}
+
+
+def test_declaring_an_adapter_does_not_touch_capabilities_or_evidence(env):
+    """The three objects stay three objects: an adapter is not folded into
+    what the device can produce, and it creates no session evidence."""
+    client = signed_in()
+    device = register(client, adapter={"transport": "file_drop"}).json()["device"]
+    assert "adapter" not in device["capabilities"]
+
+    session_id = new_session(client, device["id"]).json()["session"]["id"]
+    evidence = client.get(f"/api/sessions/{session_id}").json()["session"]["evidence"]
+    assert "transport" not in evidence
+    assert "adapter" not in evidence
+
+
+# ---------------------------------------------------------------------------
 # capability is not evidence
 # ---------------------------------------------------------------------------
 

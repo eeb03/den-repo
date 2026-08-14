@@ -165,6 +165,7 @@ export const api = {
     label?: string
     kind?: 'physical' | 'simulated'
     capabilities?: Device['capabilities']
+    adapter?: Device['adapter']
   }): Promise<{ device: Device }> {
     return postJson('/api/devices', body)
   },

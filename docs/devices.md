@@ -97,6 +97,46 @@ instrument *can* do; it says nothing about what a particular session
 *produced*. `SessionEvidence` remains the only place that records whether a
 session actually provided a position, an orientation or an absolute time.
 
+## The DeviceAdapter
+
+A third object, alongside capability and evidence — a `DeviceAdapter`
+(`schemas/devices.py::DeviceAdapter`) states **how** a device's evidence is
+meant to reach Subterra:
+
+| | |
+|---|---|
+| `Device.capabilities` | what the instrument **can** produce |
+| `DeviceAdapter` | **how** Subterra receives it |
+| `SessionEvidence` | what one acquisition **did** provide |
+
+Confusing any two of these is how a file drop starts looking like a live
+connection: a device with `adapter.transport = file_drop` has said nothing
+about whether any file has arrived, exactly as `reports_position: true` has
+said nothing about whether a session got a fix.
+
+**`file_drop` is the only implemented transport.** It means: files this
+instrument writes enter through the existing acquisition boundary
+(`POST /api/imports`), optionally attributed with a `session_id` — the same
+route FileDrop uses. It is **not** a watch folder. Subterra still receives a
+file only when somebody posts one; nothing here polls, watches a directory,
+or imports on its own.
+
+`network` and `serial` are **named, not built**. Declaring either is refused
+with `422` — the error says the transport is not yet implemented, never
+"could not connect", "device unavailable" or "timeout", because no attempt to
+reach anything was ever made. The devices page does not offer either as a
+selectable option, so there is no control that could look like it connects.
+
+**Absence is undeclared, not `file_drop`.** `Device.adapter` is nullable and
+defaults to `null`. A device with no declared adapter is a valid, ordinary
+device — the field exists to state the transport when it is known, not to
+require one.
+
+Persisted as a JSON column on the existing `Device` row, the same weight as
+`capabilities`. No new table, no new acquisition path, no PATCH endpoint —
+`POST /api/devices` accepts an optional `adapter`, and `GET` device and
+session payloads return it (`null` when undeclared).
+
 ## User-declared is not device-reported
 
 `identity_source` is fixed at `user_declared` and is **not a request field**. A

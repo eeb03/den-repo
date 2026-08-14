@@ -197,6 +197,58 @@ class DeviceCapabilities(BaseModel):
         return modality in self.modalities
 
 
+# ---------------------------------------------------------------------------
+# how a device's evidence is meant to reach Subterra -- a third thing,
+# neither capability nor evidence
+# ---------------------------------------------------------------------------
+
+class Transport(str, Enum):
+    """
+    How a device's evidence is meant to reach Subterra. NAMED, not built:
+    only `FILE_DROP` is implemented. `NETWORK` and `SERIAL` exist so a caller
+    can state the true shape of the instrument's intended path without the
+    platform pretending to support it -- and so a refusal names the
+    transport instead of collapsing into "device unavailable".
+    """
+    FILE_DROP = "file_drop"
+    NETWORK = "network"
+    SERIAL = "serial"
+
+
+class DeviceAdapter(BaseModel):
+    """
+    HOW this device's evidence is meant to arrive. Not a connection, a
+    session, or a capability -- a third thing:
+
+        Device.capabilities   what the instrument CAN produce
+        DeviceAdapter          HOW Subterra receives it
+        SessionEvidence        what one acquisition DID provide
+
+    `transport=file_drop` states that files this instrument writes enter
+    through the existing acquisition boundary (`POST /api/imports`),
+    optionally attributed with a `session_id`. It is not a claim that
+    anything has arrived, and it is not a watch folder: Subterra still
+    receives a file only when somebody posts one.
+
+    Deliberately minimal. No host, port, path, baud rate, MAC address,
+    pairing token, connection state, last-seen timestamp, or signal strength
+    -- every one of those would imply a live link that does not exist.
+    """
+    transport: Transport
+
+    @field_validator("transport")
+    @classmethod
+    def _only_file_drop_is_implemented(cls, value: Transport) -> Transport:
+        if value != Transport.FILE_DROP:
+            raise ValueError(
+                f"'{value.value}' is a named transport, not an implemented one. "
+                "Only 'file_drop' is currently accepted: files this device writes "
+                "enter through the existing import boundary. This is not a "
+                "connection failure -- no attempt to reach the transport was made."
+            )
+        return value
+
+
 class SessionEvidence(BaseModel):
     """
     What a session ACTUALLY provided, as opposed to what the device could have.
