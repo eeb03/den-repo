@@ -50,7 +50,7 @@ from schemas.spatial import AxisKind, CRSKind, CRSProvenance, PositionKind, alon
 
 #: Bumped when the SHAPE of the report changes, so a consumer that stored one
 #: can tell whether it is still reading what it thinks it is.
-REPORT_VERSION = "1.1"
+REPORT_VERSION = "1.2"
 
 #: The order the four ALWAYS-ATTEMPTED chain steps are reported in.
 #: `time_zero` comes first because it is a property of the acquisition
@@ -165,7 +165,20 @@ class DatasetIdentity(BaseModel):
     source: Optional[str] = None
     source_url: Optional[str] = None
     license: Optional[str] = None
+    #: The single recorded modality when the frames agree on exactly one;
+    #: `None` when they record several, or none. Never a comma-joined string
+    #: and never filled from `declared_sensor_type` -- see `recorded_modalities`
+    #: for the full composition and `declared_sensor_type` for the ingest
+    #: declaration, which are named as two separate facts, not blended here.
     modality: Optional[str] = None
+    #: Sorted distinct `frame.modality` values actually recorded on this
+    #: dataset's survey frames. Empty when no frame records one -- an empty
+    #: list, never a synthetic single modality.
+    recorded_modalities: list[str] = Field(default_factory=list)
+    #: `dataset.sensor_type` verbatim, the ingest declaration. Independent of
+    #: `recorded_modalities`: the two are never reconciled or corrected
+    #: against each other here.
+    declared_sensor_type: Optional[str] = None
     original_format: Optional[str] = None
     source_files: list[str] = Field(default_factory=list)
     #: Manufacturer/model, only when a converter read it from the file. There
@@ -469,8 +482,9 @@ def build_identity(dataset, frames, undeclared_extra: Optional[list[str]] = None
         source=getattr(dataset, "source", None),
         source_url=getattr(dataset, "source_url", None),
         license=getattr(dataset, "license", None),
-        modality=(modalities[0] if len(modalities) == 1 else
-                  (", ".join(modalities) if modalities else getattr(dataset, "sensor_type", None))),
+        modality=modalities[0] if len(modalities) == 1 else None,
+        recorded_modalities=modalities,
+        declared_sensor_type=getattr(dataset, "sensor_type", None),
         original_format=getattr(dataset, "original_format", None),
         source_files=source_files,
         # Read only from where a converter would have put it. Absent stays

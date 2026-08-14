@@ -111,7 +111,13 @@ def _metadata_completeness(identity) -> QualityDimension:
     """
     fields = {
         "name": identity.name, "source": identity.source, "licence": identity.license,
-        "modality": identity.modality, "format": identity.original_format,
+        # `identity.modality` is deliberately None whenever the frames record
+        # zero or several modalities (see build_identity) -- that is not the
+        # same as nothing being known about modality/sensor identity, so
+        # completeness here checks the declaration or the recorded set,
+        # not the single-value field a multi-modality dataset never fills.
+        "modality": identity.declared_sensor_type or bool(identity.recorded_modalities),
+        "format": identity.original_format,
         "manufacturer": identity.manufacturer, "device_model": identity.device_model,
         "acquisition_date": identity.collection_date, "checksum": identity.checksum,
     }

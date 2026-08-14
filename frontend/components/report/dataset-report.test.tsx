@@ -45,6 +45,8 @@ function report(overrides: Partial<DatasetReport> = {}): DatasetReport {
       source_url: null,
       license: null,
       modality: 'gpr',
+      recorded_modalities: ['gpr'],
+      declared_sensor_type: 'gpr',
       original_format: 'segy',
       source_files: ['line1.sgy'],
       manufacturer: null,
@@ -307,6 +309,77 @@ describe('missing metadata is named, not fabricated', () => {
     // The em dash is the platform's NO_VALUE marker.
     expect(container.textContent).toContain('—')
     expect(container.textContent).not.toMatch(/Manufacturer\s*(unknown|n\/a|none)/i)
+  })
+})
+
+describe('recorded modality composition vs. the ingest declaration', () => {
+  it('names one recorded modality plainly, no "only"/"incomplete"/"waiting"', async () => {
+    const { container } = await renderReport(
+      report({ identity: { ...report().identity, recorded_modalities: ['gpr'], declared_sensor_type: 'gpr' } }),
+    )
+    const recorded = container.querySelector('[data-recorded-modalities]')
+    expect(recorded?.textContent).toBe('gpr')
+    const text = container.textContent?.toLowerCase() ?? ''
+    for (const forbidden of ['only', 'incomplete', 'waiting']) {
+      expect(text).not.toContain(forbidden)
+    }
+  })
+
+  it('names two recorded modalities verbatim, never fused/multi-modal/aligned', async () => {
+    const { container } = await renderReport(
+      report({
+        identity: {
+          ...report().identity,
+          modality: null,
+          recorded_modalities: ['gpr', 'lidar'],
+          declared_sensor_type: 'gpr',
+        },
+      }),
+    )
+    const recorded = container.querySelector('[data-recorded-modalities]')
+    expect(recorded?.textContent).toBe('gpr, lidar')
+    const text = container.textContent?.toLowerCase() ?? ''
+    for (const forbidden of ['fused', 'multi-modal', 'multimodal', 'aligned', 'ready for fusion']) {
+      expect(text).not.toContain(forbidden)
+    }
+  })
+
+  it('shows an explicit absence for an empty composition, never a synthetic gpr, while the declaration still shows', async () => {
+    const { container } = await renderReport(
+      report({
+        identity: {
+          ...report().identity,
+          modality: null,
+          recorded_modalities: [],
+          declared_sensor_type: 'gpr',
+        },
+      }),
+    )
+    expect(container.querySelector('[data-recorded-modalities]')).toBeNull()
+    expect(container.textContent).toContain('no survey frame records a modality')
+    // The declaration is a separate fact and is not withheld.
+    const declaredField = Array.from(container.querySelectorAll('dt')).find(
+      (dt) => dt.textContent === 'Declared sensor',
+    )
+    expect(declaredField?.nextElementSibling?.textContent).toBe('gpr')
+  })
+
+  it('follows the frames even when the declaration disagrees, without correcting it', async () => {
+    const { container } = await renderReport(
+      report({
+        identity: {
+          ...report().identity,
+          modality: null,
+          recorded_modalities: ['gpr', 'lidar'],
+          declared_sensor_type: 'gpr',
+        },
+      }),
+    )
+    const declaredField = Array.from(container.querySelectorAll('dt')).find(
+      (dt) => dt.textContent === 'Declared sensor',
+    )
+    expect(declaredField?.nextElementSibling?.textContent).toBe('gpr')
+    expect(container.querySelector('[data-recorded-modalities]')?.textContent).toBe('gpr, lidar')
   })
 })
 

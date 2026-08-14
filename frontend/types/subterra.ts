@@ -1095,7 +1095,12 @@ export interface DatasetReport {
     source: string | null
     source_url: string | null
     license: string | null
+    /** The single recorded modality when the frames agree on exactly one; null when several, or none. */
     modality: string | null
+    /** Sorted distinct `frame.modality` values actually recorded; empty when none. */
+    recorded_modalities: string[]
+    /** `dataset.sensor_type` verbatim, the ingest declaration -- independent of `recorded_modalities`. */
+    declared_sensor_type: string | null
     original_format: string | null
     source_files: string[]
     manufacturer: string | null

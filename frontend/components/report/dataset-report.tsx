@@ -261,7 +261,22 @@ function IdentitySection({ report }: { report: Report }) {
         <Field label="Dataset ID">
           <code className="font-mono text-[11px]">{id.dataset_id}</code>
         </Field>
-        <Field label="Modality">{id.modality ?? NO_VALUE}</Field>
+        {/*
+          Two facts, named separately: `declared_sensor_type` is what the
+          dataset claimed at ingest, `recorded_modalities` is what its
+          survey frames actually record. A disagreement between them is not
+          resolved here -- both render exactly as the payload returned them.
+        */}
+        <Field label="Declared sensor">{id.declared_sensor_type ?? NO_VALUE}</Field>
+        <Field label="Recorded modality">
+          {id.recorded_modalities.length > 0 ? (
+            <span data-recorded-modalities>{id.recorded_modalities.join(', ')}</span>
+          ) : (
+            <span className="text-muted-foreground">
+              {NO_VALUE} — no survey frame records a modality
+            </span>
+          )}
+        </Field>
         <Field label="Format">{id.original_format ?? NO_VALUE}</Field>
         <Field label="Source">{id.source ?? NO_VALUE}</Field>
         <Field label="Licence">{id.license ?? NO_VALUE}</Field>

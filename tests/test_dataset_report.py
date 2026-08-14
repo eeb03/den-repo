@@ -64,9 +64,9 @@ from validators.dataset_validator import (
 # ---------------------------------------------------------------------------
 
 def frame(frame_id="d:line1", *, crs=None, axis=None, geo_tie=None, n_positions=10,
-          assumptions=None):
+          assumptions=None, modality=SensorType.GPR):
     return SurveyFrame(
-        frame_id=frame_id, dataset_id="d", modality=SensorType.GPR,
+        frame_id=frame_id, dataset_id="d", modality=modality,
         source_format="segy", source_file=f"{frame_id}.sgy",
         spatial_ref=crs or SpatialRef(kind=CRSKind.UNKNOWN),
         vertical_axis=axis or VerticalAxis(
@@ -463,6 +463,87 @@ def test_a_format_is_not_a_manufacturer():
 def test_a_null_owner_means_system_not_unknown():
     assert build_identity(FakeDataset(owner_id=None), []).is_system_dataset is True
     assert build_identity(FakeDataset(owner_id="u1"), []).is_system_dataset is False
+
+
+# ---------------------------------------------------------------------------
+# identity: recorded modality composition vs. the ingest declaration --
+# two facts, named separately, never blended or corrected against each other
+# ---------------------------------------------------------------------------
+
+def test_a_single_recorded_modality_fills_both_the_single_field_and_the_set():
+    identity = build_identity(FakeDataset(sensor_type="gpr"), [frame(modality=SensorType.GPR)])
+    assert identity.recorded_modalities == ["gpr"]
+    assert identity.modality == "gpr"
+    assert identity.declared_sensor_type == "gpr"
+
+
+def test_two_recorded_modalities_are_named_in_the_set_not_joined_into_one_string():
+    identity = build_identity(
+        FakeDataset(sensor_type="gpr"),
+        [frame("d:a", modality=SensorType.GPR), frame("d:b", modality=SensorType.LIDAR)],
+    )
+    assert identity.recorded_modalities == ["gpr", "lidar"]
+    # No comma-join, no sensor_type fallback -- several recorded modalities
+    # live only in the set.
+    assert identity.modality is None
+
+
+def test_no_frames_leaves_the_composition_empty_not_filled_from_sensor_type():
+    identity = build_identity(FakeDataset(sensor_type="gpr"), [])
+    assert identity.recorded_modalities == []
+    assert identity.modality is None
+    # The ingest declaration is still visible -- it is a separate fact.
+    assert identity.declared_sensor_type == "gpr"
+
+
+def test_frames_that_record_no_modality_also_leave_the_composition_empty():
+    """Every SurveyFrame carries a modality in this schema, so this pins the
+    same empty-set behaviour a modality-less frame representation would need
+    -- no frames is the reachable case that exercises it here."""
+    identity = build_identity(FakeDataset(sensor_type="gpr"), [])
+    assert identity.recorded_modalities == []
+    assert identity.modality is None
+
+
+def test_a_declared_sensor_disagreeing_with_the_frames_is_not_corrected_and_lidar_is_not_hidden():
+    identity = build_identity(
+        FakeDataset(sensor_type="gpr"),
+        [frame("d:a", modality=SensorType.GPR), frame("d:b", modality=SensorType.LIDAR)],
+    )
+    # The declaration is not rewritten to match the frames...
+    assert identity.declared_sensor_type == "gpr"
+    # ...and the frames are not filtered down to match the declaration.
+    assert "lidar" in identity.recorded_modalities
+    assert "gpr" in identity.recorded_modalities
+
+
+def test_declared_sensor_type_is_none_when_the_dataset_never_declared_one():
+    identity = build_identity(FakeDataset(sensor_type=None), [frame()])
+    assert identity.declared_sensor_type is None
+
+
+def test_the_contract_version_was_bumped_for_the_identity_shape_change():
+    from schemas.dataset_report import REPORT_VERSION
+
+    assert REPORT_VERSION == "1.2"
+
+
+def test_metadata_completeness_counts_modality_known_even_with_several_recorded():
+    """The completeness dimension must not read a multi-modality dataset as
+    having undeclared modality just because identity.modality is None for
+    it -- that would reintroduce composition-as-failure inside the score."""
+    from api.reports import _metadata_completeness
+
+    identity = build_identity(
+        FakeDataset(sensor_type="gpr"),
+        [frame("d:a", modality=SensorType.GPR), frame("d:b", modality=SensorType.LIDAR)],
+    )
+    dim = _metadata_completeness(identity)
+    assert "modality" in dim.basis
+    # A multi-modality dataset with a declared sensor must not be reported
+    # as less complete than a single-modality one on this account.
+    single = build_identity(FakeDataset(sensor_type="gpr"), [frame(modality=SensorType.GPR)])
+    assert _metadata_completeness(single).value == dim.value
 
 
 # ---------------------------------------------------------------------------
