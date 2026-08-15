@@ -124,10 +124,11 @@ not need asking and is not repeated below.
 2. **Was a propagation velocity determined for any site, and by what method?**
    *Blocks: converting time to physical depth.*
 
-A draft letter asking exactly these two questions is at
-[`4tu-author-letter-draft.md`](4tu-author-letter-draft.md) — **prepared, not
-sent.** Sending it is the human operator's decision, not something this
-platform or its tooling does on its own.
+A letter asking exactly these two questions is at
+[`4tu-author-letter-draft.md`](4tu-author-letter-draft.md) — **sent by email
+on 2026-08-15 (operator-stated). Awaiting reply.** Sending it was the human
+operator's decision, not something this platform or its tooling did on its
+own, and Subterra has not independently verified delivery.
 
 No GPR instrument manufacturer is named anywhere in held 4TU evidence — only
 "air-launched 500 MHz GPR"

@@ -224,8 +224,10 @@ def test_subterra_s_own_measurement_stays_separated_from_the_author_s_words():
 
 def test_the_questions_the_data_cannot_answer_are_still_outstanding():
     """
-    Identifying the elevation field settles nothing about depth. No request has
-    been sent for these two, and claiming otherwise would invent one.
+    Identifying the elevation field settles nothing about depth. Both were sent
+    to the author (2026-08-15); a sent question is not an answered one, and
+    remains OUTSTANDING until a reply is recorded -- claiming otherwise would
+    invent an answer.
     """
     remaining = {q.id: q for q in OPEN_QUESTIONS
                  if q.id != "which-header-holds-the-ellipsoidal-height"}

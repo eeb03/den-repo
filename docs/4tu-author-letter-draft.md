@@ -1,6 +1,7 @@
 # Draft letter to Dr. ter Huurne — Track 1 correspondence
 
-**Status: DRAFT. NOT SENT.** This file is a prepared email body, ready for
+**Status: SENT by email on 2026-08-15 (operator-stated). AWAITING REPLY.**
+This file is a prepared email body, ready for
 the human operator to review, edit and send at their own discretion.
 Nothing on this platform sends correspondence automatically; producing this
 draft does not constitute contacting the author.
