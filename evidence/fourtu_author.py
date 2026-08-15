@@ -190,6 +190,8 @@ OPEN_QUESTIONS: tuple[OpenQuestionForAuthor, ...] = (
         why_it_matters=("the author establishes that the offset EXISTS and is "
                         "uncorrected; without its magnitude no depth on this "
                         "dataset can be referred to the ground"),
+        status=("OUTSTANDING -- a draft letter asking this exists at "
+                "docs/4tu-author-letter-draft.md; not yet sent"),
     ),
     OpenQuestionForAuthor(
         id="propagation-velocity",
@@ -200,6 +202,8 @@ OPEN_QUESTIONS: tuple[OpenQuestionForAuthor, ...] = (
         why_it_matters=("the depth axis Subterra currently shows is derived from a "
                         "converter default of 0.1 m/ns that nobody measured on this "
                         "ground"),
+        status=("OUTSTANDING -- a draft letter asking this exists at "
+                "docs/4tu-author-letter-draft.md; not yet sent"),
     ),
 )
 
