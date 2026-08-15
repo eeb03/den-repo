@@ -7,7 +7,9 @@ things, and a 3D product will silently invent any of them that is missing:
     1. an elevation for the ACQUISITION SURFACE at that trace,
     2. a declared vertical datum shared by that elevation and the surface
        model it is compared against,
-    3. a known offset from the depth axis ORIGIN to the ground.
+    3. a known offset from the depth axis ORIGIN to the ground -- which since
+       stage 12 may be DECLARED (`VerticalAxis.origin_offset`) rather than only
+       implied by an axis whose origin already is the ground.
 
 Subterra holds datasets where (1) exists, (2) is undeclared everywhere, and
 (3) is unknown. This module reports that state instead of papering over it,
@@ -145,15 +147,48 @@ def assess(subsurface_frame, surface_frame) -> VerticalRelationship:
             f"Subterra does not perform")
 
     # Is the depth axis origin tied to the ground?
+    #
+    # TWO WAYS TO SATISFY THIS, and they are different claims. Either the axis
+    # says its own zero IS the ground -- some formats do -- or somebody has
+    # declared how far apart they are. Until this stage only the first existed,
+    # and it was decided by SEARCHING A FREE-TEXT FIELD for the words "ground
+    # surface": a string match standing in for a physical relationship, which
+    # no declaration could ever satisfy.
     origin = (getattr(sub_axis, "origin", "") or "").lower()
     origin_is_ground = "ground surface" in origin or "maaiveld" in origin
-    if not origin_is_ground:
+    offset = getattr(sub_axis, "origin_offset", None)
+
+    # A phase-centre or housing height is a real measurement that does not
+    # answer this question: it relates the ANTENNA to the ground, not the axis
+    # ZERO to the ground, and time zero is set by the electronics rather than by
+    # where the case sits. Recorded, and reported as insufficient.
+    offset_relates_axis = bool(offset is not None and offset.relates_the_depth_axis)
+
+    if offset is not None and not offset_relates_axis:
+        reasons.append(
+            f"an offset of {offset.offset_m} m is declared, but it is measured from the "
+            f"{offset.measured_from.value!r}, not from the depth-axis origin; the axis "
+            f"zero is instrument time zero and nobody has related the two")
+        missing.append(
+            "the offset from the DEPTH-AXIS ORIGIN to the ground, or a stated "
+            "relationship between the declared reference point and the axis zero")
+    elif offset_relates_axis:
+        reasons.append(
+            f"the depth-axis origin is declared to sit {offset.offset_m} m "
+            f"{'above' if offset.offset_m >= 0 else 'below'} the ground "
+            f"({offset.evidence.value}, asserted by {offset.supplied_by!r}); this is a "
+            f"declaration and nothing has verified it")
+    elif not origin_is_ground:
         reasons.append(
             f"the subsurface depth axis origin is {getattr(sub_axis, 'origin', None)!r}, "
             f"not the ground surface, so depth 0 is not where the surface model is")
         missing.append(
             "the offset from the depth-axis origin to the ground (for an air-launched "
             "antenna this is an air path that the constant ground velocity does not model)")
+
+    #: True when the axis zero can be placed against the ground at all, by
+    #: either route. Everything below reads this rather than the string match.
+    origin_is_placeable = origin_is_ground or offset_relates_axis
 
     if not has_depth:
         kind = VerticalRelationshipKind.REGISTRATION_REQUIRED if missing \
@@ -163,12 +198,14 @@ def assess(subsurface_frame, surface_frame) -> VerticalRelationship:
     if not missing:
         return VerticalRelationship(
             VerticalRelationshipKind.ABSOLUTE_ELEVATION, sub_id, sur_id,
-            reasons=reasons + ["both vertical datums are declared and equal, and the depth "
-                               "axis origin is the ground surface"],
+            reasons=reasons + [
+                "both vertical datums are declared and equal, and the depth axis origin "
+                + ("is the ground surface" if origin_is_ground
+                   else "has a declared offset to the ground")],
         )
 
     # A depth below the acquisition surface IS known; only its placement on
     # Earth is not. That is a materially different state from having nothing.
     kind = (VerticalRelationshipKind.RELATIVE_DEPTH_ONLY
-            if origin_is_ground else VerticalRelationshipKind.REGISTRATION_REQUIRED)
+            if origin_is_placeable else VerticalRelationshipKind.REGISTRATION_REQUIRED)
     return VerticalRelationship(kind, sub_id, sur_id, reasons, missing)

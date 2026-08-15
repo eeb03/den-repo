@@ -7,17 +7,21 @@ spans more than one source file, preserves provenance the records alone
 cannot carry, and can be reconstructed for datasets ingested before frames
 existed.
 
-FOLLOW-UP (opened by M1, deliberately NOT resolved here):
-    Validate SEG-Y SourceX/SourceY positions against the KMZ-derived survey
-    track before treating them as authoritative georeferencing.
-
+FOLLOW-UP OPENED BY M1, SETTLED 2026-08-06 -- recorded because it was wrong:
     M1 measured 67 distinct header positions across the 72 traces of
-    C1T_7,5_0001.SGY. ingestion/kmz_georeference.py documents these headers
-    as a single static placeholder repeated on every trace. Both cannot be
-    right. Until that is settled, `position` preserves the header values as
-    ProjectedPosition (strictly better than the pre-M1 behaviour of
-    discarding them into (0,0)) but nothing in the platform treats them as
-    a georeferenced track, and the KMZ path is unchanged.
+    C1T_7,5_0001.SGY, while ingestion/kmz_georeference.py then documented
+    those headers as a single static placeholder repeated on every trace.
+    Both could not be right, and the measurement was.
+
+    The module now carries the CORRECTION with the evidence: 67/72 and 66/66
+    distinct positions, track lengths matching the KMZ to ~0.02%, mean
+    residuals 0.74 m and 1.22 m. SEG-Y header positions are AUTHORITATIVE
+    where usable and the KMZ is the fallback. `test_coordinate_authority.py`
+    re-derives those numbers from the files rather than restating them.
+
+    This settles which source is authoritative. It does NOT settle every
+    coordinate-authority question -- see the unresolved-assumption test in
+    tests/test_converter_frames.py, which stays as it is.
 """
 from pathlib import Path
 

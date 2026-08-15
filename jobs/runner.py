@@ -139,6 +139,7 @@ def _execute(job_id: str) -> None:
         # The trusted owner: written when the job was created, from the
         # authenticated session. The worker never sees the request.
         owner_id = job.owner_id
+        ingest_options = job.ingest_options
         job.state = RUNNING
         job.stage = STAGE_CONVERTING
         job.started_at = datetime.utcnow()
@@ -161,6 +162,10 @@ def _execute(job_id: str) -> None:
                 source="upload",
                 on_stage=on_stage,
                 owner_id=owner_id,
+                # WHAT THE USER DECLARED AT REVIEW, handed to the converter
+                # unchanged. The pipeline itself is untouched: this is the same
+                # `converter_kwargs` seam the scripted ingest paths already use.
+                converter_kwargs=ingest_options or None,
             )
         _set(
             job_id,

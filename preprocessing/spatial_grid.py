@@ -246,17 +246,28 @@ def anomaly_grid_from_traces(traces_2d) -> np.ndarray:
 
     WHY IT TAKES AN ARRAY. Peak memory on a real corpus is dominated by the
     per-(trace, sample) records, not by the science: a 14,516 x 512 radargram
-    is a 59 MB float array but roughly 5 GB of pydantic objects. This calls
-    the IDENTICAL functions in the IDENTICAL order that
-    `preprocess_trace_local_anomaly` does -- background_removal -> dewow ->
-    apply_gain -> `_local_anomaly_grid` with `TRACE_ANOMALY_WINDOWS` -- on the
-    array directly. Nothing is chunked, so the ring statistic still sees the
-    whole line at once and there are no chunk boundaries to correct for.
+    is a 59 MB float array but roughly 5 GB of pydantic objects. This applies
+    background_removal -> dewow -> apply_gain -> `_local_anomaly_grid` with
+    `TRACE_ANOMALY_WINDOWS` on the array directly. Nothing is chunked, so the
+    ring statistic still sees the whole line at once and there are no chunk
+    boundaries to correct for.
 
-    It is NOT an approximation of the record path; `scripts/characterise_4tu.py
-    --verify-arraywise` asserts the two produce the same grid. What it does not
-    produce is per-candidate characterisation, which legitimately needs the
-    per-cell records.
+    WHAT IT IS EQUIVALENT TO, PRECISELY. This function is bitwise equivalent to
+    `preprocess_trace_local_anomaly(process_gpr_traces(records))` -- the FULL
+    composition, filters included. It is NOT equivalent to
+    `preprocess_trace_local_anomaly` alone, which applies none of the three
+    filters: that function computes the ring statistic on whatever `signal`
+    already holds, and the caller supplies the filtering.
+    (This docstring previously claimed the two were identical, and they are not.
+    Until Stage 18 the ingest pipeline relied on that claim and ran the anomaly
+    step unfiltered, which is a different detector -- 95.7% of cells differ on a
+    real line. See docs/anomaly-path-equivalence.md.)
+
+    `scripts/validate_arraywise.py` measures the equivalence and writes it to an
+    artifact. (There is no `--verify-arraywise` flag; earlier docstrings named
+    one that has never existed.) What this function does not produce is
+    per-candidate characterisation, which legitimately needs the per-cell
+    records.
     """
     from preprocessing.trace_processing import apply_gain, background_removal, dewow
 
@@ -365,6 +376,15 @@ def _trace_depth_grid(records: list[SubterraRecord], field: str = "signal") -> t
     def get_value(r: SubterraRecord):
         if field == "signal":
             return r.signal[0] if r.signal else np.nan
+        if field == "pre_anomaly_signal":
+            # The value `signal` held immediately BEFORE the local-anomaly step
+            # overwrote it with the z-score. A cell that never went through that
+            # step has no such value, and NaN keeps it MISSING rather than
+            # falling back to `signal` -- which after preprocessing is the
+            # z-score, a different quantity entirely. Substituting one for the
+            # other would show a statistic while labelling it a signal.
+            value = (r.metadata or {}).get("pre_anomaly_signal")
+            return np.nan if value is None else value
         if field == "elevation":
             return r.elevation if r.elevation is not None else np.nan
         if field == "absolute_elevation_m":

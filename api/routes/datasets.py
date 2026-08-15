@@ -55,6 +55,30 @@ def _geographic_centre(records) -> tuple[Optional[float], Optional[float]]:
             sum(r.longitude for r in positioned) / len(positioned))
 
 
+#: What a modality gets when the caller names no preprocessing mode.
+#:
+#: GPR resolves to the FULL chain -- `gpr_trace_processing` then
+#: `gpr_local_anomaly` -- because that is the composition both benchmarks and the
+#: corpus characterisation measure, and the one the regression baseline pins.
+#: `gpr_local_anomaly` alone produces a materially different and previously
+#: unbenchmarked candidate population (Stage 18 measured 39 cells over |z|>3
+#: against 164 on the same real line). This is a claim about which processing the
+#: published numbers describe -- NOT a claim that the resulting signal is
+#: cleaner, better or more accurate, which nothing here has established.
+#:
+#: Every other modality keeps "trace". Nothing about their behaviour changes.
+DEFAULT_PREPROCESSING_MODE_BY_MODALITY: dict[SensorType, str] = {
+    SensorType.GPR: "gpr_full",
+}
+FALLBACK_PREPROCESSING_MODE = "trace"
+
+
+def default_preprocessing_mode(sensor_type: SensorType) -> str:
+    """The mode used when a caller names none. Never overrides an explicit choice."""
+    return DEFAULT_PREPROCESSING_MODE_BY_MODALITY.get(
+        sensor_type, FALLBACK_PREPROCESSING_MODE)
+
+
 def _run_ingest_pipeline(
     raw_path: Path,
     sensor_type: SensorType,
@@ -64,7 +88,7 @@ def _run_ingest_pipeline(
     license: Optional[str] = None,
     source_url: Optional[str] = None,
     apply_preprocessing: bool = True,
-    preprocessing_mode: str = "trace",
+    preprocessing_mode: Optional[str] = None,
     converter_kwargs: Optional[dict] = None,
     on_stage: Optional[Callable[[str], None]] = None,
     owner_id: Optional[str] = None,
@@ -74,11 +98,16 @@ def _run_ingest_pipeline(
     URL download, source-connector download, local file): convert ->
     validate -> (preprocess) -> persist records -> register metadata.
 
-    preprocessing_mode="trace" (default) treats each record's signal as a
-    multi-sample waveform. Use "spatial_grid" for single-value-per-point
-    raster data (GPR depth slices, magnetometer/gravity surveys) so
-    smoothing/normalization happens across real spatial neighbors instead
-    of being a no-op on a length-1 array.
+    preprocessing_mode=None (unspecified) resolves per modality via
+    `default_preprocessing_mode`: GPR gets the benchmark-aligned "gpr_full"
+    chain, everything else keeps "trace". Passing a mode explicitly always
+    wins, including passing "trace" for a GPR dataset.
+
+    preprocessing_mode="trace" treats each record's signal as a multi-sample
+    waveform. Use "spatial_grid" for single-value-per-point raster data (GPR
+    depth slices, magnetometer/gravity surveys) so smoothing/normalization
+    happens across real spatial neighbors instead of being a no-op on a
+    length-1 array.
 
     converter_kwargs passes format-specific options through to the
     converter (e.g. {"stride": 1} for GeoTIFFConverter on a small DEM tile
@@ -121,9 +150,15 @@ def _run_ingest_pipeline(
     _stage("validating")
     report = validate_dataset(records, dataset_id=dataset_id, source_file=raw_path)
 
+    # Resolved AFTER the sensor type is known, and only when the caller named
+    # nothing: an explicit mode always wins, including an explicit "trace" on a
+    # GPR dataset.
+    resolved_mode = (preprocessing_mode if preprocessing_mode is not None
+                     else default_preprocessing_mode(sensor_type))
+
     if apply_preprocessing:
         _stage("preprocessing")
-        records = run_pipeline(records, mode=preprocessing_mode)
+        records = run_pipeline(records, mode=resolved_mode)
 
     _stage("persisting")
     save_records(dataset_id, records)
@@ -151,7 +186,23 @@ def _run_ingest_pipeline(
         center_lat=center_lat,
         center_lon=center_lon,
         owner_id=owner_id,
-        extra_metadata={"validation_issues": report.issues},
+        # THE MODE IS RECORDED, and only when it was actually applied.
+        #
+        # Ingest previously stored nothing about how records were processed, so
+        # a dataset's processing was unknowable after the fact. It is written
+        # here under the SAME key `/reprocess` already uses, so one field answers
+        # "what produced these records" wherever they came from.
+        #
+        # Datasets ingested before this stage carry no such key, and absence
+        # must read as UNRECORDED -- never as `gpr_full`. Nothing infers a mode
+        # for them, and nothing reprocesses them.
+        extra_metadata={
+            "validation_issues": report.issues,
+            **({"last_preprocessing_mode": resolved_mode,
+                "preprocessing_mode_source": (
+                    "explicit" if preprocessing_mode is not None else "modality_default")}
+               if apply_preprocessing else {}),
+        },
     )
     db.add(dataset)
     db.commit()
@@ -163,6 +214,7 @@ def _run_ingest_pipeline(
         "quality_score": report.quality_score,
         "issues": report.issues,
         "preprocessing_applied": apply_preprocessing,
+        "preprocessing_mode": resolved_mode if apply_preprocessing else None,
     }
 
 
@@ -174,7 +226,7 @@ async def ingest_dataset(
     source: Optional[str] = Form(None),
     license: Optional[str] = Form(None),
     apply_preprocessing: bool = Form(True),
-    preprocessing_mode: str = Form("trace", description="'trace' for multi-sample waveforms, 'spatial_grid' for single-value raster/depth-slice data (GPR, magnetometer, gravity)"),
+    preprocessing_mode: Optional[str] = Form(None, description="omit to use the modality default ('gpr_full' for GPR, 'trace' otherwise); 'trace' for multi-sample waveforms, 'spatial_grid' for single-value raster/depth-slice data"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -196,7 +248,7 @@ async def ingest_dataset(
     # a partial write is never renamed into place. The original filename is
     # kept only as the dataset's display name, never as a path.
     try:
-        raw_path, _, _ = storage.save_upload(gen_uuid(), file.filename, file.file)
+        raw_path, _, _, _ = storage.save_upload(gen_uuid(), file.filename, file.file)
     except storage.EmptyUpload as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except storage.UploadTooLarge as exc:
@@ -218,7 +270,7 @@ class IngestFromURLRequest(BaseModel):
     license: Optional[str] = None
     expected_sha256: Optional[str] = None
     apply_preprocessing: bool = True
-    preprocessing_mode: str = "trace"
+    preprocessing_mode: Optional[str] = None
 
 
 @router.post("/ingest_from_url")
@@ -399,7 +451,7 @@ class IngestLocalFileRequest(BaseModel):
     source: Optional[str] = None
     license: Optional[str] = None
     apply_preprocessing: bool = True
-    preprocessing_mode: str = "trace"
+    preprocessing_mode: Optional[str] = None
     geotiff_stride: Optional[int] = None
 
 
@@ -572,7 +624,7 @@ class IngestZipFromURLRequest(BaseModel):
     license: Optional[str] = None
     expected_sha256: Optional[str] = None
     apply_preprocessing: bool = True
-    preprocessing_mode: str = "trace"
+    preprocessing_mode: Optional[str] = None
     max_files: int = 20  # safety cap -- large archives can contain hundreds of files
     # EXPLICIT, dataset-scoped CRS declaration for source formats that carry
     # coordinates without declaring what they are (SEG-Y SourceX/SourceY).
@@ -663,8 +715,14 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
             # KMZ is the FALLBACK, applied only when the headers cannot
             # supply a geographic position -- it never overwrites one.
             #
-            # Either way this sets latitude/longitude only; `record.position`
-            # always keeps what the file itself reported.
+            # WHEN THE FALLBACK DOES RUN IT REPLACES `record.position`. It sets
+            # latitude/longitude AND a GeographicPosition, because a KMZ track
+            # is a real geographic position and `position` is the platform's
+            # single source of spatial truth (georeference_records_by_trace).
+            # A projected header position, which is what this branch means by
+            # "no geographic view", is therefore superseded -- not kept. The
+            # header numbers survive in metadata["segy_x"]/["segy_y"], written
+            # by SEGYConverter, so nothing the file reported is lost.
             stem = file_path.stem
             needs_fallback = records_needing_kmz_fallback(records)
             if stem in kmz_lookup and len(records) > 0 and needs_fallback:
@@ -676,9 +734,10 @@ def ingest_zip_from_url(req: IngestZipFromURLRequest, db: Session = Depends(get_
                         value="kmz_fallback",
                         basis=(
                             "the file's own headers did not yield a geographic position "
-                            "(absent, or projected with no declared CRS), so latitude/longitude "
-                            "were taken from the matching KMZ track. record.position still holds "
-                            "the header-derived position where one exists."
+                            "(absent, or projected with no declared CRS), so latitude, longitude "
+                            "AND record.position were taken from the matching KMZ track. Any "
+                            "projected header position is superseded, not retained; the header "
+                            "coordinates themselves are preserved in metadata segy_x/segy_y."
                         ),
                         verified=True,
                     ))
@@ -945,6 +1004,8 @@ def get_dataset_trace_grid(
     dataset_id: str,
     source_file: Optional[str] = None,
     field: str = "signal",
+    include_reliability: bool = False,
+    include_candidates: bool = False,
     db: Session = Depends(get_db),
     _dataset=Depends(require_dataset_access),
 ):
@@ -956,15 +1017,34 @@ def get_dataset_trace_grid(
     trace's native position along the survey line, so a single-line
     survey renders as a dense image instead of a mostly-empty lat/lon
     raster. Also returns each trace's (lat, lon) so a caller can
-    georeference any column. field="signal" (default), "elevation", or
-    "absolute_elevation_m". source_file selects which line when a dataset
-    holds several -- omit it to get the densest line PLUS the full
+    georeference any column. field="signal" (default), "pre_anomaly_signal",
+    "elevation", or "absolute_elevation_m". source_file selects which line when
+    a dataset holds several -- omit it to get the densest line PLUS the full
     "available_source_files" list, so a caller (e.g. the viewer) can offer
     an explicit choice instead of silently only ever showing one line.
+
+    THE TWO DISPLAY PROJECTIONS. `signal` is what the record holds now, which
+    after trace-local anomaly preprocessing is the z-score; `pre_anomaly_signal`
+    is the value that same cell held immediately before. They are projections of
+    the SAME records onto the SAME grid -- identical trace indices, depths,
+    axis semantics, reliability mask and candidate footprints -- so switching
+    between them cannot move a candidate or change an axis. Only the number in
+    each cell differs.
     """
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
+
+    # Refused rather than defaulted: falling back from a requested signal to the
+    # z-score would show a statistic under a signal's label.
+    from schemas.radargram import DISPLAYABLE_FIELDS
+
+    if field not in DISPLAYABLE_FIELDS and field not in ("elevation", "absolute_elevation_m"):
+        raise HTTPException(
+            status_code=422,
+            detail=(f"unknown field {field!r}; this endpoint projects "
+                    f"{', '.join(DISPLAYABLE_FIELDS)}, elevation or absolute_elevation_m"))
+
     records = load_records(dataset_id)
     if not records:
         raise HTTPException(status_code=404, detail="No stored records found for this dataset")
@@ -1003,10 +1083,57 @@ def get_dataset_trace_grid(
             "assumptions": [a.model_dump(mode="json") for a in match.assumptions],
         }
 
+    # WHAT THE NUMBERS ARE AND WHAT THE AXES MEAN. Added for the radargram
+    # viewer, which otherwise has to guess -- and would guess wrong: on a
+    # dataset that has been through trace-local anomaly preprocessing,
+    # `signal` holds the z-score, not the amplitude it was computed from.
+    # `include_reliability` is opt-in because the mask roughly doubles the
+    # payload and no existing caller needs it.
+    from api import radargram as radargram_service
+
+    reliability = (
+        radargram_service.reliability_grid(
+            records, result["source_file"], result["trace_indices"], result["depths"])
+        if include_reliability else None
+    )
+    radargram_semantics = radargram_service.semantics(
+        records=records, survey_frame=line_frame, field=field,
+        velocity_m_per_ns=velocity_assumption if isinstance(velocity_assumption, float) else None,
+        declared=radargram_service.velocity_is_declared(db, dataset_id),
+        trace_geographic=result.get("trace_geographic"),
+        trace_along_track=result.get("trace_along_track"),
+        reliability=reliability,
+        n_cells=len(result["depths"]) * len(result["trace_indices"]),
+    )
+
+    # WHERE THE CANDIDATES SIT ON THIS GRID. The join is done here because only
+    # here are both sides present, and doing it in the browser would put a
+    # second copy of the mapping rule in TypeScript where it could drift from
+    # the tested one. Footprints are grid coordinates only -- the candidates
+    # themselves stay on /api/candidates, which remains their single
+    # representation.
+    candidate_footprints = None
+    if include_candidates:
+        from database.candidates_store import load_candidates
+        from schemas.radargram import map_candidates
+
+        stored = load_candidates(dataset_id)
+        line = [
+            c.candidate.model_dump(mode="json") for c in (stored.candidates if stored else [])
+            if c.candidate.evidence.source_file == result["source_file"]
+        ]
+        candidate_footprints = [
+            f.model_dump(mode="json") for f in
+            map_candidates(line, result["trace_indices"], result["depths"])
+        ]
+
     return {
         "dataset_id": dataset_id,
         "name": dataset.name,
         "field": field,
+        "semantics": radargram_semantics.model_dump(mode="json"),
+        "reliability": reliability,
+        "candidate_footprints": candidate_footprints,
         "source_file": result["source_file"],
         "available_source_files": result["available_source_files"],
         "n_depths": len(result["depths"]),
@@ -1131,6 +1258,100 @@ def get_dataset_info(dataset_id: str, db: Session = Depends(get_db),
         "dem_aligned": bool(dataset.extra_metadata and dataset.extra_metadata.get("dem_aligned")),
         "last_preprocessing_mode": dataset.extra_metadata.get("last_preprocessing_mode") if dataset.extra_metadata else None,
     }
+
+
+@router.get("/{dataset_id}/acquisition")
+def get_dataset_acquisition(dataset_id: str, db: Session = Depends(get_db),
+    _dataset=Depends(require_dataset_access)):
+    """
+    Where this dataset came from: the acquisition that produced it, and -- when
+    a device session was involved -- the session and the device behind it.
+
+    THE WHOLE CHAIN, ADDRESSABLE: device -> session -> acquisition -> dataset.
+    A dataset that arrived through FileDrop reports the session and device as
+    absent rather than having them invented.
+
+    THE BOTTOM OF THE EVIDENCE CHAIN, made addressable. A dataset report says
+    what Subterra understands; this says what arrived and when, with the
+    checksum of the bytes as received. Together they answer "where did this come
+    from" without anybody having to correlate a filename by hand.
+
+    Datasets ingested before FileDrop -- including every published reference
+    corpus -- have no acquisition record, and that is reported as an absence
+    rather than reconstructed from a raw path. A plausible-looking origin is
+    exactly the kind of provenance that must not be manufactured.
+    """
+    from database.models import ImportJob
+
+    job = (
+        db.query(ImportJob)
+        .filter(ImportJob.dataset_id == dataset_id)
+        .order_by(ImportJob.created_at.asc())
+        .first()
+    )
+    if job is None:
+        return {
+            "dataset_id": dataset_id,
+            "acquisition": None,
+            "session": None,
+            "device": None,
+            "reason": ("this dataset predates the acquisition boundary, so how its "
+                       "source file arrived was never recorded"),
+        }
+
+    # The rest of the chain, when a device session produced this. A FileDrop
+    # acquisition reports both as absent rather than inventing a device: a file
+    # is a source in its own right, not a session with a missing instrument.
+    from database.models import AcquisitionSession, Device
+
+    session = device = None
+    if job.session_id:
+        session = db.query(AcquisitionSession).filter(
+            AcquisitionSession.id == job.session_id).first()
+        if session is not None:
+            device = db.query(Device).filter(Device.id == session.device_id).first()
+
+    return {
+        "dataset_id": dataset_id,
+        "acquisition": job.to_dict(),
+        "session": session.to_dict() if session is not None else None,
+        "device": device.to_dict() if device is not None else None,
+    }
+
+
+@router.get("/{dataset_id}/signal-chain")
+def get_dataset_signal_chain(dataset_id: str, db: Session = Depends(get_db),
+    _dataset=Depends(require_dataset_access)):
+    """
+    The recorded Phase 5 signal-processing chain, read straight from stored
+    evidence on this dataset's records and frames -- never re-run.
+
+    A THIN ROUTE, DELIBERATELY SEPARATE FROM `/report`. The full report is
+    known to take tens of seconds to build on a dataset of any size (quality
+    scoring and candidate staleness walk every record); the workspace shows
+    this chain on every dataset open, the same way it shows acquisition and
+    spatial readiness, so it cannot wait on that. This route does only what
+    the chain needs: load the records and frames, read the same handful of
+    fields (including the recorded modality composition, so a non-GPR
+    dataset gets the right absence rather than "not recorded"), hand them
+    to the same `build_signal_chain` the full report also calls, so the two
+    can never disagree about what ran.
+    """
+    if not db.query(Dataset).filter(Dataset.id == dataset_id).first():
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    from api.reports import _local_anomaly_stamp, _processing_applied
+    from database.frames_store import load_frames, synthesize_frames_from_records
+    from database.records_store import load_records
+    from schemas.dataset_report import build_signal_chain, frame_modalities
+
+    records = load_records(dataset_id)
+    frames = load_frames(dataset_id) or (
+        synthesize_frames_from_records(records) if records else [])
+    return build_signal_chain(
+        _processing_applied(records), frames, _local_anomaly_stamp(records),
+        frame_modalities(frames),
+    ).model_dump(mode="json")
 
 
 @router.get("/{dataset_id}/report")

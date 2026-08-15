@@ -45,12 +45,48 @@ export function useDatasetReport(datasetId: string | undefined) {
   )
 }
 
+export function useDatasetAcquisition(datasetId: string | undefined) {
+  return useSWR(
+    datasetId ? ['dataset-acquisition', datasetId] : null,
+    () => api.getDatasetAcquisition(datasetId as string),
+    options,
+  )
+}
+
+export function useSignalChain(datasetId: string | undefined) {
+  return useSWR(
+    datasetId ? ['signal-chain', datasetId] : null,
+    () => api.getSignalChain(datasetId as string),
+    options,
+  )
+}
+
 export function useSpatialReference(datasetId: string | undefined) {
   return useSWR(
     datasetId ? ['spatial-reference', datasetId] : null,
     () => api.getSpatialReference(datasetId as string),
     options,
   )
+}
+
+export function useCandidates(datasetId: string | undefined) {
+  return useSWR(
+    datasetId ? ['candidates', datasetId] : null,
+    () => api.getCandidates(datasetId as string),
+    options,
+  )
+}
+
+export function useSession(sessionId: string | undefined) {
+  return useSWR(
+    sessionId ? ['session', sessionId] : null,
+    () => api.getSession(sessionId as string),
+    options,
+  )
+}
+
+export function useDevices() {
+  return useSWR('devices', () => api.listDevices(), options)
 }
 
 export function useObjects(datasetId: string | undefined) {

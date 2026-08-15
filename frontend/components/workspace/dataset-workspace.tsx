@@ -17,11 +17,17 @@ import { ConfidenceValue } from '@/components/subterra/confidence-value'
 import { SpatialRefStatus } from '@/components/subterra/data-status'
 import { SelectionPane } from './selection-pane'
 import { SpatialPanes } from './spatial-panes'
+import { AcquisitionPane } from './acquisition-pane'
+import { SpatialAssessmentPane } from './spatial-assessment-pane'
+import { SignalChainPane } from './signal-chain-pane'
+import { CandidateRegionsPane } from './candidate-regions-pane'
 import { DatasetSummaryPane } from './dataset-summary-pane'
+import { ModalityCompositionPane } from './modality-composition-pane'
 import { DatasetSwitcher } from './dataset-switcher'
 import { ProvenancePane } from './provenance-pane'
 import {
   useLabels,
+  useDatasets,
   useLayers,
   useObjects,
 } from '@/hooks/use-subterra'
@@ -42,6 +48,8 @@ import { isGeographic, type Selection } from '@/types/subterra'
 export function DatasetWorkspace({ datasetId }: { datasetId: string }) {
   const [selection, setSelection] = useState<Selection | null>(null)
 
+  // The switcher already lists every dataset, so the name costs no request.
+  const dataset = useDatasets().data?.find((d) => d.id === datasetId)
   const layers = useLayers(datasetId)
   const objects = useObjects(datasetId)
   const labels = useLabels(datasetId)
@@ -64,8 +72,15 @@ export function DatasetWorkspace({ datasetId }: { datasetId: string }) {
 
   return (
     <>
+      {/*
+        The NAME leads and the id follows. A rename has to be visible here or
+        the user cannot tell which dataset they renamed -- the list and the
+        report already show it. Falling back to the id rather than to a
+        placeholder means the header never claims a name the platform does not
+        have yet, which is the same rule the rest of the workspace follows.
+      */}
       <AppHeader
-        title="Dataset workspace"
+        title={dataset?.name ?? 'Dataset workspace'}
         subtitle={datasetId}
         actions={<DatasetSwitcher datasetId={datasetId} />}
       />
@@ -76,6 +91,16 @@ export function DatasetWorkspace({ datasetId }: { datasetId: string }) {
           <PanelHeader title="Dataset" />
           <PanelBody className="pt-0">
             <DatasetSummaryPane datasetId={datasetId} />
+
+            <ModalityCompositionPane datasetId={datasetId} />
+
+            <AcquisitionPane datasetId={datasetId} />
+
+            <SpatialAssessmentPane datasetId={datasetId} />
+
+            <SignalChainPane datasetId={datasetId} />
+
+            <CandidateRegionsPane datasetId={datasetId} />
 
             {/*
               The report answers what this workspace cannot: how far the

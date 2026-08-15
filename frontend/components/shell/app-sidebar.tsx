@@ -2,13 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import {
-  Beaker,
-  Database,
-  FileUp,
-  Layers,
-  type LucideIcon,
-} from 'lucide-react'
+import { Beaker, Database, FileUp, Layers, Radio, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SubterraLogo } from '@/components/brand/logo'
 import { ProvenanceLegend } from '@/components/subterra/provenance-tag'
@@ -43,6 +37,12 @@ const navItems: NavItem[] = [
     label: 'Import',
     icon: FileUp,
     description: 'Add a dataset from a file',
+  },
+  {
+    href: '/devices',
+    label: 'Devices',
+    icon: Radio,
+    description: 'Instruments and acquisition sessions',
   },
   {
     href: '/benchmark',

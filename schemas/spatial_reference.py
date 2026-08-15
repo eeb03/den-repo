@@ -42,10 +42,10 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-from schemas.spatial import AxisKind, CRSKind, CRSProvenance
+from schemas.spatial import AxisKind, CRSKind, CRSProvenance, along_track_extents_m
 
-#: Bumped when the shape of an assessment changes.
-SPATIAL_CONTRACT_VERSION = "1.0"
+#: Bumped when the shape of an assessment changes. 1.1 adds `common_frame`.
+SPATIAL_CONTRACT_VERSION = "1.2"
 
 
 class DeclarationKind(str, Enum):
@@ -68,6 +68,8 @@ class DeclarationKind(str, Enum):
     GEO_TIE = "geo_tie"
     #: Another dataset asserted to be this survey's surface elevation model.
     SURFACE_REFERENCE = "surface_reference"
+    #: A claim about antenna heading -- not a track bearing, not an IMU record.
+    ORIENTATION = "orientation"
 
 
 class SpatialDimension(str, Enum):
@@ -121,11 +123,62 @@ class DimensionState(BaseModel):
         return self.state in _RESOLVED_STATES
 
 
+#: The Phase 4 inputs to the common spatial frame -- horizontal position,
+#: CRS, vertical reference, orientation, surface reference, survey geometry.
+#: `depth_conversion` is a dimension in its own right and is deliberately
+#: excluded: it is not one of the inputs a common frame composes.
+COMMON_FRAME_INPUTS: tuple[SpatialDimension, ...] = (
+    SpatialDimension.HORIZONTAL_POSITION,
+    SpatialDimension.CRS,
+    SpatialDimension.VERTICAL_REFERENCE,
+    SpatialDimension.ORIENTATION,
+    SpatialDimension.SURFACE_REFERENCE,
+    SpatialDimension.SURVEY_GEOMETRY,
+)
+
+
+class CommonFrameComposition(BaseModel):
+    """
+    Whether the Phase 4 inputs are each individually settled -- NOT whether a
+    common spatial frame has been computed. Nothing in this module computes a
+    frame; that composition (Phase 9 reconstruction) is later, unbuilt work.
+
+    STATE VOCABULARY IS DELIBERATELY NARROW: `incomplete` or
+    `inputs_present`, never `available`, `declared`, `registered` or `ready`.
+    Every one of those would be read as "a frame exists", which this never
+    asserts -- `inputs_present` says only that every listed input is itself
+    resolved. It is not a `SpatialDimension` and does not appear in
+    `SpatialReference.dimensions`: it is a statement ABOUT the seven
+    dimensions, not an eighth one.
+    """
+    state: str
+    reason: str = Field(..., min_length=1)
+    #: The dimension keys this composition depends on, so a reader does not
+    #: have to re-derive the list from `COMMON_FRAME_INPUTS`.
+    inputs: list[SpatialDimension] = Field(default_factory=list)
+    #: The distinct CRS / vertical-datum codes contributed by RESOLVED inputs
+    #: only, verbatim, sorted. An unresolved input (e.g. an `inferred` CRS)
+    #: contributes nothing here even if it happens to carry a code -- these
+    #: lists name what the composition would have to share, not a guess.
+    crs_codes: list[str] = Field(default_factory=list)
+    vertical_datum_codes: list[str] = Field(default_factory=list)
+    #: Sibling of `state`, not a value of it. `agree` / `disagree` /
+    #: `undetermined` only -- never `available`, `declared`, `registered`,
+    #: `ready`, or `georeferenced`. `undetermined` whenever `state` is not
+    #: `inputs_present`; a frame cannot be judged to agree or disagree before
+    #: its inputs are all resolved.
+    agreement: str = "undetermined"
+
+
 class SpatialReference(BaseModel):
     """The whole spatial picture for one dataset."""
     contract_version: str = SPATIAL_CONTRACT_VERSION
     dataset_id: str
     dimensions: list[DimensionState] = Field(default_factory=list)
+    #: Whether the Phase 4 inputs are each individually resolved -- NOT
+    #: whether a common spatial frame has been computed. See
+    #: `CommonFrameComposition`.
+    common_frame: CommonFrameComposition
     #: Declarations currently in force, newest first.
     declarations: list[dict] = Field(default_factory=list)
     #: True when a declaration landed after something derived from spatial
@@ -139,6 +192,85 @@ class SpatialReference(BaseModel):
     @property
     def unresolved(self) -> list[SpatialDimension]:
         return [d.dimension for d in self.dimensions if not d.resolved]
+
+
+def _resolved_codes(state: Optional[DimensionState], *keys: str) -> set[str]:
+    """
+    Codes recorded in a dimension's `detail`, but only when that dimension is
+    itself resolved. An unresolved dimension (e.g. an `inferred` CRS that
+    still carries a code in `detail`) contributes nothing -- an unconfirmed
+    code never becomes part of a recorded identity.
+    """
+    if state is None or not state.resolved:
+        return set()
+    codes: set[str] = set()
+    for key in keys:
+        codes.update(state.detail.get(key) or ())
+    return codes
+
+
+def _codes_text(codes: list[str]) -> str:
+    return ", ".join(codes) if codes else "none recorded"
+
+
+def assess_common_frame(dimensions: list[DimensionState]) -> CommonFrameComposition:
+    """
+    Composes the six Phase 4 inputs' ALREADY-COMPUTED states into one
+    readiness statement, plus the CRS / vertical-datum identity those inputs
+    would have to share to compose a frame, and whether they do.
+
+    PURE COMPOSITION, nothing more. Takes the `DimensionState` objects
+    `assess_spatial_reference` already produced and reads nothing else: no
+    frame, no record, no session, no `fusion.vertical_reference.assess`.
+    "Resolved" is `DimensionState.resolved` -- the same property
+    `SpatialReference.unresolved` already uses, not a second definition that
+    could disagree about which states count as settled.
+    """
+    by_dim = {d.dimension: d for d in dimensions}
+    crs_codes = sorted(
+        _resolved_codes(by_dim.get(SpatialDimension.CRS), "codes")
+        | _resolved_codes(by_dim.get(SpatialDimension.SURFACE_REFERENCE), "crs_codes"))
+    vertical_datum_codes = sorted(
+        _resolved_codes(by_dim.get(SpatialDimension.VERTICAL_REFERENCE), "codes")
+        | _resolved_codes(by_dim.get(SpatialDimension.SURFACE_REFERENCE), "datum_codes"))
+
+    blocking = sorted(
+        (d for d in COMMON_FRAME_INPUTS if d in by_dim and not by_dim[d].resolved),
+        key=lambda d: d.value,
+    )
+    if blocking:
+        parts = "; ".join(f"{d.value}: {by_dim[d].state}" for d in blocking)
+        return CommonFrameComposition(
+            state="incomplete",
+            reason=f"not every Phase 4 input is resolved yet -- {parts}",
+            inputs=list(COMMON_FRAME_INPUTS),
+            crs_codes=crs_codes,
+            vertical_datum_codes=vertical_datum_codes,
+            agreement="undetermined")
+
+    agree = len(crs_codes) == 1 and len(vertical_datum_codes) == 1
+    if agree:
+        reason = (
+            "every Phase 4 input is individually resolved, but no common spatial "
+            "frame has been computed from them -- this states that the inputs "
+            f"are ready, not that a frame exists; they agree on one CRS "
+            f"({crs_codes[0]}) and one vertical datum ({vertical_datum_codes[0]})")
+    else:
+        reason = (
+            "every Phase 4 input is individually resolved, but no common spatial "
+            "frame has been computed from them -- this states that the inputs "
+            "are ready, not that a frame exists; the resolved inputs do not name "
+            f"a single CRS and vertical datum: CRS recorded as "
+            f"{_codes_text(crs_codes)}; vertical datum recorded as "
+            f"{_codes_text(vertical_datum_codes)}")
+
+    return CommonFrameComposition(
+        state="inputs_present",
+        reason=reason,
+        inputs=list(COMMON_FRAME_INPUTS),
+        crs_codes=crs_codes,
+        vertical_datum_codes=vertical_datum_codes,
+        agreement="agree" if agree else "disagree")
 
 
 # ---------------------------------------------------------------------------
@@ -160,6 +292,43 @@ def _state(dimension, state, reason, missing=None, action=None, provenance=None,
         action=action, provenance=provenance, detail=detail)
 
 
+#: A record's own metadata has no `position_source` key. Bucketed separately
+#: from the literal string `"none"`, which some converters (see
+#: `converters/gssi_converter.py`) write deliberately to mean something
+#: different: a position was attempted and none could be derived. Collapsing
+#: the two would invent a source for a record that never named one.
+_NO_POSITION_SOURCE = "no declared position source"
+
+
+def _position_source_counts(records) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for record in records:
+        source = record.metadata.get("position_source")
+        key = source if source else _NO_POSITION_SOURCE
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def _position_source_clause(records) -> str:
+    """
+    A clause naming the recorded `position_source` values verbatim, for
+    appending to `assess_horizontal`'s reason.
+
+    NEVER PARAPHRASED. `gssi_dzg_gnss` is reported as `gssi_dzg_gnss`, not
+    "GNSS" -- a wheel encoder and a satellite fix are different evidence, and
+    collapsing their names would hide which one a record actually had. Counts
+    appear only when more than one bucket is present; a single uniform source
+    needs no count, since the record total is already stated in the sentence
+    this clause is appended to.
+    """
+    counts = _position_source_counts(records)
+    if len(counts) == 1:
+        (only,) = counts
+        return f"position source: {only}"
+    parts = ", ".join(f"{source} ({count:,})" for source, count in sorted(counts.items()))
+    return f"position sources: {parts}"
+
+
 def assess_horizontal(frames, records) -> DimensionState:
     """
     Whether the measurements have a horizontal position at all.
@@ -169,6 +338,15 @@ def assess_horizontal(frames, records) -> DimensionState:
     frame with easting/northing and no declared projection has the opposite
     problem. Reporting one number for both would hide whichever failure the
     other dataset did not have.
+
+    THE REASON NAMES WHAT PRODUCED THE POSITIONS, not just whether they
+    exist: `metadata.position_source` is already stamped by every converter
+    that sets one (`gssi_dzg_gnss`, `mala_cor_gnss`, `gssi_survey_wheel`,
+    `mala_wheel_odometry`, `ids_wheel_odometry`, `segy_header`,
+    `kmz_fallback`, or the literal `"none"`), and this dimension's state
+    vocabulary is unaffected by which source it was -- a wheel-odometry
+    source does not make a position geographic, and a GNSS source does not
+    promote one that is not.
     """
     D = SpatialDimension.HORIZONTAL_POSITION
     if not records:
@@ -187,15 +365,17 @@ def assess_horizontal(frames, records) -> DimensionState:
     geographic = kinds.get(PositionKind.GEOGRAPHIC.value, 0)
     none = kinds.get(PositionKind.NONE.value, 0)
     tied = [f.frame_id for f in frames if getattr(f, "geo_tie", None)]
+    source_clause = _position_source_clause(records)
 
     if geographic == total:
         return _state(D, "available",
-                      f"every one of {total:,} record(s) carries a geographic position",
+                      f"every one of {total:,} record(s) carries a geographic position "
+                      f"({source_clause})",
                       provenance="registered" if tied else "measured",
                       position_kinds=kinds, geo_tie_frames=tied)
     if none == total:
         return _state(D, "missing",
-                      "no record carries a horizontal position",
+                      f"no record carries a horizontal position ({source_clause})",
                       ["positions from the acquisition, or a GeoTie supplying them"],
                       action=DeclarationKind.GEO_TIE, provenance="unavailable",
                       position_kinds=kinds)
@@ -204,12 +384,13 @@ def assess_horizontal(frames, records) -> DimensionState:
         # projected coordinates. Whether they CAN be is the CRS's question.
         return _state(D, "partial",
                       "positions exist but are not geographic; whether they can be placed "
-                      "on Earth depends on the coordinate reference system",
+                      f"on Earth depends on the coordinate reference system ({source_clause})",
                       ["a declared CRS, or a GeoTie for an along-track acquisition"],
                       action=DeclarationKind.GEO_TIE, provenance="measured",
                       position_kinds=kinds)
     return _state(D, "partial",
-                  f"{geographic:,} of {total:,} record(s) carry a geographic position",
+                  f"{geographic:,} of {total:,} record(s) carry a geographic position "
+                  f"({source_clause})",
                   ["positions for the remaining records"],
                   action=DeclarationKind.GEO_TIE, provenance="measured",
                   position_kinds=kinds)
@@ -294,6 +475,40 @@ def assess_vertical(frames) -> DimensionState:
         and a.vertical_datum.provenance != CRSProvenance.NONE
     ]
     if not declared:
+        # A DATUM FOR THE STORED ELEVATIONS IS NOT A DATUM FOR THE AXIS, and the
+        # gap between them is the whole point of reporting them separately. The
+        # 4TU lines have a GNSS acquisition elevation whose datum an author has
+        # now stated, and a vertical axis of two-way time from instrument time
+        # zero that no geodetic datum describes. The dimension moves off
+        # "missing" because something IS now declared -- and stays unresolved,
+        # because the thing it actually asks about is still absent.
+        by_elevation = [(f, f.acquisition_elevation_datum) for f in frames
+                        if getattr(f, "acquisition_elevation_datum", None) is not None
+                        and f.acquisition_elevation_datum.datum.code]
+        if by_elevation:
+            codes = sorted({d.datum.code for _, d in by_elevation})
+            fields = sorted({d.field for _, d in by_elevation if d.field})
+            axis_kinds = sorted({a.kind.value for _, a in axes})
+            return _state(
+                D, "unresolved",
+                f"the acquisition elevations are declared as {', '.join(codes)}"
+                + (f" ({'; '.join(fields)})" if fields else "")
+                + f", but the vertical axis is {', '.join(axis_kinds)} and nothing says "
+                  f"what THAT is measured from; a datum for a stored elevation does not "
+                  f"reference the depth axis",
+                ["a declared vertical datum for the vertical axis itself",
+                 # Only where there IS a depth axis. Asking an elevation-axis
+                 # frame where its depth zero sits is asking about nothing.
+                 *(["where the depth axis zero sits relative to the ground"]
+                   if any(a.kind not in (AxisKind.ELEVATION_M, AxisKind.NONE)
+                          for _, a in axes) else [])],
+                action=DeclarationKind.VERTICAL_DATUM,
+                provenance=sorted({d.datum.provenance.value for _, d in by_elevation})[0],
+                codes=codes, acquisition_elevation_fields=fields,
+                validated=False,
+                validation_note=("Subterra has not surveyed these elevations; this is the "
+                                 "declaring party's statement about them"))
+
         return _state(D, "missing",
                       "no frame declares a vertical datum, so no vertical coordinate here "
                       "can be compared with one from any other source",
@@ -318,10 +533,40 @@ def assess_vertical(frames) -> DimensionState:
                       action=DeclarationKind.VERTICAL_DATUM, codes=codes)
 
     provenance = {d.provenance.value for _, d in declared}
+
+    # THE DATUM IS NOT THE WHOLE VERTICAL REFERENCE. A subsurface axis also
+    # needs its zero placed against the ground, and until stage 12 there was no
+    # way to say where that was. When the datum is settled and the origin is
+    # not, the action points at the offset rather than at the datum the caller
+    # has already given -- so the workflow always asks for the next missing
+    # thing instead of the first.
+    subsurface = [
+        (f, a) for f, a in axes
+        if a.kind not in (AxisKind.ELEVATION_M, AxisKind.NONE)
+    ]
+    unplaced = [
+        f.frame_id for f, a in subsurface
+        if not (a.origin_offset is not None and a.origin_offset.relates_the_depth_axis)
+        and "ground surface" not in (a.origin or "").lower()
+    ]
+    if unplaced:
+        return _state(D, "unresolved",
+                      f"the vertical datum {codes[0]} is declared, but {len(unplaced)} "
+                      f"subsurface frame(s) do not say where their depth axis begins "
+                      f"relative to the ground: depth zero is instrument time zero, not "
+                      f"the surface",
+                      ["the offset from the depth-axis origin to the ground surface"],
+                      action=DeclarationKind.ANTENNA_OFFSET,
+                      provenance=sorted(provenance)[0], codes=codes,
+                      frames_without_origin_offset=unplaced)
+
     return _state(D, "declared",
                   f"{codes[0]}, "
                   + ("stated by the source" if "declared_by_source" in provenance
-                     else "supplied by a caller who took responsibility for it"),
+                     else "supplied by a caller who took responsibility for it")
+                  + (
+                      "; the depth axis origin is placed relative to the ground"
+                      if subsurface else ""),
                   provenance=sorted(provenance)[0], codes=codes, validated=False)
 
 
@@ -385,6 +630,43 @@ def assess_depth(frames) -> DimensionState:
                   provenance="declared_by_source", frames=[f.frame_id for f, _ in direct])
 
 
+def _surface_identity_clause(surface_frames) -> str:
+    """
+    Names what is already on the linked surface frames, verbatim: which
+    dataset, and -- where actually present -- the recorded vertical-datum and
+    CRS codes.
+
+    NEVER PARAPHRASED. The linked dataset is named by its id, not a model
+    name like "COP30" or "AHN" that Subterra was never told; a datum code is
+    reported only when a frame actually carries one, never inferred from the
+    dataset's reputation. A single value is named plainly; more than one
+    distinct value is named as a sorted list, the same determinism
+    `_position_source_clause` uses.
+    """
+    if not surface_frames:
+        return ""
+
+    dataset_ids = sorted({f.dataset_id for f in surface_frames})
+    datum_codes = sorted({
+        f.vertical_axis.vertical_datum.code
+        for f in surface_frames
+        if getattr(f.vertical_axis, "vertical_datum", None) and f.vertical_axis.vertical_datum.code
+    })
+    crs_codes = sorted({
+        f.spatial_ref.code for f in surface_frames if getattr(f.spatial_ref, "code", None)
+    })
+
+    parts = [f"dataset {dataset_ids[0]}" if len(dataset_ids) == 1
+             else f"datasets {', '.join(dataset_ids)}"]
+    if datum_codes:
+        parts.append(f"vertical datum {datum_codes[0]}" if len(datum_codes) == 1
+                     else f"vertical datums {', '.join(datum_codes)}")
+    if crs_codes:
+        parts.append(f"CRS {crs_codes[0]}" if len(crs_codes) == 1
+                     else f"CRS values {', '.join(crs_codes)}")
+    return "; ".join(parts)
+
+
 def assess_surface(frames, surface_frames) -> DimensionState:
     """
     Whether a surface elevation model is linked AND usable.
@@ -395,6 +677,11 @@ def assess_surface(frames, surface_frames) -> DimensionState:
     and not one of its 196 records carries an elevation. It is a DEM that can
     anchor nothing, and calling it a surface reference because the file exists
     would put a fabricated Z under every later reconstruction.
+
+    THE REASON NAMES THE LINKED SURFACE, not just that one exists: which
+    dataset, and its recorded vertical-datum and CRS codes where present. See
+    `_surface_identity_clause`. Naming them does not change the state --
+    an unvalidated surface stays unvalidated whatever its CRS code is.
     """
     D = SpatialDimension.SURFACE_REFERENCE
     if not surface_frames:
@@ -418,9 +705,11 @@ def assess_surface(frames, surface_frames) -> DimensionState:
             continue
         usable.append(frame.frame_id)
 
+    identity = _surface_identity_clause(surface_frames)
+
     if not usable:
         return _state(D, "unvalidated",
-                      "a surface model is linked but cannot anchor anything: "
+                      f"a surface model is linked but cannot anchor anything ({identity}): "
                       + "; ".join(problems),
                       ["a surface model whose vertical axis is an elevation with a "
                        "declared datum -- for the DEM held here that means re-ingesting "
@@ -428,9 +717,34 @@ def assess_surface(frames, surface_frames) -> DimensionState:
                       action=DeclarationKind.SURFACE_REFERENCE, provenance="unavailable",
                       problems=problems)
 
+    usable_frames = [f for f in surface_frames if f.frame_id in usable]
+    usable_identity = _surface_identity_clause(usable_frames)
+    # Same codes _surface_identity_clause already names in the reason, as
+    # structured lists -- so assess_common_frame can read them without
+    # parsing that sentence back apart.
+    usable_datum_codes = sorted({
+        f.vertical_axis.vertical_datum.code
+        for f in usable_frames
+        if getattr(f.vertical_axis, "vertical_datum", None) and f.vertical_axis.vertical_datum.code
+    })
+    usable_crs_codes = sorted({
+        f.spatial_ref.code for f in usable_frames if getattr(f.spatial_ref, "code", None)
+    })
     return _state(D, "available",
                   f"{len(usable)} surface frame(s) carry an elevation axis with a declared "
-                  f"datum", provenance="declared_by_source", frames=usable)
+                  f"datum ({usable_identity})", provenance="declared_by_source", frames=usable,
+                  crs_codes=usable_crs_codes, datum_codes=usable_datum_codes)
+
+
+#: Keys `assess_orientation` accepts as an orientation declaration.
+#: `declared_orientation` is what `api.spatial._assumption_for` actually
+#: writes (the same `declared_{kind}` convention every other declaration
+#: uses); the other three are kept for whatever future writer -- an IMU
+#: importer, say -- names its assumption differently. The reader and the
+#: writer must agree, so a new writer key belongs here too.
+_ORIENTATION_ASSUMPTION_KEYS = (
+    "orientation", "heading", "antenna_orientation", "declared_orientation",
+)
 
 
 def assess_orientation(frames, records) -> DimensionState:
@@ -440,40 +754,100 @@ def assess_orientation(frames, records) -> DimensionState:
     NOT INFERRED FROM POSITIONS. A line of geographic positions implies a
     bearing, but bearing is not orientation: it says where the cart went, not
     which way the antenna faced or how it was tilted. That needs an IMU or a
-    declaration, and neither exists here yet, so this reports `missing` rather
-    than quietly reporting a track bearing under an orientation label.
+    declaration -- Stage 8 now accepts the declaration
+    (`DeclarationKind.ORIENTATION`) but still infers nothing, so this reports
+    `missing` rather than quietly reporting a track bearing under an
+    orientation label.
+
+    THE REASON NAMES THE DECLARED HEADING VERBATIM, when one is a structured
+    `{heading_deg, reference}` claim -- "47.0" and "true_north", never
+    "northeast" or "along-track". An assumption written by some other future
+    source, with a free-text value, still counts as declared but cannot be
+    named this precisely.
     """
     D = SpatialDimension.ORIENTATION
-    declared = [
-        f.frame_id for f in frames
-        if any(a.key in ("orientation", "heading", "antenna_orientation")
-               for a in getattr(f, "assumptions", []) or [])
-    ]
+    declared: list[str] = []
+    headings: list[str] = []
+    for f in frames:
+        for a in getattr(f, "assumptions", []) or []:
+            if a.key not in _ORIENTATION_ASSUMPTION_KEYS:
+                continue
+            declared.append(f.frame_id)
+            if isinstance(a.value, dict) and "heading_deg" in a.value:
+                headings.append(f"{a.value['heading_deg']} deg from {a.value.get('reference')}")
+            break
+
     if declared:
-        return _state(D, "available", "orientation is declared on the frame",
+        reason = (f"orientation is declared: {', '.join(sorted(set(headings)))}"
+                  if headings else "orientation is declared on the frame")
+        return _state(D, "available", reason,
                       provenance="supplied_by_caller", frames=declared)
     return _state(D, "missing",
                   "no frame declares an orientation, and none is inferred: a track bearing "
                   "says where the acquisition went, not how the sensor was oriented",
                   ["an IMU record, or a declared antenna orientation"],
-                  provenance="unavailable")
+                  action=DeclarationKind.ORIENTATION, provenance="unavailable")
+
+
+def _geometry_identity_clause(frames, extents: dict[str, float]) -> str:
+    """
+    Names each frame's own position count and, where records already carry
+    odometry `along_track_m`, its along-track extent -- verbatim, sorted by
+    `frame_id` for the same determinism `_position_source_clause` and
+    `_surface_identity_clause` use.
+
+    `extents` is `along_track_extents_m(records)`, the SAME measurement
+    `dataset_report.build_geometry` uses for the survey volume, so this
+    dimension cannot report a different extent for the same records.
+
+    NEVER A LINE SPACING, AN ORIENTATION, OR A LAYOUT WORD. "grid", "area"
+    and "trajectory" all imply a 2D shape that along-track distance alone
+    does not establish.
+    """
+    parts = []
+    for f in sorted(frames, key=lambda frame: frame.frame_id):
+        n = getattr(f, "n_positions", None)
+        if n is None:
+            continue
+        piece = f"{f.frame_id}: {n:,} position(s)"
+        extent = extents.get(f.frame_id)
+        if extent is not None:
+            piece += f", {extent:,} m along-track"
+        parts.append(piece)
+    return "; ".join(parts)
 
 
 def assess_geometry(frames, records) -> DimensionState:
-    """Whether the shape of the acquisition is known."""
+    """
+    Whether the shape of the acquisition is known.
+
+    THE REASON NAMES WHAT IS ALREADY STORED: each frame's own `frame_id` and
+    `n_positions`, and -- when records carry recorded odometry
+    `along_track_m` -- the along-track extent already measured for the
+    survey volume (`along_track_extents_m`, shared with
+    `dataset_report.build_geometry`). Never a line spacing, an orientation,
+    or a trajectory: none of those follow from a position count or an
+    along-track distance alone, and inventing one would describe a survey
+    layout that was never surveyed.
+    """
     D = SpatialDimension.SURVEY_GEOMETRY
     if not frames:
         return _state(D, "missing", "no survey frame is stored", ["a survey frame"])
 
     positioned = [f for f in frames if getattr(f, "n_positions", None)]
+    extents = along_track_extents_m(records)
+    identity = _geometry_identity_clause(frames, extents)
+
     if len(positioned) == len(frames):
         return _state(D, "available",
-                      f"{len(frames)} frame(s), each reporting its own position count",
+                      f"{len(frames)} frame(s), each reporting its own position count "
+                      f"({identity})",
                       frames=[f.frame_id for f in frames],
                       n_positions={f.frame_id: f.n_positions for f in frames})
     if positioned:
         return _state(D, "partial",
-                      f"{len(positioned)} of {len(frames)} frame(s) report a position count",
+                      f"{len(positioned)} of {len(frames)} frame(s) report a position count "
+                      f"({identity})",
                       ["position counts for the remaining frames"])
     return _state(D, "missing",
                   "no frame reports how many positions it contains",
@@ -487,17 +861,21 @@ def assess_spatial_reference(
     """The seven questions, answered from what is stored."""
     surface_frames = list(surface_frames or [])
     stale = list(stale_products or [])
+    dimensions = [
+        assess_horizontal(frames, records),
+        assess_crs(frames),
+        assess_vertical(frames),
+        assess_depth(frames),
+        assess_surface(frames, surface_frames),
+        assess_orientation(frames, records),
+        assess_geometry(frames, records),
+    ]
     return SpatialReference(
         dataset_id=dataset_id,
-        dimensions=[
-            assess_horizontal(frames, records),
-            assess_crs(frames),
-            assess_vertical(frames),
-            assess_depth(frames),
-            assess_surface(frames, surface_frames),
-            assess_orientation(frames, records),
-            assess_geometry(frames, records),
-        ],
+        dimensions=dimensions,
+        # Composed from the seven DimensionState objects above -- nothing
+        # else. See assess_common_frame.
+        common_frame=assess_common_frame(dimensions),
         declarations=list(declarations or []),
         has_stale_products=bool(stale),
         stale_products=stale,

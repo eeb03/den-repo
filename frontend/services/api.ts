@@ -28,11 +28,16 @@ import type {
   BenchmarkArtifact,
   BenchmarkArtifactsResponse,
   BenchmarkRun,
+  CandidateIntelligence,
+  CandidateReviewStatus,
   Composition,
+  DatasetAcquisition,
   DatasetInfo,
   DatasetReport,
+  AcquisitionSession,
   DatasetSummary,
   DeclarationKind,
+  Device,
   DeletionResult,
   FrameProvenanceResponse,
   LabelsResponse,
@@ -41,8 +46,13 @@ import type {
   RescoreResult,
   Selection,
   SelectionResolution,
+  SessionPayload,
+  SessionState,
+  SignalProcessingChain,
   SpatialDeclaration,
   SpatialReference,
+  InspectableCandidate,
+  RadargramField,
   TraceGrid,
 } from '@/types/subterra'
 
@@ -141,6 +151,58 @@ export const api = {
     return request(`/api/datasets/${encodeURIComponent(id)}`)
   },
 
+  /* --------------------------------- devices -------------------------------- */
+
+  /**
+   * Record an instrument. Everything supplied here is user-declared and the
+   * backend marks it so permanently — `identity_source` is not a field a client
+   * can set, because asserting that hardware reported its own serial number
+   * would be a forgery.
+   */
+  registerDevice(body: {
+    device_type: string
+    manufacturer?: string
+    model?: string
+    serial_number?: string
+    label?: string
+    kind?: 'physical' | 'simulated'
+    capabilities?: Device['capabilities']
+    adapter?: Device['adapter']
+  }): Promise<{ device: Device }> {
+    return postJson('/api/devices', body)
+  },
+
+  listDevices(): Promise<Device[]> {
+    return request('/api/devices')
+  },
+
+  createSession(
+    deviceId: string,
+    body: {
+      label?: string
+      operator?: string
+      notes?: string
+      survey_area?: string
+      coordinate_system?: string
+      vertical_reference?: string
+      processing_version?: string
+    },
+  ): Promise<{ session: AcquisitionSession; device: Device }> {
+    return postJson(`/api/devices/${encodeURIComponent(deviceId)}/sessions`, body)
+  },
+
+  getSession(sessionId: string): Promise<SessionPayload> {
+    return request(`/api/sessions/${encodeURIComponent(sessionId)}`)
+  },
+
+  /** Move a session along its lifecycle. Illegal transitions are refused 409. */
+  moveSession(sessionId: string, to: SessionState): Promise<SessionPayload> {
+    return postJson(
+      `/api/sessions/${encodeURIComponent(sessionId)}/state?to=${encodeURIComponent(to)}`,
+      {},
+    )
+  },
+
   /* -------------------------- dataset management ------------------------- */
 
   /**
@@ -200,6 +262,26 @@ export const api = {
    */
   getDatasetReport(id: string): Promise<DatasetReport> {
     return request(`/api/datasets/${encodeURIComponent(id)}/report`)
+  },
+
+  /**
+   * Where this dataset came from: device -> session -> acquisition ->
+   * dataset, or the reason no acquisition record exists.
+   */
+  getDatasetAcquisition(id: string): Promise<DatasetAcquisition> {
+    return request(`/api/datasets/${encodeURIComponent(id)}/acquisition`)
+  },
+
+  /**
+   * The recorded Phase 5 signal-processing chain, read from
+   * `processing_applied` on this dataset's records -- never re-run.
+   *
+   * Deliberately separate from `getDatasetReport`: the full report is known
+   * to take tens of seconds to build, and this is called on every dataset
+   * open, the same way acquisition and spatial readiness are.
+   */
+  getSignalChain(id: string): Promise<SignalProcessingChain> {
+    return request(`/api/datasets/${encodeURIComponent(id)}/signal-chain`)
   },
 
   /* --------------------------- spatial reference -------------------------- */
@@ -302,12 +384,27 @@ export const api = {
    * data has no radargram, and that is a fact about the data rather than a
    * failure of the request.
    */
+  /**
+   * One survey line as a (depth x trace) grid.
+   *
+   * `reliability` and `candidateFootprints` are opt-in because each adds
+   * materially to the payload and no earlier caller needs them. The footprints
+   * are computed server-side so the candidate-to-grid mapping has one tested
+   * implementation rather than a second copy in TypeScript.
+   */
   getTraceGrid(
     datasetId: string,
-    opts: { field?: string; sourceFile?: string | null } = {},
+    opts: {
+      field?: RadargramField | string
+      sourceFile?: string | null
+      reliability?: boolean
+      candidateFootprints?: boolean
+    } = {},
   ): Promise<TraceGrid> {
     const query = new URLSearchParams({ field: opts.field ?? 'signal' })
     if (opts.sourceFile) query.set('source_file', opts.sourceFile)
+    if (opts.reliability) query.set('include_reliability', 'true')
+    if (opts.candidateFootprints) query.set('include_candidates', 'true')
     return request(
       `/api/datasets/${encodeURIComponent(datasetId)}/trace_grid?${query}`,
     )
@@ -347,13 +444,41 @@ export const api = {
   },
 
   /** Uploads a file and returns the created job. 202: no dataset exists yet. */
+  /**
+   * Hand a reviewed acquisition to the existing ingestion pipeline.
+   *
+   * Only a held acquisition can be accepted; the backend refuses a rejected,
+   * running or finished one with 409 rather than ingesting the same bytes
+   * twice under one record.
+   */
+  acceptAcquisition(
+    jobId: string,
+    options: { band_is_elevation?: boolean } = {},
+  ): Promise<{ job: ImportJob }> {
+    // `options` are declarations about HOW to read the file — currently only
+    // whether a raster band is elevation. The backend refuses any the detected
+    // format cannot use, rather than recording a claim that had no effect.
+    return postJson(`/api/imports/jobs/${encodeURIComponent(jobId)}/accept`, options)
+  },
+
   createImport(
     file: File,
     sensorType: string,
+    review = false,
+    sessionId?: string,
   ): Promise<{ job: ImportJob }> {
     const form = new FormData()
     form.append('file', file)
     form.append('sensor_type', sensorType)
+    // `review` holds the acquisition at the boundary so the user sees what
+    // arrived before anything is ingested. Defaulting to false keeps the
+    // original immediate behaviour for callers that never asked for a review.
+    form.append('review', String(review))
+    // Attributes this acquisition to a device session -- Stage 10's
+    // convergence with FileDrop. Omitted entirely (not sent as an empty
+    // string) when there is no session, so an ordinary drop still produces
+    // session_id: null on the backend rather than an empty-string claim.
+    if (sessionId) form.append('session_id', sessionId)
     // No content-type header: the browser must set the multipart boundary.
     return request('/api/imports', { method: 'POST', body: form })
   },
@@ -413,6 +538,53 @@ export const api = {
 
   listImportJobs(): Promise<{ jobs: ImportJob[] }> {
     return request('/api/imports/jobs')
+  },
+
+  /* ----------------------------- candidates ----------------------------- */
+
+  /**
+   * The stored candidate set, with staleness assessed at read time.
+   *
+   * A `blocked` status here is a real answer, not an error: it means candidate
+   * generation has not been run, or cannot be, and `missing` says what would
+   * change that.
+   */
+  getCandidates(datasetId: string): Promise<CandidateIntelligence> {
+    return request(`/api/candidates/${encodeURIComponent(datasetId)}`)
+  },
+
+  /**
+   * Run candidate generation. An explicit action, never a side effect of
+   * opening a report — it reads every record in the dataset.
+   */
+  generateCandidates(
+    datasetId: string,
+    parameters?: { threshold?: number; min_cells?: number; min_trace_span?: number },
+  ): Promise<CandidateIntelligence> {
+    const query = new URLSearchParams()
+    for (const [key, value] of Object.entries(parameters ?? {})) {
+      if (value !== undefined) query.set(key, String(value))
+    }
+    const suffix = query.toString() ? `?${query}` : ''
+    return request(`/api/candidates/${encodeURIComponent(datasetId)}/generate${suffix}`, {
+      method: 'POST',
+    })
+  },
+
+  /**
+   * Record a reviewer's decision. Acceptance means "worth retaining" — it does
+   * not promote a candidate to a detection, an object, or ground truth.
+   */
+  reviewCandidate(
+    datasetId: string,
+    candidateId: string,
+    status: CandidateReviewStatus,
+  ): Promise<InspectableCandidate & { note: string }> {
+    return request(
+      `/api/candidates/${encodeURIComponent(datasetId)}/${encodeURIComponent(candidateId)}` +
+        `/status?status=${encodeURIComponent(status)}`,
+      { method: 'POST' },
+    )
   },
 }
 

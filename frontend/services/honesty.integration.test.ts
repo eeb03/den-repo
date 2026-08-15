@@ -43,7 +43,13 @@ beforeAll(async () => {
   if (!live) console.warn('[skip] Subterra API is up but a session could not be established')
 })
 
-const liveIt = (name: string, fn: () => Promise<void>, timeout = 30_000) =>
+// 120 s, not the 30 s default. EVERY live case here walks the whole corpus --
+// several build a full dataset report for each of the six datasets held, and a
+// report parses all of that dataset's records. Six full parses is about 28 s,
+// which sits ON the default and makes these flaky rather than wrong. The cost is
+// the single-entry record cache, not a regression; the timeout reflects what the
+// tests actually do.
+const liveIt = (name: string, fn: () => Promise<void>, timeout = 120_000) =>
   it(name, async () => {
     if (!live) return
     await fn()
@@ -175,6 +181,12 @@ describe('benchmark figures are not transformed in transit', () => {
   })
 })
 
+// EACH of these builds a full report for EVERY dataset held. A report loads all
+// of a dataset's records, and the record cache holds one dataset at a time, so
+// six reports is six full parses -- about 28 s on this corpus, which sits right
+// on the default 30 s timeout and makes them flaky rather than wrong. The cost
+// is a known property of the single-entry cache, not a regression; the timeout
+// is raised to reflect what the tests actually do.
 describe('the dataset report tells the truth about real datasets', () => {
   liveIt('never claims an absolute elevation for any dataset held', async () => {
     const datasets = await api.listDatasets()

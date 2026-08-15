@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import re
 import shutil
+import hashlib
 from pathlib import Path
 
 from configs.settings import settings
@@ -71,14 +72,20 @@ def job_dir(job_id: str) -> Path:
     return settings.raw_dir / IMPORT_SUBDIR / job_id
 
 
-def save_upload(job_id: str, filename: str | None, source) -> tuple[Path, str, int]:
+def save_upload(job_id: str, filename: str | None, source) -> tuple[Path, str, int, str]:
     """
     Stream `source` (a file-like object) into this job's own directory.
 
-    Returns (path, stored_filename, size_bytes). Raises UploadTooLarge or
-    EmptyUpload, cleaning up the partial file in both cases -- a rejected
+    Returns (path, stored_filename, size_bytes, sha256). Raises UploadTooLarge
+    or EmptyUpload, cleaning up the partial file in both cases -- a rejected
     upload must not leave bytes behind that a later listing could mistake for
     a dataset.
+
+    THE CHECKSUM IS COMPUTED IN THE SAME PASS. `sha256_of_file` would re-read
+    the whole file, which for a 2 GiB upload means a second full pass over the
+    disk for bytes that were in memory a moment earlier. It is also the
+    acquisition's identity, so it must be taken from exactly the bytes that
+    were written rather than from whatever is at that path later.
     """
     safe = sanitize_filename(filename)
     directory = job_dir(job_id)
@@ -88,6 +95,7 @@ def save_upload(job_id: str, filename: str | None, source) -> tuple[Path, str, i
     partial = directory / f"{safe}.part"
 
     size = 0
+    digest = hashlib.sha256()
     try:
         with open(partial, "wb") as out:
             while True:
@@ -99,6 +107,7 @@ def save_upload(job_id: str, filename: str | None, source) -> tuple[Path, str, i
                     raise UploadTooLarge(
                         f"upload exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit"
                     )
+                digest.update(chunk)
                 out.write(chunk)
         if size == 0:
             raise EmptyUpload("the uploaded file is empty")
@@ -108,7 +117,7 @@ def save_upload(job_id: str, filename: str | None, source) -> tuple[Path, str, i
         partial.unlink(missing_ok=True)
         raise
 
-    return final, safe, size
+    return final, safe, size, digest.hexdigest()
 
 
 def cleanup_job_dir(job_id: str) -> None:

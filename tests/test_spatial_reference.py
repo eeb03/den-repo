@@ -29,6 +29,7 @@ from api.main import app
 from database.models import Dataset, FusionSample, SpatialDeclaration
 from database.session import Base, get_db
 from schemas.spatial import (
+    Assumption,
     AxisKind,
     CRSKind,
     CRSProvenance,
@@ -41,8 +42,11 @@ from schemas.spatial import (
     VerticalDatum,
 )
 from schemas.spatial_reference import (
+    COMMON_FRAME_INPUTS,
+    SPATIAL_CONTRACT_VERSION,
     DeclarationKind,
     SpatialDimension,
+    assess_common_frame,
     assess_spatial_reference,
 )
 from schemas.subterra_record import SensorType, SubterraRecord
@@ -71,6 +75,12 @@ SURFACE_GOOD = VerticalAxis(
     kind=AxisKind.ELEVATION_M, units="m", origin="NAP", positive_down=False,
     vertical_datum=VerticalDatum(code="NAP", provenance=CRSProvenance.SUPPLIED_BY_CALLER,
                                  name="NAP"))
+
+
+def orientation_assumption(heading_deg=47.0, reference="true_north"):
+    return Assumption(
+        key="declared_orientation", value={"heading_deg": heading_deg, "reference": reference},
+        basis="SUPPLIED BY CALLER through the spatial reference workflow", verified=False)
 
 
 def frame(frame_id="d:line1", *, crs=GEOGRAPHIC, axis=TIME_AXIS, dataset_id="d",
@@ -143,6 +153,105 @@ def test_dataset_c_no_horizontal_position():
         DeclarationKind.GEO_TIE
 
 
+# ---------------------------------------------------------------------------
+# assess_horizontal names the recorded position_source, verbatim
+# ---------------------------------------------------------------------------
+
+def _record_with_source(i, position, source, dataset_id="d"):
+    r = record(i, position, dataset_id)
+    if source is not None:
+        r.metadata["position_source"] = source
+    return r
+
+
+def test_the_reason_names_a_single_position_source_verbatim():
+    records = [_record_with_source(i, None, "gssi_dzg_gnss") for i in range(4)]
+    result = assess([frame(crs=GEOGRAPHIC)], records)
+    reason = result.dimension(SpatialDimension.HORIZONTAL_POSITION).reason
+    assert "gssi_dzg_gnss" in reason
+    # Never paraphrased into a category.
+    assert "GNSS" not in reason
+
+
+def test_a_record_with_no_position_source_key_is_reported_as_such_not_invented_as_none():
+    records = [_record_with_source(i, None, None) for i in range(3)]
+    result = assess([frame(crs=GEOGRAPHIC)], records)
+    reason = result.dimension(SpatialDimension.HORIZONTAL_POSITION).reason
+    assert "position source: no declared position source" in reason
+    # The literal string "none" is itself a real position_source value some
+    # converters write (see gssi_converter.py) to mean "attempted and could
+    # not derive one" -- a missing key must not be reported the same way.
+    assert "position source: none" not in reason
+
+
+def test_more_than_one_source_is_named_with_counts():
+    records = (
+        [_record_with_source(i, None, "gssi_dzg_gnss") for i in range(3)]
+        + [_record_with_source(i + 3, None, "segy_header") for i in range(2)]
+    )
+    result = assess([frame(crs=GEOGRAPHIC)], records)
+    reason = result.dimension(SpatialDimension.HORIZONTAL_POSITION).reason
+    assert "gssi_dzg_gnss (3)" in reason
+    assert "segy_header (2)" in reason
+
+
+def test_a_wheel_odometry_source_does_not_promote_a_position_to_geographic():
+    records = [
+        SubterraRecord(
+            dataset_id="d", sensor_type=SensorType.GPR,
+            position=OdometryPosition(along_track_m=i * 2.0, path_id=None),
+            latitude=None, longitude=None, frame_id="d:line1",
+            signal=[0.1, 0.2],
+            metadata={"source_file": "line1.sgy", "trace_index": i,
+                     "position_source": "mala_wheel_odometry"})
+        for i in range(4)
+    ]
+    result = assess([frame(crs=ACQUISITION)], records)
+    dimension = result.dimension(SpatialDimension.HORIZONTAL_POSITION)
+    # Vocabulary is unchanged by the source: odometry positions are still
+    # "partial" (they exist but are not geographic), never "available".
+    assert dimension.state == "partial"
+    assert "mala_wheel_odometry" in dimension.reason
+
+
+def test_a_gnss_source_does_not_promote_a_non_geographic_position_either():
+    """A record can claim a GNSS source in its metadata while its actual
+    stored position is not geographic (e.g. a fix that failed to parse).
+    The declared source names evidence provenance; it is not itself a
+    position, so it cannot promote the state."""
+    records = [
+        SubterraRecord(
+            dataset_id="d", sensor_type=SensorType.GPR,
+            position=OdometryPosition(along_track_m=i * 2.0, path_id=None),
+            latitude=None, longitude=None, frame_id="d:line1",
+            signal=[0.1, 0.2],
+            metadata={"source_file": "line1.sgy", "trace_index": i,
+                     "position_source": "gssi_dzg_gnss"})
+        for i in range(4)
+    ]
+    result = assess([frame(crs=ACQUISITION)], records)
+    assert result.dimension(SpatialDimension.HORIZONTAL_POSITION).state == "partial"
+
+
+def test_kmz_fallback_stays_whatever_position_kind_the_record_actually_has():
+    records = [_record_with_source(i, None, "kmz_fallback") for i in range(3)]
+    result = assess([frame(crs=GEOGRAPHIC)], records)
+    dimension = result.dimension(SpatialDimension.HORIZONTAL_POSITION)
+    assert dimension.state == "available"
+    assert "kmz_fallback" in dimension.reason
+
+
+def test_a_missing_horizontal_position_still_names_its_source():
+    records = [
+        _record_with_source(i, NoPosition(reason="the format provides none"), "none")
+        for i in range(3)
+    ]
+    result = assess([frame(crs=SpatialRef(kind=CRSKind.UNKNOWN))], records)
+    dimension = result.dimension(SpatialDimension.HORIZONTAL_POSITION)
+    assert dimension.state == "missing"
+    assert "position source: none" in dimension.reason
+
+
 def test_dataset_d_relative_frame_becomes_available_with_a_tie():
     """Relative geometry existing is not absolute geolocation existing."""
     from ingestion.geo_tie import apply_geo_tie, build_geo_tie
@@ -189,6 +298,285 @@ def test_a_surface_model_with_an_elevation_axis_and_a_datum_is_available():
     result = assess([frame()], geo_records(),
                     surface=[frame("dem:good", axis=SURFACE_GOOD)])
     assert state_of(result, SpatialDimension.SURFACE_REFERENCE) == "available"
+
+
+# ---------------------------------------------------------------------------
+# assess_surface names the linked surface, verbatim
+# ---------------------------------------------------------------------------
+
+def test_the_available_reason_names_the_linked_dataset_and_its_recorded_codes():
+    result = assess([frame()], geo_records(),
+                    surface=[frame("dem:tile", crs=GEOGRAPHIC, axis=SURFACE_GOOD,
+                                   dataset_id="dem")])
+    reason = result.dimension(SpatialDimension.SURFACE_REFERENCE).reason
+    assert "dem" in reason
+    assert "NAP" in reason
+    assert "EPSG:4326" in reason
+    # Never paraphrased into a model name or a category.
+    assert "COP30" not in reason
+    assert "terrain model" not in reason.lower()
+
+
+def test_the_unvalidated_reason_still_names_the_linked_dataset():
+    result = assess([frame()], geo_records(),
+                    surface=[frame("dem:tile", crs=GEOGRAPHIC, axis=SURFACE_BARE,
+                                   dataset_id="dem")])
+    dimension = result.dimension(SpatialDimension.SURFACE_REFERENCE)
+    # Naming the dataset does not promote the state.
+    assert dimension.state == "unvalidated"
+    assert "dem" in dimension.reason
+
+
+def test_more_than_one_surface_frame_names_distinct_codes_as_a_sorted_list():
+    good_a = frame("dem:a", crs=SpatialRef(kind=CRSKind.PROJECTED, code="EPSG:32633",
+                                           crs_provenance=CRSProvenance.DECLARED_BY_SOURCE),
+                   axis=SURFACE_GOOD, dataset_id="dem")
+    good_b = frame("dem:b", crs=SpatialRef(kind=CRSKind.PROJECTED, code="EPSG:32634",
+                                           crs_provenance=CRSProvenance.DECLARED_BY_SOURCE),
+                   axis=SURFACE_GOOD, dataset_id="dem")
+    result = assess([frame()], geo_records(), surface=[good_a, good_b])
+    reason = result.dimension(SpatialDimension.SURFACE_REFERENCE).reason
+    assert "EPSG:32633" in reason
+    assert "EPSG:32634" in reason
+
+
+# ---------------------------------------------------------------------------
+# assess_geometry names the recorded frames and along-track extent, verbatim
+# ---------------------------------------------------------------------------
+
+def test_the_available_geometry_reason_names_each_frames_id_and_position_count():
+    result = assess([frame("d:line1", n_positions=10)], geo_records())
+    reason = result.dimension(SpatialDimension.SURVEY_GEOMETRY).reason
+    assert "d:line1" in reason
+    assert "10 position(s)" in reason
+
+
+def test_the_available_geometry_reason_names_the_along_track_extent():
+    """Uses the SAME measurement dataset_report.build_geometry uses, so the
+    two cannot disagree about the size of the same survey."""
+    result = assess([frame("d:line1", n_positions=10, crs=ACQUISITION)],
+                    odometry_records(n=5, dataset_id="d"))
+    reason = result.dimension(SpatialDimension.SURVEY_GEOMETRY).reason
+    # along_track_m = 0, 2, 4, 6, 8 -> extent 8.0
+    assert "8.0 m along-track" in reason
+
+
+def test_multiple_frames_are_named_as_a_sorted_list_by_frame_id():
+    frame_b = frame("d:line2", n_positions=5, dataset_id="d")
+    frame_a = frame("d:line1", n_positions=10, dataset_id="d")
+    result = assess([frame_b, frame_a], geo_records())
+    reason = result.dimension(SpatialDimension.SURVEY_GEOMETRY).reason
+    assert "d:line1" in reason
+    assert "d:line2" in reason
+    # Sorted by frame_id, not insertion order.
+    assert reason.index("d:line1") < reason.index("d:line2")
+
+
+def test_naming_the_extent_does_not_promote_a_partial_dimension():
+    named = frame("d:line1", n_positions=10, dataset_id="d")
+    unnamed = SurveyFrame(
+        frame_id="d:line2", dataset_id="d", modality=SensorType.GPR,
+        source_format="segy", source_file="line2.sgy",
+        spatial_ref=GEOGRAPHIC, vertical_axis=TIME_AXIS, n_positions=None)
+    result = assess([named, unnamed], geo_records())
+    dimension = result.dimension(SpatialDimension.SURVEY_GEOMETRY)
+    assert dimension.state == "partial"
+    assert "d:line1" in dimension.reason
+    assert "d:line2" not in dimension.reason
+
+
+def test_the_geometry_reason_never_invents_a_layout_word():
+    result = assess([frame("d:line1", n_positions=10, crs=ACQUISITION)],
+                    odometry_records(n=5, dataset_id="d"))
+    reason = result.dimension(SpatialDimension.SURVEY_GEOMETRY).reason.lower()
+    for invented in ("grid", "line survey", "area", "trajectory", "orientation", "spacing"):
+        assert invented not in reason
+
+
+# ---------------------------------------------------------------------------
+# common_frame: a composition of the seven dimension states, not an eighth
+# dimension and not a computed frame
+# ---------------------------------------------------------------------------
+
+def test_common_frame_is_not_a_dimension():
+    result = assess([frame()], geo_records())
+    assert "common_frame" not in {d.dimension.value for d in result.dimensions}
+    assert len(result.dimensions) == len(SpatialDimension)
+
+
+def test_common_frame_is_incomplete_by_default_and_names_every_blocking_input():
+    """The corpus-typical dataset: geographic and declared CRS, nothing else."""
+    result = assess([frame(crs=GEOGRAPHIC)], geo_records())
+    assert result.common_frame.state == "incomplete"
+    reason = result.common_frame.reason
+    # horizontal_position and crs are resolved (available / declared) and must
+    # NOT be named as blocking; the rest must be.
+    assert "horizontal_position:" not in reason
+    assert "crs:" not in reason
+    assert "vertical_reference: missing" in reason
+    assert "orientation: missing" in reason
+    assert "surface_reference: unavailable" in reason
+    # survey_geometry IS resolved here (the frame reports n_positions), so it
+    # must not be named either.
+    assert "survey_geometry:" not in reason
+
+
+def test_common_frame_never_claims_a_frame_exists():
+    """
+    The composition's own `state` is one of exactly two words, neither of
+    which could be read as "a frame exists". This is checked directly against
+    `state`, not by scanning `reason` for the word "available" -- a BLOCKING
+    dimension's own state (e.g. "unavailable") legitimately contains that
+    substring, and a reason quoting it verbatim is correct, not a violation.
+    """
+    result = assess([frame(crs=GEOGRAPHIC)], geo_records())
+    assert result.common_frame.state not in (
+        "available", "declared", "registered", "ready", "georeferenced")
+
+
+def test_common_frame_is_inputs_present_when_every_input_is_resolved():
+    """
+    Every Phase 4 input resolved: geographic + declared CRS, a declared
+    vertical datum on an elevation axis (so no subsurface origin-offset is
+    asked for), a declared orientation, a linked+usable surface, and a frame
+    that reports its own position count.
+    """
+    main = frame(crs=GEOGRAPHIC, axis=SURFACE_GOOD, assumptions=[orientation_assumption()])
+    surface = frame("dem:tile", crs=GEOGRAPHIC, axis=SURFACE_GOOD, dataset_id="dem")
+    result = assess([main], geo_records(), surface=[surface])
+
+    # Sanity: every listed input is actually resolved, not just the composition.
+    for dimension in COMMON_FRAME_INPUTS:
+        assert result.dimension(dimension).resolved, (
+            f"{dimension.value} is {result.dimension(dimension).state}")
+
+    assert result.common_frame.state == "inputs_present"
+    reason = result.common_frame.reason.lower()
+    assert "not" in reason and "computed" in reason
+    assert "a common spatial frame" in reason or "frame" in reason
+
+
+def test_common_frame_state_vocabulary_is_only_two_words():
+    empty = assess([], [])
+    typical = assess([frame(crs=GEOGRAPHIC)], geo_records())
+    assert empty.common_frame.state in ("incomplete", "inputs_present")
+    assert typical.common_frame.state in ("incomplete", "inputs_present")
+
+
+def test_depth_conversion_is_not_a_common_frame_input():
+    """depth_conversion is a dimension in its own right; it must not appear
+    in the blocking list even when it is unavailable."""
+    result = assess([frame(crs=GEOGRAPHIC, axis=TIME_AXIS)], geo_records())
+    assert result.dimension(SpatialDimension.DEPTH_CONVERSION).state == "unavailable"
+    assert "depth_conversion" not in result.common_frame.reason
+
+
+def test_common_frame_reads_only_the_already_computed_dimension_states():
+    """A direct unit check: assess_common_frame takes DimensionState objects,
+    not frames or records -- there is no way for it to re-derive anything."""
+    import inspect
+
+    params = list(inspect.signature(assess_common_frame).parameters)
+    assert params == ["dimensions"]
+
+
+def test_the_contract_version_was_bumped_for_the_shape_change():
+    assert SPATIAL_CONTRACT_VERSION == "1.2"
+
+
+# ---------------------------------------------------------------------------
+# common_frame identity: the CRS / vertical-datum codes the composition would
+# have to share, and whether the resolved inputs agree on them
+# ---------------------------------------------------------------------------
+
+def test_common_frame_agreement_is_undetermined_while_incomplete():
+    """Slice-6 meaning of `incomplete` is unchanged: agreement cannot be
+    judged before the inputs are all resolved, even though the resolved ones
+    (CRS here) already carry a code."""
+    result = assess([frame(crs=GEOGRAPHIC)], geo_records())
+    assert result.common_frame.state == "incomplete"
+    assert result.common_frame.agreement == "undetermined"
+    # The resolved CRS still contributes its code -- this is not gated on
+    # the composition being inputs_present, only on the dimension being
+    # resolved.
+    assert result.common_frame.crs_codes == ["EPSG:4326"]
+    assert result.common_frame.vertical_datum_codes == []
+
+
+def test_an_inferred_crs_never_contributes_a_code_to_the_identity():
+    """An inferred CRS carries a code in `detail`, but `inferred` is not a
+    resolved state -- an unconfirmed code must not become part of the
+    recorded identity."""
+    result = assess([frame(crs=INFERRED)], geo_records())
+    assert state_of(result, SpatialDimension.CRS) == "inferred"
+    assert result.common_frame.crs_codes == []
+
+
+def test_common_frame_agrees_when_resolved_inputs_name_one_crs_and_one_datum():
+    main = frame(crs=GEOGRAPHIC, axis=SURFACE_GOOD, assumptions=[orientation_assumption()])
+    surface = frame("dem:tile", crs=GEOGRAPHIC, axis=SURFACE_GOOD, dataset_id="dem")
+    result = assess([main], geo_records(), surface=[surface])
+
+    assert result.common_frame.state == "inputs_present"
+    assert result.common_frame.crs_codes == ["EPSG:4326"]
+    assert result.common_frame.vertical_datum_codes == ["NAP"]
+    assert result.common_frame.agreement == "agree"
+    assert "EPSG:4326" in result.common_frame.reason
+    assert "NAP" in result.common_frame.reason
+
+
+def test_common_frame_disagrees_when_the_crs_codes_differ():
+    projected = SpatialRef(kind=CRSKind.PROJECTED, code="EPSG:28992",
+                           crs_provenance=CRSProvenance.DECLARED_BY_SOURCE)
+    main = frame(crs=GEOGRAPHIC, axis=SURFACE_GOOD, assumptions=[orientation_assumption()])
+    surface = frame("dem:tile", crs=projected, axis=SURFACE_GOOD, dataset_id="dem")
+    result = assess([main], geo_records(), surface=[surface])
+
+    assert result.common_frame.state == "inputs_present"
+    assert result.common_frame.crs_codes == ["EPSG:28992", "EPSG:4326"]
+    assert result.common_frame.agreement == "disagree"
+    # Both sides named verbatim.
+    assert "EPSG:28992" in result.common_frame.reason
+    assert "EPSG:4326" in result.common_frame.reason
+    for paraphrase in ("same datum", "on earth", "spatially registered"):
+        assert paraphrase not in result.common_frame.reason.lower()
+
+
+def test_common_frame_disagrees_when_the_vertical_datum_codes_differ():
+    msl = VerticalAxis(kind=AxisKind.ELEVATION_M, units="m", origin="MSL", positive_down=False,
+                       vertical_datum=VerticalDatum(code="MSL",
+                                                    provenance=CRSProvenance.SUPPLIED_BY_CALLER,
+                                                    name="MSL"))
+    main = frame(crs=GEOGRAPHIC, axis=SURFACE_GOOD, assumptions=[orientation_assumption()])
+    surface = frame("dem:tile", crs=GEOGRAPHIC, axis=msl, dataset_id="dem")
+    result = assess([main], geo_records(), surface=[surface])
+
+    assert result.common_frame.state == "inputs_present"
+    assert result.common_frame.vertical_datum_codes == ["MSL", "NAP"]
+    assert result.common_frame.agreement == "disagree"
+    assert "MSL" in result.common_frame.reason
+    assert "NAP" in result.common_frame.reason
+
+
+def test_common_frame_agreement_vocabulary_never_claims_registration():
+    result = assess([frame(crs=GEOGRAPHIC)], geo_records())
+    assert result.common_frame.agreement not in (
+        "available", "declared", "registered", "ready", "georeferenced")
+
+
+def test_assess_surface_gains_codes_in_detail_without_changing_its_own_report():
+    """The surface dimension's own state/reason/missing/action must be
+    identical to before this slice -- only `detail` may grow."""
+    baseline = assess([frame()], geo_records(),
+                      surface=[frame("dem:tile", crs=GEOGRAPHIC, axis=SURFACE_GOOD,
+                                     dataset_id="dem")])
+    surface = baseline.dimension(SpatialDimension.SURFACE_REFERENCE)
+    assert surface.state == "available"
+    assert "dem" in surface.reason
+    assert surface.missing == []
+    assert surface.action is None
+    assert surface.detail["crs_codes"] == ["EPSG:4326"]
+    assert surface.detail["datum_codes"] == ["NAP"]
 
 
 # ---------------------------------------------------------------------------
@@ -297,9 +685,21 @@ def test_an_antenna_offset_has_no_default():
 
 
 def test_an_antenna_offset_states_what_it_is_measured_between():
-    value = service.validate_declaration(
-        DeclarationKind.ANTENNA_OFFSET, {"offset_m": 0.35})
-    assert value["measured_from"] and value["measured_to"]
+    """
+    Stage 12 stopped defaulting the reference point. It used to fall back to
+    "sensor phase centre", which quietly answered a question the caller had not
+    been asked -- and a phase-centre height is not an axis-origin offset.
+    """
+    with pytest.raises(service.DeclarationError) as exc:
+        service.validate_declaration(DeclarationKind.ANTENNA_OFFSET, {"offset_m": 0.35})
+    assert "measured_from is required" in str(exc.value)
+
+    value = service.validate_declaration(DeclarationKind.ANTENNA_OFFSET, {
+        "offset_m": 0.35, "measured_from": "depth_axis_origin",
+        "evidence": "field_measurement"})
+    assert value["measured_from"] == "depth_axis_origin"
+    assert value["measured_to"] == "ground surface"
+    assert value["verified"] is False
 
 
 def test_a_one_point_geo_tie_is_refused():
@@ -317,6 +717,47 @@ def test_a_two_point_tie_is_usable_but_never_verified():
         "supplied_by": "site survey"})
     assert value["verified"] is False
     assert value["rms_residual_m"] is None
+
+
+def test_an_orientation_declaration_requires_a_heading_and_a_reference():
+    with pytest.raises(service.DeclarationError):
+        service.validate_declaration(DeclarationKind.ORIENTATION, {})
+    with pytest.raises(service.DeclarationError):
+        service.validate_declaration(DeclarationKind.ORIENTATION, {"heading_deg": 47.0})
+    with pytest.raises(service.DeclarationError) as exc:
+        service.validate_declaration(
+            DeclarationKind.ORIENTATION, {"heading_deg": 47.0, "reference": "moon_north"})
+    assert "reference must be one of" in str(exc.value)
+
+
+def test_an_orientation_heading_has_no_default_reference():
+    """True, magnetic and grid north disagree by amounts that vary with
+    location and date; assuming one would misattribute the difference."""
+    with pytest.raises(service.DeclarationError):
+        service.validate_declaration(DeclarationKind.ORIENTATION, {"heading_deg": 0.0})
+
+
+def test_an_orientation_heading_must_be_a_compass_bearing():
+    with pytest.raises(service.DeclarationError):
+        service.validate_declaration(
+            DeclarationKind.ORIENTATION, {"heading_deg": 360.0, "reference": "true_north"})
+    with pytest.raises(service.DeclarationError):
+        service.validate_declaration(
+            DeclarationKind.ORIENTATION, {"heading_deg": -1.0, "reference": "true_north"})
+
+    value = service.validate_declaration(
+        DeclarationKind.ORIENTATION, {"heading_deg": 0.0, "reference": "grid_north"})
+    assert value == {"heading_deg": 0.0, "reference": "grid_north"}
+
+
+def test_orientation_is_recorded_as_a_claim_not_a_measurement():
+    assumption = service._assumption_for(
+        DeclarationKind.ORIENTATION, {"heading_deg": 47.0, "reference": "true_north"},
+        "field notes 2020")
+    assert assumption.key == "declared_orientation"
+    assert assumption.value == {"heading_deg": 47.0, "reference": "true_north"}
+    assert assumption.verified is False
+    assert "declaration, not a measurement" in assumption.basis
 
 
 # ---------------------------------------------------------------------------
@@ -392,7 +833,36 @@ def test_the_spatial_endpoint_reports_every_dimension(env):
         assert dimension["reason"]
 
 
-def test_declaring_a_vertical_datum_resolves_that_dimension(env):
+def test_the_spatial_endpoint_reports_the_common_frame_composition(env):
+    Session, _ = env
+    client = signed_in()
+    seed(Session, client)
+
+    body = client.get("/api/spatial/d").json()
+    assert body["contract_version"] == SPATIAL_CONTRACT_VERSION
+    assert "common_frame" not in {d["dimension"] for d in body["dimensions"]}
+    assert body["common_frame"]["state"] in ("incomplete", "inputs_present")
+    assert body["common_frame"]["reason"]
+    assert set(body["common_frame"]["inputs"]) == {d.value for d in COMMON_FRAME_INPUTS}
+    assert body["common_frame"]["agreement"] in ("agree", "disagree", "undetermined")
+    assert isinstance(body["common_frame"]["crs_codes"], list)
+    assert isinstance(body["common_frame"]["vertical_datum_codes"], list)
+
+
+def test_the_vocabulary_names_the_orientation_declaration(env):
+    client = signed_in()
+    body = client.get("/api/spatial/vocabulary").json()
+    kinds = {k["value"] for k in body["declaration_kinds"]}
+    assert DeclarationKind.ORIENTATION.value in kinds
+
+
+def test_declaring_a_vertical_datum_moves_the_question_to_the_depth_origin(env):
+    """
+    Stage 12 corrected this. A datum alone used to resolve the dimension, but a
+    subsurface axis also needs its zero placed against the ground -- so with the
+    datum given and the origin unplaced, the workflow asks for the offset next
+    rather than reporting a vertical reference it does not have.
+    """
     Session, _ = env
     client = signed_in()
     seed(Session, client)
@@ -404,8 +874,71 @@ def test_declaring_a_vertical_datum_resolves_that_dimension(env):
     assert response.status_code == 201
     # The response carries the recalculated state, so inspect -> resolve ->
     # recalculate is one motion.
-    assert _state(response.json()["spatial_reference"], "vertical_reference") == "declared"
+    after = response.json()["spatial_reference"]
+    assert _state(after, "vertical_reference") == "unresolved"
+    vertical = next(d for d in after["dimensions"]
+                    if d["dimension"] == "vertical_reference")
+    assert vertical["action"] == DeclarationKind.ANTENNA_OFFSET.value
+    assert any("depth-axis origin" in m for m in vertical["missing"])
+
+    # And once the origin is placed too, the dimension is settled.
+    resolved = declare(client, "d", DeclarationKind.ANTENNA_OFFSET, {
+        "offset_m": 0.45, "measured_from": "depth_axis_origin",
+        "evidence": "field_measurement"})
+    assert resolved.status_code == 201
+    assert _state(resolved.json()["spatial_reference"], "vertical_reference") == "declared"
     assert _state(client.get("/api/spatial/d").json(), "vertical_reference") == "declared"
+
+
+def test_declaring_an_orientation_resolves_the_dimension_and_names_it_verbatim(env):
+    Session, _ = env
+    client = signed_in()
+    seed(Session, client)
+
+    before = client.get("/api/spatial/d").json()
+    assert _state(before, "orientation") == "missing"
+    orientation = next(d for d in before["dimensions"] if d["dimension"] == "orientation")
+    assert orientation["action"] == DeclarationKind.ORIENTATION.value
+
+    response = declare(client, "d", DeclarationKind.ORIENTATION,
+                       {"heading_deg": 47.0, "reference": "true_north"})
+    assert response.status_code == 201
+    after = response.json()["spatial_reference"]
+    assert _state(after, "orientation") == "available"
+    reason = next(d for d in after["dimensions"] if d["dimension"] == "orientation")["reason"]
+    # Named verbatim -- the number and the reference, never a compass word
+    # and never "along-track" or "bearing".
+    assert "47.0" in reason
+    assert "true_north" in reason
+    assert "northeast" not in reason.lower()
+    assert "bearing" not in reason.lower()
+
+    assert _state(client.get("/api/spatial/d").json(), "orientation") == "available"
+
+
+def test_geographic_positions_alone_do_not_declare_an_orientation(env):
+    """A line of positions implies a bearing, not an orientation -- the two
+    are different questions, and this dimension answers the second one."""
+    Session, _ = env
+    client = signed_in()
+    seed(Session, client)
+
+    assert _state(client.get("/api/spatial/d").json(), "orientation") == "missing"
+
+
+def test_an_orientation_declaration_does_not_touch_the_other_dimensions(env):
+    Session, _ = env
+    client = signed_in()
+    seed(Session, client)
+
+    before = client.get("/api/spatial/d").json()
+    response = declare(client, "d", DeclarationKind.ORIENTATION,
+                       {"heading_deg": 90.0, "reference": "magnetic_north"})
+    after = response.json()["spatial_reference"]
+
+    for dimension in ("horizontal_position", "crs", "vertical_reference",
+                      "depth_conversion", "surface_reference", "survey_geometry"):
+        assert _state(before, dimension) == _state(after, dimension)
 
 
 def _state(body, dimension):
@@ -503,6 +1036,25 @@ def test_linking_an_unusable_dem_does_not_make_it_a_surface_reference(env):
                        {"surface_dataset_id": "dem"})
     assert response.status_code == 201
     assert _state(response.json()["spatial_reference"], "surface_reference") == "unvalidated"
+
+
+def test_linking_a_usable_dem_names_it_in_the_reason(env):
+    Session, _ = env
+    client = signed_in()
+    seed(Session, client, "survey")
+    seed(Session, client, "good_dem",
+        frames=[frame("good_dem:tile", dataset_id="good_dem", axis=SURFACE_GOOD)],
+        records=geo_records(dataset_id="good_dem"), name="a DEM")
+
+    response = declare(client, "survey", DeclarationKind.SURFACE_REFERENCE,
+                       {"surface_dataset_id": "good_dem"})
+    assert response.status_code == 201
+    after = response.json()["spatial_reference"]
+    assert _state(after, "surface_reference") == "available"
+    reason = next(d for d in after["dimensions"]
+                 if d["dimension"] == "surface_reference")["reason"]
+    assert "good_dem" in reason
+    assert "NAP" in reason
 
 
 def test_changing_a_spatial_reference_marks_downstream_products_stale(env):

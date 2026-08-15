@@ -45,6 +45,8 @@ function report(overrides: Partial<DatasetReport> = {}): DatasetReport {
       source_url: null,
       license: null,
       modality: 'gpr',
+      recorded_modalities: ['gpr'],
+      declared_sensor_type: 'gpr',
       original_format: 'segy',
       source_files: ['line1.sgy'],
       manufacturer: null,
@@ -115,6 +117,11 @@ function report(overrides: Partial<DatasetReport> = {}): DatasetReport {
       { stage: 'format_identification', status: 'completed', detail: 'segy', parameters: {}, at: null },
       { stage: 'preprocessing', status: 'not_run', detail: 'no record carries a processing_applied entry', parameters: {}, at: null },
     ],
+    signal_chain: {
+      recorded: false,
+      reason: 'no record carries a processing_applied entry -- preprocessing was not recorded for this dataset',
+      steps: [],
+    },
     quality: {
       stored_score: 0.8,
       computed_score: 0.8,
@@ -145,6 +152,17 @@ function report(overrides: Partial<DatasetReport> = {}): DatasetReport {
       evidence_available: false,
       classified_object_count: 0,
       note: 'Candidates are anomalous regions, not detected objects. No object classification has been performed.',
+      status: 'blocked',
+      status_reason: 'candidate generation has not been run for this dataset',
+      missing: ['a candidate generation run'],
+      method: null,
+      method_version: null,
+      generated_at: null,
+      is_stale: false,
+      stale_reasons: [],
+      localisation_breakdown: {},
+      depth_breakdown: {},
+      classification_status: 'BLOCKED',
     },
     readiness: [
       {
@@ -294,6 +312,77 @@ describe('missing metadata is named, not fabricated', () => {
   })
 })
 
+describe('recorded modality composition vs. the ingest declaration', () => {
+  it('names one recorded modality plainly, no "only"/"incomplete"/"waiting"', async () => {
+    const { container } = await renderReport(
+      report({ identity: { ...report().identity, recorded_modalities: ['gpr'], declared_sensor_type: 'gpr' } }),
+    )
+    const recorded = container.querySelector('[data-recorded-modalities]')
+    expect(recorded?.textContent).toBe('gpr')
+    const text = container.textContent?.toLowerCase() ?? ''
+    for (const forbidden of ['only', 'incomplete', 'waiting']) {
+      expect(text).not.toContain(forbidden)
+    }
+  })
+
+  it('names two recorded modalities verbatim, never fused/multi-modal/aligned', async () => {
+    const { container } = await renderReport(
+      report({
+        identity: {
+          ...report().identity,
+          modality: null,
+          recorded_modalities: ['gpr', 'lidar'],
+          declared_sensor_type: 'gpr',
+        },
+      }),
+    )
+    const recorded = container.querySelector('[data-recorded-modalities]')
+    expect(recorded?.textContent).toBe('gpr, lidar')
+    const text = container.textContent?.toLowerCase() ?? ''
+    for (const forbidden of ['fused', 'multi-modal', 'multimodal', 'aligned', 'ready for fusion']) {
+      expect(text).not.toContain(forbidden)
+    }
+  })
+
+  it('shows an explicit absence for an empty composition, never a synthetic gpr, while the declaration still shows', async () => {
+    const { container } = await renderReport(
+      report({
+        identity: {
+          ...report().identity,
+          modality: null,
+          recorded_modalities: [],
+          declared_sensor_type: 'gpr',
+        },
+      }),
+    )
+    expect(container.querySelector('[data-recorded-modalities]')).toBeNull()
+    expect(container.textContent).toContain('no survey frame records a modality')
+    // The declaration is a separate fact and is not withheld.
+    const declaredField = Array.from(container.querySelectorAll('dt')).find(
+      (dt) => dt.textContent === 'Declared sensor',
+    )
+    expect(declaredField?.nextElementSibling?.textContent).toBe('gpr')
+  })
+
+  it('follows the frames even when the declaration disagrees, without correcting it', async () => {
+    const { container } = await renderReport(
+      report({
+        identity: {
+          ...report().identity,
+          modality: null,
+          recorded_modalities: ['gpr', 'lidar'],
+          declared_sensor_type: 'gpr',
+        },
+      }),
+    )
+    const declaredField = Array.from(container.querySelectorAll('dt')).find(
+      (dt) => dt.textContent === 'Declared sensor',
+    )
+    expect(declaredField?.nextElementSibling?.textContent).toBe('gpr')
+    expect(container.querySelector('[data-recorded-modalities]')?.textContent).toBe('gpr, lidar')
+  })
+})
+
 describe('quality', () => {
   it('shows the dimensions behind the score', async () => {
     const { container } = await renderReport()
@@ -318,26 +407,61 @@ describe('quality', () => {
 })
 
 describe('candidates are never detections', () => {
-  it('says no analysis has been run when none has', async () => {
+  it('says no analysis has been run when none has, in the backend’s words', async () => {
     const { container } = await renderReport()
-    expect(container.textContent).toContain('No candidate analysis has been run')
+    // The wording is the backend's `status_reason`, not this component's: the
+    // report must not paraphrase a limitation it did not decide.
+    expect(container.textContent).toContain(
+      'candidate generation has not been run for this dataset',
+    )
+    expect(container.textContent).toContain('a candidate generation run')
   })
 
   it('describes candidates as candidate regions and carries the note', async () => {
     const analysed = report()
     analysed.candidates = {
+      ...analysed.candidates,
       candidate_count: 12,
       analysed: true,
       frames_with_candidates: ['line1.sgy'],
       shape_classes: { compact: 8, elongated: 4 },
       evidence_available: true,
-      classified_object_count: 0,
-      note: 'Candidates are anomalous regions, not detected objects. No object classification has been performed.',
+      status: 'available',
+      status_reason: 'generated from 1 survey line(s)',
+      missing: [],
+      method: 'ring_local_anomaly_connected_components',
+      method_version: '1.0.0',
+      localisation_breakdown: { trace_relative: 12 },
+      depth_breakdown: { unavailable: 12 },
     }
     const { container } = await renderReport(analysed)
     expect(container.textContent).toContain('Candidate regions')
     expect(container.querySelector('[data-candidate-note]')?.textContent).toContain(
       'not detected objects',
+    )
+    expect(container.querySelector('[data-classification-status]')?.textContent).toBe(
+      'BLOCKED',
+    )
+  })
+
+  it('survives a report payload stored before candidate provenance existed', async () => {
+    // A stored report from an earlier version carries none of the Stage 13
+    // fields. The page must degrade to "not stated", never crash.
+    const old = report()
+    old.candidates = {
+      candidate_count: 12,
+      analysed: true,
+      frames_with_candidates: ['line1.sgy'],
+      shape_classes: { compact: 12 },
+      evidence_available: true,
+      classified_object_count: 0,
+      note: 'Candidates are anomalous regions, not detected objects.',
+    } as unknown as typeof old.candidates
+
+    const { container } = await renderReport(old)
+    expect(container.textContent).toContain('Candidate regions')
+    expect(container.querySelector('[data-classification-status]')?.textContent).toBe(
+      'BLOCKED',
     )
   })
 

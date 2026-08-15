@@ -12,11 +12,13 @@ These tests pin the resulting contract:
   - every record says where its position came from
   - KMZ direction is MEASURED when a second source exists, not assumed
 """
+from pathlib import Path
+
 import numpy as np
 import pytest
 
 from ingestion.kmz_georeference import (
-    DirectionVerification, georeference_records_by_trace,
+    DirectionVerification, georeference_records_by_trace, parse_kmz,
     records_needing_kmz_fallback, verify_kmz_direction,
 )
 from schemas.spatial import (
@@ -25,6 +27,51 @@ from schemas.spatial import (
 from schemas.subterra_record import SensorType, SubterraRecord
 
 TRACK = [(15.0130, 41.0534), (15.0135, 41.0536)]
+
+#: The real INGV fixtures. Untracked (datasets/ is gitignored), so every test
+#: touching them skips when they are absent -- the pattern six other test
+#: modules already use.
+INGV_DIR = Path("datasets/downloads/multiline_C1T_0001_0002_extracted")
+INGV_LINES = {"C1T_7,5_0001": INGV_DIR / "C1T_7,5_0001.SGY",
+              "C1T_7,5_0002": INGV_DIR / "C1T_7,5_0002.SGY"}
+INGV_KMZ = INGV_DIR / "ANF_CARRELLO.kmz"
+INGV_PRESENT = INGV_KMZ.exists() and all(p.exists() for p in INGV_LINES.values())
+
+
+def _header_track(path: Path) -> list[tuple[float, float]]:
+    """
+    Per-trace SourceX/SourceY, scaled by the file's own SourceGroupScalar.
+
+    Read from the trace headers, where SEG-Y puts them (bytes 73-80). No CRS
+    is applied and none is needed: the numbers are already metres, which is
+    what makes the length comparison below possible without asserting a
+    projection the file never declares.
+    """
+    import segyio
+
+    with segyio.open(str(path), "r", ignore_geometry=True) as f:
+        out = []
+        for i in range(f.tracecount):
+            header = f.header[i]
+            scalar = header[segyio.TraceField.SourceGroupScalar] or 1
+            factor = 1.0 / abs(scalar) if scalar < 0 else float(scalar)
+            out.append((header[segyio.TraceField.SourceX] * factor,
+                        header[segyio.TraceField.SourceY] * factor))
+        return out
+
+
+def _planar_length_m(xy: list[tuple[float, float]]) -> float:
+    """Track length straight from projected metres -- no reprojection."""
+    return float(sum(np.hypot(xy[i + 1][0] - xy[i][0], xy[i + 1][1] - xy[i][1])
+                     for i in range(len(xy) - 1)))
+
+
+def _geographic_length_m(lonlat: list[tuple[float, float]]) -> float:
+    from fusion.sensor_fusion import haversine_m
+
+    return float(sum(haversine_m(lonlat[i][1], lonlat[i][0],
+                                 lonlat[i + 1][1], lonlat[i + 1][0])
+                     for i in range(len(lonlat) - 1)))
 
 
 def _records(position_factory, n_traces=4):
@@ -179,3 +226,72 @@ def test_unverified_direction_remains_the_default():
     georeference_records_by_trace(recs, TRACK)
     assert recs[0].metadata["kmz_direction_verified"] is False
     assert "kmz_direction_verification" not in recs[0].metadata
+
+
+# --------------------------------------------------------------------------
+# The measurement itself, against the real files
+# --------------------------------------------------------------------------
+#
+# Everything above constructs its records. These two read the fixtures, so
+# they are the tests that would actually catch the project re-adopting the
+# "static placeholder" reading that once justified discarding a real track.
+
+@pytest.mark.skipif(not INGV_PRESENT, reason="INGV SEG-Y + KMZ fixture not present")
+@pytest.mark.parametrize("stem", sorted(INGV_LINES))
+def test_ingv_header_positions_vary_per_trace(stem):
+    """
+    Refutes the placeholder reading directly: the headers MOVE.
+
+    Per-trace variation is what SEG-Y specifies -- SourceX/SourceY are trace
+    header fields -- so a file whose every trace shared one position would be
+    the anomaly, not this. Asserted as a relationship (most traces distinct,
+    and the track advances) rather than as a copied count, so the test states
+    the finding rather than a transcription of it.
+    """
+    xy = _header_track(INGV_LINES[stem])
+
+    assert len(xy) > 1
+    assert len(set(xy)) > 1, "a single repeated position IS the placeholder claim"
+    assert len(set(xy)) >= 0.9 * len(xy), "the track should be near-fully distinct"
+
+    steps = [np.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(xy, xy[1:])]
+    assert min(steps) >= 0.0
+    assert np.median(steps) > 0.1, "consecutive traces should advance, not jitter"
+
+    # Not every step is non-zero, and that is a real property of the data
+    # rather than a defect: the instrument was stationary for the opening
+    # traces of a line. Recorded so the near-fully-distinct bound above is
+    # understood rather than tuned.
+    stationary = [i for i, s in enumerate(steps) if s == 0.0]
+    assert all(i < 10 for i in stationary), (
+        f"{stem}: zero-length steps should be confined to the start of the "
+        f"line, got {stationary}")
+
+
+@pytest.mark.skipif(not INGV_PRESENT, reason="INGV SEG-Y + KMZ fixture not present")
+@pytest.mark.parametrize("stem", sorted(INGV_LINES))
+def test_ingv_header_track_length_agrees_with_the_kmz(stem):
+    """
+    The cross-check that settled which source is authoritative.
+
+    Two independent measurements of the same line: the trace headers, in
+    projected metres, and the KMZ polyline, in degrees over the ellipsoid.
+    They are compared by LENGTH, which needs no reprojection and so asserts
+    no CRS the file does not declare.
+    """
+    header_len = _planar_length_m(_header_track(INGV_LINES[stem]))
+    kmz_len = _geographic_length_m(parse_kmz(INGV_KMZ)[stem])
+
+    assert header_len > 1.0 and kmz_len > 1.0
+    assert header_len == pytest.approx(kmz_len, rel=0.01), (
+        f"{stem}: header track {header_len:.2f} m vs KMZ {kmz_len:.2f} m")
+
+
+@pytest.mark.skipif(not INGV_PRESENT, reason="INGV SEG-Y + KMZ fixture not present")
+@pytest.mark.parametrize("stem", sorted(INGV_LINES))
+def test_the_headers_are_a_finer_track_than_the_kmz(stem):
+    """
+    Why the headers win where both exist: more points over the same line.
+    This is the substantive reason the fallback is a FALLBACK.
+    """
+    assert len(_header_track(INGV_LINES[stem])) > len(parse_kmz(INGV_KMZ)[stem])

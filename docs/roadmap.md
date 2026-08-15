@@ -30,6 +30,10 @@ Last verified against `0daa3e7` on 2026-08-08.
 | Author / evidence requests | 🟡 Open | outstanding queries to dataset publishers |
 | Authentication and ownership | ✅ Complete | `docs/authentication.md`; sessions, PBKDF2, dataset ownership, login limiting, password reset with Resend delivery |
 | Dataset reports | ✅ Complete | `docs/dataset-report.md`; `GET /api/datasets/{id}/report`, eight capability assessments per dataset |
+| Depth-axis origin → ground | ✅ Complete | `docs/depth-origin.md`; a declared offset now participates in the vertical assessment instead of being recorded and ignored |
+| Surface reference / vertical anchor | ✅ Complete | `docs/surface-reference.md`; a raster band can be declared elevation, so `surface_reference` can reach `available` for the first time |
+| Device abstraction | ✅ Complete | `docs/devices.md`; device + session records converging on the Stage 9 acquisition boundary. No hardware integration |
+| FileDrop acquisition | ✅ Complete | `docs/filedrop.md`; acquisition boundary, checksum at receipt, identification before ingestion, review hold |
 | Spatial reference workflow | ✅ Complete | `docs/spatial-reference.md`; seven-dimension assessment, append-only declaration log, six declaration kinds |
 | Dataset lifecycle management | ✅ Complete | `docs/dataset-lifecycle.md`; rename, safe delete, derived status, duplicate detection, rescore |
 | Production-ready platform | ⏳ Later | no encryption at rest, no dataset signing |
@@ -42,10 +46,33 @@ repository:
 
 1–5 product shell, upload/import, ownership/auth, password recovery, email
 delivery — **complete**. 6 dataset reports — **complete**. 7 dataset
-management — **complete**. 8 spatial reference workflow — **complete**. Then:
-9 FileDrop acquisition, 10 device
-abstraction, 11 acquisition sessions, 12 hardware adapter, 13 candidate
-intelligence, 14 ground-truth benchmarks, 15 validated object detection,
+management — **complete**. 8 spatial reference workflow — **complete**. 9 FileDrop acquisition —
+**complete**. 10 device abstraction — **complete**. 11 surface reference — **complete**. 12 depth-axis origin — **complete**.
+13 candidate intelligence — **complete**: the candidate layer is real,
+provenanced, versioned, staleable and inspectable. The detector it exposes is
+still at chance, which is a measured result rather than a gap in this stage.
+15 radargram inspection — **complete**: the measured B-scan with candidate
+overlays mapped exactly to their supporting cells. 16 record-loading performance
+— **complete**: the candidate path was parsing its own copy of the corpus, so a
+radargram page materialised 384 MB twice; concurrent grid+candidates went from
+28.2 s to 4.7 s and candidate retrieval from 22.9 s to 0.27 s. See
+`docs/record-loading.md`.
+17 amplitude inspection toggle — **complete**: the radargram can now show either
+the local-anomaly z-score or the pre-anomaly signal it was computed from, as two
+projections of one grid. Candidate footprints, axes and the reliability mask are
+identical between them; no unit is claimed for the pre-anomaly values because
+none is established. See `docs/radargram-display-modes.md`.
+14 ground-truth benchmarks — **complete**, with a negative headline: after the
+duplicate audit the 4TU corpus holds 107 independent positives and **6**
+independent negatives, which could only distinguish a detector of AUC 0.742 or
+better from chance. Six further attested-empty surveys would make a clearly
+useful detector (AUC 0.70) recognisable. See `docs/ground-truth-benchmarks.md`.
+
+The old list's "11 acquisition sessions" is obsolete: stage 10 implemented
+them. Stage 11 was chosen by dependency instead — the surface anchor was the
+only blocker toward reconstruction that needed no external evidence. What
+remains: a hardware adapter (blocked: no instrument or protocol identified),
+15 validated object detection,
 16 multi-modal fusion, 17 3D reconstruction, 18 interactive underground model,
 19 real-time scanning, 20 non-expert interpretation.
 
@@ -53,16 +80,95 @@ Stages 17–18 depend on 8 far more than on 13–16, and stage 8 is blocked by
 evidence rather than effort. `docs/dataset-report.md` carries the measured
 dependency report.
 
+## The product was running an unbenchmarked detector (stage 18)
+
+`run_pipeline(mode="gpr_local_anomaly")` applied the ring statistic WITHOUT the
+trace filters that every benchmarked path applies. On a real 4TU line the two
+compositions disagree about 95.7% of cells, and the count of cells that become
+candidates differs 4.2x (39 unfiltered against 164 filtered).
+
+The two anomaly IMPLEMENTATIONS were always equivalent — `validate_arraywise`
+measures them bitwise identical and was never wrong. What diverged was the
+composition the ingest pipeline used. `--verify-arraywise`, referenced in three
+docstrings as though it were a CLI flag, has never existed.
+
+The owner is the ingest COMPOSITION, not either anomaly function: every ingest
+route applies exactly ONE `run_pipeline` mode, so the validated two-step chain
+the regression baseline has pinned since the interpretation baseline was
+unreachable through the API. A new `gpr_full` mode composes it; the single-step
+modes are unchanged, and BAM is bit-identical. Stage 19 then made `gpr_full` the
+GPR ingest DEFAULT — a GPR dataset ingested with no mode named now gets the
+benchmark-aligned chain, the resolved mode is recorded on the dataset, explicit
+choices still win, no other modality moves and no historical dataset is
+reprocessed. Verified on a real 4TU line: the defaulted ingest is bit-identical
+to the BAM array path and candidate generation succeeds where UI-ingested GPR
+previously reported BLOCKED. See `docs/anomaly-path-equivalence.md`.
+
+## External evidence: the 4TU author replied
+
+Dr. ter Huurne, author of the 4TU dataset, answered a direct enquiry. It is the
+first evidence request in this project to produce an answer, and it resolves the
+vertical-datum question that has been open since stage 8: **the GNSS elevations
+in the exported SEG-Y are ellipsoidal WGS84, not NAP.**
+
+It does not unblock depth. The author is explicit that no time-zero correction
+and no air-gap removal were applied, so the ground surface does not necessarily
+correspond to depth zero and an air path remains in the data — and gives no
+magnitude for it. Physical depth and absolute elevation stay BLOCKED.
+
+The author named neither of the two per-trace elevation fields, which differ by
+42.2–45.2 m — attaching the datum to the wrong one is a ~44 m error. **That
+question has now been answered by measurement rather than by asking.** Both
+fields were compared against AHN, the Dutch national terrain model (PDOK, NAP
+orthometric), across 366,019 traces in 107 activities and 12 sites: bytes 41–44
+track AHN to −0.83 m, bytes 45–48 sit +43.38 m above it, and that difference
+correlates with latitude at −0.999 (planar R² 0.998, residual sd 0.034 m) —
+geoid behaviour, not a constant instrument offset, matching the published NL
+separation range of 41 m (Groningen) to 47 m (Limburg) in magnitude and
+gradient. **Bytes 45–48 hold the ellipsoidal GNSS height; bytes 41–44 an
+orthometric NAP-like height.** No platform state was changed. See
+`docs/4tu-elevation-field-identification.md` and `docs/4tu-author-evidence.md`.
+
+Depth remains blocked regardless: the author is explicit that no time-zero
+correction and no air-gap removal were applied, so a surface elevation does not
+locate depth zero. The two remaining external questions are the time-zero/air-gap
+magnitude and whether a propagation velocity was ever determined.
+
 ## Where detection actually stands
 
 The baseline detector is the scientific reference and remains unchanged in the
-default path. It is at or below chance on both benchmarks:
+default path. It is at approximately chance on both benchmarks:
 
 - BAM: recall 0.065 (1.5 GHz) and 0.093 (2.6 GHz); precision 0.135 and 0.147
   against a 0.1297 chance rate — 1.04× and 1.13× chance.
-- 4TU: AUC 0.4452, Spearman ρ −0.0619, both at or below chance.
+- 4TU: AUC 0.4452, Spearman ρ −0.0619.
 
-One candidate has been tried. The multi-scale ring estimator was designed
+Stage 13 reproduced all three of those numbers bit-identically from the current
+repository rather than trusting this file, and **corrected one claim**: "at or
+below chance" overstated the 4TU result. The separation rests on seven
+negatives, and its bootstrap 95% interval is [0.2219, 0.6607] — it spans chance
+in both directions, so that benchmark cannot distinguish this method from
+chance *either way*. See `docs/candidate-intelligence.md`.
+
+Stage 13 also audited the 4TU corpus for duplicate evaluation units and found
+them: 759 radargrams carry 721 unique checksums, six activities are duplicated
+in full, and activity 09.7 — one of the seven negatives — shares a
+byte-identical radargram with 09.6, a positive. Counting each measurement once
+gives 121 activities and AUC 0.4511. The leakage is real and recorded in
+`artifacts/4tu/leakage.json`; it is **not** the explanation.
+
+Two candidates have now been tried and both were rejected on evidence.
+
+The **trace-span filter** (Stage 13) required a candidate to span at least K
+trace columns, on the physical argument that an object occupying space produces
+a laterally continuous response. K was chosen on the Rot90 rotation and reported
+on Rot00. Calibration selected K=1 — the baseline. Detections fall 333 → 68 → 0
+across K = 1, 2, 3, so **essentially no candidate this detector produces spans
+three traces**. That is the most specific account yet of why it sits at chance:
+the estimator is responding to near-point excursions, not to laterally extended
+structure. `artifacts/experiment/trace_span.json`.
+
+The **multi-scale ring estimator** was designed
 against the *measured* width-saturation mechanism, demonstrated that it escapes
 that collapse synthetically, and was **rejected**: its BAM gain is concentrated
 entirely in duct-4 while ducts 1–3 fall to zero, and 4TU AUC did not improve

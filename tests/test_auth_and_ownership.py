@@ -265,6 +265,7 @@ ID_ROUTES = [
     "/api/datasets/{id}",
     "/api/datasets/{id}/info",
     "/api/datasets/{id}/report",
+    "/api/datasets/{id}/acquisition",
     "/api/datasets/{id}/points",
     "/api/datasets/{id}/depths",
     "/api/datasets/{id}/grid",
@@ -505,6 +506,7 @@ def test_the_public_surface_is_exactly_what_we_intend():
         "/api/benchmark/artifacts",
         "/api/benchmark/artifacts/{name:path}",
         # static capability vocabularies; no user data of any kind
+        "/api/candidates/vocabulary",
         "/api/exports/formats",
         "/api/imports/formats",
         "/api/labels/vocabulary",

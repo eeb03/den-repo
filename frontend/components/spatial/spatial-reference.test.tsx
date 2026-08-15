@@ -88,7 +88,7 @@ function reference(overrides: Partial<SpatialReference> = {}): SpatialReference 
         reason:
           'no frame declares an orientation, and none is inferred: a track bearing says where the acquisition went, not how the sensor was oriented',
         missing: ['an IMU record, or a declared antenna orientation'],
-        action: null,
+        action: 'orientation',
       }),
       dimension({
         dimension: 'survey_geometry',
@@ -98,6 +98,17 @@ function reference(overrides: Partial<SpatialReference> = {}): SpatialReference 
         action: null,
       }),
     ],
+    common_frame: {
+      state: 'incomplete',
+      reason: 'not every Phase 4 input is resolved yet -- orientation: missing; vertical_reference: missing',
+      inputs: [
+        'horizontal_position', 'crs', 'vertical_reference', 'orientation',
+        'surface_reference', 'survey_geometry',
+      ],
+      crs_codes: ['EPSG:4326'],
+      vertical_datum_codes: [],
+      agreement: 'undetermined',
+    },
     declarations: [],
     has_stale_products: false,
     stale_products: [],
@@ -155,8 +166,9 @@ describe('the seven dimensions', () => {
 
   it('offers an action only where a declaration can resolve it', async () => {
     const { container } = await renderView()
-    // Orientation is unresolved but no declaration fixes it — it needs an IMU.
-    expect(container.querySelector('[data-action="resolve-orientation"]')).toBeNull()
+    // Orientation is now declarable through the same workflow: a typed
+    // heading is a claim, same as a typed CRS.
+    expect(container.querySelector('[data-action="resolve-orientation"]')).toBeTruthy()
     expect(container.querySelector('[data-action="resolve-vertical_reference"]')).toBeTruthy()
   })
 })
@@ -173,7 +185,9 @@ describe('declaring', () => {
   it('prefills no scientific value anywhere', () => {
     // A default velocity or antenna height would be a fabricated measurement
     // wearing a placeholder's clothes.
-    for (const kind of ['depth_conversion', 'antenna_offset', 'crs', 'vertical_datum'] as const) {
+    for (const kind of [
+      'depth_conversion', 'antenna_offset', 'crs', 'vertical_datum', 'orientation',
+    ] as const) {
       const { container } = renderForm(kind)
       for (const input of container.querySelectorAll('input, textarea')) {
         expect((input as HTMLInputElement).value).toBe('')
@@ -186,6 +200,9 @@ describe('declaring', () => {
     const submit = container.querySelector('[data-action="submit-declaration"]') as HTMLButtonElement
     fireEvent.change(container.querySelector('#vertical_datum-code')!, {
       target: { value: 'NAP' },
+    })
+    fireEvent.change(container.querySelector('#vertical_datum-applies_to')!, {
+      target: { value: 'vertical_axis' },
     })
     expect(submit.disabled).toBe(true)
 
@@ -205,6 +222,9 @@ describe('declaring', () => {
     fireEvent.change(container.querySelector('#vertical_datum-code')!, {
       target: { value: 'NAP' },
     })
+    fireEvent.change(container.querySelector('#vertical_datum-applies_to')!, {
+      target: { value: 'vertical_axis' },
+    })
     fireEvent.change(container.querySelector('#vertical_datum-supplied-by')!, {
       target: { value: 'PDOK documentation' },
     })
@@ -214,8 +234,66 @@ describe('declaring', () => {
       expect(declareSpatialReference).toHaveBeenCalledWith(
         'd1',
         'vertical_datum',
-        { code: 'NAP' },
+        { code: 'NAP', applies_to: 'vertical_axis' },
         'PDOK documentation',
+      ),
+    )
+  })
+
+  /*
+    A frame carries two vertical quantities. Before this the form had one box,
+    so declaring a GNSS elevation's datum wrote it onto the travel-time axis --
+    asserting that instrument time zero is referenced to an ellipsoid.
+  */
+  it('makes the declarer say which vertical quantity the datum describes', () => {
+    const { container } = renderForm('vertical_datum')
+    const choice = container.querySelector('#vertical_datum-applies_to') as HTMLSelectElement
+
+    expect(choice).toBeTruthy()
+    expect(choice.value).toBe('')
+    expect([...choice.options].map((o) => o.value)).toContain('acquisition_elevation')
+
+    const submit = container.querySelector('[data-action="submit-declaration"]') as HTMLButtonElement
+    fireEvent.change(container.querySelector('#vertical_datum-code')!, { target: { value: 'NAP' } })
+    fireEvent.change(container.querySelector('#vertical_datum-supplied-by')!, {
+      target: { value: 'the site surveyor' },
+    })
+    expect(submit.disabled).toBe(true)
+  })
+
+  it('says an acquisition-elevation datum does not produce a depth or an elevation', () => {
+    const { container } = renderForm('vertical_datum')
+    const consequence = container.querySelector('[data-consequence]')?.textContent ?? ''
+
+    expect(consequence).toContain('does NOT say what the depth axis is measured from')
+    expect(consequence).toContain('does not place depth zero at the ground')
+    expect(consequence).toContain('does not supply a propagation velocity')
+  })
+
+  it('omits the stored-field name rather than submitting it empty', async () => {
+    declareSpatialReference.mockResolvedValue({
+      declaration: {},
+      applied: { frames_changed: [] },
+      spatial_reference: reference(),
+    })
+    const { container } = renderForm('vertical_datum')
+    fireEvent.change(container.querySelector('#vertical_datum-code')!, {
+      target: { value: 'WGS84 ellipsoidal' },
+    })
+    fireEvent.change(container.querySelector('#vertical_datum-applies_to')!, {
+      target: { value: 'acquisition_elevation' },
+    })
+    fireEvent.change(container.querySelector('#vertical_datum-supplied-by')!, {
+      target: { value: 'the dataset author, in correspondence' },
+    })
+    fireEvent.submit(container.querySelector('form')!)
+
+    await waitFor(() =>
+      expect(declareSpatialReference).toHaveBeenCalledWith(
+        'd1',
+        'vertical_datum',
+        { code: 'WGS84 ellipsoidal', applies_to: 'acquisition_elevation' },
+        'the dataset author, in correspondence',
       ),
     )
   })
@@ -254,6 +332,69 @@ describe('declaring', () => {
     expect(consequence).toContain('does not verify a CRS against the coordinate values')
   })
 
+  it('says an antenna heading is a claim, not an IMU record or a track bearing', () => {
+    const { container } = renderForm('orientation')
+    const consequence = container.querySelector('[data-consequence]')?.textContent ?? ''
+    expect(consequence).toContain('not a measurement')
+    expect(consequence).toContain('not inferred from the track')
+    expect(container.textContent).not.toMatch(/northeast|along-track/i)
+  })
+
+  it('preselects no reference for the declared heading', () => {
+    const { container } = renderForm('orientation')
+    const reference = container.querySelector('#orientation-reference') as HTMLSelectElement
+    expect(reference).toBeTruthy()
+    expect(reference.value).toBe('')
+    expect([...reference.options].map((o) => o.value)).toEqual(
+      expect.arrayContaining(['true_north', 'magnetic_north', 'grid_north']),
+    )
+  })
+
+  it('cannot be submitted without both a heading and a reference', () => {
+    const { container } = renderForm('orientation')
+    const submit = container.querySelector('[data-action="submit-declaration"]') as HTMLButtonElement
+    fireEvent.change(container.querySelector('#orientation-heading_deg')!, {
+      target: { value: '47.0' },
+    })
+    fireEvent.change(container.querySelector('#orientation-supplied-by')!, {
+      target: { value: 'field notes 2020' },
+    })
+    expect(submit.disabled).toBe(true)
+
+    fireEvent.change(container.querySelector('#orientation-reference')!, {
+      target: { value: 'true_north' },
+    })
+    expect(submit.disabled).toBe(false)
+  })
+
+  it('sends the declared heading and reference', async () => {
+    declareSpatialReference.mockResolvedValue({
+      declaration: {},
+      applied: { frames_changed: [] },
+      spatial_reference: reference(),
+    })
+    const { container } = renderForm('orientation')
+    fireEvent.change(container.querySelector('#orientation-heading_deg')!, {
+      target: { value: '47.0' },
+    })
+    fireEvent.change(container.querySelector('#orientation-reference')!, {
+      target: { value: 'true_north' },
+    })
+    fireEvent.change(container.querySelector('#orientation-supplied-by')!, {
+      target: { value: 'field notes 2020' },
+    })
+    fireEvent.submit(container.querySelector('form')!)
+
+    await waitFor(() =>
+      expect(declareSpatialReference).toHaveBeenCalledWith(
+        'd1',
+        'orientation',
+        { heading_deg: '47.0', reference: 'true_north' },
+        'field notes 2020',
+      ),
+    )
+  })
+
   it('shows the backend refusal verbatim', async () => {
     const { ApiError } = await import('@/services/api')
     declareSpatialReference.mockRejectedValue(
@@ -273,6 +414,43 @@ describe('declaring', () => {
         'outside the physically plausible range',
       ),
     )
+  })
+})
+
+describe('the common spatial frame composition', () => {
+  it('renders the composition state and reason verbatim, read-only', async () => {
+    const { container } = await renderView()
+    const node = container.querySelector('[data-common-frame]')
+    expect(node?.getAttribute('data-state')).toBe('incomplete')
+    expect(node?.textContent).toContain('not every Phase 4 input is resolved yet')
+    // No declare control on the composition itself.
+    expect(node?.querySelector('button')).toBeNull()
+    expect(node?.querySelector('form')).toBeNull()
+  })
+
+  it('prints the recorded CRS/vertical-datum identity and the agreement value verbatim', async () => {
+    const { container } = await renderView(
+      reference({
+        common_frame: {
+          state: 'inputs_present',
+          reason: 'every Phase 4 input is individually resolved, and they agree',
+          inputs: [
+            'horizontal_position', 'crs', 'vertical_reference', 'orientation',
+            'surface_reference', 'survey_geometry',
+          ],
+          crs_codes: ['EPSG:4326'],
+          vertical_datum_codes: ['NAP'],
+          agreement: 'agree',
+        },
+      }),
+    )
+    const node = container.querySelector('[data-common-frame]')
+    expect(node?.querySelector('[data-agreement]')?.getAttribute('data-agreement')).toBe('agree')
+    expect(node?.textContent).toContain('EPSG:4326')
+    expect(node?.textContent).toContain('NAP')
+    // Still no declare control.
+    expect(node?.querySelector('button')).toBeNull()
+    expect(node?.querySelector('form')).toBeNull()
   })
 })
 
@@ -331,5 +509,70 @@ describe('the component computes nothing', () => {
       const source = readFileSync(join(__dirname, file), 'utf8')
       expect(source).not.toMatch(/from ['"]three|@react-three/)
     }
+  })
+})
+
+describe('the depth-origin declaration', () => {
+  function renderOffsetForm() {
+    return render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <DeclarationForm datasetId="d1" kind="antenna_offset" />
+      </SWRConfig>,
+    )
+  }
+
+  it('asks where the offset is measured from, and does not default it', () => {
+    const { container } = renderOffsetForm()
+    expect(container.querySelector('#antenna_offset-measured_from')).toBeTruthy()
+    expect(
+      (container.querySelector('#antenna_offset-measured_from') as HTMLInputElement).value,
+    ).toBe('')
+  })
+
+  it('says only the depth-axis origin answers the registration question', () => {
+    const { container } = renderOffsetForm()
+    expect(container.textContent).toContain(
+      'only depth_axis_origin answers what vertical registration asks',
+    )
+  })
+
+  it('states the sign convention and the unit', () => {
+    const { container } = renderOffsetForm()
+    const text = container.textContent ?? ''
+    expect(text).toContain('positive means the reference point was ABOVE the ground')
+    expect(text).toContain('45 cm is 0.45, not 45')
+  })
+
+  it('says what the declaration does not establish', () => {
+    const { container } = renderOffsetForm()
+    const consequence = container.querySelector('[data-consequence]')?.textContent ?? ''
+    expect(consequence).toContain('does NOT establish a propagation velocity')
+    expect(consequence).toContain('nothing here checks that the value is true')
+  })
+
+  it('asks for the kind of evidence behind the number', () => {
+    const { container } = renderOffsetForm()
+    expect(container.querySelector('#antenna_offset-evidence')).toBeTruthy()
+    expect(container.textContent).toContain('field_measurement')
+  })
+
+  it('cannot be submitted until every part is supplied', () => {
+    const { container } = renderOffsetForm()
+    const submit = container.querySelector('[data-action="submit-declaration"]') as HTMLButtonElement
+    fireEvent.change(container.querySelector('#antenna_offset-offset_m')!, {
+      target: { value: '0.45' },
+    })
+    fireEvent.change(container.querySelector('#antenna_offset-supplied-by')!, {
+      target: { value: 'field team' },
+    })
+    expect(submit.disabled).toBe(true)
+
+    fireEvent.change(container.querySelector('#antenna_offset-measured_from')!, {
+      target: { value: 'depth_axis_origin' },
+    })
+    fireEvent.change(container.querySelector('#antenna_offset-evidence')!, {
+      target: { value: 'field_measurement' },
+    })
+    expect(submit.disabled).toBe(false)
   })
 })

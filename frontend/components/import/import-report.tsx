@@ -4,10 +4,10 @@ import Link from 'next/link'
 import { ArrowRight, RotateCcw } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
 import { QueryState } from '@/components/subterra/query-state'
-import { useDatasetInfo } from '@/hooks/use-subterra'
+import { useCandidates, useDatasetInfo } from '@/hooks/use-subterra'
 import { NO_VALUE, formatCount, formatPercent } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import type { ImportJob } from '@/types/subterra'
+import type { ImportJob, SurveyFrameSummary } from '@/types/subterra'
 
 /**
  * What arrived, and what did not.
@@ -25,8 +25,12 @@ import type { ImportJob } from '@/types/subterra'
  *   NOT DECLARED  nobody stated it; it is not inferable
  *   BLOCKED       a gate refuses it for want of evidence
  *
- * Every value is read from `GET /api/datasets/{id}/info`. Nothing is computed
- * here, and no field is filled in from an assumption.
+ * Every value is read from `GET /api/datasets/{id}/info` and
+ * `GET /api/candidates/{id}`. Nothing is computed here, and no field is
+ * filled in from an assumption -- including the ones that are absent for
+ * every dataset today (vertical datum, candidate generation). A fact that
+ * happens to be constant across the corpus so far is still read, not
+ * hardcoded, so the day it stops being constant this screen does not lie.
  */
 type Status = 'AVAILABLE' | 'MISSING' | 'NOT DECLARED' | 'BLOCKED'
 
@@ -81,6 +85,7 @@ function Row({
 
 export function ImportReport({ job, onReset }: { job: ImportJob; onReset: () => void }) {
   const { data, error, isLoading } = useDatasetInfo(job.dataset_id ?? undefined)
+  const { data: candidates } = useCandidates(job.dataset_id ?? undefined)
 
   const positioned = data?.geographic_record_count ?? 0
   const total = data?.record_count ?? 0
@@ -92,10 +97,28 @@ export function ImportReport({ job, onReset }: { job: ImportJob; onReset: () => 
     (data?.processing_applied as { validation_issues?: unknown })?.validation_issues,
   )
 
+  // Read straight off each stored SurveyFrame's vertical axis -- never
+  // assumed. `vertical_datum` is a VerticalDatum object ({code, provenance,
+  // name}), not a string: `code` may be set without a real declaration only
+  // when provenance is "none", so both must hold for this to count as
+  // declared (mirrors the dataset report's own extraction).
+  const verticalDatums = (data?.survey_frames ?? [])
+    .map(
+      (f: SurveyFrameSummary) =>
+        (f.vertical_axis as { vertical_datum?: { code?: string | null; provenance?: string } })
+          ?.vertical_datum,
+    )
+    .filter((d): d is { code?: string | null; provenance?: string } =>
+      Boolean(d?.code && d.provenance !== 'none'),
+    )
+    .map((d) => d.code as string)
+  const verticalDatumDeclared = verticalDatums.length > 0
+  const surveyFrameCount = data?.survey_frames?.length ?? 0
+
   return (
     <section data-import-report className="max-w-3xl">
       <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-prov-measured">
-        Dataset imported
+        Dataset ready
       </p>
       <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
         {data?.name ?? job.original_filename}
@@ -157,13 +180,45 @@ export function ImportReport({ job, onReset }: { job: ImportJob; onReset: () => 
             />
             <Row
               label="Vertical datum"
-              status="NOT DECLARED"
-              note="No dataset held declares one. Elevation and radar travel time therefore stay separate quantities; the platform will not infer the offset."
+              value={verticalDatumDeclared ? verticalDatums.join(', ') : undefined}
+              status={verticalDatumDeclared ? 'AVAILABLE' : 'NOT DECLARED'}
+              note={
+                verticalDatumDeclared
+                  ? undefined
+                  : 'No stored survey frame declares what its vertical axis is measured from. Elevation and radar travel time therefore stay separate quantities; the platform will not infer the offset.'
+              }
             />
             <Row
-              label="Localisation"
-              status="BLOCKED"
-              note="Localisation scoring is gated platform-wide pending evidence from the dataset publishers. Import does not change that."
+              label="Survey frame"
+              value={surveyFrameCount > 0 ? `${formatCount(surveyFrameCount)} stored` : undefined}
+              status={surveyFrameCount > 0 ? 'AVAILABLE' : 'MISSING'}
+              note={
+                surveyFrameCount === 0
+                  ? 'No survey frame was recorded for this import, so acquisition geometry and provenance are unavailable.'
+                  : undefined
+              }
+            />
+            <Row
+              label="Candidates"
+              value={
+                candidates?.generation
+                  ? `${formatCount(candidates.candidate_count)} candidate region(s)`
+                  : undefined
+              }
+              status={
+                !candidates?.generation
+                  ? 'MISSING'
+                  : candidates.status === 'blocked'
+                    ? 'BLOCKED'
+                    : 'AVAILABLE'
+              }
+              note={
+                !candidates?.generation
+                  ? 'Candidate detection has not been run for this dataset. It is a separate, explicit step from the dataset workspace, not something import performs.'
+                  : candidates.status !== 'available'
+                    ? candidates.status_reason
+                    : undefined
+              }
             />
             <Row
               label="Processing"
@@ -180,6 +235,19 @@ export function ImportReport({ job, onReset }: { job: ImportJob; onReset: () => 
             >
               Open dataset
               <ArrowRight aria-hidden />
+            </Link>
+            {/*
+              The report is the authoritative description of what was created --
+              what it is, how far it can be trusted, and what Subterra may do
+              with it next. Offered here because the question a person has just
+              after an import is exactly the one it answers.
+            */}
+            <Link
+              data-open-report
+              href={`/datasets/${encodeURIComponent(job.dataset_id as string)}/report`}
+              className={buttonVariants({ variant: 'outline', size: 'lg' })}
+            >
+              Open dataset report
             </Link>
             <button
               type="button"

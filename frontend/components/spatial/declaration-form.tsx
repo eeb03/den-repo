@@ -36,7 +36,18 @@ const FIELDS: Record<
     title: string
     explain: string
     consequence: string
-    inputs: { name: string; label: string; placeholder?: string; hint?: string }[]
+    inputs: {
+      name: string
+      label: string
+      placeholder?: string
+      hint?: string
+      /** Renders a choice instead of free text, where the platform owns the vocabulary. */
+      options?: { value: string; label: string }[]
+      /** The unselected option's own text, when `options` is set. */
+      selectPlaceholder?: string
+      /** Omitted from the payload when left blank, rather than submitted empty. */
+      optional?: boolean
+    }[]
   }
 > = {
   crs: {
@@ -57,22 +68,57 @@ const FIELDS: Record<
   },
   vertical_datum: {
     title: 'Declare the vertical datum',
-    explain: 'What the vertical coordinates of this survey are measured from.',
+    explain:
+      'What a vertical coordinate of this survey is measured from — and which one. A frame can carry two: the vertical axis, and the acquisition elevation stored with each position. They need not share a datum.',
     consequence:
-      'Without this, no vertical coordinate here can be compared with one from any other source, and no absolute elevation can be computed.',
-    inputs: [{ name: 'code', label: 'Datum', placeholder: 'NAP' }],
+      'Without this, no vertical coordinate here can be compared with one from any other source, and no absolute elevation can be computed. A datum for the acquisition elevation does NOT say what the depth axis is measured from, does not place depth zero at the ground, and does not supply a propagation velocity — so it does not, on its own, produce a physical depth or an absolute elevation for anything in the subsurface.',
+    inputs: [
+      { name: 'code', label: 'Datum', placeholder: 'NAP' },
+      {
+        name: 'applies_to',
+        label: 'Which quantity',
+        options: [
+          { value: 'vertical_axis', label: 'The frame’s vertical axis' },
+          { value: 'acquisition_elevation', label: 'The acquisition elevation stored with each position' },
+        ],
+        selectPlaceholder: 'choose which quantity this datum describes',
+        hint:
+          'The axis is what depth or elevation samples are on — for a GPR that is travel time from instrument time zero, which no geodetic datum describes. The acquisition elevation is the instrument’s own height, usually from GNSS.',
+      },
+      {
+        name: 'field',
+        label: 'Which stored field',
+        optional: true,
+        placeholder: 'SEG-Y bytes 45-48 (Source Surface Elevation)',
+        hint:
+          'Optional, and only for an acquisition elevation. Name it in the source’s own words where a source stores more than one — they need not share a datum.',
+      },
+    ],
   },
   antenna_offset: {
-    title: 'Declare the antenna offset',
-    explain: 'How far the sensor sat above the ground surface during acquisition.',
+    title: 'Declare where the depth axis begins',
+    explain:
+      'How far the depth/time axis’ zero sat from the ground surface during acquisition. A GPR’s depth zero is instrument time zero, which is not the ground.',
     consequence:
-      'There is no default. An offset of zero is a physical claim — that the antenna was on the ground — and assuming it is how an air-launched survey ends up with every reflector displaced.',
+      'This establishes the relationship between the acquisition origin and the ground reference. It does NOT establish a propagation velocity, a physical depth, a vertical datum, a surface elevation, or any validation of the number — nothing here checks that the value is true. There is no default: an offset of zero is a physical claim that the origin was on the ground.',
     inputs: [
       {
         name: 'offset_m',
-        label: 'Offset (m)',
-        placeholder: '0.35',
-        hint: 'positive means the sensor was above the ground',
+        label: 'Offset (metres)',
+        placeholder: '0.45',
+        hint: 'positive means the reference point was ABOVE the ground; 45 cm is 0.45, not 45',
+      },
+      {
+        name: 'measured_from',
+        label: 'Measured from',
+        placeholder: 'depth_axis_origin',
+        hint: 'depth_axis_origin · sensor_phase_centre · sensor_housing — only depth_axis_origin answers what vertical registration asks',
+      },
+      {
+        name: 'evidence',
+        label: 'Evidence',
+        placeholder: 'field_measurement',
+        hint: 'field_measurement · acquisition_documentation · user_declaration · derived',
       },
     ],
   },
@@ -114,6 +160,32 @@ const FIELDS: Record<
       { name: 'surface_dataset_id', label: 'Surface dataset ID', placeholder: 'a dataset id' },
     ],
   },
+  orientation: {
+    title: 'Declare the antenna heading',
+    explain:
+      'Which direction the antenna faced — not which direction the acquisition travelled. A line of positions implies a bearing; bearing is not orientation.',
+    consequence:
+      'Recorded as a claim, not a measurement: nothing here checks the number against anything. This does not come from an IMU and is not inferred from the track — declaring it here only records what somebody says the heading was.',
+    inputs: [
+      {
+        name: 'heading_deg',
+        label: 'Heading (degrees)',
+        placeholder: '47.0',
+        hint: '0 up to but not including 360',
+      },
+      {
+        name: 'reference',
+        label: 'Measured from',
+        options: [
+          { value: 'true_north', label: 'True north' },
+          { value: 'magnetic_north', label: 'Magnetic north' },
+          { value: 'grid_north', label: 'Grid north' },
+        ],
+        selectPlaceholder: 'choose what the heading is measured from',
+        hint: 'True, magnetic and grid north disagree by degrees to tens of degrees — there is no default.',
+      },
+    ],
+  },
 }
 
 function parseControlPoints(raw: string): unknown {
@@ -153,6 +225,9 @@ export function DeclarationForm({
       const payload: Record<string, unknown> = {}
       for (const input of spec.inputs) {
         const raw = values[input.name] ?? ''
+        // An omitted optional field is ABSENT, not empty. Submitting "" would
+        // record that somebody named the field and named it nothing.
+        if (input.optional && raw.trim() === '') continue
         payload[input.name] =
           input.name === 'control_points' ? parseControlPoints(raw) : raw
       }
@@ -173,7 +248,9 @@ export function DeclarationForm({
     }
   }
 
-  const complete = suppliedBy.trim() !== '' && spec.inputs.every((i) => (values[i.name] ?? '').trim())
+  const complete =
+    suppliedBy.trim() !== '' &&
+    spec.inputs.every((i) => i.optional || (values[i.name] ?? '').trim())
 
   return (
     <form onSubmit={submit} data-declaration-form={kind} className="mt-3 space-y-3">
@@ -196,7 +273,27 @@ export function DeclarationForm({
           >
             {input.label}
           </label>
-          {input.name === 'control_points' ? (
+          {input.options ? (
+            /*
+              NOT PRESELECTED. The two quantities are genuinely different, and
+              a preselected one would be answered by the form rather than by
+              the person declaring — which is exactly how a GNSS elevation's
+              datum ends up asserted about a travel-time axis.
+            */
+            <select
+              id={`${kind}-${input.name}`}
+              value={values[input.name] ?? ''}
+              onChange={(e) => setValues({ ...values, [input.name]: e.target.value })}
+              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <option value="">{input.selectPlaceholder ?? 'choose one'}</option>
+              {input.options.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          ) : input.name === 'control_points' ? (
             <textarea
               id={`${kind}-${input.name}`}
               rows={3}

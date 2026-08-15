@@ -33,11 +33,13 @@ from database.frames_store import load_frames, save_frames, synthesize_frames_fr
 from database.models import SpatialDeclaration, gen_uuid
 from database.records_store import load_records, save_records
 from schemas.spatial import (
+    AcquisitionElevationDatum,
     Assumption,
     AxisKind,
     ControlPoint,
     CRSKind,
     CRSProvenance,
+    NorthReference,
     SpatialRef,
     VerticalDatum,
 )
@@ -94,24 +96,75 @@ def _validated_crs(value: dict) -> dict:
     return ref.model_dump(mode="json")
 
 
+#: Which stored quantity a vertical datum is being declared FOR.
+#:
+#: A survey frame can carry more than one vertical quantity, and they do not
+#: share a datum. The 4TU GPR lines are the case that forced this: the frame's
+#: vertical AXIS is two-way time measured from instrument time zero, which has
+#: no geodetic datum at all, while the acquisition ELEVATION in the SEG-Y
+#: headers is a GNSS height that does. Declaring one datum for "the frame" would
+#: have to pick one of those and silently mislabel the other.
+VERTICAL_DATUM_APPLIES_TO = {
+    "acquisition_elevation": (
+        "the acquisition elevation stored with the survey -- the GNSS or "
+        "levelling height of the instrument position, not the depth axis"),
+    "vertical_axis": (
+        "the frame's own vertical axis, for an acquisition whose axis IS an "
+        "elevation or depth rather than a time"),
+}
+DEFAULT_VERTICAL_DATUM_APPLIES_TO = "vertical_axis"
+
+
 def _validated_vertical_datum(value: dict) -> dict:
+    """
+    What the vertical coordinates are measured from, and WHICH coordinates.
+
+    `applies_to` defaults to `vertical_axis`, which is what every caller before
+    it meant and keeps their behaviour unchanged. Naming
+    `acquisition_elevation` says the datum describes the stored elevation and
+    not the axis -- the only honest option when the axis is a time.
+    """
     code = str(_require(value.get("code"), "code")).strip()
+    applies_to = (value.get("applies_to") or DEFAULT_VERTICAL_DATUM_APPLIES_TO)
+    if applies_to not in VERTICAL_DATUM_APPLIES_TO:
+        raise DeclarationError(
+            f"applies_to must be one of {', '.join(sorted(VERTICAL_DATUM_APPLIES_TO))}; "
+            f"got {applies_to!r}")
+
     datum = VerticalDatum(
         code=code, provenance=CRSProvenance.SUPPLIED_BY_CALLER,
         name=value.get("name") or code)
-    return datum.model_dump(mode="json")
+    out = datum.model_dump(mode="json")
+    out["applies_to"] = applies_to
+    # Free text naming the exact stored field, where a caller knows it. Carried
+    # verbatim so a later reader can tell WHICH of several elevations was meant.
+    if value.get("field"):
+        out["field"] = str(value["field"]).strip()
+    return out
 
 
 def _validated_antenna_offset(value: dict) -> dict:
     """
-    How far the sensor sat above the ground, and what the offset is measured
-    between.
+    Where the depth/time axis begins, relative to the ground.
 
-    NO DEFAULT. An antenna height of zero is a physical claim -- that the
-    antenna was on the ground -- and assuming it is how an air-launched survey
-    ends up with every reflector half a metre out. If nobody knows the height,
-    the correct outcome is that depth stays unplaceable.
+    NO DEFAULT, ON EITHER FIELD. An offset of zero is a physical claim -- that
+    the reference point was on the ground -- and assuming it is how an
+    air-launched survey ends up with every reflector half a metre out. Nor is
+    the reference point defaulted: it used to fall back to "sensor phase
+    centre", which quietly answered a question the caller had not been asked,
+    and a phase-centre height is not an axis-origin offset.
+
+    SIGN: positive means the reference point is ABOVE the ground. Not chosen
+    here -- this declaration has recorded `positive_direction: sensor above
+    ground` since it was introduced, and inverting it now would silently flip
+    every value already declared under it.
+
+    SYNTAX IS NOT PHYSICS. Everything below checks that the number is a finite
+    quantity in a representable range. Nothing here checks that it is TRUE, and
+    the assessment says so wherever the offset appears.
     """
+    from schemas.spatial import DepthOriginOffset, OffsetEvidence, OriginReference
+
     raw = _require(value.get("offset_m"), "offset_m")
     try:
         offset = float(raw)
@@ -120,15 +173,46 @@ def _validated_antenna_offset(value: dict) -> dict:
     if offset != offset or abs(offset) == float("inf"):
         raise DeclarationError("offset_m is not finite")
     if not -10.0 <= offset <= 10.0:
+        # A representability bound, not a law of physics: beyond a few metres
+        # this is no longer a sensor-to-ground geometry the platform models, and
+        # a mistyped centimetre value lands here rather than in a dataset.
         raise DeclarationError(
-            "offset_m must be between -10 and 10 metres; a larger sensor-to-ground "
-            "offset is not a survey geometry this platform can represent")
-    return {
-        "offset_m": offset,
-        "measured_from": str(value.get("measured_from") or "sensor phase centre"),
-        "measured_to": str(value.get("measured_to") or "ground surface"),
-        "positive_direction": "sensor above ground",
-    }
+            "offset_m must be between -10 and 10 metres; a larger reference-to-ground "
+            "offset is not a survey geometry this platform can represent. The unit is "
+            "metres -- 45 cm is 0.45, not 45.")
+
+    # REQUIRED CHECKS OUTSIDE THE try. `DeclarationError` subclasses ValueError,
+    # so an `except ValueError` around `_require` swallows "this is required"
+    # and reports "must be one of ..." instead -- telling a caller who omitted
+    # the field to correct a value they never sent.
+    raw_from = _require(value.get("measured_from"), "measured_from")
+    try:
+        measured_from = OriginReference(raw_from)
+    except ValueError:
+        raise DeclarationError(
+            f"measured_from must be one of "
+            f"{', '.join(r.value for r in OriginReference)}; only "
+            f"{OriginReference.DEPTH_AXIS_ORIGIN.value} answers what vertical "
+            f"registration asks")
+
+    raw_evidence = _require(value.get("evidence"), "evidence")
+    try:
+        evidence = OffsetEvidence(raw_evidence)
+    except ValueError:
+        raise DeclarationError(
+            f"evidence must be one of {', '.join(e.value for e in OffsetEvidence)}")
+
+    declaration = DepthOriginOffset(
+        offset_m=offset,
+        measured_from=measured_from,
+        measured_to=str(value.get("measured_to") or "ground surface"),
+        evidence=evidence,
+        # Filled in by the route from the declaration's own attribution, so the
+        # offset carries its authority wherever the axis travels.
+        supplied_by=str(value.get("supplied_by") or "unattributed"),
+        note=value.get("note"),
+    )
+    return declaration.model_dump(mode="json")
 
 
 def _validated_depth_conversion(value: dict) -> dict:
@@ -197,6 +281,35 @@ def _validated_surface_reference(value: dict) -> dict:
     return {"surface_dataset_id": surface_id, "note": value.get("note")}
 
 
+def _validated_orientation(value: dict) -> dict:
+    """
+    A claim about antenna heading -- not a track bearing, not an IMU record.
+
+    NO DEFAULT REFERENCE. True, magnetic and grid north disagree by amounts
+    that vary with location and date, so a heading with an assumed reference
+    would misattribute that difference to the antenna.
+    """
+    raw_heading = _require(value.get("heading_deg"), "heading_deg")
+    try:
+        heading = float(raw_heading)
+    except (TypeError, ValueError):
+        raise DeclarationError(f"heading_deg {raw_heading!r} is not a number")
+    if heading != heading or abs(heading) == float("inf"):
+        raise DeclarationError("heading_deg is not finite")
+    if not 0.0 <= heading < 360.0:
+        raise DeclarationError("heading_deg must be within [0, 360)")
+
+    raw_reference = _require(value.get("reference"), "reference")
+    try:
+        reference = NorthReference(raw_reference)
+    except ValueError:
+        raise DeclarationError(
+            f"reference must be one of {', '.join(r.value for r in NorthReference)}, "
+            f"not {raw_reference!r}")
+
+    return {"heading_deg": heading, "reference": reference.value}
+
+
 _VALIDATORS = {
     DeclarationKind.CRS: _validated_crs,
     DeclarationKind.VERTICAL_DATUM: _validated_vertical_datum,
@@ -204,6 +317,7 @@ _VALIDATORS = {
     DeclarationKind.DEPTH_CONVERSION: _validated_depth_conversion,
     DeclarationKind.GEO_TIE: _validated_geo_tie,
     DeclarationKind.SURFACE_REFERENCE: _validated_surface_reference,
+    DeclarationKind.ORIENTATION: _validated_orientation,
 }
 
 
@@ -230,21 +344,45 @@ def _assumption_for(kind: DeclarationKind, value: dict, supplied_by: str) -> Ass
     """
     described = {
         DeclarationKind.CRS: f"horizontal reference {value.get('code')}",
-        DeclarationKind.VERTICAL_DATUM: f"vertical datum {value.get('code')}",
+        # NAMES THE QUANTITY, not just the code. "vertical datum WGS84
+        # ellipsoidal" on a frame whose axis is two-way time reads as a claim
+        # about the axis; the scope is what makes it true rather than false.
+        DeclarationKind.VERTICAL_DATUM: (
+            f"vertical datum {value.get('code')} for "
+            + ("the acquisition elevation"
+               + (f" ({value['field']})" if value.get("field") else "")
+               + ", NOT the vertical axis"
+               if value.get("applies_to") == "acquisition_elevation"
+               else "the vertical axis")),
         DeclarationKind.ANTENNA_OFFSET:
             f"{value.get('offset_m')} m from {value.get('measured_from')} to "
-            f"{value.get('measured_to')}",
+            f"{value.get('measured_to')} ({value.get('evidence')}); positive means the "
+            f"reference point is above the ground",
         DeclarationKind.DEPTH_CONVERSION:
             f"propagation velocity {value.get('velocity_m_per_ns')} m/ns",
         DeclarationKind.GEO_TIE:
             f"{len(value.get('control_points') or [])} control point(s)",
         DeclarationKind.SURFACE_REFERENCE:
             f"surface model {value.get('surface_dataset_id')}",
+        DeclarationKind.ORIENTATION:
+            f"antenna heading {value.get('heading_deg')} deg from {value.get('reference')}",
     }[kind]
+    # ORIENTATION carries a structured {heading_deg, reference} value rather
+    # than the single-scalar `or`-chain below, for two reasons: neither field
+    # alone identifies the claim, and a heading of exactly 0.0 (due north) is
+    # a real, valid value that the `or`-chain would treat as falsy and skip.
+    # `assess_orientation` reads this dict back to name the heading verbatim.
+    if kind == DeclarationKind.ORIENTATION:
+        assumption_value: Any = {
+            "heading_deg": value.get("heading_deg"), "reference": value.get("reference"),
+        }
+    else:
+        assumption_value = (value.get("code") or value.get("velocity_m_per_ns")
+                            or value.get("offset_m") or value.get("surface_dataset_id")
+                            or supplied_by)
     return Assumption(
         key=f"declared_{kind.value}",
-        value=value.get("code") or value.get("velocity_m_per_ns")
-        or value.get("offset_m") or value.get("surface_dataset_id") or supplied_by,
+        value=assumption_value,
         basis=(f"SUPPLIED BY CALLER through the spatial reference workflow: {described}, "
                f"asserted by {supplied_by!r}. This is a declaration, not a measurement."),
         verified=False,
@@ -272,6 +410,10 @@ def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
         raise DeclarationError(f"no frame {frame_id!r} in this dataset")
 
     changed: list[str] = []
+    #: Frames whose VERTICAL AXIS the typed change deliberately did not touch,
+    #: each with a reason. The declaration is still recorded on those frames --
+    #: on the quantity it actually describes, and as an attributed assumption.
+    axis_untouched: list[dict] = []
     assumption = _assumption_for(kind, value, supplied_by)
 
     if kind == DeclarationKind.CRS:
@@ -281,8 +423,38 @@ def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
             changed.append(frame.frame_id)
 
     elif kind == DeclarationKind.VERTICAL_DATUM:
-        datum = VerticalDatum.model_validate(value)
+        datum = VerticalDatum.model_validate(
+            {k: v for k, v in value.items() if k not in ("applies_to", "field")})
+        applies_to = value.get("applies_to", DEFAULT_VERTICAL_DATUM_APPLIES_TO)
+
         for frame in targets:
+            # THE DEFAULT IS UNCHANGED, deliberately. A datum declared without
+            # `applies_to` lands on the frame's vertical axis exactly as it
+            # always has -- that is the Stage 12 workflow (datum, then depth
+            # origin, then the dimension settles) and it is the vertical
+            # reference of the SURVEY, not a claim about the axis's units.
+            #
+            # `acquisition_elevation` is the narrower case: the datum describes
+            # a stored elevation and says nothing about what the depth axis is
+            # referenced to. Writing it onto the axis would answer a question
+            # nobody asked, and would advance the vertical-reference dimension
+            # on evidence that does not bear on it. It goes to the frame's own
+            # slot for that quantity instead -- RECORDED, structurally, just not
+            # attached to the axis it does not describe.
+            if applies_to == "acquisition_elevation":
+                frame.acquisition_elevation_datum = AcquisitionElevationDatum(
+                    datum=datum, field=value.get("field"))
+                axis_untouched.append({
+                    "frame_id": frame.frame_id,
+                    "axis_kind": frame.vertical_axis.kind.value,
+                    "reason": (
+                        f"the datum describes {value.get('field') or 'the acquisition elevation'}, "
+                        f"not this frame's vertical axis, which is "
+                        f"{frame.vertical_axis.kind.value} measured from "
+                        f"{frame.vertical_axis.origin!r}"),
+                    "recorded_as": "an attributed assumption on the frame",
+                })
+                continue
             frame.vertical_axis = frame.vertical_axis.model_copy(
                 update={"vertical_datum": datum})
             changed.append(frame.frame_id)
@@ -301,12 +473,24 @@ def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
             changed.append(frame.frame_id)
 
     elif kind == DeclarationKind.ANTENNA_OFFSET:
-        # Recorded as an assumption only. It does NOT move the depth axis
-        # origin: doing that would silently shift every sample, and the offset
-        # is one of three things an absolute elevation needs -- see
-        # fusion/vertical_reference.py. The declaration makes it available; it
-        # does not pretend the registration is done.
-        changed = [f.frame_id for f in targets]
+        # WRITTEN ONTO THE AXIS, which is what changed in stage 12. Before this
+        # it was recorded as an assumption and nothing read it, so declaring an
+        # offset could never move the assessment: `assess` decided whether the
+        # axis zero was the ground by searching a free-text string.
+        #
+        # IT STILL MOVES NOTHING. `origin`, every sample and every stored depth
+        # are untouched; this records the RELATIONSHIP between the axis zero and
+        # the ground, which is exactly the missing piece and nothing more. No
+        # sample is shifted, because shifting samples is a different operation
+        # that needs a velocity this stage deliberately does not supply.
+        from schemas.spatial import DepthOriginOffset
+
+        declared_offset = DepthOriginOffset.model_validate(
+            {**value, "supplied_by": supplied_by})
+        for frame in targets:
+            frame.vertical_axis = frame.vertical_axis.model_copy(
+                update={"origin_offset": declared_offset})
+            changed.append(frame.frame_id)
 
     elif kind == DeclarationKind.GEO_TIE:
         from ingestion.geo_tie import GeoTie, GeoTieError, apply_geo_tie, tied_spatial_ref
@@ -329,14 +513,25 @@ def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
     elif kind == DeclarationKind.SURFACE_REFERENCE:
         changed = [f.frame_id for f in targets]
 
+    elif kind == DeclarationKind.ORIENTATION:
+        # A claim about antenna heading, not a track bearing and not an IMU
+        # record. Nothing structured on the frame describes an orientation --
+        # unlike CRS or the vertical axis, there is no dedicated field to
+        # write. The declaration lives entirely as the frame Assumption
+        # attached below, which `assess_orientation` reads back.
+        changed = [f.frame_id for f in targets]
+
+    attributed = set(changed) | {s["frame_id"] for s in axis_untouched}
     for frame in frames:
-        if frame.frame_id in changed:
+        if frame.frame_id in attributed:
             frame.assumptions = [
                 a for a in (frame.assumptions or []) if a.key != assumption.key
             ] + [assumption]
 
     save_frames(dataset_id, frames)
-    return {"frames_changed": changed, "assumption": assumption.model_dump(mode="json")}
+    return {"frames_changed": changed,
+            "vertical_axis_not_changed": axis_untouched,
+            "assumption": assumption.model_dump(mode="json")}
 
 
 # ---------------------------------------------------------------------------

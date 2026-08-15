@@ -13,9 +13,18 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import type { DatasetSummary } from '@/types/subterra'
 
+// The workspace header renders the dataset switcher, which routes. Same mock
+// shape the auth tests already use.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => '/datasets',
+  useSearchParams: () => new URLSearchParams(''),
+}))
+
 const renameDataset = vi.fn()
 const deleteDataset = vi.fn()
 const rescoreDataset = vi.fn()
+const listDatasets = vi.fn<() => Promise<DatasetSummary[]>>(async () => [])
 vi.mock('@/services/api', async () => {
   const actual = await vi.importActual<typeof import('@/services/api')>('@/services/api')
   return {
@@ -25,11 +34,13 @@ vi.mock('@/services/api', async () => {
       renameDataset: (...a: unknown[]) => renameDataset(...a),
       deleteDataset: (...a: unknown[]) => deleteDataset(...a),
       rescoreDataset: (...a: unknown[]) => rescoreDataset(...a),
+      listDatasets: () => listDatasets(),
     },
   }
 })
 
 import { DatasetActions } from './dataset-actions'
+import { DatasetWorkspace } from '@/components/workspace/dataset-workspace'
 import { DatasetStatusBadge } from './dataset-status'
 
 function dataset(overrides: Partial<DatasetSummary> = {}): DatasetSummary {
@@ -263,5 +274,42 @@ describe('status', () => {
     // No local re-derivation from record counts or job states.
     expect(source).not.toContain('record_count')
     expect(source).not.toContain('QUEUED')
+  })
+})
+
+// --------------------------------------------------------------------------
+// The rename has to be VISIBLE where the user works
+// --------------------------------------------------------------------------
+//
+// Renaming is only half of the feature. The list and the report already showed
+// the name; the workspace header showed the raw id, so a user who renamed a
+// dataset and opened it could not tell which one they were in. These pin the
+// header to the name, and pin the fallback so it can never invent one.
+
+describe('the dataset name on the workspace header', () => {
+  it('shows the name rather than the id', async () => {
+    listDatasets.mockResolvedValue([
+      dataset({ id: 'ds-1', name: 'Trench survey, north line' }),
+    ])
+    const { container } = render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <DatasetWorkspace datasetId="ds-1" />
+      </SWRConfig>,
+    )
+    await waitFor(() =>
+      expect(container.textContent).toContain('Trench survey, north line'),
+    )
+  })
+
+  it('falls back to the id and never to an invented name', async () => {
+    listDatasets.mockResolvedValue([])
+    const { container } = render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <DatasetWorkspace datasetId="ds-unknown" />
+      </SWRConfig>,
+    )
+    await waitFor(() => expect(container.textContent).toContain('ds-unknown'))
+    expect(container.textContent).not.toContain('Untitled')
+    expect(container.textContent).not.toContain('Unnamed')
   })
 })

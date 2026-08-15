@@ -179,6 +179,170 @@ def _spatial_declarations(engine: Engine) -> None:
     logger.info("migration 004: created spatial_declarations")
 
 
+def _acquisition_fields(engine: Engine) -> None:
+    """
+    005 — the acquisition fields on import_jobs.
+
+    ADDITIVE COLUMNS ON AN EXISTING TABLE, which is the case `create_all`
+    cannot handle: it creates missing tables and never alters one that exists.
+    Every column is nullable, so rows written before FileDrop stay valid and
+    simply report that they carry no checksum -- which is true of them.
+
+    `ImportJob` is the acquisition record. A separate table would have been a
+    second upload pipeline with its own ownership, its own failure vocabulary
+    and its own drift; these four columns are what it was missing.
+    """
+    # `create_all` builds the whole table on a fresh database, so there is
+    # nothing to alter there. On a database that predates import jobs entirely
+    # there is no table either -- and ALTERing one that does not exist would
+    # fail the whole migration run for a column nobody needs yet.
+    if not _has_table(engine, "import_jobs"):
+        return
+
+    for column, ddl in (
+        ("checksum", "VARCHAR"),
+        ("content_type", "VARCHAR"),
+        ("identification", "JSON"),
+    ):
+        if not _has_column(engine, "import_jobs", column):
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE import_jobs ADD COLUMN {column} {ddl}"))
+            logger.info("migration 005: added import_jobs.%s", column)
+
+
+def _devices_and_sessions(engine: Engine) -> None:
+    """
+    006 — devices, acquisition sessions, and the link from an acquisition.
+
+    Two new tables (which `create_all` builds on a fresh database anyway) plus
+    one additive column on `import_jobs`, which is the part `create_all` cannot
+    do. `session_id` is nullable because FileDrop acquisitions have no session
+    and never will: a file is a source in its own right, not a session with a
+    missing device.
+    """
+    from database.models import AcquisitionSession, Device
+
+    for model in (Device, AcquisitionSession):
+        if not _has_table(engine, model.__tablename__):
+            model.__table__.create(bind=engine, checkfirst=True)
+            logger.info("migration 006: created %s", model.__tablename__)
+
+    if _has_table(engine, "import_jobs") and not _has_column(engine, "import_jobs", "session_id"):
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE import_jobs ADD COLUMN session_id VARCHAR"))
+        logger.info("migration 006: added import_jobs.session_id")
+
+
+def _ingest_options(engine: Engine) -> None:
+    """
+    007 — what the user declared about how to read the file.
+
+    One additive nullable column, which `create_all` cannot add to an existing
+    table. Persisted because it is a CLAIM that changed what the converter
+    produced -- whether a raster band is elevation -- and no later inspection
+    of the records could recover whether somebody said so or the modality
+    inference guessed it.
+    """
+    if _has_table(engine, "import_jobs") and not _has_column(
+            engine, "import_jobs", "ingest_options"):
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE import_jobs ADD COLUMN ingest_options JSON"))
+        logger.info("migration 007: added import_jobs.ingest_options")
+
+
+def _device_adapter(engine: Engine) -> None:
+    """
+    008 — how a device's evidence is meant to arrive.
+
+    One additive nullable column on `devices`, which `create_all` cannot add
+    to a table that already exists (created by 006, before `adapter` was a
+    field on the model). Nullable and never defaulted: a device migrated in
+    place has an undeclared adapter, exactly as a device recorded before this
+    column existed actually is. Filling it in with `file_drop` would assert a
+    transport nobody declared.
+    """
+    if _has_table(engine, "devices") and not _has_column(engine, "devices", "adapter"):
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE devices ADD COLUMN adapter JSON"))
+        logger.info("migration 008: added devices.adapter")
+
+
+def _session_survey_area(engine: Engine) -> None:
+    """
+    009 — where the operator said a scan happened.
+
+    One additive nullable column on `acquisition_sessions`, the case
+    `create_all` cannot handle for a table 006 already created. A session
+    migrated in place has no survey area, exactly as it actually has none --
+    nothing here backfills a site name, a dataset name, or the computed
+    DatasetInfo.survey_area_m.
+    """
+    if _has_table(engine, "acquisition_sessions") and not _has_column(
+            engine, "acquisition_sessions", "survey_area"):
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE acquisition_sessions ADD COLUMN survey_area VARCHAR"))
+        logger.info("migration 009: added acquisition_sessions.survey_area")
+
+
+def _session_coordinate_system(engine: Engine) -> None:
+    """
+    010 — what the operator said a scan was referenced to.
+
+    One additive nullable column on `acquisition_sessions`, the case
+    `create_all` cannot handle for a table 006 already created. NO DEFAULT,
+    ever: `Dataset.coordinate_system` defaults to "EPSG:4326" and that
+    default is a known trap (see test_frame_read_path). A session migrated
+    in place declares nothing, so its coordinate_system stays null -- never
+    backfilled from Dataset.coordinate_system, a frame's CRS, or
+    DatasetInfo.coordinate_system.
+    """
+    if _has_table(engine, "acquisition_sessions") and not _has_column(
+            engine, "acquisition_sessions", "coordinate_system"):
+        with engine.begin() as conn:
+            conn.execute(
+                text("ALTER TABLE acquisition_sessions ADD COLUMN coordinate_system VARCHAR"))
+        logger.info("migration 010: added acquisition_sessions.coordinate_system")
+
+
+def _session_vertical_reference(engine: Engine) -> None:
+    """
+    011 — what the operator said a scan's verticals were measured from.
+
+    One additive nullable column on `acquisition_sessions`. NO DEFAULT, ever
+    -- not "ground surface", not "WGS84 ellipsoid", not "EGM96". A session
+    migrated in place declares nothing, so its vertical_reference stays null
+    -- never backfilled from a frame VerticalDatum, acquisition_elevation_datum,
+    a SEG-Y elevation field, Dataset.depth_range_*, or
+    fusion.vertical_reference.assess.
+    """
+    if _has_table(engine, "acquisition_sessions") and not _has_column(
+            engine, "acquisition_sessions", "vertical_reference"):
+        with engine.begin() as conn:
+            conn.execute(
+                text("ALTER TABLE acquisition_sessions ADD COLUMN vertical_reference VARCHAR"))
+        logger.info("migration 011: added acquisition_sessions.vertical_reference")
+
+
+def _session_processing_version(engine: Engine) -> None:
+    """
+    012 — what the operator said was applied to a scan before it entered
+    Subterra.
+
+    One additive nullable column on `acquisition_sessions`. NO DEFAULT, ever
+    -- not "gpr_full", not "trace", not a git SHA, not "1". A session
+    migrated in place declares nothing, so its processing_version stays null
+    -- never backfilled from Dataset.extra_metadata.last_preprocessing_mode,
+    ImportJob.ingest_options, Dataset.version, Device.firmware_version, or
+    the provenance chain.
+    """
+    if _has_table(engine, "acquisition_sessions") and not _has_column(
+            engine, "acquisition_sessions", "processing_version"):
+        with engine.begin() as conn:
+            conn.execute(
+                text("ALTER TABLE acquisition_sessions ADD COLUMN processing_version VARCHAR"))
+        logger.info("migration 012: added acquisition_sessions.processing_version")
+
+
 MIGRATIONS: list[Migration] = [
     Migration(
         id="001_dataset_owner_id",
@@ -199,6 +363,46 @@ MIGRATIONS: list[Migration] = [
         id="004_spatial_declarations",
         description="create spatial_declarations (append-only spatial reference claims)",
         apply=_spatial_declarations,
+    ),
+    Migration(
+        id="005_acquisition_fields",
+        description="add checksum, content_type and identification to import_jobs",
+        apply=_acquisition_fields,
+    ),
+    Migration(
+        id="006_devices_and_sessions",
+        description="create devices and acquisition_sessions; link acquisitions to a session",
+        apply=_devices_and_sessions,
+    ),
+    Migration(
+        id="007_ingest_options",
+        description="add ingest_options to import_jobs (user declarations about how to read a file)",
+        apply=_ingest_options,
+    ),
+    Migration(
+        id="008_device_adapter",
+        description="add nullable devices.adapter (how a device's evidence is meant to arrive)",
+        apply=_device_adapter,
+    ),
+    Migration(
+        id="009_session_survey_area",
+        description="add nullable acquisition_sessions.survey_area (declared site description)",
+        apply=_session_survey_area,
+    ),
+    Migration(
+        id="010_session_coordinate_system",
+        description="add nullable acquisition_sessions.coordinate_system (declared CRS claim, no default)",
+        apply=_session_coordinate_system,
+    ),
+    Migration(
+        id="011_session_vertical_reference",
+        description="add nullable acquisition_sessions.vertical_reference (declared vertical claim, no default)",
+        apply=_session_vertical_reference,
+    ),
+    Migration(
+        id="012_session_processing_version",
+        description="add nullable acquisition_sessions.processing_version (declared onboard-processing claim, no default)",
+        apply=_session_processing_version,
     ),
 ]
 

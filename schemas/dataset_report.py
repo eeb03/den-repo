@@ -45,12 +45,32 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-from schemas.provenance import ProvenanceClass, QuantityProvenance
-from schemas.spatial import AxisKind, CRSKind, CRSProvenance, PositionKind
+from schemas.provenance import LOCAL_ANOMALY_BASIS, ProvenanceClass, QuantityProvenance
+from schemas.spatial import AxisKind, CRSKind, CRSProvenance, PositionKind, along_track_extents_m
 
 #: Bumped when the SHAPE of the report changes, so a consumer that stored one
 #: can tell whether it is still reading what it thinks it is.
-REPORT_VERSION = "1.0"
+REPORT_VERSION = "1.2"
+
+#: The order the four ALWAYS-ATTEMPTED chain steps are reported in.
+#: `time_zero` comes first because it is a property of the acquisition
+#: itself (whatever a converter recorded about it, or the fact nothing was),
+#: independent of whether `process_gpr_traces` has run at all. The other
+#: three are the order `process_gpr_traces` actually applies them in:
+#: background removal needs every trace in the line at once, then dewow and
+#: gain run per trace. Naming this once here is what lets `build_signal_chain`
+#: report the chain in the order it really ran, rather than a client
+#: re-guessing it from an unordered dict.
+#:
+#: `local_anomaly` (see `_local_anomaly_step`) is NOT in this tuple: unlike
+#: these four, it is not a property of every GPR record -- it is appended
+#: last, only when `preprocess_trace_local_anomaly` has actually run.
+SIGNAL_CHAIN_STEP_ORDER: tuple[str, ...] = ("time_zero", "background_removal", "dewow", "gain")
+
+#: The survey-frame assumption key a converter stamps when it records a
+#: time-zero-related header field but does not apply it as a correction
+#: (e.g. GSSI's `rhf_position`). See `converters/gssi_converter.py`.
+TIME_ZERO_ASSUMPTION_KEY = "time_zero_offset_not_applied"
 
 
 class Capability(str, Enum):
@@ -145,7 +165,20 @@ class DatasetIdentity(BaseModel):
     source: Optional[str] = None
     source_url: Optional[str] = None
     license: Optional[str] = None
+    #: The single recorded modality when the frames agree on exactly one;
+    #: `None` when they record several, or none. Never a comma-joined string
+    #: and never filled from `declared_sensor_type` -- see `recorded_modalities`
+    #: for the full composition and `declared_sensor_type` for the ingest
+    #: declaration, which are named as two separate facts, not blended here.
     modality: Optional[str] = None
+    #: Sorted distinct `frame.modality` values actually recorded on this
+    #: dataset's survey frames. Empty when no frame records one -- an empty
+    #: list, never a synthetic single modality.
+    recorded_modalities: list[str] = Field(default_factory=list)
+    #: `dataset.sensor_type` verbatim, the ingest declaration. Independent of
+    #: `recorded_modalities`: the two are never reconciled or corrected
+    #: against each other here.
+    declared_sensor_type: Optional[str] = None
     original_format: Optional[str] = None
     source_files: list[str] = Field(default_factory=list)
     #: Manufacturer/model, only when a converter read it from the file. There
@@ -290,6 +323,52 @@ class ProcessingStage(BaseModel):
     at: Optional[datetime] = None
 
 
+class SignalProcessingStep(BaseModel):
+    """
+    One step of the recorded GPR signal-processing chain, in the order
+    `process_gpr_traces` actually applies it (see `SIGNAL_CHAIN_STEP_ORDER`).
+
+    `ran` is read directly from the stored `processing_applied` flag for this
+    step -- never inferred from whether a parameter happens to be present.
+    `parameters` holds only what was actually recorded for a step that ran;
+    a step that did not run carries no parameters, because there are none to
+    report.
+
+    `reason` is only populated for `time_zero`, the one step whose `ran`
+    alone cannot say why: `false` might mean a converter recorded and
+    withheld an offset, or that nothing about time-zero was ever recorded.
+    The other three steps are self-explanatory from their name and `ran`.
+    """
+    step: str
+    ran: bool
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    reason: Optional[str] = None
+
+
+class SignalProcessingChain(BaseModel):
+    """
+    The recorded Phase 5 signal chain for this dataset -- READ, not re-run.
+
+    `recorded` is False either when NEITHER a `processing_applied` entry NOR
+    a time-zero claim (see `TIME_ZERO_ASSUMPTION_KEY`) exists for this
+    dataset, or when the recorded modality composition names at least one
+    modality and none of them is `gpr` (see `build_signal_chain`) -- those
+    two are different absences with different `reason` text, never
+    conflated: the first means Subterra was never told what happened to a
+    GPR acquisition, the second means the GPR chain does not apply at all.
+    Neither is an error, and `steps` stays empty rather than presenting an
+    invented default chain (dewow/background-removal/gain are not assumed to
+    have run just because they are the platform's own defaults).
+
+    Once `recorded` is True, `steps[0]` is always `time_zero` -- never
+    omitted -- because a GPR record's time origin is a fact worth stating
+    even when nothing else about the chain is known yet.
+    """
+    recorded: bool
+    reason: str = Field(..., min_length=1)
+    steps: list[SignalProcessingStep] = Field(default_factory=list)
+
+
 class CandidateSummary(BaseModel):
     """
     What candidate analysis has produced, described as candidates.
@@ -319,6 +398,35 @@ class CandidateSummary(BaseModel):
         "classification has been performed."
     )
 
+    # -- Stage 13 -------------------------------------------------------------
+    # EXTENDED, NOT REPLACED. The fields above already prevented a candidate
+    # from claiming an object, and that protection is untouched. What they could
+    # not answer is whether the set is still TRUSTWORTHY: which method produced
+    # it, under which version, and whether the dataset has changed since. A
+    # count with no generation record cannot be reproduced or invalidated, so
+    # these are the minimum needed to make the existing summary accountable.
+
+    #: available | limited | blocked. `limited` means a set exists but no longer
+    #: matches the dataset; it is not the same as having found nothing.
+    status: str = "blocked"
+    status_reason: str = "candidate generation has not been run for this dataset"
+    #: Never empty when status is not `available`.
+    missing: list[str] = Field(default_factory=list)
+
+    method: Optional[str] = None
+    method_version: Optional[str] = None
+    generated_at: Optional[datetime] = None
+    is_stale: bool = False
+    stale_reasons: list[str] = Field(default_factory=list)
+
+    #: How much of this set is genuinely placeable, and how much has a depth at
+    #: all. Counts by certainty level -- see `interpretation.candidate_intelligence`.
+    localisation_breakdown: dict[str, int] = Field(default_factory=dict)
+    depth_breakdown: dict[str, int] = Field(default_factory=dict)
+
+    #: Structurally BLOCKED. No code path sets this to anything else.
+    classification_status: str = "BLOCKED"
+
 
 class DatasetReport(BaseModel):
     """The whole answer, in one value."""
@@ -328,6 +436,10 @@ class DatasetReport(BaseModel):
     volume: DatasetVolume
     spatial: SpatialReport
     processing: list[ProcessingStage] = Field(default_factory=list)
+    #: The Phase 5 ordered signal-processing chain -- see `SignalProcessingChain`.
+    #: A more structured, orderable sibling of the `preprocessing` entry in
+    #: `processing` above; that entry is unchanged and still exists.
+    signal_chain: SignalProcessingChain
     quality: QualityReport
     candidates: CandidateSummary
     readiness: list[CapabilityAssessment] = Field(default_factory=list)
@@ -361,11 +473,19 @@ def _distinct(values) -> list[str]:
     return sorted({str(v) for v in values if v not in (None, "")})
 
 
+def frame_modalities(frames) -> list[str]:
+    """
+    Sorted distinct `frame.modality` values, verbatim. The single definition
+    `build_identity` and the signal-chain routes (report assembler and the
+    thin `GET /{id}/signal-chain`) all share, so they cannot compute two
+    different recorded compositions for the same frames.
+    """
+    return _distinct(getattr(getattr(f, "modality", None), "value", None) for f in frames)
+
+
 def build_identity(dataset, frames, undeclared_extra: Optional[list[str]] = None) -> DatasetIdentity:
     source_files = _distinct(getattr(f, "source_file", None) for f in frames)
-    modalities = _distinct(
-        getattr(getattr(f, "modality", None), "value", None) for f in frames
-    )
+    modalities = frame_modalities(frames)
     extra = getattr(dataset, "extra_metadata", None) or {}
 
     identity = DatasetIdentity(
@@ -374,8 +494,9 @@ def build_identity(dataset, frames, undeclared_extra: Optional[list[str]] = None
         source=getattr(dataset, "source", None),
         source_url=getattr(dataset, "source_url", None),
         license=getattr(dataset, "license", None),
-        modality=(modalities[0] if len(modalities) == 1 else
-                  (", ".join(modalities) if modalities else getattr(dataset, "sensor_type", None))),
+        modality=modalities[0] if len(modalities) == 1 else None,
+        recorded_modalities=modalities,
+        declared_sensor_type=getattr(dataset, "sensor_type", None),
         original_format=getattr(dataset, "original_format", None),
         source_files=source_files,
         # Read only from where a converter would have put it. Absent stays
@@ -570,6 +691,14 @@ def build_vertical(frames, assess=None) -> VerticalReference:
 
     if not subsurface:
         reasons.append("this dataset carries no subsurface vertical axis")
+        # NAMED, not merely stated. A surface model on its own is a legitimate
+        # dataset and vertical registration is still unavailable for it -- but a
+        # blocked capability with an empty `missing` list cannot be acted on,
+        # which is the invariant every other branch here maintains. Found by
+        # browser verification on a DEM whose horizontal reference was ready.
+        missing.append(
+            "a subsurface acquisition to register: this dataset is a surface model, "
+            "and there is nothing beneath it to place")
     if not surface:
         reasons.append(
             "no surface elevation model is held for this dataset, so there is nothing "
@@ -641,15 +770,7 @@ def build_geometry(records, frames, bounds=None, spans=None) -> SurveyGeometry:
     them for `/info` -- passing them in keeps one implementation rather than a
     second one that could disagree about the size of the same survey.
     """
-    along_track: dict[str, float] = {}
-    by_frame: dict[str, list[float]] = {}
-    for r in records:
-        pos = getattr(r, "position", None)
-        if getattr(pos, "kind", None) == PositionKind.ODOMETRY.value:
-            by_frame.setdefault(getattr(r, "frame_id", "") or "", []).append(pos.along_track_m)
-    for frame_id, values in by_frame.items():
-        if len(values) > 1:
-            along_track[frame_id] = round(max(values) - min(values), 3)
+    along_track = along_track_extents_m(records)
 
     reasons: list[str] = []
     if bounds is None:
@@ -671,12 +792,171 @@ def build_geometry(records, frames, bounds=None, spans=None) -> SurveyGeometry:
     )
 
 
+def _time_zero_claim(frames) -> Optional[Any]:
+    """The first frame's `time_zero_offset_not_applied` assumption, if any."""
+    for f in frames:
+        claim = f.assumption(TIME_ZERO_ASSUMPTION_KEY)
+        if claim is not None:
+            return claim
+    return None
+
+
+def _time_zero_step(applied: Optional[dict], claim: Optional[Any]) -> SignalProcessingStep:
+    """
+    ALWAYS RETURNS A STEP -- this is only called once the chain as a whole is
+    already known to be `recorded`, and `time_zero` is never omitted from it.
+
+    Reads, in order: (1) `processing_applied`'s own time-zero keys, if a
+    future step of `process_gpr_traces` ever stamps them -- none does today;
+    (2) the survey-frame assumption a converter already stamped (GSSI's
+    `rhf_position`, recorded but explicitly not applied); (3) otherwise the
+    honest fact that no time-zero correction is applied and nothing was
+    recorded about one.
+    """
+    if applied:
+        time_zero_keys = [k for k in applied if k == "time_zero" or k.startswith("time_zero_")]
+        if time_zero_keys:
+            ran = bool(applied.get("time_zero"))
+            parameters = {
+                k: v for k, v in applied.items()
+                if k != "time_zero" and k.startswith("time_zero_") and v is not None}
+            return SignalProcessingStep(step="time_zero", ran=ran, parameters=parameters)
+
+    if claim is not None:
+        return SignalProcessingStep(
+            step="time_zero", ran=False,
+            parameters={TIME_ZERO_ASSUMPTION_KEY: claim.value},
+            # The converter's own basis already says this was recorded and
+            # withheld -- reused verbatim rather than paraphrased.
+            reason=claim.basis)
+
+    return SignalProcessingStep(
+        step="time_zero", ran=False,
+        reason="process_gpr_traces does not apply a time-zero correction, and no "
+               "time-zero claim was recorded for this dataset's frames")
+
+
+def _local_anomaly_step(local_anomaly: Optional[dict]) -> Optional[SignalProcessingStep]:
+    """
+    `local_anomaly` is the metadata dict of the first record
+    `preprocess_trace_local_anomaly` touched, or None -- `anomaly_reliable`
+    being present (even `False`) is the presence signal that it ran at all;
+    its value says only whether THAT record's cell had enough ring
+    neighbours, not whether the step ran.
+
+    Returns None (step omitted entirely) when it never ran -- unlike
+    `time_zero`, this is not a property of every GPR record, and a chain
+    that ends at `gain` correctly means the stored samples are still
+    whatever `process_gpr_traces` left. `reason` reuses
+    `schemas.provenance.LOCAL_ANOMALY_BASIS` verbatim -- the same sentence
+    the provenance projection gives this quantity, so a viewer reading the
+    signal chain and a viewer reading provenance are told the same fact.
+    """
+    if local_anomaly is None:
+        return None
+    parameters: dict[str, Any] = {}
+    if local_anomaly.get("trace_depth_grid_shape") is not None:
+        parameters["trace_depth_grid_shape"] = local_anomaly["trace_depth_grid_shape"]
+    return SignalProcessingStep(
+        step="local_anomaly", ran=True, parameters=parameters, reason=LOCAL_ANOMALY_BASIS)
+
+
+def build_signal_chain(
+    applied: Optional[dict], frames=None, local_anomaly: Optional[dict] = None,
+    recorded_modalities: Optional[list[str]] = None,
+) -> SignalProcessingChain:
+    """
+    `applied` is the `processing_applied` dict already read off a record's
+    metadata by the caller (`api.reports._processing_applied`) -- the same
+    dict the `preprocessing` `ProcessingStage` reads, so the two cannot
+    disagree about what ran. `frames` supplies the survey frames a converter
+    may have stamped a time-zero claim onto (see `TIME_ZERO_ASSUMPTION_KEY`).
+    `local_anomaly` is the first record's metadata dict carrying
+    `anomaly_reliable`, if any (`api.reports._local_anomaly_stamp`).
+    `recorded_modalities` is the same sorted list `frame_modalities` /
+    `identity.recorded_modalities` already computed for these frames.
+    PURE: reads only what is passed in, re-runs nothing, invents nothing.
+
+    THE CHAIN IS A GPR CHAIN. `time_zero` / `background_removal` / `dewow` /
+    `gain` are what `process_gpr_traces` does; none of it applies to a LiDAR
+    tile or a DEM. When `recorded_modalities` names at least one modality and
+    none of them is `gpr`, this returns unrecorded outright -- "preprocessing
+    was not recorded" would be the wrong absence for a dataset that was never
+    a GPR acquisition, and would read as a logging gap rather than a chain
+    that does not apply. An EMPTY composition (no frame records a modality)
+    is not this case: that keeps today's ordinary not-recorded behaviour,
+    the same as an unset `declared_sensor_type` -- the same rule as slices 1
+    and 2, never falling back to the ingest declaration.
+    """
+    if recorded_modalities and "gpr" not in recorded_modalities:
+        return SignalProcessingChain(
+            recorded=False,
+            reason=(
+                f"this dataset's recorded modality composition is "
+                f"{', '.join(recorded_modalities)}; the GPR signal-processing chain "
+                f"(time-zero, background removal, dewow, gain) does not apply to it"))
+
+    frames = frames or []
+    claim = _time_zero_claim(frames)
+    local_anomaly_step = _local_anomaly_step(local_anomaly)
+
+    if not applied and claim is None and local_anomaly_step is None:
+        return SignalProcessingChain(
+            recorded=False,
+            reason="no record carries a processing_applied entry -- preprocessing "
+                   "was not recorded for this dataset")
+
+    time_zero_step = _time_zero_step(applied, claim)
+
+    if not applied:
+        # Only whichever of a time-zero claim / a local-anomaly stamp exist;
+        # process_gpr_traces has not stamped anything, so background
+        # removal, dewow and gain have no evidence to report.
+        parts = []
+        if claim is not None:
+            parts.append("a time-zero claim")
+        if local_anomaly_step is not None:
+            parts.append("a local-anomaly z-score")
+        named = " and ".join(parts)
+        steps = [time_zero_step]
+        if local_anomaly_step is not None:
+            steps.append(local_anomaly_step)
+        return SignalProcessingChain(
+            recorded=True,
+            reason=(
+                f"{named} {'is' if len(parts) == 1 else 'are'} recorded for this "
+                f"dataset; process_gpr_traces has not stamped a processing_applied "
+                f"entry, so background removal, dewow and gain are not reported"),
+            steps=steps)
+
+    steps = [time_zero_step]
+    for name in SIGNAL_CHAIN_STEP_ORDER[1:]:
+        ran = bool(applied.get(name))
+        parameters: dict[str, Any] = {}
+        if ran and name == "dewow" and applied.get("dewow_window") is not None:
+            parameters["dewow_window"] = applied["dewow_window"]
+        if ran and name == "gain":
+            if applied.get("gain_type") is not None:
+                parameters["gain_type"] = applied["gain_type"]
+            if applied.get("gain_power") is not None:
+                parameters["gain_power"] = applied["gain_power"]
+        steps.append(SignalProcessingStep(step=name, ran=ran, parameters=parameters))
+    if local_anomaly_step is not None:
+        steps.append(local_anomaly_step)
+
+    return SignalProcessingChain(
+        recorded=True,
+        reason="read from the processing_applied entry recorded on this dataset's records",
+        steps=steps)
+
+
 def assess_readiness(
     volume: DatasetVolume,
     horizontal: HorizontalReference,
     vertical: VerticalReference,
     quality: QualityReport,
     candidates: CandidateSummary,
+    recorded_modalities: Optional[list[str]] = None,
 ) -> list[CapabilityAssessment]:
     """
     What Subterra may legitimately do with this dataset right now.
@@ -684,6 +964,14 @@ def assess_readiness(
     Read this as a chain: each capability names what it waits on, so a blocked
     3D reconstruction reads as "because the vertical registration is blocked",
     not as an eighth unrelated failure.
+
+    `recorded_modalities` (see `frame_modalities` / `identity.recorded_modalities`)
+    only affects `candidate_analysis`: the detector is a GPR-trace detector,
+    and a non-empty composition with no `gpr` in it blocks that capability
+    outright, regardless of signal or frame count. `signal_processing` is
+    deliberately untouched by this -- it means "records carry sample values",
+    not "the Phase 5 GPR chain can run", and retargeting it would be a
+    different capability's meaning, not a Phase 7 naming fix.
     """
     out: list[CapabilityAssessment] = []
 
@@ -762,7 +1050,21 @@ def assess_readiness(
     # A radargram needs a signal and a frame identity; it does not need a
     # position. That is why candidate analysis can be READY on a dataset whose
     # horizontal registration is blocked -- the anomaly is in the trace.
-    if volume.records_with_signal and volume.frame_count:
+    #
+    # The detector is a GPR-trace detector. A non-empty composition that
+    # names no `gpr` -- a LiDAR tile, a DEM -- blocks this outright: signal
+    # values and a frame identity are not enough, because the capability
+    # itself does not apply to those samples. An EMPTY composition is not
+    # this case and falls through to the ordinary signal/frame check, the
+    # same rule slices 1 and 2 already established.
+    if recorded_modalities and "gpr" not in recorded_modalities:
+        add(Capability.CANDIDATE_ANALYSIS, Readiness.BLOCKED,
+            f"this dataset's recorded modality composition is "
+            f"{', '.join(recorded_modalities)}; candidate analysis is a GPR-trace "
+            f"capability and does not apply to it",
+            ["a GPR acquisition, or frames recording GPR traces"],
+            [Capability.SIGNAL_PROCESSING])
+    elif volume.records_with_signal and volume.frame_count:
         add(Capability.CANDIDATE_ANALYSIS, Readiness.READY,
             "traces can be reconstructed per frame, which is what candidate analysis "
             "requires; a position is not needed to find an anomaly in a trace"

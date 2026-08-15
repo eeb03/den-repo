@@ -261,6 +261,30 @@ class VerticalDatum(BaseModel):
         return self
 
 
+class AcquisitionElevationDatum(BaseModel):
+    """
+    What the ELEVATION STORED WITH THE SURVEY is measured from -- the GNSS or
+    levelling height of the instrument position, which is a different quantity
+    from the frame's own vertical axis and does not share its datum.
+
+    IT EXISTS BECAUSE ONE FRAME CARRIES TWO VERTICAL QUANTITIES. A 4TU GPR line
+    has a vertical axis of two-way travel time from instrument time zero -- which
+    no geodetic datum describes -- and, separately, a per-trace acquisition
+    elevation from a GNSS receiver, which one certainly does. Before this there
+    was one slot, so declaring the elevation's datum meant writing it onto the
+    time axis: asserting that instrument time zero is referenced to an ellipsoid.
+
+    `field` NAMES WHICH STORED ELEVATION, in the source's own words, because a
+    source may store more than one and they need not share a datum. The 4TU
+    SEG-Y files populate two elevation fields that differ by ~44 m.
+
+    KNOWING THIS DATUM DOES NOT PLACE THE DEPTH AXIS. It says where the
+    instrument was, not where the axis zero sits relative to the ground.
+    """
+    datum: VerticalDatum
+    field: Optional[str] = None
+
+
 class VerticalRelationshipKind(str, Enum):
     """
     How a subsurface depth axis relates to a surface elevation model.
@@ -279,6 +303,112 @@ class VerticalRelationshipKind(str, Enum):
     REGISTRATION_REQUIRED = "registration_required"
     #: No relationship can be established from the available data.
     UNRELATED = "unrelated"
+
+
+class OriginReference(str, Enum):
+    """
+    WHICH physical point an offset is measured from.
+
+    These were previously one free-text string, and `assess` decided whether
+    depth zero was the ground by searching it for the words "ground surface".
+    They are not interchangeable: an antenna's phase centre is where the pulse
+    effectively leaves the antenna, the housing is what a tape measure touches,
+    and the DEPTH-AXIS ORIGIN is where sample zero sits -- which for a GPR is
+    instrument time zero, set by the electronics, and is the only one vertical
+    registration is about. A phase-centre height is a real measurement that does
+    not answer the question until somebody also relates it to time zero.
+    """
+    DEPTH_AXIS_ORIGIN = "depth_axis_origin"
+    SENSOR_PHASE_CENTRE = "sensor_phase_centre"
+    SENSOR_HOUSING = "sensor_housing"
+
+
+class NorthReference(str, Enum):
+    """
+    WHAT A DECLARED ANTENNA HEADING IS MEASURED FROM.
+
+    True, magnetic and grid north disagree with each other by amounts that
+    vary with location and date -- sometimes by tens of degrees -- so a
+    heading with no stated reference is not a usable claim, and defaulting one
+    silently would misattribute the difference to the antenna. No member of
+    this enum is the default; a declaration must name one.
+    """
+    TRUE_NORTH = "true_north"
+    MAGNETIC_NORTH = "magnetic_north"
+    GRID_NORTH = "grid_north"
+
+
+class OffsetEvidence(str, Enum):
+    """
+    WHERE an offset came from. Ordered by how much the world vouches for it.
+
+    Kept separate from `verified`: documentation can be authoritative and still
+    unchecked against this particular acquisition.
+    """
+    #: Physically measured during acquisition -- a tape on the day.
+    FIELD_MEASUREMENT = "field_measurement"
+    #: Stated by the instrument or operator documentation for this setup.
+    ACQUISITION_DOCUMENTATION = "acquisition_documentation"
+    #: Supplied by a user with no independent basis given.
+    USER_DECLARATION = "user_declaration"
+    #: Computed from another known relationship, whose inputs are recorded.
+    DERIVED = "derived"
+
+
+#: THE SIGN CONVENTION, fixed and singular.
+#:
+#:     positive  =  the reference point is ABOVE the ground
+#:
+#: It is not chosen here: `api/spatial.py` has recorded
+#: `"positive_direction": "sensor above ground"` since the antenna-offset
+#: declaration was introduced, and changing it would silently invert every
+#: value already declared under it. So a cart-mounted antenna 0.45 m off the
+#: ground is `offset_m = +0.45`, and a sensor lowered into a trench below the
+#: surface is negative.
+#:
+#: For a depth axis (positive_down), the ground therefore lies at
+#: `+offset_m` ON that axis: a sample at depth d is (d - offset_m) below
+#: ground. Nothing in this module performs that arithmetic -- it is written
+#: down so that whatever eventually does cannot get the sign backwards.
+OFFSET_POSITIVE_MEANS = "the reference point is above the ground"
+
+
+class DepthOriginOffset(BaseModel):
+    """
+    Where the depth/time axis begins, relative to the ground.
+
+    THE MISSING LINK. A GPR's depth axis starts at instrument time zero, which
+    is not the ground surface; until somebody says how far apart they are, a
+    sample's depth cannot be placed against a surface model however good both
+    are. This records that statement -- and only that statement.
+
+    IT IS NOT A DEPTH, AND NOT A VELOCITY. Declaring this does not convert time
+    to metres, does not validate any depth already present, and does not make a
+    dataset vertically registered on its own. It removes exactly one of the
+    three things `fusion.vertical_reference.assess` enumerates as missing.
+    """
+    #: Metres, always. The field name carries the unit so a bare number cannot
+    #: arrive meaning centimetres.
+    offset_m: float
+    #: See `OriginReference`. Only DEPTH_AXIS_ORIGIN answers the registration
+    #: question; the others are recorded and reported as insufficient.
+    measured_from: OriginReference
+    measured_to: str = "ground surface"
+    evidence: OffsetEvidence
+    #: The AUTHORITY for the claim, in their own words -- not the account that
+    #: typed it. Same rule as every other spatial declaration.
+    supplied_by: str
+    #: Independently checked against something. Nothing sets this true yet:
+    #: Subterra has no way to verify an offset, and saying otherwise would make
+    #: a declaration look like a measurement.
+    verified: bool = False
+    sign_convention: str = OFFSET_POSITIVE_MEANS
+    note: Optional[str] = None
+
+    @property
+    def relates_the_depth_axis(self) -> bool:
+        """Whether this offset answers the question registration actually asks."""
+        return self.measured_from == OriginReference.DEPTH_AXIS_ORIGIN
 
 
 class VerticalAxis(BaseModel):
@@ -302,6 +432,12 @@ class VerticalAxis(BaseModel):
     #: UNDECLARED -- which is the honest state for every dataset held so far,
     #: and the reason absolute elevation cannot be computed for any of them.
     vertical_datum: Optional[VerticalDatum] = None
+    #: Where this axis's zero sits relative to the ground. Absent means nobody
+    #: has said, which is a legitimate terminal state and not a gap to fill
+    #: with a typical antenna height. Lives on the AXIS, which lives on the
+    #: frame, because a survey line is exactly the unit over which a sensor
+    #: geometry is constant -- two lines of one survey may legitimately differ.
+    origin_offset: Optional[DepthOriginOffset] = None
 
 
 class Assumption(BaseModel):
@@ -426,6 +562,33 @@ def effective_position(record):
     """
     registered = getattr(record, "registered_position", None)
     return registered if registered is not None else getattr(record, "position", None)
+
+
+def along_track_extents_m(records) -> dict[str, float]:
+    """
+    Per-frame along-track distance, from recorded odometry positions only.
+
+    ONE DEFINITION, used by `dataset_report.build_geometry` (survey volume)
+    and `spatial_reference.assess_geometry` (the Stage 8 dimension), so the
+    two cannot disagree about the size of the same survey. `max - min` of
+    `along_track_m`, per frame, and only when a frame has more than one such
+    value -- a single position has no extent to report, and reporting zero
+    would look like a measurement rather than an absence.
+
+    NEVER A LINE SPACING, AN ORIENTATION OR A TRAJECTORY. Those need
+    Earth-referenced positions to mean anything; an along-track distance
+    exists whether or not the acquisition is geolocated at all.
+    """
+    by_frame: dict[str, list[float]] = {}
+    for r in records:
+        pos = getattr(r, "position", None)
+        if getattr(pos, "kind", None) == PositionKind.ODOMETRY.value:
+            by_frame.setdefault(getattr(r, "frame_id", "") or "", []).append(pos.along_track_m)
+    return {
+        frame_id: round(max(values) - min(values), 3)
+        for frame_id, values in by_frame.items()
+        if len(values) > 1
+    }
 
 
 def position_provenance(record) -> str:

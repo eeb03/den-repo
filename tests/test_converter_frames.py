@@ -295,32 +295,37 @@ def test_all_registered_converters_emit_at_least_one_frame_and_link_records(samp
 
 
 # --------------------------------------------------------------------------
-# UNRESOLVED PROVENANCE: SEG-Y header positions vs the KMZ survey track
+# SEG-Y header positions vs the KMZ survey track -- VALIDATION DONE 2026-08-06
 # --------------------------------------------------------------------------
 #
-# FOLLOW-UP REQUIRED (not resolved by M2, deliberately):
+# The follow-up this block used to open has been carried out. It is kept, and
+# corrected, because the version here asserted the opposite of what was true.
 #
-#   Validate SEG-Y SourceX/SourceY positions against the KMZ-derived survey
-#   track before treating either as authoritative georeferencing.
+# WHAT THAT VERSION GOT WRONG:
+#   It said ingestion/kmz_georeference.py "documents these headers as ONE
+#   static placeholder repeated on every trace", against M1's measurement of
+#   67 distinct header pairs across 72 traces, and left the two irreconcilable.
+#   The measurement was right. The module now carries a CORRECTION saying so,
+#   and noting that the placeholder reading "justified discarding a real
+#   acquisition track".
 #
-# What is known:
-#   - ingestion/kmz_georeference.py documents these headers as ONE static
-#     placeholder repeated on every trace of a file.
-#   - M1 measured 67 distinct (easting, northing) header pairs across the 72
-#     traces of C1T_7,5_0001.SGY. They vary. Both claims cannot be right.
+# WHAT THE VALIDATION FOUND (kmz_georeference.py, re-derived from the files in
+# tests/test_coordinate_authority.py rather than restated):
+#   - 67/72 and 66/66 distinct header positions on the two INGV lines;
+#   - header track length vs KMZ: 17.42/17.43 m and 17.89/17.89 m, ~0.02%;
+#   - mean point-to-path residuals 0.74 m and 1.22 m, within GPS accuracy;
+#   - along-track distance monotonic in trace_index;
+#   - the direction check that comparison makes possible is implemented as
+#     verify_kmz_direction, so the ordering assumption is no longer blind.
+#   => SEG-Y header positions are AUTHORITATIVE where usable, and the KMZ is
+#      the fallback for when they cannot yield a geographic position.
 #
-# What the validation must do:
-#   1. Reproject header easting/northing (UTM 33N) to WGS84 for one line.
-#   2. Compare against that line's KMZ polyline: total length, point-to-path
-#      residuals, and monotonicity of along-track distance vs trace_index.
-#   3. Check both KMZ orderings. A materially better fit in one direction
-#      would independently settle the KMZ direction assumption, which
-#      georeference_records_by_trace currently records as unverified.
-#   4. Only then decide which source populates `position`, and whether the
-#      frame's spatial_ref should become GEOGRAPHIC.
-#
-# Until that is done, ingest keeps BOTH sources and reconciles neither. The
-# tests below pin that contract so it cannot drift silently.
+# STILL OPEN, deliberately, and NOT settled by the above:
+#   - whether a frame's spatial_ref should become GEOGRAPHIC on that basis;
+#   - the unresolved-assumption contract pinned by the test below, which
+#     records a discrepancy as UNRESOLVED. That test stays exactly as it is:
+#     establishing which source is authoritative is not the same claim as
+#     declaring the recorded assumption resolved.
 
 def test_kmz_georeferencing_promotes_the_position_and_keeps_header_values():
     """

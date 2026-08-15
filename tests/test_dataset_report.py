@@ -20,6 +20,8 @@ import pytest
 from api.reports import build_dataset_report
 from fusion.vertical_reference import assess
 from schemas.dataset_report import (
+    SIGNAL_CHAIN_STEP_ORDER,
+    TIME_ZERO_ASSUMPTION_KEY,
     CandidateSummary,
     Capability,
     DatasetReport,
@@ -30,10 +32,13 @@ from schemas.dataset_report import (
     build_geometry,
     build_horizontal,
     build_identity,
+    build_signal_chain,
     build_vertical,
     build_volume,
 )
+from schemas.provenance import LOCAL_ANOMALY_BASIS
 from schemas.spatial import (
+    Assumption,
     AxisKind,
     CRSKind,
     CRSProvenance,
@@ -58,16 +63,17 @@ from validators.dataset_validator import (
 # builders
 # ---------------------------------------------------------------------------
 
-def frame(frame_id="d:line1", *, crs=None, axis=None, geo_tie=None, n_positions=10):
+def frame(frame_id="d:line1", *, crs=None, axis=None, geo_tie=None, n_positions=10,
+          assumptions=None, modality=SensorType.GPR):
     return SurveyFrame(
-        frame_id=frame_id, dataset_id="d", modality=SensorType.GPR,
+        frame_id=frame_id, dataset_id="d", modality=modality,
         source_format="segy", source_file=f"{frame_id}.sgy",
         spatial_ref=crs or SpatialRef(kind=CRSKind.UNKNOWN),
         vertical_axis=axis or VerticalAxis(
             kind=AxisKind.TWO_WAY_TIME_NS, units="ns",
             origin="instrument time zero", positive_down=True, n_samples=512,
             sample_interval=0.4),
-        n_positions=n_positions, geo_tie=geo_tie,
+        n_positions=n_positions, geo_tie=geo_tie, assumptions=assumptions or [],
     )
 
 
@@ -154,7 +160,7 @@ class FakeDataset:
         self.updated_at = kw.get("updated_at", datetime(2026, 1, 1))
 
 
-def all_readiness(records, frames):
+def all_readiness(records, frames, recorded_modalities=None):
     """Every capability assessed, from constructed data alone."""
     dims = quality_dimensions(records)
     return assess_readiness(
@@ -164,11 +170,13 @@ def all_readiness(records, frames):
         QualityReport(computed_score=score_from_dimensions(dims) if dims else None,
                       dimensions=dims),
         CandidateSummary(),
+        recorded_modalities,
     )
 
 
-def readiness_of(records, frames, capability):
-    return next(c for c in all_readiness(records, frames) if c.capability == capability)
+def readiness_of(records, frames, capability, recorded_modalities=None):
+    return next(c for c in all_readiness(records, frames, recorded_modalities)
+                if c.capability == capability)
 
 
 # ---------------------------------------------------------------------------
@@ -353,12 +361,149 @@ def test_candidate_analysis_is_ready_without_any_position():
     """
     An anomaly lives in a trace. Requiring a position for candidate analysis
     would block the one thing an unpositioned GPR line CAN support.
+
+    Not passing recorded_modalities pins that the default (None) preserves
+    this exact behaviour -- existing callers that never learned about Phase 7
+    composition must not change readiness.
     """
     records = [record(i) for i in range(3)]
     c = readiness_of(records, [frame()], Capability.CANDIDATE_ANALYSIS)
     assert c.readiness == Readiness.READY
     assert readiness_of(records, [frame()], Capability.HORIZONTAL_REGISTRATION).readiness \
         == Readiness.BLOCKED
+
+
+# ---------------------------------------------------------------------------
+# Phase 7, third slice: the GPR chain and candidate analysis do not apply
+# when the recorded composition has no gpr in it
+# ---------------------------------------------------------------------------
+
+def test_a_non_gpr_composition_blocks_candidate_analysis_even_with_signal_and_frames():
+    """A LiDAR tile has samples and a frame; the detector still does not
+    apply to it, and that must not read as 'no signal, no grouping'."""
+    records = [record(i) for i in range(3)]
+    c = readiness_of(records, [frame()], Capability.CANDIDATE_ANALYSIS,
+                     recorded_modalities=["lidar"])
+    assert c.readiness == Readiness.BLOCKED
+    assert "lidar" in c.reason
+    assert "GPR-trace capability" in c.reason
+    assert c.missing  # never empty
+
+
+def test_a_gpr_only_composition_leaves_candidate_analysis_unchanged():
+    records = [record(i) for i in range(3)]
+    with_composition = readiness_of(records, [frame()], Capability.CANDIDATE_ANALYSIS,
+                                     recorded_modalities=["gpr"])
+    without = readiness_of(records, [frame()], Capability.CANDIDATE_ANALYSIS)
+    assert with_composition.readiness == without.readiness == Readiness.READY
+    assert with_composition.reason == without.reason
+
+
+def test_a_mixed_gpr_and_lidar_composition_still_follows_the_gpr_side():
+    records = [record(i) for i in range(3)]
+    c = readiness_of(records, [frame()], Capability.CANDIDATE_ANALYSIS,
+                     recorded_modalities=["gpr", "lidar"])
+    assert c.readiness == Readiness.READY
+    for invented in ("fused", "aligned", "ready for fusion", "multi-modal"):
+        assert invented not in c.reason.lower()
+
+
+def test_an_empty_composition_does_not_change_candidate_analysis():
+    """No frame records a modality: falls through to the ordinary
+    signal/frame check, never inventing gpr from a declaration this
+    function never even receives."""
+    records = [record(i) for i in range(3)]
+    c = readiness_of(records, [frame()], Capability.CANDIDATE_ANALYSIS,
+                     recorded_modalities=[])
+    without = readiness_of(records, [frame()], Capability.CANDIDATE_ANALYSIS)
+    assert c.readiness == without.readiness == Readiness.READY
+
+
+def test_a_non_gpr_composition_with_no_signal_still_names_the_composition():
+    """The composition-based block takes priority over the generic
+    no-signal-no-frame reason -- the real cause is named, not the symptom."""
+    c = readiness_of([], [], Capability.CANDIDATE_ANALYSIS, recorded_modalities=["lidar"])
+    assert c.readiness == Readiness.BLOCKED
+    assert "lidar" in c.reason
+
+
+def test_signal_processing_readiness_is_untouched_by_composition():
+    """signal_processing still means 'records carry sample values' -- Phase 7
+    does not retarget it at the GPR chain."""
+    records = [record(i) for i in range(3)]
+    with_lidar = readiness_of(records, [frame()], Capability.SIGNAL_PROCESSING,
+                               recorded_modalities=["lidar"])
+    without = readiness_of(records, [frame()], Capability.SIGNAL_PROCESSING)
+    assert with_lidar.readiness == without.readiness
+    assert with_lidar.reason == without.reason
+
+
+def test_a_non_gpr_signal_chain_is_unrecorded_and_names_the_composition_not_a_logging_gap():
+    chain = build_signal_chain(
+        {"dewow": True, "dewow_window": 15, "background_removal": True,
+         "gain": True, "gain_type": "linear", "gain_power": 1.0},
+        [frame()], None, recorded_modalities=["lidar"])
+    assert chain.recorded is False
+    assert chain.steps == []
+    assert "lidar" in chain.reason
+    assert "does not apply" in chain.reason
+    assert "was not recorded" not in chain.reason
+
+
+def test_a_non_gpr_composition_overrides_even_a_time_zero_claim():
+    """The composition gate is unconditional -- it does not matter what else
+    was recorded, a non-GPR dataset never gets the GPR chain."""
+    claimant = frame(assumptions=[_time_zero_claim(99.04)])
+    chain = build_signal_chain(None, [claimant], None, recorded_modalities=["lidar"])
+    assert chain.recorded is False
+    assert chain.steps == []
+
+
+def test_a_gpr_only_composition_leaves_the_signal_chain_unchanged():
+    applied = {"dewow": True, "dewow_window": 15, "background_removal": True,
+               "gain": True, "gain_type": "linear", "gain_power": 1.0}
+    with_composition = build_signal_chain(applied, [frame()], None, recorded_modalities=["gpr"])
+    without = build_signal_chain(applied, [frame()], None)
+    assert with_composition.recorded == without.recorded is True
+    assert [s.step for s in with_composition.steps] == [s.step for s in without.steps]
+    assert with_composition.reason == without.reason
+
+
+def test_a_mixed_composition_still_runs_the_gpr_chain_no_fusion_language():
+    applied = {"dewow": True, "dewow_window": 15, "background_removal": True,
+               "gain": True, "gain_type": "linear", "gain_power": 1.0}
+    chain = build_signal_chain(applied, [frame()], None, recorded_modalities=["gpr", "lidar"])
+    assert chain.recorded is True
+    assert [s.step for s in chain.steps] == \
+        ["time_zero", "background_removal", "dewow", "gain"]
+    for invented in ("fused", "aligned", "ready for fusion", "multi-modal"):
+        assert invented not in chain.reason.lower()
+
+
+def test_an_empty_composition_does_not_change_the_signal_chain():
+    chain_empty_list = build_signal_chain(None, [frame()], None, recorded_modalities=[])
+    chain_default = build_signal_chain(None, [frame()], None)
+    assert chain_empty_list.recorded == chain_default.recorded is False
+    assert chain_empty_list.reason == chain_default.reason
+
+
+def test_the_signal_chain_endpoint_and_the_report_agree_on_a_non_gpr_composition(api, stored):
+    from database.frames_store import save_frames
+    from database.records_store import save_records
+
+    save_records("ds1", geographic_records(3))
+    save_frames("ds1", [frame(modality=SensorType.LIDAR)])
+
+    thin = api.get("/api/datasets/ds1/signal-chain").json()
+    report = api.get("/api/datasets/ds1/report").json()
+    assert thin == report["signal_chain"]
+    assert thin["recorded"] is False
+    assert "lidar" in thin["reason"]
+
+    candidate_analysis = next(
+        c for c in report["readiness"] if c["capability"] == "candidate_analysis")
+    assert candidate_analysis["readiness"] == "blocked"
+    assert "lidar" in candidate_analysis["reason"]
 
 
 def test_object_classification_is_blocked_for_every_dataset():
@@ -460,6 +605,87 @@ def test_a_null_owner_means_system_not_unknown():
 
 
 # ---------------------------------------------------------------------------
+# identity: recorded modality composition vs. the ingest declaration --
+# two facts, named separately, never blended or corrected against each other
+# ---------------------------------------------------------------------------
+
+def test_a_single_recorded_modality_fills_both_the_single_field_and_the_set():
+    identity = build_identity(FakeDataset(sensor_type="gpr"), [frame(modality=SensorType.GPR)])
+    assert identity.recorded_modalities == ["gpr"]
+    assert identity.modality == "gpr"
+    assert identity.declared_sensor_type == "gpr"
+
+
+def test_two_recorded_modalities_are_named_in_the_set_not_joined_into_one_string():
+    identity = build_identity(
+        FakeDataset(sensor_type="gpr"),
+        [frame("d:a", modality=SensorType.GPR), frame("d:b", modality=SensorType.LIDAR)],
+    )
+    assert identity.recorded_modalities == ["gpr", "lidar"]
+    # No comma-join, no sensor_type fallback -- several recorded modalities
+    # live only in the set.
+    assert identity.modality is None
+
+
+def test_no_frames_leaves_the_composition_empty_not_filled_from_sensor_type():
+    identity = build_identity(FakeDataset(sensor_type="gpr"), [])
+    assert identity.recorded_modalities == []
+    assert identity.modality is None
+    # The ingest declaration is still visible -- it is a separate fact.
+    assert identity.declared_sensor_type == "gpr"
+
+
+def test_frames_that_record_no_modality_also_leave_the_composition_empty():
+    """Every SurveyFrame carries a modality in this schema, so this pins the
+    same empty-set behaviour a modality-less frame representation would need
+    -- no frames is the reachable case that exercises it here."""
+    identity = build_identity(FakeDataset(sensor_type="gpr"), [])
+    assert identity.recorded_modalities == []
+    assert identity.modality is None
+
+
+def test_a_declared_sensor_disagreeing_with_the_frames_is_not_corrected_and_lidar_is_not_hidden():
+    identity = build_identity(
+        FakeDataset(sensor_type="gpr"),
+        [frame("d:a", modality=SensorType.GPR), frame("d:b", modality=SensorType.LIDAR)],
+    )
+    # The declaration is not rewritten to match the frames...
+    assert identity.declared_sensor_type == "gpr"
+    # ...and the frames are not filtered down to match the declaration.
+    assert "lidar" in identity.recorded_modalities
+    assert "gpr" in identity.recorded_modalities
+
+
+def test_declared_sensor_type_is_none_when_the_dataset_never_declared_one():
+    identity = build_identity(FakeDataset(sensor_type=None), [frame()])
+    assert identity.declared_sensor_type is None
+
+
+def test_the_contract_version_was_bumped_for_the_identity_shape_change():
+    from schemas.dataset_report import REPORT_VERSION
+
+    assert REPORT_VERSION == "1.2"
+
+
+def test_metadata_completeness_counts_modality_known_even_with_several_recorded():
+    """The completeness dimension must not read a multi-modality dataset as
+    having undeclared modality just because identity.modality is None for
+    it -- that would reintroduce composition-as-failure inside the score."""
+    from api.reports import _metadata_completeness
+
+    identity = build_identity(
+        FakeDataset(sensor_type="gpr"),
+        [frame("d:a", modality=SensorType.GPR), frame("d:b", modality=SensorType.LIDAR)],
+    )
+    dim = _metadata_completeness(identity)
+    assert "modality" in dim.basis
+    # A multi-modality dataset with a declared sensor must not be reported
+    # as less complete than a single-modality one on this account.
+    single = build_identity(FakeDataset(sensor_type="gpr"), [frame(modality=SensorType.GPR)])
+    assert _metadata_completeness(single).value == dim.value
+
+
+# ---------------------------------------------------------------------------
 # candidates are never detections
 # ---------------------------------------------------------------------------
 
@@ -476,6 +702,284 @@ def test_a_dataset_with_no_candidate_analysis_says_not_analysed():
     assert summary.analysed is False
     assert summary.candidate_count == 0
     assert "not detected objects" in summary.note
+
+
+# ---------------------------------------------------------------------------
+# the Phase 5 signal-processing chain: recorded, not re-run, never invented
+# ---------------------------------------------------------------------------
+
+def test_no_applied_entry_means_not_recorded_not_an_error():
+    chain = build_signal_chain(None)
+    assert chain.recorded is False
+    assert chain.steps == []
+    assert "not recorded" in chain.reason
+
+
+def test_an_empty_dict_is_treated_the_same_as_no_entry():
+    chain = build_signal_chain({})
+    assert chain.recorded is False
+    assert chain.steps == []
+
+
+def test_the_chain_reports_every_step_in_the_order_it_actually_ran():
+    applied = {
+        "dewow": True, "dewow_window": 15,
+        "background_removal": True,
+        "gain": True, "gain_type": "linear", "gain_power": 1.0,
+    }
+    chain = build_signal_chain(applied)
+    assert chain.recorded is True
+    assert [s.step for s in chain.steps] == list(SIGNAL_CHAIN_STEP_ORDER)
+    assert [s.step for s in chain.steps] == ["time_zero", "background_removal", "dewow", "gain"]
+    # time_zero has no evidence here (no applied keys, no frame claim) -- it
+    # is still present, just not ran.
+    math_steps = [s for s in chain.steps if s.step != "time_zero"]
+    assert all(s.ran for s in math_steps)
+    time_zero = next(s for s in chain.steps if s.step == "time_zero")
+    assert time_zero.ran is False
+
+
+def test_parameters_are_named_verbatim_for_the_steps_that_carry_them():
+    applied = {
+        "dewow": True, "dewow_window": 21,
+        "background_removal": True,
+        "gain": True, "gain_type": "agc", "gain_power": 2.0,
+    }
+    chain = build_signal_chain(applied)
+    by_step = {s.step: s for s in chain.steps}
+    assert by_step["dewow"].parameters == {"dewow_window": 21}
+    assert by_step["gain"].parameters == {"gain_type": "agc", "gain_power": 2.0}
+    # background_removal carries no recorded parameters -- nothing is invented.
+    assert by_step["background_removal"].parameters == {}
+
+
+def test_a_step_that_did_not_run_carries_no_parameters():
+    applied = {
+        "dewow": False, "dewow_window": None,
+        "background_removal": True,
+        "gain": False, "gain_type": None, "gain_power": None,
+    }
+    chain = build_signal_chain(applied)
+    by_step = {s.step: s for s in chain.steps}
+    assert by_step["dewow"].ran is False
+    assert by_step["dewow"].parameters == {}
+    assert by_step["gain"].ran is False
+    assert by_step["gain"].parameters == {}
+    assert by_step["background_removal"].ran is True
+
+
+def test_the_chain_never_invents_a_default_when_nothing_was_run(stored):
+    """A record with no `processing_applied` entry at all -- e.g. depth-slice
+    CSVs process_gpr_traces has nothing to act on -- must not read as the
+    platform's own dewow/background/gain defaults having applied."""
+    from database.records_store import save_records
+
+    save_records("d", geographic_records(3))
+    report = build_dataset_report(FakeDataset(id="d"))
+    assert report.signal_chain.recorded is False
+    assert report.signal_chain.steps == []
+
+
+def test_the_chain_reads_the_same_processing_applied_entry_the_preprocessing_stage_reads(stored):
+    """One definition, not two that could disagree about what ran."""
+    from database.records_store import save_records
+
+    applied = {
+        "dewow": True, "dewow_window": 15,
+        "background_removal": True,
+        "gain": True, "gain_type": "linear", "gain_power": 1.0,
+    }
+    records = geographic_records(3)
+    for r in records:
+        r.metadata["processing_applied"] = applied
+    save_records("d", records)
+
+    report = build_dataset_report(FakeDataset(id="d"))
+    assert report.signal_chain.recorded is True
+    math_steps = [s for s in report.signal_chain.steps if s.step != "time_zero"]
+    assert all(s.ran for s in math_steps)
+    preprocessing = next(p for p in report.processing if p.stage == "preprocessing")
+    assert preprocessing.status == "completed"
+
+
+# ---------------------------------------------------------------------------
+# the time_zero step: a converter's recorded-but-withheld claim, never
+# promoted to a correction, never omitted once the chain is recorded
+# ---------------------------------------------------------------------------
+
+def _time_zero_claim(value=99.04):
+    return Assumption(
+        key=TIME_ZERO_ASSUMPTION_KEY, value=value,
+        basis=(
+            f"the header's rhf_position is {value} ns, but it is NOT applied. "
+            f"The axis starts at instrument time-zero and the raw value is "
+            f"preserved here."
+        ),
+        verified=False,
+    )
+
+
+def test_a_frame_claim_makes_time_zero_the_first_step_ran_false_verbatim():
+    applied = {
+        "dewow": True, "dewow_window": 15, "background_removal": True,
+        "gain": True, "gain_type": "linear", "gain_power": 1.0,
+    }
+    claimant = frame(assumptions=[_time_zero_claim(99.04)])
+    chain = build_signal_chain(applied, [claimant])
+
+    assert chain.steps[0].step == "time_zero"
+    assert chain.steps[0].ran is False
+    assert chain.steps[0].parameters == {TIME_ZERO_ASSUMPTION_KEY: 99.04}
+    assert "NOT applied" in chain.steps[0].reason
+    assert "99.04" in chain.steps[0].reason
+
+
+def test_recorded_with_no_time_zero_claim_still_names_time_zero_first_not_omitted():
+    applied = {
+        "dewow": True, "dewow_window": 15, "background_removal": True,
+        "gain": True, "gain_type": "linear", "gain_power": 1.0,
+    }
+    chain = build_signal_chain(applied, [frame()])   # no assumption on this frame
+
+    assert chain.steps[0].step == "time_zero"
+    assert chain.steps[0].ran is False
+    assert chain.steps[0].parameters == {}
+    assert "does not apply a time-zero correction" in chain.steps[0].reason
+    assert "none" in chain.steps[0].reason.lower() or "no" in chain.steps[0].reason.lower()
+
+
+def test_a_claim_alone_with_no_processing_applied_still_recorded():
+    """process_gpr_traces never ran, but a converter already recorded a
+    time-zero claim -- that alone makes the chain `recorded`, with only the
+    time_zero step (no evidence exists for the other three)."""
+    claimant = frame(assumptions=[_time_zero_claim(-10)])
+    chain = build_signal_chain(None, [claimant])
+
+    assert chain.recorded is True
+    assert [s.step for s in chain.steps] == ["time_zero"]
+    assert chain.steps[0].ran is False
+    assert chain.steps[0].parameters == {TIME_ZERO_ASSUMPTION_KEY: -10}
+
+
+def test_no_processing_applied_and_no_claim_stays_not_recorded():
+    """The existing not-recorded meaning survives unchanged when nothing at
+    all was recorded -- no processing_applied, no time-zero claim."""
+    chain = build_signal_chain(None, [frame()])
+    assert chain.recorded is False
+    assert chain.steps == []
+    assert "not recorded" in chain.reason
+
+
+def test_the_first_frames_claim_is_used_when_several_frames_are_present():
+    claimant = frame("d:line1", assumptions=[_time_zero_claim(5.0)])
+    bystander = frame("d:line2")
+    chain = build_signal_chain(None, [claimant, bystander])
+    assert chain.steps[0].parameters == {TIME_ZERO_ASSUMPTION_KEY: 5.0}
+
+
+def test_the_report_reads_a_stored_frame_claim_end_to_end(stored):
+    from database.frames_store import save_frames
+    from database.records_store import save_records
+
+    save_records("d", geographic_records(3))
+    save_frames("d", [frame(assumptions=[_time_zero_claim(99.04)])])
+
+    report = build_dataset_report(FakeDataset(id="d"))
+    assert report.signal_chain.recorded is True
+    assert report.signal_chain.steps[0].step == "time_zero"
+    assert report.signal_chain.steps[0].parameters == {TIME_ZERO_ASSUMPTION_KEY: 99.04}
+
+
+def test_the_signal_chain_endpoint_and_the_report_still_agree_with_a_time_zero_claim(api, stored):
+    from database.frames_store import save_frames
+    from database.records_store import save_records
+
+    save_records("ds1", geographic_records(3))
+    save_frames("ds1", [frame(assumptions=[_time_zero_claim(99.04)])])
+
+    thin = api.get("/api/datasets/ds1/signal-chain").json()
+    report = api.get("/api/datasets/ds1/report").json()
+    assert thin == report["signal_chain"]
+    assert thin["steps"][0]["step"] == "time_zero"
+
+
+# ---------------------------------------------------------------------------
+# the local_anomaly step: only when preprocess_trace_local_anomaly actually
+# overwrote record.signal with a z-score, never invented, reason shared
+# verbatim with the provenance projection
+# ---------------------------------------------------------------------------
+
+_APPLIED = {
+    "dewow": True, "dewow_window": 15, "background_removal": True,
+    "gain": True, "gain_type": "linear", "gain_power": 1.0,
+}
+
+
+def test_anomaly_reliable_appends_local_anomaly_last_ran_true_reason_verbatim():
+    local_anomaly = {"anomaly_reliable": True, "pre_anomaly_signal": 0.42,
+                      "trace_depth_grid_shape": [482, 72]}
+    chain = build_signal_chain(_APPLIED, [frame()], local_anomaly)
+
+    assert [s.step for s in chain.steps] == \
+        ["time_zero", "background_removal", "dewow", "gain", "local_anomaly"]
+    last = chain.steps[-1]
+    assert last.ran is True
+    assert last.reason == LOCAL_ANOMALY_BASIS
+    assert "not a physical unit" in last.reason
+    assert last.parameters == {"trace_depth_grid_shape": [482, 72]}
+    # The raw per-record amplitude is not summarised at chain level -- there
+    # is no single "the" value across every record.
+    assert "pre_anomaly_signal" not in last.parameters
+
+
+def test_anomaly_reliable_false_still_means_the_step_ran():
+    """`anomaly_reliable=False` says a CELL had too few ring neighbours, not
+    that the step never ran -- presence of the key is what matters."""
+    local_anomaly = {"anomaly_reliable": False}
+    chain = build_signal_chain(_APPLIED, [frame()], local_anomaly)
+    last = chain.steps[-1]
+    assert last.step == "local_anomaly"
+    assert last.ran is True
+
+
+def test_no_anomaly_reliable_stamp_does_not_grow_a_local_anomaly_step():
+    chain = build_signal_chain(_APPLIED, [frame()], None)
+    assert [s.step for s in chain.steps] == \
+        ["time_zero", "background_removal", "dewow", "gain"]
+
+
+def test_anomaly_reliable_alone_makes_recorded_true_with_only_time_zero_and_local_anomaly():
+    """process_gpr_traces never ran (no processing_applied), but
+    preprocess_trace_local_anomaly did -- gpr_local_anomaly mode."""
+    local_anomaly = {"anomaly_reliable": True}
+    chain = build_signal_chain(None, [frame()], local_anomaly)
+
+    assert chain.recorded is True
+    assert [s.step for s in chain.steps] == ["time_zero", "local_anomaly"]
+    assert chain.steps[0].ran is False       # time_zero: no evidence either way
+    assert chain.steps[1].ran is True        # local_anomaly: it ran
+
+
+def test_no_processing_applied_no_time_zero_and_no_anomaly_stamp_stays_not_recorded():
+    chain = build_signal_chain(None, [frame()], None)
+    assert chain.recorded is False
+    assert chain.steps == []
+
+
+def test_the_signal_chain_endpoint_and_the_report_agree_with_an_anomaly_stamp(api, stored):
+    from database.records_store import save_records
+
+    records = geographic_records(3)
+    for r in records:
+        r.metadata["anomaly_reliable"] = True
+        r.metadata["trace_depth_grid_shape"] = [10, 3]
+    save_records("ds1", records)
+
+    thin = api.get("/api/datasets/ds1/signal-chain").json()
+    report = api.get("/api/datasets/ds1/report").json()
+    assert thin == report["signal_chain"]
+    assert thin["steps"][-1]["step"] == "local_anomaly"
+    assert thin["steps"][-1]["reason"] == LOCAL_ANOMALY_BASIS
 
 
 # ---------------------------------------------------------------------------
@@ -582,13 +1086,72 @@ def api(stored):
 def test_the_report_endpoint_returns_the_whole_report(api):
     body = api.get("/api/datasets/ds1/report").json()
     assert body["report_version"]
-    for section in ("identity", "volume", "spatial", "processing",
+    for section in ("identity", "volume", "spatial", "processing", "signal_chain",
                     "quality", "candidates", "readiness", "provenance"):
         assert section in body, f"the report is missing {section}"
 
 
 def test_a_nonexistent_dataset_is_a_404(api):
     assert api.get("/api/datasets/does-not-exist/report").status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# GET /{id}/signal-chain -- the thin route the workspace pane calls, kept
+# separate from /report because the report is too slow for every page open
+# ---------------------------------------------------------------------------
+
+def test_a_nonexistent_dataset_is_a_404_for_signal_chain(api):
+    assert api.get("/api/datasets/does-not-exist/signal-chain").status_code == 404
+
+
+def test_the_signal_chain_endpoint_reports_not_recorded_for_a_dataset_with_no_processing(api):
+    body = api.get("/api/datasets/ds1/signal-chain").json()
+    assert body["recorded"] is False
+    assert body["steps"] == []
+
+
+def test_the_signal_chain_endpoint_reports_the_recorded_steps_in_order(api, stored):
+    from database.records_store import save_records
+
+    applied = {
+        "dewow": True, "dewow_window": 15,
+        "background_removal": True,
+        "gain": True, "gain_type": "linear", "gain_power": 1.0,
+    }
+    records = geographic_records(3)
+    for r in records:
+        r.metadata["processing_applied"] = applied
+    save_records("ds1", records)
+
+    body = api.get("/api/datasets/ds1/signal-chain").json()
+    assert body["recorded"] is True
+    assert [s["step"] for s in body["steps"]] == \
+        ["time_zero", "background_removal", "dewow", "gain"]
+    by_step = {s["step"]: s for s in body["steps"]}
+    assert by_step["time_zero"]["ran"] is False
+    assert by_step["background_removal"]["ran"] is True
+    assert by_step["dewow"]["parameters"] == {"dewow_window": 15}
+    assert by_step["gain"]["parameters"] == {"gain_type": "linear", "gain_power": 1.0}
+
+
+def test_the_signal_chain_endpoint_and_the_report_agree(api, stored):
+    """One route is thin and one is not, but both call `build_signal_chain`
+    on the same `processing_applied` entry -- they must not disagree."""
+    from database.records_store import save_records
+
+    applied = {
+        "dewow": True, "dewow_window": 15,
+        "background_removal": True,
+        "gain": True, "gain_type": "linear", "gain_power": 1.0,
+    }
+    records = geographic_records(3)
+    for r in records:
+        r.metadata["processing_applied"] = applied
+    save_records("ds1", records)
+
+    thin = api.get("/api/datasets/ds1/signal-chain").json()
+    report = api.get("/api/datasets/ds1/report").json()
+    assert thin == report["signal_chain"]
 
 
 def test_a_dataset_with_no_records_reports_rather_than_404ing(api):

@@ -192,8 +192,11 @@ def anomaly_grid_arraywise(path: Path) -> np.ndarray:
     same window parameters preprocess_trace_local_anomaly passes -- on the
     array directly. Nothing is chunked, so there are no chunk boundaries and
     no halo: the ring statistic still sees the whole line at once, exactly as
-    it does on the record path. `--verify-arraywise` asserts the two produce
-    the same grid.
+    it does on the record path. `scripts/validate_arraywise.py` measures the
+    equivalence against the FILTERED record composition -- the same
+    `process_gpr_traces` + `preprocess_trace_local_anomaly` pairing this script
+    uses below. There is no `--verify-arraywise` flag; earlier docstrings named
+    one that has never existed.
 
     What it does NOT produce is per-candidate characterisation (centroid
     lat/lon, lateral extent), because `_characterize_cluster` legitimately

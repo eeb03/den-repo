@@ -31,7 +31,9 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-from schemas.spatial import Assumption, GeoTie, SpatialRef, VerticalAxis
+from schemas.spatial import (
+    AcquisitionElevationDatum, Assumption, GeoTie, SpatialRef, VerticalAxis,
+)
 from schemas.subterra_record import SensorType
 
 
@@ -73,6 +75,11 @@ class SurveyFrame(BaseModel):
     vertical_axis: VerticalAxis
     n_positions: Optional[int] = None         # traces / stations / pixels
     position_index_name: str = "index"        # "trace_index" | "station" | "pixel"
+    #: What the elevation STORED WITH THE SURVEY is measured from -- a different
+    #: quantity from `vertical_axis`, and routinely a different datum. Absent
+    #: means undeclared. Never inferred: an elevation that looks like a height
+    #: above sea level is not evidence of a datum.
+    acquisition_elevation_datum: Optional[AcquisitionElevationDatum] = None
 
     # --- how this frame relates to the Earth, when it does not on its own ---
     #: Absent means the frame is not georeferenced, which is a legitimate

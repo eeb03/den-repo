@@ -82,6 +82,7 @@ ARTIFACT_SUFFIXES = (
     ".labels.json",           # semantic labels         (labels_store)
     ".associations.json",     # candidate associations  (objects_store)
     ".objects.json",          # resolved objects        (objects_store)
+    ".candidates.json",       # stored candidate set    (candidates_store)
 )
 
 

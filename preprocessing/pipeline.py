@@ -120,6 +120,12 @@ def run_pipeline(
     ~0.0146 m/sample on the real C1T_7,5_0001 line) -- see
     preprocessing/spatial_grid.py::preprocess_trace_local_anomaly for the
     full reasoning and how the defaults were derived.
+
+    mode="gpr_full": the validated GPR chain -- "gpr_trace_processing" followed
+    by "gpr_local_anomaly", which is the pairing the regression baseline pins
+    and the composition both benchmarks measure. Use this for a GPR ingest;
+    the two single-step modes remain available for callers that compose them
+    themselves.
     """
     if mode == "spatial_grid":
         from preprocessing.spatial_grid import preprocess_spatial_grid
@@ -151,6 +157,44 @@ def run_pipeline(
             dewow_enabled=dewow_enabled, dewow_window=dewow_window,
             background_removal_enabled=background_removal_enabled,
             gain_enabled=gain_enabled, gain_type=gain_type, gain_power=gain_power,
+        )
+
+    if mode == "gpr_full":
+        # THE VALIDATED GPR CHAIN, IN ONE CALL.
+        #
+        # The two modes above are single steps, and composing them is the
+        # caller's job -- `tests/test_gpr_regression_baseline.py` has pinned
+        # exactly this pairing since the interpretation baseline. But every
+        # ingest route applies ONE mode (`run_pipeline(records,
+        # mode=preprocessing_mode)`), so the validated chain was unreachable
+        # through the API: ingesting with "gpr_local_anomaly" ran the ring
+        # statistic on unfiltered traces.
+        #
+        # That is not what any benchmark measures. `anomaly_grid_from_traces`
+        # (BAM) and `scripts/characterise_4tu.py` (4TU) both filter first, and
+        # on a real 4TU line the two compositions disagree about 95.7% of cells
+        # -- 39 cells over |z|>3 unfiltered against 164 filtered. So the product
+        # was generating candidates from a detector no benchmark had measured.
+        #
+        # Added as a NEW mode rather than by changing "gpr_local_anomaly",
+        # because that mode's filter-free behaviour is correct, is what the
+        # regression baseline pins, and is what the composition depends on.
+        # See docs/anomaly-path-equivalence.md.
+        from preprocessing.spatial_grid import preprocess_trace_local_anomaly
+        from preprocessing.trace_processing import process_gpr_traces
+
+        records = process_gpr_traces(
+            records,
+            dewow_enabled=dewow_enabled, dewow_window=dewow_window,
+            background_removal_enabled=background_removal_enabled,
+            gain_enabled=gain_enabled, gain_type=gain_type, gain_power=gain_power,
+        )
+        return preprocess_trace_local_anomaly(
+            records,
+            trace_inner_window=trace_inner_window, trace_outer_window=trace_outer_window,
+            depth_inner_window=depth_inner_window, depth_outer_window=depth_outer_window,
+            min_ring_count=min_ring_count,
+            min_trace_ring_count=min_trace_ring_count, min_depth_ring_count=min_depth_ring_count,
         )
 
     for r in records:

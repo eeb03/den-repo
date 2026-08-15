@@ -30,7 +30,12 @@ import { DeclarationForm } from './declaration-form'
  * backend's own sentence. The component chooses which form to show and renders
  * what came back.
  */
-const DIMENSION_LABEL: Record<SpatialDimensionName, string> = {
+/**
+ * Exported so the read-only workspace summary (`AcquisitionPane`'s sibling,
+ * `SpatialAssessmentPane`) uses the same seven words rather than keeping a
+ * second copy that could drift.
+ */
+export const DIMENSION_LABEL: Record<SpatialDimensionName, string> = {
   horizontal_position: 'Horizontal position',
   crs: 'Coordinate reference system',
   vertical_reference: 'Vertical reference',
@@ -41,7 +46,9 @@ const DIMENSION_LABEL: Record<SpatialDimensionName, string> = {
 }
 
 /** States that mean the question is settled. Mirrors the backend's own set. */
-const RESOLVED = new Set(['available', 'declared', 'measured', 'derived'])
+export const RESOLVED_SPATIAL_STATES = new Set([
+  'available', 'declared', 'measured', 'derived',
+])
 
 export function SpatialReferenceView({ datasetId }: { datasetId: string }) {
   const { data, error, isLoading } = useSpatialReference(datasetId)
@@ -120,6 +127,47 @@ export function SpatialReferenceView({ datasetId }: { datasetId: string }) {
             </PanelBody>
           </Panel>
 
+          {/*
+            THE COMPOSITION, NOT AN EIGHTH DIMENSION. Read-only, like the
+            dimensions above -- `common_frame.state` is `incomplete` or
+            `inputs_present`, never a word that could be read as "a frame
+            exists", because none does. No declare control here either.
+          */}
+          <Panel>
+            <PanelHeader title="Common spatial frame" />
+            <PanelBody>
+              <div data-common-frame data-state={data.common_frame.state}>
+                <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                  {data.common_frame.state}
+                </span>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {data.common_frame.reason}
+                </p>
+                {/*
+                  Agreement is a sibling of `state`, not a new value of it:
+                  `agree` / `disagree` / `undetermined` only. Codes are named
+                  verbatim, never paraphrased.
+                */}
+                <div data-agreement={data.common_frame.agreement} className="mt-2">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                    Agreement: {data.common_frame.agreement}
+                  </span>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    CRS:{' '}
+                    {data.common_frame.crs_codes.length
+                      ? data.common_frame.crs_codes.join(', ')
+                      : 'none recorded'}
+                    {' · '}
+                    Vertical datum:{' '}
+                    {data.common_frame.vertical_datum_codes.length
+                      ? data.common_frame.vertical_datum_codes.join(', ')
+                      : 'none recorded'}
+                  </p>
+                </div>
+              </div>
+            </PanelBody>
+          </Panel>
+
           <Panel>
             <PanelHeader title="Declarations" count={data.declarations.length} />
             <PanelBody>
@@ -169,7 +217,7 @@ function DimensionRow({
   open: boolean
   onToggle: () => void
 }) {
-  const resolved = RESOLVED.has(dimension.state)
+  const resolved = RESOLVED_SPATIAL_STATES.has(dimension.state)
   return (
     <div
       data-dimension={dimension.dimension}
