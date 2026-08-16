@@ -137,12 +137,20 @@ export function CandidateRegionsPane({ datasetId }: { datasetId: string }) {
             </>
           )}
 
-          <Link
-            href={`/datasets/${encodeURIComponent(datasetId)}/candidates`}
-            className="mt-1 inline-flex text-xs text-primary underline-offset-4 hover:underline"
-          >
-            Candidate intelligence
-          </Link>
+          {/*
+            Slice 24: sending a reader into the candidate workflow when the
+            StateBox above already says the capability does not apply would
+            be the same invitation slice 23 removed from the dataset
+            report's Candidates section.
+          */}
+          {!doesNotApply && (
+            <Link
+              href={`/datasets/${encodeURIComponent(datasetId)}/candidates`}
+              className="mt-1 inline-flex text-xs text-primary underline-offset-4 hover:underline"
+            >
+              Candidate intelligence
+            </Link>
+          )}
         </div>
       )}
     </>

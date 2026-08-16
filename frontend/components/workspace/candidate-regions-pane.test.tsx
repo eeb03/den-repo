@@ -317,8 +317,8 @@ describe('a dataset with no candidate set', () => {
   })
 })
 
-describe('Phase 7, twelfth slice: does not open under the method\'s vocabulary when analysis does not apply', () => {
-  it('hides the definition, but keeps the reason, the absence box, and the link', async () => {
+describe('Phase 7, twelfth and twenty-fourth slices: does not open under the method\'s vocabulary, and does not invite the workflow, when analysis does not apply', () => {
+  it('hides the definition and the workflow link, but keeps the reason and the absence box', async () => {
     getCandidates.mockResolvedValue(
       blocked({
         status_reason:
@@ -335,9 +335,27 @@ describe('Phase 7, twelfth slice: does not open under the method\'s vocabulary w
     expect(container.textContent).toContain('lidar')
     expect(container.textContent).toContain('does not apply to it')
     expect(container.querySelector('[data-benchmark-summary]')).toBeNull()
-    expect(container.querySelector('a[href="/datasets/d1/candidates"]')).toBeTruthy()
+    expect(container.querySelector('a[href="/datasets/d1/candidates"]')).toBeNull()
     // still no generate control, same as every other blocked reason
     expect(container.textContent?.toLowerCase()).not.toContain('generate')
+  })
+
+  it('"has not been run" is not the off-gpr reason: the workflow link stays', async () => {
+    getCandidates.mockResolvedValue(blocked())
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-candidate-regions]')).toBeTruthy())
+    expect(container.querySelector('a[href="/datasets/d1/candidates"]')).toBeTruthy()
+  })
+
+  it('fails closed: blocked without the phrase keeps the workflow link', async () => {
+    getCandidates.mockResolvedValue(
+      blocked({ status_reason: 'trace-local anomaly preprocessing has not been run' }),
+    )
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-candidate-regions]')).toBeTruthy())
+    expect(container.querySelector('a[href="/datasets/d1/candidates"]')).toBeTruthy()
   })
 })
 
