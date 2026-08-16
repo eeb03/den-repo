@@ -224,6 +224,11 @@ describe('candidate-region count is read from the candidates API, not invented',
     const processing = container.querySelector('[data-report-row="Processing"]')
     expect(processing?.textContent).toMatch(/generated on demand/i)
     expect(processing?.textContent).toMatch(/are not detections/i)
+
+    // Phase 7, fifteenth slice: the GPR path's Positioned note keeps its
+    // original two-sentence form verbatim, including the B-scan sentence.
+    const positioned = container.querySelector('[data-report-row="Positioned"]')
+    expect(positioned?.textContent).toMatch(/B-scan is indexed by trace and depth/i)
   })
 
   it('names the composition, not "has not been run", when candidate analysis does not apply', async () => {
@@ -253,6 +258,14 @@ describe('candidate-region count is read from the candidates API, not invented',
     const processing = container.querySelector('[data-report-row="Processing"]')
     expect(processing?.textContent).not.toMatch(/generated on demand/i)
     expect(processing?.textContent?.toLowerCase()).not.toContain('candidate')
+
+    // Phase 7, fifteenth slice: same rule for the Positioned row -- a B-scan
+    // is a GPR-trace view (slices 5-6), so it does not apply here either.
+    const positioned = container.querySelector('[data-report-row="Positioned"]')
+    expect(positioned?.textContent).toMatch(/geographic position/i)
+    expect(positioned?.textContent).toMatch(/map, heatmap and surface/i)
+    expect(positioned?.textContent).not.toMatch(/B-scan/i)
+    expect(positioned?.textContent).not.toMatch(/trace and depth/i)
   })
 
   it('reports the stored count when generation has run', async () => {

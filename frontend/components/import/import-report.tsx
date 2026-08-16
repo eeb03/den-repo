@@ -172,7 +172,9 @@ export function ImportReport({ job, onReset }: { job: ImportJob; onReset: () => 
               status={positioned > 0 ? 'AVAILABLE' : 'MISSING'}
               note={
                 positioned === 0
-                  ? 'No record carries a geographic position, so map, heatmap and surface views have nothing to place. The B-scan is indexed by trace and depth and is unaffected.'
+                  ? doesNotApply
+                    ? 'No record carries a geographic position, so map, heatmap and surface views have nothing to place.'
+                    : 'No record carries a geographic position, so map, heatmap and surface views have nothing to place. The B-scan is indexed by trace and depth and is unaffected.'
                   : undefined
               }
             />
