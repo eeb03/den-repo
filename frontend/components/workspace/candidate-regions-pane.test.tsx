@@ -277,6 +277,9 @@ describe('a dataset with no candidate set', () => {
     expect(container.textContent).toContain('candidate generation has not been run')
     // No count/classification block for the absent case.
     expect(container.querySelector('[data-classification-status]')).toBeNull()
+    // Phase 7, twelfth slice: this is "has not been run", not "does not
+    // apply" -- the method's definition still belongs on the page.
+    expect(container.textContent).toContain(DEFINITION)
   })
 
   it('does not print a benchmark sentence over a set that does not exist', async () => {
@@ -311,6 +314,30 @@ describe('a dataset with no candidate set', () => {
     expect(container.querySelector('[data-stale]')).toBeNull()
     expect(container.textContent).not.toContain('unrecorded')
     expect(container.textContent).not.toContain('no longer matches the dataset')
+  })
+})
+
+describe('Phase 7, twelfth slice: does not open under the method\'s vocabulary when analysis does not apply', () => {
+  it('hides the definition, but keeps the reason, the absence box, and the link', async () => {
+    getCandidates.mockResolvedValue(
+      blocked({
+        status_reason:
+          "this dataset's recorded modality composition is lidar; candidate analysis is a "
+          + 'GPR-trace capability and does not apply to it',
+        missing: ['a GPR acquisition, or frames recording GPR traces'],
+      }),
+    )
+    const { container, getByText } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-candidate-regions]')).toBeTruthy())
+    expect(container.textContent).not.toContain(DEFINITION)
+    expect(getByText('No candidate set')).toBeTruthy()
+    expect(container.textContent).toContain('lidar')
+    expect(container.textContent).toContain('does not apply to it')
+    expect(container.querySelector('[data-benchmark-summary]')).toBeNull()
+    expect(container.querySelector('a[href="/datasets/d1/candidates"]')).toBeTruthy()
+    // still no generate control, same as every other blocked reason
+    expect(container.textContent?.toLowerCase()).not.toContain('generate')
   })
 })
 
