@@ -133,6 +133,66 @@ def test_the_client_distinguishes_the_required_states(page):
         assert fragment in page
 
 
+# --- Phase 7, twenty-second slice: the radargram half is a GPR-trace
+# --- invitation, gated the same way the workspace pane already is ---
+
+def test_the_radargram_elements_still_appear_in_the_page_source(page):
+    """A runtime hide, not a deletion -- test_the_page_is_served and
+    honesty.integration.test.ts both assert id="radargram" is present."""
+    assert 'id="radargram"' in page
+    assert 'id="radargramState"' in page
+    assert 'id="radargramPanel"' in page
+    assert "No radargram selected" in page
+
+
+def test_the_does_not_apply_helper_fails_closed_and_reads_no_new_composition(page):
+    """
+    Checked against the raw page -- `_code_only` strips string-literal
+    content, which is exactly "blocked" / "does not apply" / "/api/candidates".
+    """
+    fetch_fn = page.split("async function fetchDoesNotApply")[1].split(
+        "\nasync function loadDatasets"
+    )[0]
+    assert "/api/candidates" in fetch_fn
+    assert '"blocked"' in fetch_fn
+    assert "does not apply" in fetch_fn
+    assert "!r.ok" in fetch_fn or "!r.data" in fetch_fn, (
+        "must fail closed on a non-ok response"
+    )
+    assert "survey_frames" not in fetch_fn
+    assert "sensor_type" not in fetch_fn
+
+
+def test_load_dataset_fetches_the_flag_and_gates_the_panel(page):
+    """The hide/collapse writes live in loadDataset, once per load, not in
+    select() or loadRadargram."""
+    load_fn = page.split("async function loadDataset(id)")[1].split(
+        "\nasync function loadLayers"
+    )[0]
+    assert "fetchDoesNotApply" in load_fn
+    assert "radargramPanel" in load_fn
+    assert "gridTemplateRows" in load_fn
+
+
+def test_select_reads_the_cached_flag_rather_than_fetching_again(page):
+    select_fn = page.split("async function select(kind, id)")[1].split(
+        "\nfunction renderViews"
+    )[0]
+    assert "fetchDoesNotApply" not in select_fn
+    assert "/api/candidates" not in select_fn
+    assert "candidateAnalysisDoesNotApply" in select_fn
+
+
+def test_load_radargram_is_untouched_by_the_gate(page):
+    """loadRadargram's own internals -- the 404/error/empty states -- are
+    byte-identical; the gate lives entirely in loadDataset and select()."""
+    load_radargram_fn = page.split("async function loadRadargram(coords)")[1]
+    assert "candidateAnalysisDoesNotApply" not in load_radargram_fn
+    assert "No radar data" in load_radargram_fn
+    assert "Could not load radargram" in load_radargram_fn
+    assert "Empty radargram" in load_radargram_fn
+
+
 # --- the API guarantees the client leans on ---
 
 def test_a_placed_object_exposes_the_coordinates_the_map_needs(client):
