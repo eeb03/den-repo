@@ -142,9 +142,23 @@ def _radargram(sel: Selection, recorded_modalities: Optional[list[str]] = None) 
     return ViewResolution(view=ViewKind.RADARGRAM, resolved=True, coordinates=coords)
 
 
-def _depth_slice(sel: Selection, frame=None, cross_frame: bool = False) -> ViewResolution:
+def _depth_slice(sel: Selection, frame=None, cross_frame: bool = False,
+                 recorded_modalities: Optional[list[str]] = None) -> ViewResolution:
     from schemas.spatial import AxisKind
 
+    # Composition gate, same definition and same precedence as `_radargram`:
+    # a non-empty composition without gpr means a depth slice does not apply
+    # to this dataset at all, and wins even over a selection that already
+    # carries a depth_range_m -- a stuffed depth on a LiDAR tile is not a
+    # depth slice. "no depth" / "needs a velocity" / "slicing time" would
+    # each misdescribe a DEM as an incomplete GPR survey.
+    if recorded_modalities and "gpr" not in recorded_modalities:
+        return ViewResolution(
+            view=ViewKind.DEPTH_SLICE, resolved=False,
+            reason=(f"this dataset's recorded modality composition is "
+                    f"{', '.join(recorded_modalities)}; a depth-slice view is a "
+                    f"GPR-trace view and does not apply to it"),
+            missing=["a GPR acquisition, or frames recording GPR traces"])
     if sel.depth_range_m is None:
         return ViewResolution(
             view=ViewKind.DEPTH_SLICE, resolved=False,
@@ -215,16 +229,20 @@ def resolve(selection: Selection, frame=None, vertical: Optional[dict] = None,
     `frame` sharpens the depth-slice answer; `vertical` is the result of
     `fusion.vertical_reference.assess` when the caller has one.
     `recorded_modalities` (see `schemas.dataset_report.frame_modalities` /
-    `identity.recorded_modalities`) only changes the radargram answer: a
-    non-empty composition with no gpr in it says a radargram view does not
-    apply, rather than reporting the selection itself as incomplete. All
-    optional: without them the answers are the conservative ones, which are
-    also the correct ones for every dataset currently held.
+    `identity.recorded_modalities`) changes the radargram and depth-slice
+    answers: a non-empty composition with no gpr in it says each of those
+    views does not apply, rather than reporting the selection itself as
+    incomplete. Deliberately NOT forwarded to `_scene_3d` -- a 3D scene still
+    applies to a LiDAR/DEM surface, so gating it the same way would assert
+    the opposite lie. All optional: without them the answers are the
+    conservative ones, which are also the correct ones for every dataset
+    currently held.
     """
     return SelectionResolution(selection=selection, views=[
         _map(selection),
         _radargram(selection, recorded_modalities=recorded_modalities),
-        _depth_slice(selection, frame=frame, cross_frame=cross_frame_slice),
+        _depth_slice(selection, frame=frame, cross_frame=cross_frame_slice,
+                    recorded_modalities=recorded_modalities),
         _scene_3d(selection, vertical=vertical),
         _metadata(selection),
     ])

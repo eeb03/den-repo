@@ -116,6 +116,30 @@ describe('Phase 7, sixth slice: an off-gpr radargram reason is shown verbatim', 
   })
 })
 
+describe('Phase 7, seventh slice: an off-gpr depth-slice reason is shown verbatim', () => {
+  const OFF_GPR_DEPTH_SLICE: ViewResolution = {
+    view: 'depth_slice',
+    resolved: false,
+    coordinates: {},
+    reason:
+      "this dataset's recorded modality composition is lidar; a depth-slice view is a "
+      + 'GPR-trace view and does not apply to it',
+    missing: ['a GPR acquisition, or frames recording GPR traces'],
+  }
+
+  it('shows the composition reason, never "no depth" or "propagation velocity"', () => {
+    setViews([OFF_GPR_DEPTH_SLICE])
+    const { container } = render(
+      <SelectionPane datasetId="ds" selection={SELECTION} />,
+    )
+    expect(container.textContent).toContain('lidar')
+    expect(container.textContent).toContain('does not apply to it')
+    expect(container.textContent).not.toContain('carries no depth')
+    expect(container.textContent).not.toContain('propagation velocity was supplied')
+    expect(container.querySelector('[data-state-kind="unavailable"]')).toBeTruthy()
+  })
+})
+
 describe('the UI does not hard-code what is unavailable', () => {
   it('renders scene_3d as RESOLVED when the backend says so', () => {
     /*

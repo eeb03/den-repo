@@ -169,6 +169,45 @@ def test_empty_composition_keeps_todays_frame_and_trace_reasons():
     assert "only meaningful within one acquisition" in no_trace.reason
 
 
+# --- Phase 7, seventh slice: depth slice does not apply to an off-gpr composition ---
+
+def test_off_gpr_composition_names_it_and_says_depth_slice_does_not_apply():
+    v = _views(resolve(_sel(), recorded_modalities=["lidar"]))[ViewKind.DEPTH_SLICE]
+    assert v.resolved is False
+    assert "lidar" in v.reason
+    assert "does not apply" in v.reason
+    assert "no depth" not in v.reason
+    assert "propagation velocity" not in v.reason
+    assert "slicing time" not in v.reason
+    assert v.missing
+
+
+def test_off_gpr_composition_wins_even_with_a_stuffed_depth_range():
+    """A stuffed depth on a LiDAR tile is not a depth slice -- the gate must
+    win even though sel.depth_range_m is present."""
+    v = _views(resolve(_sel(depth_range_m=(1.0, 2.0)),
+                       recorded_modalities=["lidar"]))[ViewKind.DEPTH_SLICE]
+    assert v.resolved is False
+    assert "does not apply" in v.reason
+
+
+def test_gpr_or_mixed_depth_slice_composition_is_unaffected():
+    gpr = _views(resolve(_sel(), recorded_modalities=["gpr"]))[ViewKind.DEPTH_SLICE]
+    mixed = _views(resolve(_sel(), recorded_modalities=["gpr", "lidar"]))[ViewKind.DEPTH_SLICE]
+    default = _views(resolve(_sel()))[ViewKind.DEPTH_SLICE]
+    assert gpr.resolved is mixed.resolved is default.resolved is True
+    assert gpr.coordinates == mixed.coordinates == default.coordinates
+    for v in (gpr, mixed):
+        for invented in ("fused", "aligned", "ready for fusion", "multi-modal"):
+            assert invented not in (v.reason or "").lower()
+
+
+def test_empty_composition_keeps_todays_depth_slice_reasons():
+    v = _views(resolve(_sel(depth_range_m=None), recorded_modalities=[]))[ViewKind.DEPTH_SLICE]
+    assert v.resolved is False
+    assert "only when a propagation velocity was supplied" in v.reason
+
+
 def test_no_depth_means_no_depth_slice():
     v = _views(resolve(_sel(depth_range_m=None)))[ViewKind.DEPTH_SLICE]
     assert v.resolved is False
@@ -304,6 +343,47 @@ def test_gpr_dataset_over_the_api_is_unaffected(client, monkeypatch):
     radargram = next(v for v in body["views"] if v["view"] == "radargram")
     assert radargram["resolved"] is True
     assert radargram["coordinates"]["frame_id"] == "ds:line"
+
+
+# --- Phase 7, seventh slice: the live route also gates depth_slice ---
+
+def test_off_gpr_dataset_over_the_api_says_depth_slice_does_not_apply(client, monkeypatch):
+    import api.routes.views as mod
+
+    monkeypatch.setattr(mod, "load_frames", lambda _id: [_lidar_frame()])
+    monkeypatch.setattr(mod, "load_records", lambda _id: [])
+
+    r = client.post("/api/views/resolve", json={"selection": _sel().model_dump(mode="json")})
+    body = r.json()
+    assert r.status_code == 200
+    depth_slice = next(v for v in body["views"] if v["view"] == "depth_slice")
+    assert depth_slice["resolved"] is False
+    assert "lidar" in depth_slice["reason"]
+    assert "does not apply" in depth_slice["reason"]
+    assert "propagation velocity" not in depth_slice["reason"]
+    assert depth_slice["missing"]
+    assert "depth_slice" in body["unresolvable_views"]
+
+
+def test_gpr_dataset_depth_slice_over_the_api_is_unaffected(client, monkeypatch):
+    import api.routes.views as mod
+
+    monkeypatch.setattr(mod, "load_frames", lambda _id: [
+        SurveyFrame(
+            frame_id="ds:line", dataset_id="ds", modality=SensorType.GPR,
+            source_format="segy", source_file="line.sgy",
+            spatial_ref=SpatialRef(kind=CRSKind.GEOGRAPHIC, code="EPSG:4326", horizontal_units="degree",
+                               crs_provenance=CRSProvenance.SUPPLIED_BY_CALLER),
+            vertical_axis=VerticalAxis(kind=AxisKind.DEPTH_M, units="m",
+                                       origin="surface", positive_down=True),
+        )
+    ])
+    monkeypatch.setattr(mod, "load_records", lambda _id: [])
+
+    r = client.post("/api/views/resolve", json={"selection": _sel().model_dump(mode="json")})
+    body = r.json()
+    depth_slice = next(v for v in body["views"] if v["view"] == "depth_slice")
+    assert depth_slice["resolved"] is True
 
 
 def test_the_object_vocabulary_says_which_status_is_a_real_thing(client):
