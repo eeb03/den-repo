@@ -57,6 +57,37 @@ def _anomaly_ready(records) -> bool:
     )
 
 
+def _recorded_composition(dataset_id: str, records) -> list[str]:
+    """
+    The recorded modality composition for this dataset's frames -- the same
+    definition `schemas.dataset_report.frame_modalities` /
+    `identity.recorded_modalities` already establish, so the report, the
+    workspace candidate pane and this API cannot each derive a different
+    answer to "what did the frames record".
+    """
+    from database.frames_store import load_frames, synthesize_frames_from_records
+    from schemas.dataset_report import frame_modalities
+
+    frames = load_frames(dataset_id) or (
+        synthesize_frames_from_records(records) if records else [])
+    return frame_modalities(frames)
+
+
+def _off_gpr_blocked(dataset_id: str, composition: list[str]) -> CandidateIntelligence:
+    """
+    The one BLOCKED answer for a composition that names a modality but no
+    `gpr` -- candidate analysis is a GPR-trace capability, and this is not a
+    logging gap or an unrun step. Never invites `gpr_local_anomaly`
+    reprocessing, which would not fix anything for this composition.
+    """
+    return blocked(
+        dataset_id,
+        f"this dataset's recorded modality composition is {', '.join(composition)}; "
+        f"candidate analysis is a GPR-trace capability and does not apply to it",
+        ["a GPR acquisition, or frames recording GPR traces"],
+    )
+
+
 def _trace_addressable(records) -> bool:
     """
     Whether these records carry the trace/depth addressing the rule needs.
@@ -127,6 +158,11 @@ def generate(db: Session, dataset_id: str,
     if not records:
         return blocked(dataset_id, "this dataset holds no records",
                        ["an ingested dataset with records to analyse"])
+
+    composition = _recorded_composition(dataset_id, records)
+    if composition and "gpr" not in composition:
+        return _off_gpr_blocked(dataset_id, composition)
+
     if not _anomaly_ready(records):
         return blocked(
             dataset_id,
@@ -188,6 +224,9 @@ def current(db: Session, dataset_id: str) -> CandidateIntelligence:
     """
     stored = load_candidates(dataset_id)
     if stored is None:
+        composition = _recorded_composition(dataset_id, load_records(dataset_id))
+        if composition and "gpr" not in composition:
+            return _off_gpr_blocked(dataset_id, composition)
         return blocked(
             dataset_id, "candidate generation has not been run for this dataset",
             ["a candidate generation run"])

@@ -1083,12 +1083,27 @@ def assess_readiness(
     # on both benchmarks, and no model has passed validation. Reporting
     # anything else here would turn candidates into detections, which is the
     # one thing this platform must never do.
-    add(Capability.OBJECT_CLASSIFICATION, Readiness.BLOCKED,
-        "Subterra has no validated object classifier. Candidates describe the shape of "
-        "an anomalous response, not the identity of a buried object, and no model has "
-        "been validated to make that step",
-        ["a classifier validated against ground truth on a benchmark site"],
-        [Capability.CANDIDATE_ANALYSIS])
+    #
+    # A non-GPR composition is BLOCKED for a DIFFERENT reason, and the reason
+    # has to say so: there is no candidate pipeline here to lack a validated
+    # classifier FOR, so "no validated object classifier" -- and especially
+    # "candidates describe an anomalous response, not a buried object" --
+    # would misname the cause by talking about candidates that were never
+    # going to exist for this composition in the first place.
+    if recorded_modalities and "gpr" not in recorded_modalities:
+        add(Capability.OBJECT_CLASSIFICATION, Readiness.BLOCKED,
+            f"this dataset's recorded modality composition is "
+            f"{', '.join(recorded_modalities)}; candidate analysis does not apply to "
+            f"it, so object classification is not a next step for this dataset",
+            ["a GPR acquisition, or frames recording GPR traces"],
+            [Capability.CANDIDATE_ANALYSIS])
+    else:
+        add(Capability.OBJECT_CLASSIFICATION, Readiness.BLOCKED,
+            "Subterra has no validated object classifier. Candidates describe the shape of "
+            "an anomalous response, not the identity of a buried object, and no model has "
+            "been validated to make that step",
+            ["a classifier validated against ground truth on a benchmark site"],
+            [Capability.CANDIDATE_ANALYSIS])
 
     # --- 3D reconstruction -----------------------------------------------
     blockers = []

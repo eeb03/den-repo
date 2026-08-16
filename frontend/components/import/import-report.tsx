@@ -213,7 +213,7 @@ export function ImportReport({ job, onReset }: { job: ImportJob; onReset: () => 
                     : 'AVAILABLE'
               }
               note={
-                !candidates?.generation
+                !candidates
                   ? 'Candidate detection has not been run for this dataset. It is a separate, explicit step from the dataset workspace, not something import performs.'
                   : candidates.status !== 'available'
                     ? candidates.status_reason

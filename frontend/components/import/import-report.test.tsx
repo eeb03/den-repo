@@ -220,6 +220,24 @@ describe('candidate-region count is read from the candidates API, not invented',
     expect(row?.textContent).toMatch(/has not been run/i)
   })
 
+  it('names the composition, not "has not been run", when candidate analysis does not apply', async () => {
+    getDatasetInfo.mockResolvedValue(info())
+    getCandidates.mockResolvedValue(
+      candidates({
+        generation: null,
+        status_reason:
+          "this dataset's recorded modality composition is lidar; candidate analysis is a GPR-trace capability and does not apply to it",
+      }),
+    )
+    const { container } = view()
+
+    await screen.findByText(/dataset ready/i)
+    const row = container.querySelector('[data-report-row="Candidates"]')
+    expect(row?.textContent).toMatch(/does not apply/i)
+    expect(row?.textContent).toContain('lidar')
+    expect(row?.textContent).not.toMatch(/has not been run/i)
+  })
+
   it('reports the stored count when generation has run', async () => {
     getDatasetInfo.mockResolvedValue(info())
     getCandidates.mockResolvedValue(
