@@ -116,7 +116,7 @@ function TabButton({
  * labelled as one. No conversion is performed here; doing so would mean
  * assuming a velocity.
  */
-function RadargramPane({
+export function RadargramPane({
   datasetId,
   selection,
   totalCount,
