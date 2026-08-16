@@ -482,6 +482,73 @@ describe('candidates are never detections', () => {
   })
 })
 
+describe('Phase 7, twenty-third slice: the candidate workflow link is not offered when analysis does not apply', () => {
+  it('off-gpr blocked: no workflow link, reason and missing still shown verbatim', async () => {
+    const offGpr = report()
+    offGpr.candidates = {
+      ...offGpr.candidates,
+      status: 'blocked',
+      status_reason:
+        "this dataset's recorded modality composition is lidar; candidate analysis is a "
+        + 'GPR-trace capability and does not apply to it',
+      missing: ['a GPR acquisition, or frames recording GPR traces'],
+    }
+    const { container } = await renderReport(offGpr)
+
+    expect(container.querySelector('[data-candidate-workflow-link]')).toBeNull()
+    expect(container.textContent).toContain('lidar')
+    expect(container.textContent).toContain('does not apply to it')
+    expect(container.textContent).toContain('a GPR acquisition, or frames recording GPR traces')
+  })
+
+  it('"has not been run" (the default fixture) keeps the workflow link', async () => {
+    const { container } = await renderReport()
+    expect(container.querySelector('[data-candidate-workflow-link]')).toBeTruthy()
+  })
+
+  it('an analysed gpr set keeps the workflow link', async () => {
+    const analysed = report()
+    analysed.candidates = {
+      ...analysed.candidates,
+      analysed: true,
+      status: 'available',
+      status_reason: 'generated from 1 survey line(s)',
+      candidate_count: 12,
+    }
+    const { container } = await renderReport(analysed)
+    expect(container.querySelector('[data-candidate-workflow-link]')).toBeTruthy()
+  })
+
+  it('fails closed: blocked without the phrase keeps the workflow link', async () => {
+    const otherBlocked = report()
+    otherBlocked.candidates = {
+      ...otherBlocked.candidates,
+      status: 'blocked',
+      status_reason: 'trace-local anomaly preprocessing has not been run',
+    }
+    const { container } = await renderReport(otherBlocked)
+    expect(container.querySelector('[data-candidate-workflow-link]')).toBeTruthy()
+  })
+
+  it('fails closed: a payload with no status field at all keeps the workflow link', async () => {
+    // Same pre-Stage-13 shape the file already exercises: a stored report
+    // from an earlier version carries neither status nor status_reason.
+    const old = report()
+    old.candidates = {
+      candidate_count: 12,
+      analysed: true,
+      frames_with_candidates: ['line1.sgy'],
+      shape_classes: { compact: 12 },
+      evidence_available: true,
+      classified_object_count: 0,
+      note: 'Candidates are anomalous regions, not detected objects.',
+    } as unknown as typeof old.candidates
+
+    const { container } = await renderReport(old)
+    expect(container.querySelector('[data-candidate-workflow-link]')).toBeTruthy()
+  })
+})
+
 describe('the component computes nothing', () => {
   it('derives no score, coordinate or depth of its own', async () => {
     const { readFileSync } = await import('node:fs')

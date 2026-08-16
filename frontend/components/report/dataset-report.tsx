@@ -427,6 +427,14 @@ function ProcessingSection({ report }: { report: Report }) {
  */
 function CandidateSection({ report }: { report: Report }) {
   const c = report.candidates
+  // Slices 10-22's exact signal, derived from the report's own payload: no
+  // second fetch, no useCandidates, no composition parsing. Sending a reader
+  // into the candidate workflow when this section already says the
+  // capability does not apply is the same invitation those slices removed
+  // from the generate button, the radargram link and the automatic
+  // radargram/B-scan surfaces.
+  const doesNotApply =
+    c.status === 'blocked' && (c.status_reason ?? '').includes('does not apply')
   return (
     <Section title="Candidates">
       {/*
@@ -435,13 +443,15 @@ function CandidateSection({ report }: { report: Report }) {
         review. Two screens that could both change a candidate set would be two
         screens that could disagree about it.
       */}
-      <Link
-        href={`/datasets/${encodeURIComponent(report.identity.dataset_id)}/candidates`}
-        className="mb-3 inline-flex text-xs text-primary underline-offset-4 hover:underline"
-        data-candidate-workflow-link
-      >
-        Inspect candidate intelligence
-      </Link>
+      {!doesNotApply && (
+        <Link
+          href={`/datasets/${encodeURIComponent(report.identity.dataset_id)}/candidates`}
+          className="mb-3 inline-flex text-xs text-primary underline-offset-4 hover:underline"
+          data-candidate-workflow-link
+        >
+          Inspect candidate intelligence
+        </Link>
+      )}
 
       {c.analysed ? (
         <>
