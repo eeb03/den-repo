@@ -187,18 +187,38 @@ def _depth_slice(sel: Selection, frame=None, cross_frame: bool = False,
                      "scope": "single_frame"})
 
 
-def _scene_3d(sel: Selection, vertical=None) -> ViewResolution:
+def _scene_3d(sel: Selection, vertical=None,
+              recorded_modalities: Optional[list[str]] = None) -> ViewResolution:
     """
     A 3D scene needs an absolute elevation. See docs/vertical-reference-site01.md:
     every dataset held reports `registration_required`, so this is unresolvable
     -- and returning a Z regardless would fabricate exactly the quantity that
     investigation established is missing.
+
+    UNLIKE `_radargram` AND `_depth_slice`, a 3D scene genuinely applies to a
+    LiDAR/DEM surface -- gating it as inapplicable would be the opposite lie.
+    `recorded_modalities` therefore only changes the DEFAULT unavailable
+    reason (no `vertical` assessment supplied): the GPR-specific "depth axis
+    starts at instrument time-zero" clause is true of a GPR survey and
+    nothing else, so an off-gpr composition gets a reason that names the
+    composition and says the view still applies but nothing currently
+    establishes an elevation. Once a real `vertical` assessment is supplied,
+    that path is completely unchanged regardless of composition: a real
+    assessment is not something a composition label should be allowed to
+    override, and off-gpr plus `absolute_elevation_available=True` still
+    resolves, because the view does apply.
     """
     missing = ["an established vertical relationship (absolute elevation)"]
-    reason = ("a 3D scene needs an absolute elevation for the selection, and no "
-              "dataset held has an established vertical relationship: the GPR depth "
-              "axis starts at instrument time-zero, not the ground surface, and no "
-              "source declares a vertical datum")
+    if recorded_modalities and "gpr" not in recorded_modalities:
+        reason = (f"this dataset's recorded modality composition is "
+                  f"{', '.join(recorded_modalities)}; a 3D scene applies to it, but no "
+                  f"dataset held has an established vertical relationship: nothing "
+                  f"currently declares an absolute elevation for this selection")
+    else:
+        reason = ("a 3D scene needs an absolute elevation for the selection, and no "
+                  "dataset held has an established vertical relationship: the GPR depth "
+                  "axis starts at instrument time-zero, not the ground surface, and no "
+                  "source declares a vertical datum")
     if vertical is not None:
         if vertical.get("absolute_elevation_available"):
             return ViewResolution(
@@ -229,20 +249,22 @@ def resolve(selection: Selection, frame=None, vertical: Optional[dict] = None,
     `frame` sharpens the depth-slice answer; `vertical` is the result of
     `fusion.vertical_reference.assess` when the caller has one.
     `recorded_modalities` (see `schemas.dataset_report.frame_modalities` /
-    `identity.recorded_modalities`) changes the radargram and depth-slice
-    answers: a non-empty composition with no gpr in it says each of those
-    views does not apply, rather than reporting the selection itself as
-    incomplete. Deliberately NOT forwarded to `_scene_3d` -- a 3D scene still
-    applies to a LiDAR/DEM surface, so gating it the same way would assert
-    the opposite lie. All optional: without them the answers are the
-    conservative ones, which are also the correct ones for every dataset
-    currently held.
+    `identity.recorded_modalities`) changes the radargram, depth-slice and
+    3D-scene answers, but not identically: a non-empty composition with no
+    gpr in it says radargram and depth-slice do not apply, rather than
+    reporting the selection itself as incomplete -- those two views are
+    GPR-trace views. A 3D scene genuinely applies to a LiDAR/DEM surface, so
+    it is never told "does not apply"; composition only replaces the
+    GPR-specific default unavailable reason (see `_scene_3d`) with one that
+    names the composition and still says the view applies. All optional:
+    without them the answers are the conservative ones, which are also the
+    correct ones for every dataset currently held.
     """
     return SelectionResolution(selection=selection, views=[
         _map(selection),
         _radargram(selection, recorded_modalities=recorded_modalities),
         _depth_slice(selection, frame=frame, cross_frame=cross_frame_slice,
                     recorded_modalities=recorded_modalities),
-        _scene_3d(selection, vertical=vertical),
+        _scene_3d(selection, vertical=vertical, recorded_modalities=recorded_modalities),
         _metadata(selection),
     ])
