@@ -236,6 +236,10 @@ describe('candidate-region count is read from the candidates API, not invented',
     expect(row?.textContent).toMatch(/does not apply/i)
     expect(row?.textContent).toContain('lidar')
     expect(row?.textContent).not.toMatch(/has not been run/i)
+    // Phase 7, thirteenth slice: MISSING means "the data does not contain
+    // it" in this screen's own vocabulary -- the wrong word for an
+    // inapplicable GPR capability.
+    expect(row?.querySelector('[data-status]')?.textContent).toBe('BLOCKED')
   })
 
   it('reports the stored count when generation has run', async () => {

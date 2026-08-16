@@ -87,6 +87,14 @@ export function ImportReport({ job, onReset }: { job: ImportJob; onReset: () => 
   const { data, error, isLoading } = useDatasetInfo(job.dataset_id ?? undefined)
   const { data: candidates } = useCandidates(job.dataset_id ?? undefined)
 
+  // Slices 10-12's exact signal, reused verbatim: no second fetch (still the
+  // same useCandidates hook), no composition parsing, no new API field.
+  // MISSING means "the data does not contain it" in this screen's own
+  // vocabulary -- the wrong word for an inapplicable GPR capability, which
+  // is what this reason describes.
+  const doesNotApply =
+    candidates?.status === 'blocked' && candidates.status_reason.includes('does not apply')
+
   const positioned = data?.geographic_record_count ?? 0
   const total = data?.record_count ?? 0
   const crs = Array.isArray(data?.coordinate_system)
@@ -206,11 +214,13 @@ export function ImportReport({ job, onReset }: { job: ImportJob; onReset: () => 
                   : undefined
               }
               status={
-                !candidates?.generation
-                  ? 'MISSING'
-                  : candidates.status === 'blocked'
-                    ? 'BLOCKED'
-                    : 'AVAILABLE'
+                doesNotApply
+                  ? 'BLOCKED'
+                  : !candidates?.generation
+                    ? 'MISSING'
+                    : candidates.status === 'blocked'
+                      ? 'BLOCKED'
+                      : 'AVAILABLE'
               }
               note={
                 !candidates
