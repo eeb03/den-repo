@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from api import candidates as candidate_service
 from auth.dependencies import require_dataset_access, require_owned_dataset
 from database.candidates_store import load_candidates, set_status
+from database.records_store import load_records
 from database.session import get_db
 from interpretation.candidate_intelligence import (
     CANDIDATE_DEFINITION, CANDIDATE_SCORE_MEANING, CLASSIFICATION_BLOCKED_REASON,
@@ -114,6 +115,17 @@ def inspect_candidate(dataset_id: str, candidate_id: str,
     """
     stored = load_candidates(dataset_id)
     if stored is None:
+        # Same composition gate `current()` already applies to the list
+        # endpoint (slice 4) -- an off-GPR dataset's absence is not "has not
+        # been run", because no retry would produce a stored set. No db
+        # session needed here: `_recorded_composition` is file-backed, same
+        # as it already is in `current()`'s own no-session path.
+        records = load_records(dataset_id)
+        composition = candidate_service._recorded_composition(dataset_id, records)
+        if composition and "gpr" not in composition:
+            raise HTTPException(
+                status_code=404,
+                detail=candidate_service._off_gpr_blocked(dataset_id, composition).status_reason)
         raise HTTPException(status_code=404,
                             detail="candidate generation has not been run for this dataset")
     for candidate in stored.candidates:

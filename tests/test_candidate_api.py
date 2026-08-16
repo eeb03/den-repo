@@ -180,6 +180,32 @@ def test_inspecting_an_unknown_candidate_is_a_404():
     assert client.get(f"/api/candidates/{DATASET}/nope").status_code == 404
 
 
+# --- Phase 7, eighteenth slice: inspect's 404 names an off-gpr composition,
+# --- not "has not been run" -- same gate current() already applies -------
+
+def test_inspecting_with_no_stored_set_on_an_off_gpr_dataset_names_the_composition(monkeypatch):
+    import api.routes.candidates as mod
+
+    monkeypatch.setattr(mod, "load_records", lambda *a, **k: _lidar_records())
+    r = client.get(f"/api/candidates/{DATASET}/c0")
+
+    assert r.status_code == 404
+    detail = r.json()["detail"]
+    assert "lidar" in detail
+    assert "does not apply" in detail
+    assert "has not been run" not in detail
+
+
+def test_inspecting_with_no_stored_set_and_no_off_gpr_composition_keeps_the_original_404(monkeypatch):
+    import api.routes.candidates as mod
+
+    monkeypatch.setattr(mod, "load_records", lambda *a, **k: [])
+    r = client.get(f"/api/candidates/{DATASET}/c0")
+
+    assert r.status_code == 404
+    assert r.json()["detail"] == "candidate generation has not been run for this dataset"
+
+
 def test_reviewing_through_the_api_says_what_acceptance_does_not_mean():
     save_candidates(a_stored_set())
     body = client.post(f"/api/candidates/{DATASET}/c0/status?status=accepted").json()
