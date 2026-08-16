@@ -13,21 +13,31 @@
  * operator, before they wonder, that the scene will be empty and why.
  */
 import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { DatasetInfo } from '@/types/subterra'
+import type { CandidateIntelligence, DatasetInfo } from '@/types/subterra'
 
 const mockUseDatasetInfo = vi.fn()
+const mockUseCandidates = vi.fn()
 
 vi.mock('@/hooks/use-subterra', () => ({
   useDatasetInfo: (...args: unknown[]) => mockUseDatasetInfo(...args),
+  useCandidates: (...args: unknown[]) => mockUseCandidates(...args),
 }))
 
 const { EmbeddedViewer } = await import('./embedded-viewer')
 
+beforeEach(() => {
+  // Every existing case stays on the GPR path unless a test overrides this
+  // with setCandidates -- loading/missing candidates must never drop the
+  // B-scan sentence.
+  mockUseCandidates.mockReturnValue({ data: undefined, error: null, isLoading: false })
+})
+
 afterEach(() => {
   cleanup()
   mockUseDatasetInfo.mockReset()
+  mockUseCandidates.mockReset()
 })
 
 /** Shaped from a real /info response. */
@@ -60,6 +70,38 @@ function setInfo(value: DatasetInfo) {
   mockUseDatasetInfo.mockReturnValue({ data: value, error: null, isLoading: false })
 }
 
+function setCandidates(value: CandidateIntelligence) {
+  mockUseCandidates.mockReturnValue({ data: value, error: null, isLoading: false })
+}
+
+function offGprCandidates(): CandidateIntelligence {
+  return {
+    dataset_id: 'ds',
+    status: 'blocked',
+    status_reason:
+      "this dataset's recorded modality composition is lidar; candidate analysis is a "
+      + 'GPR-trace capability and does not apply to it',
+    missing: ['a GPR acquisition, or frames recording GPR traces'],
+    definition: 'x',
+    generation: null,
+    staleness: {
+      is_stale: false, reasons: [], checks_performed: [], checks_skipped: [], note: '',
+    },
+    candidate_count: 0,
+    candidates: [],
+    ranking_basis: 'x',
+    candidate_burden: null,
+    candidate_burden_basis: 'x',
+    localisation_breakdown: {},
+    depth_breakdown: {},
+    shape_classes: {},
+    classification_status: 'blocked',
+    classification_blocked_reason: 'x',
+    classified_object_count: 0,
+    benchmark: {} as CandidateIntelligence['benchmark'],
+  }
+}
+
 describe('an unpositioned dataset is embedded, with the reason stated up front', () => {
   it('warns that nothing can be placed, and names the position sources', () => {
     setInfo(info({ geographic_record_count: 0 }))
@@ -78,6 +120,18 @@ describe('an unpositioned dataset is embedded, with the reason stated up front',
   it('still embeds the viewer, which reports the exclusion itself', () => {
     setInfo(info({ geographic_record_count: 0 }))
     const { container } = render(<EmbeddedViewer datasetId="ds" />)
+    expect(container.querySelector('iframe')).toBeTruthy()
+  })
+
+  it('Phase 7, sixteenth slice: drops the B-scan sentence when candidate analysis does not apply', () => {
+    setInfo(info({ geographic_record_count: 0 }))
+    setCandidates(offGprCandidates())
+    const { container } = render(<EmbeddedViewer datasetId="ds" />)
+
+    expect(container.textContent).toMatch(/No positioned records/i)
+    expect(container.textContent).toMatch(/point cloud, heatmap and surface/i)
+    expect(container.textContent).not.toMatch(/B-scan/i)
+    expect(container.textContent).not.toMatch(/trace and depth/i)
     expect(container.querySelector('iframe')).toBeTruthy()
   })
 })
