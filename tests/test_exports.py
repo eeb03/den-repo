@@ -138,6 +138,51 @@ def test_3d_tiles_is_not_hard_coded_shut(objects):
     assert "fabricate" not in str(e.value)
 
 
+# --- Phase 7, ninth slice: off-gpr default refusal names the composition,
+# --- still applies (same rule as scene_3d) --------------------------------
+
+def test_off_gpr_default_refusal_names_the_composition_and_still_applies(objects):
+    with pytest.raises(ExportRefused) as e:
+        export_3d_tiles(objects, recorded_modalities=["lidar"])
+    msg = str(e.value)
+    assert "lidar" in msg
+    assert "applies to it" in msg
+    assert "does not apply" not in msg
+    assert "GPR depth" not in msg
+    assert "instrument time-zero" not in msg
+    assert "propagation velocity" not in msg
+    assert "would fabricate" in msg
+    assert "vertical-reference-site01.md" in msg
+    assert "Supply a vertical registration" in msg
+
+
+def test_off_gpr_with_a_real_absolute_elevation_still_hits_not_implemented(objects):
+    with pytest.raises(ExportRefused) as e:
+        export_3d_tiles(objects, recorded_modalities=["lidar"],
+                        vertical={"absolute_elevation_available": True})
+    assert "not implemented" in str(e.value)
+    assert "lidar" not in str(e.value)
+
+
+def test_off_gpr_with_a_real_unresolved_vertical_is_byte_identical(objects):
+    vertical = {"absolute_elevation_available": False, "kind": "registration_required"}
+    with pytest.raises(ExportRefused) as with_composition:
+        export_3d_tiles(objects, recorded_modalities=["lidar"], vertical=vertical)
+    with pytest.raises(ExportRefused) as without:
+        export_3d_tiles(objects, vertical=vertical)
+    assert str(with_composition.value) == str(without.value)
+
+
+@pytest.mark.parametrize("composition", [["gpr"], ["gpr", "lidar"], [], None])
+def test_gpr_mixed_empty_and_omitted_keep_the_time_zero_sentence(objects, composition):
+    with pytest.raises(ExportRefused) as e:
+        export_3d_tiles(objects, recorded_modalities=composition)
+    with pytest.raises(ExportRefused) as default:
+        export_3d_tiles(objects)
+    assert "instrument time-zero" in str(e.value)
+    assert str(e.value) == str(default.value)
+
+
 # --- dispatch ---
 
 @pytest.mark.parametrize("fmt", ["json", "csv", "geojson", "czml"])
@@ -194,6 +239,55 @@ def test_requesting_3d_tiles_is_a_409_with_the_reason(client):
     r = client.get("/api/exports/ds/objects?format=3d_tiles")
     assert r.status_code == 409          # well-formed request, data cannot support it
     assert "absolute elevation" in r.json()["detail"]
+    # This dataset has objects and no stored frames or records, so the
+    # composition is empty and the default time-zero sentence still fires.
+    assert "instrument time-zero" in r.json()["detail"]
+
+
+def test_requesting_3d_tiles_over_the_api_for_an_off_gpr_dataset(client, monkeypatch):
+    import api.routes.exports as mod
+    from schemas.spatial import AxisKind, CRSKind, CRSProvenance, SpatialRef, VerticalAxis
+    from schemas.subterra_record import SensorType
+    from schemas.survey_frame import SurveyFrame
+
+    lidar_frame = SurveyFrame(
+        frame_id="ds:tile", dataset_id="ds", modality=SensorType.LIDAR,
+        source_format="geotiff", source_file="tile.tif",
+        spatial_ref=SpatialRef(kind=CRSKind.GEOGRAPHIC, code="EPSG:4326", horizontal_units="degree",
+                               crs_provenance=CRSProvenance.SUPPLIED_BY_CALLER),
+        vertical_axis=VerticalAxis(kind=AxisKind.DEPTH_M, units="m",
+                                   origin="surface", positive_down=True),
+    )
+    monkeypatch.setattr(mod, "load_frames", lambda _id: [lidar_frame])
+    monkeypatch.setattr(mod, "load_records", lambda _id: [])
+
+    r = client.get("/api/exports/ds/objects?format=3d_tiles")
+    assert r.status_code == 409
+    detail = r.json()["detail"]
+    assert "lidar" in detail
+    assert "instrument time-zero" not in detail
+
+
+def test_requesting_3d_tiles_over_the_api_for_a_gpr_dataset_keeps_the_reason(client, monkeypatch):
+    import api.routes.exports as mod
+    from schemas.spatial import AxisKind, CRSKind, CRSProvenance, SpatialRef, VerticalAxis
+    from schemas.subterra_record import SensorType
+    from schemas.survey_frame import SurveyFrame
+
+    gpr_frame = SurveyFrame(
+        frame_id="ds:line", dataset_id="ds", modality=SensorType.GPR,
+        source_format="segy", source_file="line.sgy",
+        spatial_ref=SpatialRef(kind=CRSKind.GEOGRAPHIC, code="EPSG:4326", horizontal_units="degree",
+                               crs_provenance=CRSProvenance.SUPPLIED_BY_CALLER),
+        vertical_axis=VerticalAxis(kind=AxisKind.TWO_WAY_TIME_NS, units="ns",
+                                   origin="time-zero", positive_down=True),
+    )
+    monkeypatch.setattr(mod, "load_frames", lambda _id: [gpr_frame])
+    monkeypatch.setattr(mod, "load_records", lambda _id: [])
+
+    r = client.get("/api/exports/ds/objects?format=3d_tiles")
+    assert r.status_code == 409
+    assert "instrument time-zero" in r.json()["detail"]
 
 
 def test_an_unknown_format_over_the_api_is_a_400(client):
