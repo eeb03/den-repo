@@ -224,6 +224,9 @@ describe('candidate-region count is read from the candidates API, not invented',
     const processing = container.querySelector('[data-report-row="Processing"]')
     expect(processing?.textContent).toMatch(/generated on demand/i)
     expect(processing?.textContent).toMatch(/are not detections/i)
+    // Phase 7, seventeenth slice: still a recorded mode, still AVAILABLE.
+    expect(processing?.textContent).toMatch(/trace/i)
+    expect(processing?.querySelector('[data-status]')?.textContent).toBe('AVAILABLE')
 
     // Phase 7, fifteenth slice: the GPR path's Positioned note keeps its
     // original two-sentence form verbatim, including the B-scan sentence.
@@ -258,6 +261,11 @@ describe('candidate-region count is read from the candidates API, not invented',
     const processing = container.querySelector('[data-report-row="Processing"]')
     expect(processing?.textContent).not.toMatch(/generated on demand/i)
     expect(processing?.textContent?.toLowerCase()).not.toContain('candidate')
+    // Phase 7, seventeenth slice: "trace" here is a RECORDED fact (this
+    // fixture's last_preprocessing_mode), not a fallback -- it still prints,
+    // and status stays AVAILABLE, doesNotApply notwithstanding.
+    expect(processing?.textContent).toMatch(/trace/i)
+    expect(processing?.querySelector('[data-status]')?.textContent).toBe('AVAILABLE')
 
     // Phase 7, fifteenth slice: same rule for the Positioned row -- a B-scan
     // is a GPR-trace view (slices 5-6), so it does not apply here either.
@@ -266,6 +274,26 @@ describe('candidate-region count is read from the candidates API, not invented',
     expect(positioned?.textContent).toMatch(/map, heatmap and surface/i)
     expect(positioned?.textContent).not.toMatch(/B-scan/i)
     expect(positioned?.textContent).not.toMatch(/trace and depth/i)
+  })
+
+  it('Phase 7, seventeenth slice: an unrecorded preprocessing mode reads as MISSING, never as "trace"', async () => {
+    getDatasetInfo.mockResolvedValue(info({ last_preprocessing_mode: null }))
+    getCandidates.mockResolvedValue(candidates({ generation: null }))
+    const { container } = view()
+
+    await screen.findByText(/dataset ready/i)
+    const processing = container.querySelector('[data-report-row="Processing"]')
+    expect(processing?.textContent).not.toMatch(/trace/i)
+    expect(processing?.querySelector('[data-status]')?.textContent).toBe('MISSING')
+    expect(processing?.textContent).not.toMatch(/ran at import/i)
+    expect(processing?.textContent).not.toMatch(/generated on demand/i)
+
+    // Candidates and Positioned are unaffected -- this is a different row's
+    // fact, not a compositional gate.
+    const row = container.querySelector('[data-report-row="Candidates"]')
+    expect(row?.textContent).toMatch(/has not been run/i)
+    const positioned = container.querySelector('[data-report-row="Positioned"]')
+    expect(positioned?.textContent).toMatch(/B-scan is indexed by trace and depth/i)
   })
 
   it('reports the stored count when generation has run', async () => {

@@ -232,14 +232,23 @@ export function ImportReport({ job, onReset }: { job: ImportJob; onReset: () => 
                     : undefined
               }
             />
+            {/*
+              `?? 'trace'` would fabricate a recorded pipeline mode: the
+              backend already forbids inferring one for a dataset that
+              records none (tests/test_gpr_default_mode.py). null means
+              unrecorded, not "trace" -- print it as MISSING, with no note,
+              rather than dressing an absence up as a fact.
+            */}
             <Row
               label="Processing"
-              value={data.last_preprocessing_mode ?? 'trace'}
-              status="AVAILABLE"
+              value={data.last_preprocessing_mode ?? undefined}
+              status={data.last_preprocessing_mode ? 'AVAILABLE' : 'MISSING'}
               note={
-                doesNotApply
-                  ? 'Preprocessing ran at import.'
-                  : 'Preprocessing ran at import. Candidates are generated on demand and are not detections.'
+                data.last_preprocessing_mode
+                  ? doesNotApply
+                    ? 'Preprocessing ran at import.'
+                    : 'Preprocessing ran at import. Candidates are generated on demand and are not detections.'
+                  : undefined
               }
             />
           </dl>
