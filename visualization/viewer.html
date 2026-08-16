@@ -36,7 +36,7 @@
       <option value="points">Point cloud</option>
       <option value="heatmap">Heatmap (top-down)</option>
       <option value="surface">Surface (elevation-draped)</option>
-      <option value="bscan">B-scan (trace × depth)</option>
+      <option value="bscan" id="bscanOption">B-scan (trace × depth)</option>
     </select>
   </div>
   <div class="slider-group" id="focusGroup" style="display:none;">
@@ -79,12 +79,13 @@ async function fetchDatasetPoints(datasetId) {
 
 // Whether "candidate analysis does not apply" for this dataset -- the same
 // signal frontend/components/candidates/candidate-intelligence.tsx (slices
-// 10-16) already reads from this exact endpoint. Used ONLY to decide whether
-// the empty-scene status may still say "the B-scan view still works", which
-// is a GPR-trace claim: for an off-GPR composition a B-scan does not apply
-// either (slices 5-6, 15-16). Any failure to determine this -- a network
-// error, an unexpected shape -- resolves to false, so the historical GPR
-// sentence is the fail-closed default, same as the React panes.
+// 10-16) already reads from this exact endpoint. Cached per dataset and used
+// wherever a B-scan (a GPR-trace view) would otherwise be offered or claimed
+// as working on a composition it does not apply to (slices 5-6, 15-16): the
+// empty-scene status sentence (slice 19) and the B-scan option in the View
+// dropdown (slice 20). Any failure to determine this -- a network error, an
+// unexpected shape -- resolves to false, so the historical GPR behaviour is
+// the fail-closed default, same as the React panes.
 async function fetchDatasetDoesNotApply(datasetId) {
   try {
     const resp = await fetch(`${API_BASE}/candidates/${datasetId}`);
@@ -209,6 +210,23 @@ async function loadDatasets() {
   }
   refLat = n ? sumLat / n : 0;
   refLon = n ? sumLon / n : 0;
+
+  // The B-scan view is a GPR-trace capability -- offering it as a
+  // selectable option once candidate analysis does not apply would be the
+  // same invitation slices 10-12 already removed elsewhere (the generate
+  // button, the radargram link). Reuses the flag slice 19 already cached;
+  // no second fetch. Not deleted from the HTML source: the GPR path and the
+  // fail-closed default still need it. Applied on every successful load,
+  // not left sticky, so an off-GPR load followed by a GPR load brings the
+  // option back. An empty allTraces (nothing loaded) leaves it visible --
+  // there is nothing to gate on yet.
+  const bscanDoesNotApply = Object.keys(allTraces).length > 0
+    && Object.values(allTraces).every(d => d.candidateAnalysisDoesNotApply);
+  document.getElementById("bscanOption").style.display = bscanDoesNotApply ? "none" : "";
+  if (bscanDoesNotApply && viewMode === "bscan") {
+    viewMode = "points";
+    document.getElementById("viewMode").value = "points";
+  }
 
   populateFocusSelect();
   render();

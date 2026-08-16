@@ -173,6 +173,48 @@ def test_the_bscan_view_is_not_position_filtered(script):
     assert "fetchDatasetTraceGrid" in bscan
 
 
+# --- Phase 7, twentieth slice: the B-scan option itself is a GPR-trace
+# --- invitation, gated the same way the empty-scene sentence already is ---
+
+def test_the_bscan_option_still_appears_in_the_page_source(page):
+    """A runtime gate, not a deletion -- the GPR path and the fail-closed
+    default both still need this option in the page."""
+    assert 'value="bscan"' in page
+    assert 'id="bscanOption"' in page
+
+
+def test_load_datasets_gates_the_bscan_option_reusing_the_cached_flag(page):
+    """
+    No second fetch: the same candidateAnalysisDoesNotApply flag slice 19
+    already caches on allTraces, only read here, not re-derived. Checked
+    against the raw page -- `script` strips "bscanOption" and "bscan" as
+    string-literal content, which is exactly what this test needs to see.
+    """
+    load_fn = page.split("async function loadDatasets")[1].split("\nfunction ")[0]
+    assert "bscanOption" in load_fn
+    assert "candidateAnalysisDoesNotApply" in load_fn
+    assert re.search(r"\.every\(d => d\.candidateAnalysisDoesNotApply\)", load_fn)
+    # switches away from the bscan view before render() rather than leaving
+    # a hidden option selected
+    assert re.search(r'viewMode\s*===\s*"bscan"', load_fn)
+
+
+def test_the_bscan_option_gate_is_absent_from_render_and_view_mode_change(page):
+    """
+    render() and onViewModeChange() must not hide/show the option or
+    refetch -- the gate is applied once per load, in loadDatasets, and nowhere
+    else. Sibling to the slice 19 test pinning fetchDatasetDoesNotApply's
+    absence from render(): this pins the option-visibility write specifically.
+    """
+    render_fn = re.split(r"\bfunction render\(", page)[1].split("\nfunction ")[0]
+    assert "bscanOption" not in render_fn
+
+    view_mode_change_fn = page.split("function onViewModeChange")[1].split(
+        "async function renderHeatmap"
+    )[0]
+    assert "bscanOption" not in view_mode_change_fn
+
+
 def test_the_viewer_introduces_no_new_dependency(page):
     """Unchanged from before: Plotly and nothing else."""
     urls = re.findall(r'src="(https?://[^"]+)"', page)
