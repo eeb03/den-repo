@@ -408,9 +408,14 @@ describe('Phase 7, tenth slice: no GPR action is invited when analysis does not 
     expect(container.querySelectorAll('[data-candidates-missing]').length).toBe(1)
     expect(screen.queryByRole('button', { name: /generate candidates/i })).toBeNull()
     expect(container.querySelector('[data-radargram-link]')).toBeNull()
+    // Phase 7, eleventh slice: the GPR method's own vocabulary and score
+    // must not frame a reason that says the method does not apply.
+    expect(container.querySelector('[data-candidate-definition]')).toBeNull()
+    expect(container.querySelector('[data-benchmark-context]')).toBeNull()
+    expect(container.textContent).not.toContain('Measured performance of this method')
   })
 
-  it('"has not been run" blocked: generate button and radargram link both stay', async () => {
+  it('"has not been run" blocked: generate button, radargram link, definition and benchmark all stay', async () => {
     getCandidates.mockResolvedValue(
       intelligence({
         status: 'blocked',
@@ -426,15 +431,19 @@ describe('Phase 7, tenth slice: no GPR action is invited when analysis does not 
     await screen.findByText(/has not been run/i)
     expect(screen.queryByRole('button', { name: /generate candidates/i })).toBeTruthy()
     expect(container.querySelector('[data-radargram-link]')).toBeTruthy()
+    expect(container.querySelector('[data-candidate-definition]')).toBeTruthy()
+    expect(container.querySelector('[data-benchmark-context]')).toBeTruthy()
   })
 
-  it('available gpr set: radargram link and regenerate both stay', async () => {
+  it('available gpr set: radargram link, regenerate, definition and benchmark all stay', async () => {
     getCandidates.mockResolvedValue(intelligence())
     const { container } = view()
 
     await screen.findByText('7.42')
     expect(screen.queryByRole('button', { name: /regenerate candidates/i })).toBeTruthy()
     expect(container.querySelector('[data-radargram-link]')).toBeTruthy()
+    expect(container.querySelector('[data-candidate-definition]')).toBeTruthy()
+    expect(container.querySelector('[data-benchmark-context]')).toBeTruthy()
   })
 })
 

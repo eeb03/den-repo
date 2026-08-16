@@ -118,104 +118,121 @@ export function CandidateIntelligenceView({ datasetId }: { datasetId: string }) 
             Inspect these candidates on the measured radargram
           </Link>
         )}
-        <p data-candidate-definition className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          {data.definition}
-        </p>
+        {/*
+          The definition is the vocabulary of a processed-signal /
+          generation-rule capability. When that capability does not apply to
+          this dataset's composition, showing its definition would frame the
+          status_reason below as a footnote under a method that still
+          applies -- the same misdirection slice 10 removed from the
+          generate button and the radargram link.
+        */}
+        {!doesNotApply && (
+          <p data-candidate-definition className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            {data.definition}
+          </p>
+        )}
       </header>
 
       {/*
         ABOVE THE CANDIDATES, DELIBERATELY. This is the context that decides how
-        everything below it should be read.
+        everything below it should be read -- UNLESS the method's context is
+        not this dataset's context at all. "Measured performance of this
+        method" is gpr_local_anomaly's score; showing it on a dataset whose
+        composition does not apply to that method dresses up an inapplicable
+        capability as a footnoted one, the same class of lie as slice 10's
+        Generate button.
       */}
-      <section
-        data-benchmark-context
-        className="rounded-lg border border-border px-4 py-3"
-      >
-        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-          Measured performance of this method
-        </p>
-        <p className="mt-1.5 text-xs leading-relaxed text-foreground">
-          {data.benchmark.summary}
-        </p>
-        <ul className="mt-2 space-y-1">
-          {data.benchmark.measurements.map((m) => (
-            <li key={`${m.benchmark}-${m.arm}`} className="text-xs text-muted-foreground">
-              <span className="text-foreground">
-                {m.benchmark} · {m.arm}
-              </span>
-              {m.precision !== undefined && (
-                <>
-                  {' '}
-                  — precision {m.precision.toFixed(4)}, recall {m.recall?.toFixed(4)}, F1{' '}
-                  {m.f1?.toFixed(4)} ({m.times_chance}× the {m.chance_precision} chance rate)
-                </>
-              )}
-              {m.auc !== undefined && (
-                <>
-                  {' '}
-                  — AUC {m.auc.toFixed(4)}, 95% interval [{m.ci95?.[0].toFixed(4)},{' '}
-                  {m.ci95?.[1].toFixed(4)}] on {m.n_negative} negatives
-                  {m.contains_chance ? ', which spans chance' : ''}
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          {data.benchmark.caveat}
-        </p>
-
-        {/*
-          STAGE 14. The block above says how this method SCORED. This says
-          whether that score could have come out differently — a property of
-          the ground truth, not of the detector. Without it, "no measured
-          improvement" reads as "no improvement", when the corpus cannot
-          currently resolve one.
-        */}
-        {data.benchmark.adequacy && (
-          <p
-            data-benchmark-adequacy
-            className="mt-2 text-xs leading-relaxed text-foreground"
-          >
-            {data.benchmark.adequacy}
+      {!doesNotApply && (
+        <section
+          data-benchmark-context
+          className="rounded-lg border border-border px-4 py-3"
+        >
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+            Measured performance of this method
           </p>
-        )}
-
-        {(data.benchmark.evaluated?.length || data.benchmark.not_evaluated?.length) && (
-          <div className="mt-2 grid gap-2 text-xs leading-relaxed text-muted-foreground sm:grid-cols-2">
-            {data.benchmark.evaluated?.length ? (
-              <div>
-                <p className="text-foreground">The ground truth supports scoring:</p>
-                <ul className="mt-1 space-y-0.5">
-                  {data.benchmark.evaluated.map((item) => (
-                    <li key={item} data-benchmark-evaluated>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            {data.benchmark.not_evaluated?.length ? (
-              <div>
-                <p className="text-foreground">Not evaluated, and why:</p>
-                <ul className="mt-1 space-y-0.5">
-                  {data.benchmark.not_evaluated.map((item) => (
-                    <li key={item} data-benchmark-not-evaluated>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-        )}
-
-        {data.benchmark.definition_version && (
-          <p className="mt-2 font-mono text-[10px] text-muted-foreground">
-            ground-truth definition {data.benchmark.definition_version}
+          <p className="mt-1.5 text-xs leading-relaxed text-foreground">
+            {data.benchmark.summary}
           </p>
-        )}
-      </section>
+          <ul className="mt-2 space-y-1">
+            {data.benchmark.measurements.map((m) => (
+              <li key={`${m.benchmark}-${m.arm}`} className="text-xs text-muted-foreground">
+                <span className="text-foreground">
+                  {m.benchmark} · {m.arm}
+                </span>
+                {m.precision !== undefined && (
+                  <>
+                    {' '}
+                    — precision {m.precision.toFixed(4)}, recall {m.recall?.toFixed(4)}, F1{' '}
+                    {m.f1?.toFixed(4)} ({m.times_chance}× the {m.chance_precision} chance rate)
+                  </>
+                )}
+                {m.auc !== undefined && (
+                  <>
+                    {' '}
+                    — AUC {m.auc.toFixed(4)}, 95% interval [{m.ci95?.[0].toFixed(4)},{' '}
+                    {m.ci95?.[1].toFixed(4)}] on {m.n_negative} negatives
+                    {m.contains_chance ? ', which spans chance' : ''}
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            {data.benchmark.caveat}
+          </p>
+
+          {/*
+            STAGE 14. The block above says how this method SCORED. This says
+            whether that score could have come out differently — a property of
+            the ground truth, not of the detector. Without it, "no measured
+            improvement" reads as "no improvement", when the corpus cannot
+            currently resolve one.
+          */}
+          {data.benchmark.adequacy && (
+            <p
+              data-benchmark-adequacy
+              className="mt-2 text-xs leading-relaxed text-foreground"
+            >
+              {data.benchmark.adequacy}
+            </p>
+          )}
+
+          {(data.benchmark.evaluated?.length || data.benchmark.not_evaluated?.length) && (
+            <div className="mt-2 grid gap-2 text-xs leading-relaxed text-muted-foreground sm:grid-cols-2">
+              {data.benchmark.evaluated?.length ? (
+                <div>
+                  <p className="text-foreground">The ground truth supports scoring:</p>
+                  <ul className="mt-1 space-y-0.5">
+                    {data.benchmark.evaluated.map((item) => (
+                      <li key={item} data-benchmark-evaluated>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {data.benchmark.not_evaluated?.length ? (
+                <div>
+                  <p className="text-foreground">Not evaluated, and why:</p>
+                  <ul className="mt-1 space-y-0.5">
+                    {data.benchmark.not_evaluated.map((item) => (
+                      <li key={item} data-benchmark-not-evaluated>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          {data.benchmark.definition_version && (
+            <p className="mt-2 font-mono text-[10px] text-muted-foreground">
+              ground-truth definition {data.benchmark.definition_version}
+            </p>
+          )}
+        </section>
+      )}
 
       {data.status === 'blocked' ? (
         <section data-candidates-blocked className="space-y-2">
