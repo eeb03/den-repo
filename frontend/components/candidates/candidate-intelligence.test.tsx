@@ -387,6 +387,57 @@ describe('blocked and stale states', () => {
   })
 })
 
+describe('Phase 7, tenth slice: no GPR action is invited when analysis does not apply', () => {
+  it('off-gpr blocked: no generate button, no radargram link, reason and missing shown verbatim', async () => {
+    getCandidates.mockResolvedValue(
+      intelligence({
+        status: 'blocked',
+        status_reason:
+          "this dataset's recorded modality composition is lidar; candidate analysis is a "
+          + 'GPR-trace capability and does not apply to it',
+        missing: ['a GPR acquisition, or frames recording GPR traces'],
+        candidates: [],
+        candidate_count: 0,
+        generation: null,
+      }),
+    )
+    const { container } = view()
+
+    await screen.findByText(/does not apply to it/i)
+    expect(container.textContent).toContain('lidar')
+    expect(container.querySelectorAll('[data-candidates-missing]').length).toBe(1)
+    expect(screen.queryByRole('button', { name: /generate candidates/i })).toBeNull()
+    expect(container.querySelector('[data-radargram-link]')).toBeNull()
+  })
+
+  it('"has not been run" blocked: generate button and radargram link both stay', async () => {
+    getCandidates.mockResolvedValue(
+      intelligence({
+        status: 'blocked',
+        status_reason: 'candidate generation has not been run for this dataset',
+        missing: ['a candidate generation run'],
+        candidates: [],
+        candidate_count: 0,
+        generation: null,
+      }),
+    )
+    const { container } = view()
+
+    await screen.findByText(/has not been run/i)
+    expect(screen.queryByRole('button', { name: /generate candidates/i })).toBeTruthy()
+    expect(container.querySelector('[data-radargram-link]')).toBeTruthy()
+  })
+
+  it('available gpr set: radargram link and regenerate both stay', async () => {
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+
+    await screen.findByText('7.42')
+    expect(screen.queryByRole('button', { name: /regenerate candidates/i })).toBeTruthy()
+    expect(container.querySelector('[data-radargram-link]')).toBeTruthy()
+  })
+})
+
 describe('generation is an explicit action', () => {
   it('runs generation on request and shows the new set', async () => {
     getCandidates.mockResolvedValue(
