@@ -68,12 +68,23 @@ def resolve_selection(
     # dependency cannot see it -- authorisation has to happen in the handler or
     # this becomes the one way round the whole scheme.
     access.dataset_or_404(db, user, sel.dataset_id)
+
+    # Frames are needed for the recorded-modality composition regardless of
+    # whether this selection names a frame -- an off-GPR object/label
+    # selection must get the same "does not apply" radargram answer a
+    # frame/trace selection would, not "names no frame". Records are only
+    # loaded when there is no stored frame file to fall back on.
+    from schemas.dataset_report import frame_modalities
+
+    frames = load_frames(sel.dataset_id)
+    if not frames:
+        records = load_records(sel.dataset_id)
+        frames = synthesize_frames_from_records(records) if records else []
+    recorded_modalities = frame_modalities(frames)
+
     frame = None
     vertical = None
     if sel.frame_id:
-        records = load_records(sel.dataset_id)
-        frames = load_frames(sel.dataset_id) or (
-            synthesize_frames_from_records(records) if records else [])
         frame = next((f for f in frames if f.frame_id == sel.frame_id), None)
         if body.surface_frame_id and frame is not None:
             surface = next((f for f in frames if f.frame_id == body.surface_frame_id),
@@ -86,7 +97,8 @@ def resolve_selection(
                         "absolute_elevation_available": rel.absolute_elevation_available,
                         "missing": rel.missing}
     out = resolve(sel, frame=frame, vertical=vertical,
-                  cross_frame_slice=body.cross_frame_slice)
+                  cross_frame_slice=body.cross_frame_slice,
+                  recorded_modalities=recorded_modalities)
     return {
         **out.model_dump(mode="json"),
         "resolvable_views": out.resolvable_views,

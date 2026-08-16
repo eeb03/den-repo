@@ -104,7 +104,21 @@ def _map(sel: Selection) -> ViewResolution:
         missing=["a geographic position, or a GeoTie that supplies one"])
 
 
-def _radargram(sel: Selection) -> ViewResolution:
+def _radargram(sel: Selection, recorded_modalities: Optional[list[str]] = None) -> ViewResolution:
+    # Composition gate, same definition the report, signal-chain route,
+    # candidates API and trace_grid already share: a non-empty composition
+    # without gpr means a radargram view does not apply to this dataset at
+    # all -- "names no frame" / "needs a trace index" would misdescribe a
+    # DEM/LiDAR selection as an incomplete GPR one, when it was never going
+    # to have a frame_id or trace_index in the first place. An empty
+    # composition falls through to the checks below unchanged.
+    if recorded_modalities and "gpr" not in recorded_modalities:
+        return ViewResolution(
+            view=ViewKind.RADARGRAM, resolved=False,
+            reason=(f"this dataset's recorded modality composition is "
+                    f"{', '.join(recorded_modalities)}; a radargram view is a "
+                    f"GPR-trace view and does not apply to it"),
+            missing=["a GPR acquisition, or frames recording GPR traces"])
     if not sel.frame_id:
         return ViewResolution(
             view=ViewKind.RADARGRAM, resolved=False,
@@ -193,18 +207,23 @@ def _metadata(sel: Selection) -> ViewResolution:
 
 
 def resolve(selection: Selection, frame=None, vertical: Optional[dict] = None,
-            cross_frame_slice: bool = False) -> SelectionResolution:
+            cross_frame_slice: bool = False,
+            recorded_modalities: Optional[list[str]] = None) -> SelectionResolution:
     """
     Resolves one selection into every view, answering per view.
 
     `frame` sharpens the depth-slice answer; `vertical` is the result of
-    `fusion.vertical_reference.assess` when the caller has one. Both optional:
-    without them the answers are the conservative ones, which are also the
-    correct ones for every dataset currently held.
+    `fusion.vertical_reference.assess` when the caller has one.
+    `recorded_modalities` (see `schemas.dataset_report.frame_modalities` /
+    `identity.recorded_modalities`) only changes the radargram answer: a
+    non-empty composition with no gpr in it says a radargram view does not
+    apply, rather than reporting the selection itself as incomplete. All
+    optional: without them the answers are the conservative ones, which are
+    also the correct ones for every dataset currently held.
     """
     return SelectionResolution(selection=selection, views=[
         _map(selection),
-        _radargram(selection),
+        _radargram(selection, recorded_modalities=recorded_modalities),
         _depth_slice(selection, frame=frame, cross_frame=cross_frame_slice),
         _scene_3d(selection, vertical=vertical),
         _metadata(selection),

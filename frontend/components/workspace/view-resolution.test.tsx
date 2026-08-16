@@ -92,6 +92,30 @@ describe('an unresolved view is rendered with the backend reason', () => {
   })
 })
 
+describe('Phase 7, sixth slice: an off-gpr radargram reason is shown verbatim', () => {
+  const OFF_GPR_RADARGRAM: ViewResolution = {
+    view: 'radargram',
+    resolved: false,
+    coordinates: {},
+    reason:
+      "this dataset's recorded modality composition is lidar; a radargram view is a "
+      + 'GPR-trace view and does not apply to it',
+    missing: ['a GPR acquisition, or frames recording GPR traces'],
+  }
+
+  it('shows the composition reason, never "names no frame" or "needs a trace index"', () => {
+    setViews([OFF_GPR_RADARGRAM])
+    const { container } = render(
+      <SelectionPane datasetId="ds" selection={SELECTION} />,
+    )
+    expect(container.textContent).toContain('lidar')
+    expect(container.textContent).toContain('does not apply to it')
+    expect(container.textContent).not.toContain('names no frame')
+    expect(container.textContent).not.toContain('needs a trace index')
+    expect(container.querySelector('[data-state-kind="unavailable"]')).toBeTruthy()
+  })
+})
+
 describe('the UI does not hard-code what is unavailable', () => {
   it('renders scene_3d as RESOLVED when the backend says so', () => {
     /*

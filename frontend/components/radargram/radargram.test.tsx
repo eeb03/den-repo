@@ -19,6 +19,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { SWRConfig } from 'swr'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ApiError } from '@/services/api'
 import type {
   CandidateIntelligence,
   RadargramSemantics,
@@ -557,15 +558,56 @@ describe('review actions preserve their meaning', () => {
 })
 
 describe('an absent trace grid', () => {
-  it('explains why rather than showing an empty frame', async () => {
-    getTraceGrid.mockRejectedValue(new Error('nope'))
+  it('shows the backend detail verbatim, with no fallback explanation added', async () => {
+    getTraceGrid.mockRejectedValue(
+      new ApiError(
+        400,
+        'records are missing trace_index/depth metadata -- not genuine multi-sample GPR trace data',
+      ),
+    )
     getCandidates.mockResolvedValue(intelligence())
     const { container } = view()
 
     await waitFor(() =>
       expect(container.querySelector('[data-radargram-unavailable]')).toBeTruthy(),
     )
-    expect(container.textContent).toMatch(/multi-sample trace data/i)
+    expect(container.textContent).toMatch(/multi-sample GPR trace data/i)
+    // Phase 7, sixth slice: this sentence used to be appended unconditionally,
+    // re-describing an off-gpr dataset's real reason as a generic B-scan
+    // caveat. The backend detail is the only explanation now.
+    expect(container.textContent).not.toMatch(/A radargram needs genuine multi-sample/i)
+    expect(container.textContent).not.toMatch(/has no B-scan to draw/i)
+  })
+
+  it('names the composition and says it does not apply, for an off-gpr dataset', async () => {
+    getTraceGrid.mockRejectedValue(
+      new ApiError(
+        400,
+        "this dataset's recorded modality composition is lidar; a radargram / "
+          + 'trace-depth grid is a GPR-trace view and does not apply to it',
+      ),
+    )
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-radargram-unavailable]')).toBeTruthy(),
+    )
+    expect(container.textContent).toContain('lidar')
+    expect(container.textContent).toContain('does not apply to it')
+    expect(container.textContent).not.toMatch(/A radargram needs genuine multi-sample/i)
+    expect(container.textContent).not.toMatch(/has no B-scan to draw/i)
+  })
+
+  it('falls back to a generic message only for a genuine, non-backend failure', async () => {
+    getTraceGrid.mockRejectedValue(new Error('network down'))
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-radargram-unavailable]')).toBeTruthy(),
+    )
+    expect(container.textContent).toContain('Could not load the trace grid for this dataset.')
   })
 })
 

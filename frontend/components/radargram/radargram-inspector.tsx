@@ -142,10 +142,6 @@ export function RadargramInspector({ datasetId }: { datasetId: string }) {
       <div data-radargram-unavailable className="space-y-2">
         <h2 className="text-base font-medium text-foreground">Radargram inspection</h2>
         <p className="text-xs leading-relaxed text-muted-foreground">{detail}</p>
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          A radargram needs genuine multi-sample trace data — one record per sample of
-          each trace. A depth-slice or point dataset has no B-scan to draw.
-        </p>
       </div>
     )
   }
