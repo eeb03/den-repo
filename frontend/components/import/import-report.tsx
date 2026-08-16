@@ -234,7 +234,11 @@ export function ImportReport({ job, onReset }: { job: ImportJob; onReset: () => 
               label="Processing"
               value={data.last_preprocessing_mode ?? 'trace'}
               status="AVAILABLE"
-              note="Preprocessing ran at import. Candidates are generated on demand and are not detections."
+              note={
+                doesNotApply
+                  ? 'Preprocessing ran at import.'
+                  : 'Preprocessing ran at import. Candidates are generated on demand and are not detections.'
+              }
             />
           </dl>
 

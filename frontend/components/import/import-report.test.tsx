@@ -218,6 +218,12 @@ describe('candidate-region count is read from the candidates API, not invented',
     const row = container.querySelector('[data-report-row="Candidates"]')
     expect(row?.querySelector('[data-status]')?.textContent).toBe('MISSING')
     expect(row?.textContent).toMatch(/has not been run/i)
+
+    // Phase 7, fourteenth slice: the GPR path keeps its original two-sentence
+    // Processing note verbatim, including "are not detections".
+    const processing = container.querySelector('[data-report-row="Processing"]')
+    expect(processing?.textContent).toMatch(/generated on demand/i)
+    expect(processing?.textContent).toMatch(/are not detections/i)
   })
 
   it('names the composition, not "has not been run", when candidate analysis does not apply', async () => {
@@ -240,6 +246,13 @@ describe('candidate-region count is read from the candidates API, not invented',
     // it" in this screen's own vocabulary -- the wrong word for an
     // inapplicable GPR capability.
     expect(row?.querySelector('[data-status]')?.textContent).toBe('BLOCKED')
+
+    // Phase 7, fourteenth slice: the Processing row must not unsay what the
+    // Candidates row just said -- "generated on demand" describes a GPR
+    // capability that has not run yet, not one that does not apply.
+    const processing = container.querySelector('[data-report-row="Processing"]')
+    expect(processing?.textContent).not.toMatch(/generated on demand/i)
+    expect(processing?.textContent?.toLowerCase()).not.toContain('candidate')
   })
 
   it('reports the stored count when generation has run', async () => {
