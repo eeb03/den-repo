@@ -5,7 +5,7 @@ import { Panel, PanelBody, PanelHeader } from '@/components/subterra/panel'
 import { QueryState } from '@/components/subterra/query-state'
 import { StateBox } from '@/components/subterra/state-box'
 import { EmbeddedThinClient, EmbeddedViewer } from './embedded-viewer'
-import { useTraceGrid } from '@/hooks/use-subterra'
+import { useCandidates, useTraceGrid } from '@/hooks/use-subterra'
 import type { Selection } from '@/types/subterra'
 
 type SpatialTab = 'viewer' | 'client'
@@ -17,6 +17,16 @@ type SpatialTab = 'viewer' | 'client'
  * reimplemented -- see `embedded-viewer.tsx` for why, and for the guard
  * that keeps an unpositioned dataset out of a viewer that would plot it at
  * null island.
+ *
+ * THE RADARGRAM PANE IS NOT MOUNTED when candidate analysis does not apply
+ * to this dataset's composition -- slice 5 already made its 400 detail
+ * honest, but a mounted pane is still an invitation to a GPR-trace view,
+ * the same class of lie slices 10-12 removed from the generate button and
+ * the radargram link, and slice 20 removed from the B-scan option. Reuses
+ * `useCandidates` -- already on this workspace via `EmbeddedViewer` and
+ * `CandidateRegionsPane` -- rather than a second fetch or a client-side
+ * composition parse. Unmounting rather than gating inside `RadargramPane`
+ * itself means `useTraceGrid` is never called on the off-GPR path.
  */
 export function SpatialPanes({
   datasetId,
@@ -32,9 +42,12 @@ export function SpatialPanes({
   loading: boolean
 }) {
   const [tab, setTab] = useState<SpatialTab>('viewer')
+  const { data: candidates } = useCandidates(datasetId)
+  const doesNotApply =
+    candidates?.status === 'blocked' && candidates.status_reason.includes('does not apply')
 
   return (
-    <div className="grid min-h-0 grid-rows-[1.35fr_1fr] gap-3">
+    <div className={doesNotApply ? 'grid min-h-0 grid-rows-1 gap-3' : 'grid min-h-0 grid-rows-[1.35fr_1fr] gap-3'}>
       <Panel>
         <PanelHeader
           title="Spatial"
@@ -67,12 +80,14 @@ export function SpatialPanes({
         </div>
       </Panel>
 
-      <RadargramPane
-        datasetId={datasetId}
-        selection={selection}
-        totalCount={totalCount}
-        loading={loading}
-      />
+      {!doesNotApply && (
+        <RadargramPane
+          datasetId={datasetId}
+          selection={selection}
+          totalCount={totalCount}
+          loading={loading}
+        />
+      )}
     </div>
   )
 }

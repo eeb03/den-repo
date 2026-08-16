@@ -12,10 +12,10 @@
  */
 import { cleanup, render, waitFor } from '@testing-library/react'
 import { SWRConfig } from 'swr'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/services/api'
-import type { TraceGrid } from '@/types/subterra'
+import type { CandidateIntelligence, TraceGrid } from '@/types/subterra'
 
 const getTraceGrid = vi.fn()
 
@@ -30,7 +30,32 @@ vi.mock('@/services/api', async () => {
   }
 })
 
-import { RadargramPane } from './spatial-panes'
+// Phase 7, twenty-first slice: SpatialPanes reads useCandidates to decide
+// whether to mount RadargramPane at all. Partial-mocked so useTraceGrid
+// stays the real hook -- the four existing RadargramPane cases below drive
+// it through the mocked api.getTraceGrid above, unaffected by this mock.
+const mockUseCandidates = vi.fn()
+
+vi.mock('@/hooks/use-subterra', async () => {
+  const actual = await vi.importActual<typeof import('@/hooks/use-subterra')>(
+    '@/hooks/use-subterra',
+  )
+  return {
+    ...actual,
+    useCandidates: (...args: unknown[]) => mockUseCandidates(...args),
+  }
+})
+
+// The Spatial panel embeds the existing Plotly/thin-client iframes, which
+// need their own hooks and DOM environment this file has no reason to
+// exercise -- stubbed so the new SpatialPanes cases test the radargram
+// gate, not the embed.
+vi.mock('./embedded-viewer', () => ({
+  EmbeddedViewer: () => null,
+  EmbeddedThinClient: () => null,
+}))
+
+import { RadargramPane, SpatialPanes } from './spatial-panes'
 
 function view() {
   return render(
@@ -39,6 +64,55 @@ function view() {
     </SWRConfig>,
   )
 }
+
+function spatialPanesView() {
+  return render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <SpatialPanes
+        datasetId="d1"
+        selection={null}
+        placedCount={0}
+        totalCount={5}
+        loading={false}
+      />
+    </SWRConfig>,
+  )
+}
+
+function offGprCandidates(overrides: Partial<CandidateIntelligence> = {}): CandidateIntelligence {
+  return {
+    dataset_id: 'd1',
+    status: 'blocked',
+    status_reason:
+      "this dataset's recorded modality composition is lidar; candidate analysis is a "
+      + 'GPR-trace capability and does not apply to it',
+    missing: ['a GPR acquisition, or frames recording GPR traces'],
+    definition: 'x',
+    generation: null,
+    staleness: {
+      is_stale: false, reasons: [], checks_performed: [], checks_skipped: [], note: '',
+    },
+    candidate_count: 0,
+    candidates: [],
+    ranking_basis: 'x',
+    candidate_burden: null,
+    candidate_burden_basis: 'x',
+    localisation_breakdown: {},
+    depth_breakdown: {},
+    shape_classes: {},
+    classification_status: 'blocked',
+    classification_blocked_reason: 'x',
+    classified_object_count: 0,
+    benchmark: {} as CandidateIntelligence['benchmark'],
+    ...overrides,
+  }
+}
+
+beforeEach(() => {
+  // Fail closed: loading/missing candidates data must never hide the pane.
+  mockUseCandidates.mockReturnValue({ data: undefined, error: null, isLoading: false })
+  getTraceGrid.mockReset()
+})
 
 afterEach(cleanup)
 
@@ -122,5 +196,42 @@ describe('a gpr dataset with a real grid', () => {
     for (const invented of ['fused', 'aligned', 'ready for fusion', 'multi-modal']) {
       expect(container.textContent?.toLowerCase()).not.toContain(invented)
     }
+  })
+})
+
+describe('Phase 7, twenty-first slice: SpatialPanes does not mount the radargram pane when analysis does not apply', () => {
+  it('off-gpr composition: no "Radargram" title, and useTraceGrid is never called', async () => {
+    mockUseCandidates.mockReturnValue({ data: offGprCandidates(), error: null, isLoading: false })
+    const { container } = spatialPanesView()
+
+    await waitFor(() => expect(container.textContent).toContain('Spatial'))
+    expect(container.textContent).not.toContain('Radargram')
+    expect(getTraceGrid).not.toHaveBeenCalled()
+  })
+
+  it('"has not been run" is not the off-gpr reason: the pane still mounts', async () => {
+    mockUseCandidates.mockReturnValue({
+      data: offGprCandidates({
+        status_reason: 'candidate generation has not been run for this dataset',
+        missing: ['a candidate generation run'],
+      }),
+      error: null,
+      isLoading: false,
+    })
+    getTraceGrid.mockRejectedValue(
+      new ApiError(400, 'records are missing trace_index/depth metadata'),
+    )
+    const { container } = spatialPanesView()
+
+    await waitFor(() => expect(container.textContent).toContain('Radargram'))
+  })
+
+  it('default/undefined candidates: fail closed, the pane still mounts', async () => {
+    getTraceGrid.mockRejectedValue(
+      new ApiError(400, 'records are missing trace_index/depth metadata'),
+    )
+    const { container } = spatialPanesView()
+
+    await waitFor(() => expect(container.textContent).toContain('Radargram'))
   })
 })
