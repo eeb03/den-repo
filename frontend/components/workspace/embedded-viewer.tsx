@@ -3,7 +3,7 @@
 import { ExternalLink } from 'lucide-react'
 import { API_BASE } from '@/services/api'
 import { QueryState } from '@/components/subterra/query-state'
-import { useDatasetInfo } from '@/hooks/use-subterra'
+import { useCandidates, useDatasetInfo } from '@/hooks/use-subterra'
 import { formatCount } from '@/lib/format'
 
 /**
@@ -33,9 +33,19 @@ import { formatCount } from '@/lib/format'
  * What it does add is context the viewer has no way to know it should
  * give: a banner naming the position sources, so the empty scene is
  * expected rather than surprising.
+ *
+ * THE B-SCAN SENTENCE ITSELF IS A GPR CLAIM. "Indexed by trace and depth and
+ * unaffected" is true of a GPR survey; for an off-GPR composition a B-scan
+ * does not apply at all (slices 5-6, 15), so the same `doesNotApply` signal
+ * used since slice 10 drops that one sentence here too -- reusing the
+ * existing `['candidates', datasetId]` SWR key `CandidateRegionsPane` and
+ * `import-report.tsx` already read, not a new contract.
  */
 export function EmbeddedViewer({ datasetId }: { datasetId: string }) {
   const { data, error, isLoading } = useDatasetInfo(datasetId)
+  const { data: candidates } = useCandidates(datasetId)
+  const doesNotApply =
+    candidates?.status === 'blocked' && candidates.status_reason.includes('does not apply')
 
   if (isLoading || error) {
     return (
@@ -73,8 +83,10 @@ export function EmbeddedViewer({ datasetId }: { datasetId: string }) {
               .map(([kind, n]) => `${kind}: ${formatCount(n)}`)
               .join(', ')}
             ), so the point cloud, heatmap and surface views have nothing to
-            place and will report that. The B-scan is indexed by trace and
-            depth and is unaffected.
+            place and will report that.
+            {!doesNotApply && (
+              <> The B-scan is indexed by trace and depth and is unaffected.</>
+            )}
           </p>
         </div>
       )}

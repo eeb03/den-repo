@@ -1049,6 +1049,25 @@ def get_dataset_trace_grid(
     if not records:
         raise HTTPException(status_code=404, detail="No stored records found for this dataset")
 
+    # Composition gate, same definition the report, signal-chain route and
+    # candidates API already share (`frame_modalities` / `identity.recorded_
+    # modalities`): a non-empty composition without gpr is not "not genuine
+    # multi-sample GPR trace data" -- that reason describes a GPR line that
+    # failed a shape check, not a dataset that was never GPR. An empty
+    # composition (nothing recorded, or no frames at all) falls through to
+    # today's grid builder unchanged, same as every other slice-5 gate.
+    all_frames = load_frames(dataset_id) or synthesize_frames_from_records(records)
+    from schemas.dataset_report import frame_modalities
+
+    composition = frame_modalities(all_frames)
+    if composition and "gpr" not in composition:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"this dataset's recorded modality composition is "
+                    f"{', '.join(composition)}; a radargram / trace-depth grid is a "
+                    f"GPR-trace view and does not apply to it"),
+        )
+
     from preprocessing.spatial_grid import build_trace_depth_grid_for_records
     try:
         result = build_trace_depth_grid_for_records(records, source_file=source_file, field=field)
@@ -1069,8 +1088,8 @@ def get_dataset_trace_grid(
 
     # This line's own acquisition frame: CRS, vertical axis and the
     # assumptions behind them. Reconstructed for datasets ingested before
-    # frames existed rather than reported as absent.
-    all_frames = load_frames(dataset_id) or synthesize_frames_from_records(records)
+    # frames existed rather than reported as absent. `all_frames` was already
+    # computed above for the composition gate.
     match = next((f for f in all_frames if f.source_file == result["source_file"]), None)
     line_frame = None
     if match is not None:

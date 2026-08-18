@@ -92,6 +92,79 @@ describe('an unresolved view is rendered with the backend reason', () => {
   })
 })
 
+describe('Phase 7, sixth slice: an off-gpr radargram reason is shown verbatim', () => {
+  const OFF_GPR_RADARGRAM: ViewResolution = {
+    view: 'radargram',
+    resolved: false,
+    coordinates: {},
+    reason:
+      "this dataset's recorded modality composition is lidar; a radargram view is a "
+      + 'GPR-trace view and does not apply to it',
+    missing: ['a GPR acquisition, or frames recording GPR traces'],
+  }
+
+  it('shows the composition reason, never "names no frame" or "needs a trace index"', () => {
+    setViews([OFF_GPR_RADARGRAM])
+    const { container } = render(
+      <SelectionPane datasetId="ds" selection={SELECTION} />,
+    )
+    expect(container.textContent).toContain('lidar')
+    expect(container.textContent).toContain('does not apply to it')
+    expect(container.textContent).not.toContain('names no frame')
+    expect(container.textContent).not.toContain('needs a trace index')
+    expect(container.querySelector('[data-state-kind="unavailable"]')).toBeTruthy()
+  })
+})
+
+describe('Phase 7, seventh slice: an off-gpr depth-slice reason is shown verbatim', () => {
+  const OFF_GPR_DEPTH_SLICE: ViewResolution = {
+    view: 'depth_slice',
+    resolved: false,
+    coordinates: {},
+    reason:
+      "this dataset's recorded modality composition is lidar; a depth-slice view is a "
+      + 'GPR-trace view and does not apply to it',
+    missing: ['a GPR acquisition, or frames recording GPR traces'],
+  }
+
+  it('shows the composition reason, never "no depth" or "propagation velocity"', () => {
+    setViews([OFF_GPR_DEPTH_SLICE])
+    const { container } = render(
+      <SelectionPane datasetId="ds" selection={SELECTION} />,
+    )
+    expect(container.textContent).toContain('lidar')
+    expect(container.textContent).toContain('does not apply to it')
+    expect(container.textContent).not.toContain('carries no depth')
+    expect(container.textContent).not.toContain('propagation velocity was supplied')
+    expect(container.querySelector('[data-state-kind="unavailable"]')).toBeTruthy()
+  })
+})
+
+describe('Phase 7, eighth slice: an off-gpr scene_3d reason names the composition but still applies', () => {
+  const OFF_GPR_SCENE_3D: ViewResolution = {
+    view: 'scene_3d',
+    resolved: false,
+    coordinates: {},
+    reason:
+      "this dataset's recorded modality composition is lidar; a 3D scene applies to it, "
+      + 'but no dataset held has an established vertical relationship: nothing currently '
+      + 'declares an absolute elevation for this selection',
+    missing: ['an established vertical relationship (absolute elevation)'],
+  }
+
+  it('shows the composition reason, never "does not apply" or the GPR time-zero clause', () => {
+    setViews([OFF_GPR_SCENE_3D])
+    const { container } = render(
+      <SelectionPane datasetId="ds" selection={SELECTION} />,
+    )
+    expect(container.textContent).toContain('lidar')
+    expect(container.textContent).toContain('applies to it')
+    expect(container.textContent).not.toContain('does not apply')
+    expect(container.textContent).not.toContain('instrument time-zero')
+    expect(container.querySelector('[data-state-kind="unavailable"]')).toBeTruthy()
+  })
+})
+
 describe('the UI does not hard-code what is unavailable', () => {
   it('renders scene_3d as RESOLVED when the backend says so', () => {
     /*

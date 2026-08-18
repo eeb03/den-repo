@@ -108,6 +108,60 @@ def test_the_page_states_when_nothing_can_be_placed(page):
     assert "carry no geographic position" in page
 
 
+# --- Phase 7, nineteenth slice: the B-scan claim in the empty-scene status
+# --- is a GPR-trace claim, gated the same way the React panes already are ---
+
+def test_the_bscan_still_works_sentence_survives_for_the_gpr_path(page):
+    """The GPR path keeps the original sentence verbatim -- this is a gate,
+    not a deletion."""
+    assert (
+        "the B-scan view still works because it is indexed by trace, "
+        "not by coordinate."
+    ) in page
+
+
+def test_the_empty_scene_status_does_not_unconditionally_claim_the_bscan_works(script):
+    """
+    The B-scan clause must not simply be concatenated into the status every
+    time -- it has to be conditional on the same off-GPR signal the
+    candidates API already reports (slices 4, 10-16), reused rather than a
+    second composition definition invented here.
+    """
+    render_fn = re.split(r"\bfunction render\(", script)[1].split("function ")[0]
+    assert "candidateAnalysisDoesNotApply" in render_fn
+    assert re.search(r"\.every\(d => d\.candidateAnalysisDoesNotApply\)", render_fn)
+    assert re.search(r"allDoesNotApply\s*\?", render_fn), (
+        "the B-scan clause must be behind a conditional on allDoesNotApply, "
+        "not always appended"
+    )
+
+
+def test_the_does_not_apply_signal_reads_the_existing_candidates_endpoint(page, script):
+    """No new field, no client-side composition parsing: the same
+    status/status_reason shape GET /api/candidates/{id} already returns.
+    Checked against the raw page -- `script` strips string-literal content,
+    which is exactly what "blocked" / "does not apply" are.
+    """
+    assert re.search(r"/candidates/\$\{datasetId\}", page)
+    assert re.search(r'status\s*===\s*"blocked"', page)
+    assert 'includes("does not apply")' in page
+    # not a new definition of composition -- no survey_frames/sensor_type read
+    assert "survey_frames" not in script
+    assert "sensor_type" not in re.split(
+        r"async function fetchDatasetDoesNotApply", script
+    )[1].split("async function")[0]
+
+
+def test_the_does_not_apply_flag_is_fetched_once_at_load_not_on_every_render(script):
+    """render() must stay synchronous with respect to this signal: it reads
+    a value already cached on allTraces, it does not fetch it."""
+    load_fn = script.split("async function loadDatasets")[1].split("function ")[0]
+    assert "fetchDatasetDoesNotApply" in load_fn
+
+    render_fn = re.split(r"\bfunction render\(", script)[1].split("function ")[0]
+    assert "fetchDatasetDoesNotApply" not in render_fn
+
+
 def test_the_bscan_view_is_not_position_filtered(script):
     """
     The B-scan is indexed by trace and depth and carries no coordinate, so
@@ -117,6 +171,48 @@ def test_the_bscan_view_is_not_position_filtered(script):
     bscan = script.split("async function renderBscan")[1].split("async function")[0]
     assert "geoPoints" not in bscan
     assert "fetchDatasetTraceGrid" in bscan
+
+
+# --- Phase 7, twentieth slice: the B-scan option itself is a GPR-trace
+# --- invitation, gated the same way the empty-scene sentence already is ---
+
+def test_the_bscan_option_still_appears_in_the_page_source(page):
+    """A runtime gate, not a deletion -- the GPR path and the fail-closed
+    default both still need this option in the page."""
+    assert 'value="bscan"' in page
+    assert 'id="bscanOption"' in page
+
+
+def test_load_datasets_gates_the_bscan_option_reusing_the_cached_flag(page):
+    """
+    No second fetch: the same candidateAnalysisDoesNotApply flag slice 19
+    already caches on allTraces, only read here, not re-derived. Checked
+    against the raw page -- `script` strips "bscanOption" and "bscan" as
+    string-literal content, which is exactly what this test needs to see.
+    """
+    load_fn = page.split("async function loadDatasets")[1].split("\nfunction ")[0]
+    assert "bscanOption" in load_fn
+    assert "candidateAnalysisDoesNotApply" in load_fn
+    assert re.search(r"\.every\(d => d\.candidateAnalysisDoesNotApply\)", load_fn)
+    # switches away from the bscan view before render() rather than leaving
+    # a hidden option selected
+    assert re.search(r'viewMode\s*===\s*"bscan"', load_fn)
+
+
+def test_the_bscan_option_gate_is_absent_from_render_and_view_mode_change(page):
+    """
+    render() and onViewModeChange() must not hide/show the option or
+    refetch -- the gate is applied once per load, in loadDatasets, and nowhere
+    else. Sibling to the slice 19 test pinning fetchDatasetDoesNotApply's
+    absence from render(): this pins the option-visibility write specifically.
+    """
+    render_fn = re.split(r"\bfunction render\(", page)[1].split("\nfunction ")[0]
+    assert "bscanOption" not in render_fn
+
+    view_mode_change_fn = page.split("function onViewModeChange")[1].split(
+        "async function renderHeatmap"
+    )[0]
+    assert "bscanOption" not in view_mode_change_fn
 
 
 def test_the_viewer_introduces_no_new_dependency(page):

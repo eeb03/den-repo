@@ -15,7 +15,11 @@ import { formatCount } from '@/lib/format'
  *
  * CANDIDATE IS NOT DETECTION, and this pane cannot make it read as one:
  * it prints `data.definition` verbatim (the platform's own words for the
- * distinction), `data.benchmark.summary` verbatim (the same "performs at
+ * distinction) -- EXCEPT when `status_reason` already says candidate
+ * analysis does not apply to this dataset's composition (Phase 7, slices
+ * 10-12): opening under the method's own vocabulary before that reason
+ * would be the same misdirection slices 10-11 removed from the candidates
+ * page. `data.benchmark.summary` verbatim (the same "performs at
  * approximately chance" sentence the candidates page puts above its own
  * list, from the payload -- not a paraphrase, not a number typed here that
  * could drift from what the benchmark actually produced), the region
@@ -49,6 +53,11 @@ import { formatCount } from '@/lib/format'
 export function CandidateRegionsPane({ datasetId }: { datasetId: string }) {
   const { data, error, isLoading } = useCandidates(datasetId)
 
+  // Slice 10-11's exact signal, reused verbatim: no second fetch, no
+  // composition parsing, no new API field.
+  const doesNotApply =
+    !!data && data.status === 'blocked' && data.status_reason.includes('does not apply')
+
   return (
     <>
       <SectionLabel>Candidate regions</SectionLabel>
@@ -61,9 +70,19 @@ export function CandidateRegionsPane({ datasetId }: { datasetId: string }) {
 
       {data && (
         <div data-candidate-regions={data.status} className="space-y-2">
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
-            {data.definition}
-          </p>
+          {/*
+            The definition is the vocabulary of a processed-signal /
+            generation-rule capability. When status_reason already says that
+            capability does not apply to this dataset, printing the
+            definition first would open the pane under a method's own words
+            before the reason it does not apply -- the same misdirection
+            slice 11 removed from the candidates page.
+          */}
+          {!doesNotApply && (
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              {data.definition}
+            </p>
+          )}
 
           {data.status === 'blocked' ? (
             <StateBox kind="empty" title="No candidate set" detail={data.status_reason} />
@@ -118,12 +137,20 @@ export function CandidateRegionsPane({ datasetId }: { datasetId: string }) {
             </>
           )}
 
-          <Link
-            href={`/datasets/${encodeURIComponent(datasetId)}/candidates`}
-            className="mt-1 inline-flex text-xs text-primary underline-offset-4 hover:underline"
-          >
-            Candidate intelligence
-          </Link>
+          {/*
+            Slice 24: sending a reader into the candidate workflow when the
+            StateBox above already says the capability does not apply would
+            be the same invitation slice 23 removed from the dataset
+            report's Candidates section.
+          */}
+          {!doesNotApply && (
+            <Link
+              href={`/datasets/${encodeURIComponent(datasetId)}/candidates`}
+              className="mt-1 inline-flex text-xs text-primary underline-offset-4 hover:underline"
+            >
+              Candidate intelligence
+            </Link>
+          )}
         </div>
       )}
     </>

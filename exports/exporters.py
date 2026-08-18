@@ -188,7 +188,8 @@ def export_czml(objects: Iterable, name: str = "Subterra") -> tuple[list, dict]:
                      "transformed": len(packets) - 1}
 
 
-def export_3d_tiles(objects: Iterable, vertical: Optional[dict] = None):
+def export_3d_tiles(objects: Iterable, vertical: Optional[dict] = None,
+                    recorded_modalities: Optional[list[str]] = None):
     """
     Refused unless a vertical relationship exists.
 
@@ -196,8 +197,44 @@ def export_3d_tiles(objects: Iterable, vertical: Optional[dict] = None):
     absolute elevation per feature. Every dataset held reports
     `registration_required`, so there is no Z to place them at -- and 0 would
     be a fabrication, not a default.
+
+    UNLIKE THE RADARGRAM/DEPTH-SLICE GATES, a 3D Tiles export genuinely
+    applies to a LiDAR/DEM surface -- so it is never refused as
+    inapplicable. `recorded_modalities` only changes the DEFAULT refusal
+    (no `vertical` supplied): the GPR-specific "depth axis starts at
+    instrument time-zero" clause is true of a GPR survey and nothing else,
+    so an off-gpr composition gets a refusal that names the composition and
+    says the export applies but nothing currently establishes an elevation.
+    Once a real `vertical` assessment is supplied, that path is completely
+    unchanged regardless of composition.
     """
-    if not (vertical or {}).get("absolute_elevation_available"):
+    # Composition only replaces the wording when there is no vertical
+    # assessment at all. Once a real dict is supplied -- resolved or not --
+    # it is authoritative and the message is unaffected by composition, same
+    # as before this slice: an unresolved real assessment is byte-identical
+    # whether or not recorded_modalities is passed.
+    if vertical is None:
+        if recorded_modalities and "gpr" not in recorded_modalities:
+            raise ExportRefused(
+                f"3D Tiles requires an absolute elevation for every feature. This "
+                f"dataset's recorded modality composition is "
+                f"{', '.join(recorded_modalities)}; a 3D Tiles export applies to it, but "
+                f"no dataset currently held has an established vertical relationship, "
+                f"and no source declares a vertical datum. Exporting at height 0 would "
+                f"fabricate the one quantity the vertical investigation established is "
+                f"missing. See docs/vertical-reference-site01.md. "
+                f"Supply a vertical registration and this export becomes possible."
+            )
+        raise ExportRefused(
+            "3D Tiles requires an absolute elevation for every feature, and no "
+            "dataset currently held has an established vertical relationship: the GPR "
+            "depth axis starts at instrument time-zero rather than the ground surface, "
+            "and no source declares a vertical datum. Exporting at height 0 would "
+            "fabricate the one quantity the vertical investigation established is "
+            "missing. See docs/vertical-reference-site01.md. "
+            "Supply a vertical registration and this export becomes possible."
+        )
+    if not vertical.get("absolute_elevation_available"):
         raise ExportRefused(
             "3D Tiles requires an absolute elevation for every feature, and no "
             "dataset currently held has an established vertical relationship: the GPR "
@@ -213,8 +250,15 @@ def export_3d_tiles(objects: Iterable, vertical: Optional[dict] = None):
     )
 
 
-def export_objects(objects: list, fmt: str, **kw):
-    """Dispatch. Returns (payload, report)."""
+def export_objects(objects: list, fmt: str,
+                   recorded_modalities: Optional[list[str]] = None, **kw):
+    """
+    Dispatch. Returns (payload, report).
+
+    `recorded_modalities` is forwarded ONLY to `export_3d_tiles` -- the other
+    formats' own kwargs (`crs_note`, `name`) live in `**kw` and a stray
+    `recorded_modalities` would TypeError them.
+    """
     if fmt not in EXPORT_FORMATS:
         raise ValueError(f"unknown export format {fmt!r}; options: {list(EXPORT_FORMATS)}")
     if fmt == "json":
@@ -225,4 +269,4 @@ def export_objects(objects: list, fmt: str, **kw):
         return export_geojson(objects)
     if fmt == "czml":
         return export_czml(objects, **kw)
-    return export_3d_tiles(objects, **kw)
+    return export_3d_tiles(objects, recorded_modalities=recorded_modalities, **kw)

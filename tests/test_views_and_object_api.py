@@ -13,7 +13,7 @@ not exist.
 import pytest
 
 from schemas.spatial import (
-    AxisKind, CRSKind, GeographicPosition, LocalCartesianPosition, NoPosition,
+    AxisKind, CRSKind, CRSProvenance, GeographicPosition, LocalCartesianPosition, NoPosition,
     OdometryPosition, ProjectedPosition, SpatialRef, VerticalAxis,
 )
 from schemas.subterra_record import SensorType
@@ -87,6 +87,55 @@ def test_scene_3d_would_resolve_if_a_vertical_relationship_ever_existed():
     assert v[ViewKind.SCENE_3D].resolved is True
 
 
+# --- Phase 7, eighth slice: off-gpr composition still applies to scene_3d,
+# --- only the default GPR-specific reason is replaced --------------------
+
+def test_off_gpr_composition_still_applies_but_names_it_in_the_default_reason():
+    v = _views(resolve(_sel(), recorded_modalities=["lidar"]))[ViewKind.SCENE_3D]
+    assert v.resolved is False
+    assert "lidar" in v.reason
+    assert "applies" in v.reason
+    assert "does not apply" not in v.reason
+    assert "GPR depth" not in v.reason
+    assert "instrument time-zero" not in v.reason
+    assert "propagation velocity" not in v.reason
+    assert v.missing == ["an established vertical relationship (absolute elevation)"]
+
+
+def test_off_gpr_composition_still_resolves_with_a_real_absolute_elevation():
+    """A real vertical assessment is not something a composition label
+    overrides -- off-gpr plus absolute_elevation_available=True still
+    resolves, because the view genuinely applies."""
+    v = _views(resolve(_sel(), recorded_modalities=["lidar"],
+                       vertical={"kind": "absolute_elevation",
+                                "absolute_elevation_available": True}))[ViewKind.SCENE_3D]
+    assert v.resolved is True
+
+
+def test_off_gpr_composition_with_a_real_vertical_assessment_is_unchanged():
+    """When a real vertical assessment is supplied and unresolved, composition
+    must not rewrite it -- that path is unchanged regardless of composition."""
+    vertical = {"kind": "registration_required",
+                "absolute_elevation_available": False,
+                "missing": ["a declared vertical datum for the acquisition elevations"]}
+    with_composition = _views(resolve(_sel(), recorded_modalities=["lidar"],
+                                      vertical=vertical))[ViewKind.SCENE_3D]
+    without = _views(resolve(_sel(), vertical=vertical))[ViewKind.SCENE_3D]
+    assert with_composition.reason == without.reason
+    assert with_composition.missing == without.missing == vertical["missing"]
+
+
+def test_gpr_or_mixed_or_empty_scene_3d_default_reason_is_unchanged():
+    gpr = _views(resolve(_sel(), recorded_modalities=["gpr"]))[ViewKind.SCENE_3D]
+    mixed = _views(resolve(_sel(), recorded_modalities=["gpr", "lidar"]))[ViewKind.SCENE_3D]
+    empty = _views(resolve(_sel(), recorded_modalities=[]))[ViewKind.SCENE_3D]
+    default = _views(resolve(_sel()))[ViewKind.SCENE_3D]
+    for v in (gpr, mixed, empty, default):
+        assert v.resolved is False
+        assert "instrument time-zero, not the ground surface" in v.reason
+    assert gpr.reason == mixed.reason == empty.reason == default.reason
+
+
 @pytest.mark.parametrize("position,fragment", [
     (OdometryPosition(along_track_m=3.0, path_id="l"),
      "which has no defined location on Earth"),
@@ -117,6 +166,95 @@ def test_a_frame_without_a_trace_cannot_be_highlighted():
     v = _views(resolve(_sel(trace_index=None, trace_range=None)))[ViewKind.RADARGRAM]
     assert v.resolved is False
     assert "only meaningful within one acquisition" in v.reason
+
+
+# --- Phase 7, sixth slice: radargram does not apply to an off-gpr composition ---
+
+def test_off_gpr_composition_names_it_and_says_does_not_apply_even_with_a_frame():
+    """A frame_id and a trace_index are present -- the composition gate must
+    still win, and the old "names no frame" / "needs a trace index" reasons
+    must not appear."""
+    v = _views(resolve(_sel(), recorded_modalities=["lidar"]))[ViewKind.RADARGRAM]
+    assert v.resolved is False
+    assert "lidar" in v.reason
+    assert "does not apply" in v.reason
+    assert "names no frame" not in v.reason
+    assert "needs a trace index" not in v.reason
+    assert v.coordinates == {}
+
+
+def test_off_gpr_composition_applies_even_with_no_frame_id_at_all():
+    """The point of loading frames for composition regardless of frame_id:
+    an object/label selection with no frame gets the SAME does-not-apply
+    reason, not the frame-less reason."""
+    v = _views(resolve(_sel(frame_id=None, trace_index=None, trace_range=None),
+                       recorded_modalities=["lidar"]))[ViewKind.RADARGRAM]
+    assert v.resolved is False
+    assert "lidar" in v.reason
+    assert "does not apply" in v.reason
+    assert v.missing != ["frame_id"]
+
+
+def test_gpr_or_mixed_composition_is_unaffected():
+    gpr = _views(resolve(_sel(), recorded_modalities=["gpr"]))[ViewKind.RADARGRAM]
+    mixed = _views(resolve(_sel(), recorded_modalities=["gpr", "lidar"]))[ViewKind.RADARGRAM]
+    default = _views(resolve(_sel()))[ViewKind.RADARGRAM]
+    assert gpr.resolved is mixed.resolved is default.resolved is True
+    assert gpr.coordinates == mixed.coordinates == default.coordinates
+    for v in (gpr, mixed):
+        for invented in ("fused", "aligned", "ready for fusion", "multi-modal"):
+            assert invented not in (v.reason or "").lower()
+
+
+def test_empty_composition_keeps_todays_frame_and_trace_reasons():
+    no_frame = _views(resolve(_sel(frame_id=None),
+                              recorded_modalities=[]))[ViewKind.RADARGRAM]
+    assert no_frame.resolved is False
+    assert no_frame.missing == ["frame_id"]
+
+    no_trace = _views(resolve(_sel(trace_index=None, trace_range=None),
+                              recorded_modalities=[]))[ViewKind.RADARGRAM]
+    assert no_trace.resolved is False
+    assert "only meaningful within one acquisition" in no_trace.reason
+
+
+# --- Phase 7, seventh slice: depth slice does not apply to an off-gpr composition ---
+
+def test_off_gpr_composition_names_it_and_says_depth_slice_does_not_apply():
+    v = _views(resolve(_sel(), recorded_modalities=["lidar"]))[ViewKind.DEPTH_SLICE]
+    assert v.resolved is False
+    assert "lidar" in v.reason
+    assert "does not apply" in v.reason
+    assert "no depth" not in v.reason
+    assert "propagation velocity" not in v.reason
+    assert "slicing time" not in v.reason
+    assert v.missing
+
+
+def test_off_gpr_composition_wins_even_with_a_stuffed_depth_range():
+    """A stuffed depth on a LiDAR tile is not a depth slice -- the gate must
+    win even though sel.depth_range_m is present."""
+    v = _views(resolve(_sel(depth_range_m=(1.0, 2.0)),
+                       recorded_modalities=["lidar"]))[ViewKind.DEPTH_SLICE]
+    assert v.resolved is False
+    assert "does not apply" in v.reason
+
+
+def test_gpr_or_mixed_depth_slice_composition_is_unaffected():
+    gpr = _views(resolve(_sel(), recorded_modalities=["gpr"]))[ViewKind.DEPTH_SLICE]
+    mixed = _views(resolve(_sel(), recorded_modalities=["gpr", "lidar"]))[ViewKind.DEPTH_SLICE]
+    default = _views(resolve(_sel()))[ViewKind.DEPTH_SLICE]
+    assert gpr.resolved is mixed.resolved is default.resolved is True
+    assert gpr.coordinates == mixed.coordinates == default.coordinates
+    for v in (gpr, mixed):
+        for invented in ("fused", "aligned", "ready for fusion", "multi-modal"):
+            assert invented not in (v.reason or "").lower()
+
+
+def test_empty_composition_keeps_todays_depth_slice_reasons():
+    v = _views(resolve(_sel(depth_range_m=None), recorded_modalities=[]))[ViewKind.DEPTH_SLICE]
+    assert v.resolved is False
+    assert "only when a propagation velocity was supplied" in v.reason
 
 
 def test_no_depth_means_no_depth_slice():
@@ -181,6 +319,159 @@ def test_resolving_a_selection_over_the_api_reports_both_lists(client):
     body = r.json()
     assert body["resolvable_views"] == ["map", "radargram", "depth_slice", "metadata"]
     assert body["unresolvable_views"] == ["scene_3d"]
+
+
+# --- Phase 7, sixth slice: the live route actually computes and passes ---
+# --- composition, not only the pure `resolve()` helper -------------------
+
+def _lidar_frame(**kw):
+    base = dict(
+        frame_id="ds:tile", dataset_id="ds", modality=SensorType.LIDAR,
+        source_format="geotiff", source_file="tile.tif",
+        spatial_ref=SpatialRef(kind=CRSKind.GEOGRAPHIC, code="EPSG:4326", horizontal_units="degree",
+                               crs_provenance=CRSProvenance.SUPPLIED_BY_CALLER),
+        vertical_axis=VerticalAxis(kind=AxisKind.DEPTH_M, units="m",
+                                   origin="surface", positive_down=True),
+    )
+    base.update(kw)
+    return SurveyFrame(**base)
+
+
+def test_off_gpr_dataset_over_the_api_says_does_not_apply(client, monkeypatch):
+    import api.routes.views as mod
+
+    monkeypatch.setattr(mod, "load_frames", lambda _id: [_lidar_frame()])
+    monkeypatch.setattr(mod, "load_records", lambda _id: [])
+
+    r = client.post("/api/views/resolve", json={"selection": _sel().model_dump(mode="json")})
+    body = r.json()
+    assert r.status_code == 200
+    radargram = next(v for v in body["views"] if v["view"] == "radargram")
+    assert radargram["resolved"] is False
+    assert "lidar" in radargram["reason"]
+    assert "does not apply" in radargram["reason"]
+    assert "names no frame" not in radargram["reason"]
+    assert "trace index" not in radargram["reason"]
+    assert "radargram" in body["unresolvable_views"]
+
+
+def test_off_gpr_object_selection_with_no_frame_id_over_the_api(client, monkeypatch):
+    """The route must load frames for composition even when the selection
+    itself carries no frame_id -- an object/label pin on a LiDAR dataset."""
+    import api.routes.views as mod
+
+    monkeypatch.setattr(mod, "load_frames", lambda _id: [_lidar_frame()])
+    monkeypatch.setattr(mod, "load_records", lambda _id: [])
+
+    sel = _sel(kind=SelectionKind.OBJECT, frame_id=None, source_file=None,
+               trace_index=None, trace_range=None)
+    r = client.post("/api/views/resolve", json={"selection": sel.model_dump(mode="json")})
+    radargram = next(v for v in r.json()["views"] if v["view"] == "radargram")
+    assert radargram["resolved"] is False
+    assert "does not apply" in radargram["reason"]
+    assert radargram["missing"] != ["frame_id"]
+
+
+def test_gpr_dataset_over_the_api_is_unaffected(client, monkeypatch):
+    import api.routes.views as mod
+
+    monkeypatch.setattr(mod, "load_frames", lambda _id: [
+        SurveyFrame(
+            frame_id="ds:line", dataset_id="ds", modality=SensorType.GPR,
+            source_format="segy", source_file="line.sgy",
+            spatial_ref=SpatialRef(kind=CRSKind.GEOGRAPHIC, code="EPSG:4326", horizontal_units="degree",
+                               crs_provenance=CRSProvenance.SUPPLIED_BY_CALLER),
+            vertical_axis=VerticalAxis(kind=AxisKind.TWO_WAY_TIME_NS, units="ns",
+                                       origin="time-zero", positive_down=True),
+        )
+    ])
+    monkeypatch.setattr(mod, "load_records", lambda _id: [])
+
+    r = client.post("/api/views/resolve", json={"selection": _sel().model_dump(mode="json")})
+    body = r.json()
+    radargram = next(v for v in body["views"] if v["view"] == "radargram")
+    assert radargram["resolved"] is True
+    assert radargram["coordinates"]["frame_id"] == "ds:line"
+
+
+# --- Phase 7, seventh slice: the live route also gates depth_slice ---
+
+def test_off_gpr_dataset_over_the_api_says_depth_slice_does_not_apply(client, monkeypatch):
+    import api.routes.views as mod
+
+    monkeypatch.setattr(mod, "load_frames", lambda _id: [_lidar_frame()])
+    monkeypatch.setattr(mod, "load_records", lambda _id: [])
+
+    r = client.post("/api/views/resolve", json={"selection": _sel().model_dump(mode="json")})
+    body = r.json()
+    assert r.status_code == 200
+    depth_slice = next(v for v in body["views"] if v["view"] == "depth_slice")
+    assert depth_slice["resolved"] is False
+    assert "lidar" in depth_slice["reason"]
+    assert "does not apply" in depth_slice["reason"]
+    assert "propagation velocity" not in depth_slice["reason"]
+    assert depth_slice["missing"]
+    assert "depth_slice" in body["unresolvable_views"]
+
+
+def test_gpr_dataset_depth_slice_over_the_api_is_unaffected(client, monkeypatch):
+    import api.routes.views as mod
+
+    monkeypatch.setattr(mod, "load_frames", lambda _id: [
+        SurveyFrame(
+            frame_id="ds:line", dataset_id="ds", modality=SensorType.GPR,
+            source_format="segy", source_file="line.sgy",
+            spatial_ref=SpatialRef(kind=CRSKind.GEOGRAPHIC, code="EPSG:4326", horizontal_units="degree",
+                               crs_provenance=CRSProvenance.SUPPLIED_BY_CALLER),
+            vertical_axis=VerticalAxis(kind=AxisKind.DEPTH_M, units="m",
+                                       origin="surface", positive_down=True),
+        )
+    ])
+    monkeypatch.setattr(mod, "load_records", lambda _id: [])
+
+    r = client.post("/api/views/resolve", json={"selection": _sel().model_dump(mode="json")})
+    body = r.json()
+    depth_slice = next(v for v in body["views"] if v["view"] == "depth_slice")
+    assert depth_slice["resolved"] is True
+
+
+# --- Phase 7, eighth slice: the live route also gates scene_3d's default reason ---
+
+def test_off_gpr_dataset_over_the_api_gets_the_composition_scene_3d_reason(client, monkeypatch):
+    import api.routes.views as mod
+
+    monkeypatch.setattr(mod, "load_frames", lambda _id: [_lidar_frame()])
+    monkeypatch.setattr(mod, "load_records", lambda _id: [])
+
+    r = client.post("/api/views/resolve", json={"selection": _sel().model_dump(mode="json")})
+    body = r.json()
+    assert r.status_code == 200
+    scene_3d = next(v for v in body["views"] if v["view"] == "scene_3d")
+    assert scene_3d["resolved"] is False
+    assert "lidar" in scene_3d["reason"]
+    assert "does not apply" not in scene_3d["reason"]
+    assert "instrument time-zero" not in scene_3d["reason"]
+
+
+def test_gpr_dataset_scene_3d_over_the_api_keeps_the_time_zero_sentence(client, monkeypatch):
+    import api.routes.views as mod
+
+    monkeypatch.setattr(mod, "load_frames", lambda _id: [
+        SurveyFrame(
+            frame_id="ds:line", dataset_id="ds", modality=SensorType.GPR,
+            source_format="segy", source_file="line.sgy",
+            spatial_ref=SpatialRef(kind=CRSKind.GEOGRAPHIC, code="EPSG:4326", horizontal_units="degree",
+                               crs_provenance=CRSProvenance.SUPPLIED_BY_CALLER),
+            vertical_axis=VerticalAxis(kind=AxisKind.TWO_WAY_TIME_NS, units="ns",
+                                       origin="time-zero", positive_down=True),
+        )
+    ])
+    monkeypatch.setattr(mod, "load_records", lambda _id: [])
+
+    r = client.post("/api/views/resolve", json={"selection": _sel().model_dump(mode="json")})
+    scene_3d = next(v for v in r.json()["views"] if v["view"] == "scene_3d")
+    assert scene_3d["resolved"] is False
+    assert "instrument time-zero, not the ground surface" in scene_3d["reason"]
 
 
 def test_the_object_vocabulary_says_which_status_is_a_real_thing(client):

@@ -180,6 +180,32 @@ def test_inspecting_an_unknown_candidate_is_a_404():
     assert client.get(f"/api/candidates/{DATASET}/nope").status_code == 404
 
 
+# --- Phase 7, eighteenth slice: inspect's 404 names an off-gpr composition,
+# --- not "has not been run" -- same gate current() already applies -------
+
+def test_inspecting_with_no_stored_set_on_an_off_gpr_dataset_names_the_composition(monkeypatch):
+    import api.routes.candidates as mod
+
+    monkeypatch.setattr(mod, "load_records", lambda *a, **k: _lidar_records())
+    r = client.get(f"/api/candidates/{DATASET}/c0")
+
+    assert r.status_code == 404
+    detail = r.json()["detail"]
+    assert "lidar" in detail
+    assert "does not apply" in detail
+    assert "has not been run" not in detail
+
+
+def test_inspecting_with_no_stored_set_and_no_off_gpr_composition_keeps_the_original_404(monkeypatch):
+    import api.routes.candidates as mod
+
+    monkeypatch.setattr(mod, "load_records", lambda *a, **k: [])
+    r = client.get(f"/api/candidates/{DATASET}/c0")
+
+    assert r.status_code == 404
+    assert r.json()["detail"] == "candidate generation has not been run for this dataset"
+
+
 def test_reviewing_through_the_api_says_what_acceptance_does_not_mean():
     save_candidates(a_stored_set())
     body = client.post(f"/api/candidates/{DATASET}/c0/status?status=accepted").json()
@@ -264,6 +290,72 @@ def test_a_grid_mode_anomaly_dataset_is_blocked_rather_than_crashing(monkeypatch
     assert result.status == "blocked"
     assert "no trace index" in result.status_reason
     assert result.missing
+
+
+# ---------------------------------------------------------------------------
+# Phase 7, fourth slice: off-GPR compositions do not invite gpr_local_anomaly
+# reprocessing, and never say "has not been run" for a capability that does
+# not apply
+# ---------------------------------------------------------------------------
+
+def _lidar_records(n=5, source_file="tile.tif") -> list[SubterraRecord]:
+    return [
+        SubterraRecord(
+            dataset_id=DATASET, sensor_type=SensorType.LIDAR,
+            depth=0.0, signal=[1.0],
+            metadata={"source_file": source_file, "trace_index": i})
+        for i in range(n)
+    ]
+
+
+def test_generation_off_gpr_composition_is_blocked_and_names_it(monkeypatch):
+    from api import candidates as service
+
+    monkeypatch.setattr(service, "load_records", lambda *a, **k: _lidar_records())
+    result = service.generate(db=None, dataset_id=DATASET)
+
+    assert result.status == "blocked"
+    assert "lidar" in result.status_reason
+    assert "does not apply" in result.status_reason
+    assert "has not been run" not in result.status_reason
+    assert not any("gpr_local_anomaly" in m for m in result.missing)
+    assert result.missing
+
+
+def test_current_off_gpr_composition_is_blocked_and_names_it(monkeypatch):
+    from api import candidates as service
+
+    monkeypatch.setattr(service, "load_records", lambda *a, **k: _lidar_records())
+    result = service.current(db=None, dataset_id=DATASET)
+
+    assert result.status == "blocked"
+    assert "lidar" in result.status_reason
+    assert "does not apply" in result.status_reason
+    assert "has not been run" not in result.status_reason
+    assert not any("gpr_local_anomaly" in m for m in result.missing)
+
+
+def test_generation_mixed_composition_still_checks_preprocessing_not_composition(monkeypatch):
+    """gpr present in the composition -> the ordinary preprocessing check
+    still runs, and the off-gpr message never appears."""
+    from api import candidates as service
+
+    unpreprocessed_gpr = [
+        SubterraRecord(
+            dataset_id=DATASET, sensor_type=SensorType.GPR,
+            depth=None, signal=[0.1],
+            metadata={"source_file": "line1.sgy", "trace_index": i})
+        for i in range(5)
+    ]
+    mixed = unpreprocessed_gpr + _lidar_records(source_file="tile.tif")
+    monkeypatch.setattr(service, "load_records", lambda *a, **k: mixed)
+    result = service.generate(db=None, dataset_id=DATASET)
+
+    assert result.status == "blocked"
+    assert any("gpr_local_anomaly" in m for m in result.missing)
+    assert "does not apply" not in result.status_reason
+    for invented in ("fused", "aligned", "ready for fusion", "multi-modal"):
+        assert invented not in result.status_reason.lower()
 
 
 def test_generation_over_preprocessed_records_produces_a_provenanced_set(monkeypatch):

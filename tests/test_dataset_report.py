@@ -518,6 +518,114 @@ def test_object_classification_is_blocked_for_every_dataset():
     assert "validated" in c.reason
 
 
+# ---------------------------------------------------------------------------
+# Phase 7, fourth slice: candidate surfaces and object_classification do not
+# claim a not-yet-run GPR pipeline when the recorded composition has no gpr
+# ---------------------------------------------------------------------------
+
+def test_object_classification_names_the_composition_when_off_gpr():
+    """No 'anomalous response' / 'buried object' framing when candidates
+    themselves do not apply -- that framing describes a candidate pipeline
+    this composition was never going to have."""
+    records = [record(i) for i in range(3)]
+    c = readiness_of(records, [frame()], Capability.OBJECT_CLASSIFICATION,
+                     recorded_modalities=["lidar"])
+    assert c.readiness == Readiness.BLOCKED
+    assert "lidar" in c.reason
+    assert "anomalous response" not in c.reason
+    assert "buried object" not in c.reason
+    assert c.missing
+
+
+def test_object_classification_unchanged_for_gpr_or_empty_composition():
+    records = [record(i) for i in range(3)]
+    with_gpr = readiness_of(records, [frame()], Capability.OBJECT_CLASSIFICATION,
+                            recorded_modalities=["gpr"])
+    empty = readiness_of(records, [frame()], Capability.OBJECT_CLASSIFICATION,
+                         recorded_modalities=[])
+    default = readiness_of(records, [frame()], Capability.OBJECT_CLASSIFICATION)
+    assert with_gpr.reason == empty.reason == default.reason
+    assert "validated" in default.reason
+
+
+def test_object_classification_mixed_composition_names_no_fusion_language():
+    records = [record(i) for i in range(3)]
+    c = readiness_of(records, [frame()], Capability.OBJECT_CLASSIFICATION,
+                     recorded_modalities=["gpr", "lidar"])
+    for invented in ("fused", "aligned", "ready for fusion", "multi-modal"):
+        assert invented not in c.reason.lower()
+
+
+def test_candidate_summary_says_does_not_apply_when_off_gpr(stored):
+    """The exact contradiction this slice exists to fix: readiness already
+    says candidate_analysis does not apply, and the Candidates section must
+    not separately say 'has not been run'."""
+    from database.frames_store import save_frames
+    from database.records_store import save_records
+
+    save_records("d", geographic_records(3))
+    save_frames("d", [frame(modality=SensorType.LIDAR)])
+
+    report = build_dataset_report(FakeDataset(id="d"))
+    assert report.candidates.status == "blocked"
+    assert report.candidates.analysed is False
+    assert "does not apply" in report.candidates.status_reason
+    assert "lidar" in report.candidates.status_reason
+    assert "has not been run" not in report.candidates.status_reason
+    assert report.candidates.missing
+
+
+def test_candidate_summary_unchanged_for_gpr_or_no_frames(stored):
+    from database.records_store import save_records
+
+    save_records("d", geographic_records(3))
+    gpr_report = build_dataset_report(FakeDataset(id="d"))
+    assert gpr_report.candidates.status_reason == \
+        "candidate generation has not been run for this dataset"
+
+    save_records("e", [])
+    empty_report = build_dataset_report(FakeDataset(id="e"))
+    assert empty_report.candidates.status_reason == \
+        "candidate generation has not been run for this dataset"
+
+
+def test_candidate_summary_mixed_composition_stays_not_run_no_fusion_language(stored):
+    from database.frames_store import save_frames
+    from database.records_store import save_records
+
+    save_records("d", geographic_records(3))
+    save_frames("d", [frame("d:a", modality=SensorType.GPR),
+                      frame("d:b", modality=SensorType.LIDAR)])
+
+    report = build_dataset_report(FakeDataset(id="d"))
+    assert report.candidates.status_reason == \
+        "candidate generation has not been run for this dataset"
+    for invented in ("fused", "aligned", "ready for fusion", "multi-modal"):
+        assert invented not in report.candidates.status_reason.lower()
+
+
+def test_candidate_summary_still_reports_a_real_stored_set_regardless_of_composition(stored):
+    """A composition gate on the NOT-YET-ANALYSED default must never hide
+    real, already-stored evidence."""
+    from database.candidates_store import StoredCandidateSet, save_candidates
+    from database.frames_store import save_frames
+    from database.records_store import save_records
+    from interpretation.candidate_intelligence import CandidateGeneration
+
+    save_records("d", geographic_records(3))
+    save_frames("d", [frame(modality=SensorType.LIDAR)])
+    save_candidates(StoredCandidateSet(
+        dataset_id="d",
+        generation=CandidateGeneration(
+            generated_at=datetime(2026, 1, 1), dataset_id="d",
+            input_fingerprint="x", n_source_files=1, n_records=3),
+        candidates=[], n_traces=None))
+
+    report = build_dataset_report(FakeDataset(id="d"))
+    assert report.candidates.status == "available"
+    assert report.candidates.analysed is True
+
+
 def test_3d_reconstruction_names_which_registration_blocks_it():
     c = readiness_of(geographic_records(3), [frame(crs=GEOGRAPHIC, axis=DEPTH_AXIS)],
                      Capability.RECONSTRUCTION_3D)

@@ -8,8 +8,11 @@ with a reason rather than emitting a placeholder.
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import PlainTextResponse
 
+from database.frames_store import load_frames, synthesize_frames_from_records
 from database.objects_store import load_objects
+from database.records_store import load_records
 from exports.exporters import EXPORT_FORMATS, ExportRefused, export_objects
+from schemas.dataset_report import frame_modalities
 from utils.logger import get_logger
 from auth.dependencies import require_dataset_access, require_owned_dataset
 
@@ -51,8 +54,19 @@ def export_dataset_objects(dataset_id: str,
     objects = load_objects(dataset_id)
     if not objects:
         raise HTTPException(404, f"dataset {dataset_id!r} has no resolved objects")
+
+    # Composition only matters to 3d_tiles's refusal wording -- no extra load
+    # for json/csv/geojson/czml, which do not read it.
+    kw = {}
+    if fmt == "3d_tiles":
+        frames = load_frames(dataset_id)
+        if not frames:
+            records = load_records(dataset_id)
+            frames = synthesize_frames_from_records(records) if records else []
+        kw["recorded_modalities"] = frame_modalities(frames)
+
     try:
-        payload, report = export_objects(objects, fmt)
+        payload, report = export_objects(objects, fmt, **kw)
     except ExportRefused as e:
         # 409: the request is well-formed, but the data cannot support it.
         raise HTTPException(409, str(e))

@@ -1,5 +1,17 @@
 # 4TU author evidence — Dr. ter Huurne
 
+> **Correction, 2026-08-15.** §1's table and §4's summary below were written
+> before the header-field question (row 2 of the table: "Which header field
+> holds it?") was resolved. It no longer needs an author answer: comparison
+> against AHN across 366,019 traces in 107 activities identified SEG-Y bytes
+> 45–48 as the ellipsoidal field (geoid-correlated separation from bytes
+> 41–44, matching the published NL range) — see
+> [`4tu-elevation-field-identification.md`](4tu-elevation-field-identification.md)
+> and `evidence/fourtu_author.py`'s `OPEN_QUESTIONS[0].status`. The original
+> table rows are left as written below, as the record of what was known at
+> the time; §5 is rewritten to reflect the current state and does not repeat
+> this stale framing.
+
 The first external evidence request in this project to produce an answer. It
 resolves a question that had been blocked for several stages, and it does not
 unblock physical depth. Both halves matter.
@@ -100,17 +112,31 @@ sentence says the opposite.
 
 ## 5. What to ask next
 
-Three questions, recorded in `evidence/fourtu_author.py` and **not yet sent**:
+**Two questions remain**, recorded in `evidence/fourtu_author.py`
+(`OPEN_QUESTIONS[1]` and `[2]`). The header-field question that used to sit
+here has been **answered by measurement, not by an author reply** — it does
+not need asking and is not repeated below.
 
-1. **Which SEG-Y trace-header field holds the WGS84 ellipsoidal height** —
-   Receiver Group Elevation (41–44) or Source Surface Elevation (45–48)?
-   *Blocks: attaching the datum. Stakes: ~44 m.* This is the highest-value
-   question in the project right now — one sentence closes a surface-reference
-   chain that has been open since Stage 8.
-2. **What is the time-zero offset or air gap**, in ns or m?
-   *Blocks: relating the depth axis to the ground.*
-3. **Was a propagation velocity determined for any site, and by what method?**
+1. **What is the time-zero offset or air gap**, in ns or m?
+   *Blocks: relating the depth axis to the ground.* The author has already
+   established that this offset exists and is uncorrected; only its
+   magnitude is missing.
+2. **Was a propagation velocity determined for any site, and by what method?**
    *Blocks: converting time to physical depth.*
+
+A letter asking exactly these two questions is at
+[`4tu-author-letter-draft.md`](4tu-author-letter-draft.md) — **sent by email
+on 2026-08-15 (operator-stated). Awaiting reply.** Sending it was the human
+operator's decision, not something this platform or its tooling did on its
+own, and Subterra has not independently verified delivery.
+
+No GPR instrument manufacturer is named anywhere in held 4TU evidence — only
+"air-launched 500 MHz GPR"
+([`4tu-characterisation.md`](4tu-characterisation.md)). RadarMap is the
+processing software the author mentioned, and the Spectre SP80 is the GNSS
+rover; neither is the GPR vendor. No vendor letter is drafted on that basis —
+inventing a manufacturer to have someone to write to would be exactly the
+kind of unearned specificity this evidence trail exists to refuse.
 
 ## 6. Effect on readiness
 

@@ -292,7 +292,9 @@ def _stored_candidate_summary(dataset_id: str) -> Optional[CandidateSummary]:
     )
 
 
-def _candidate_summary(dataset_id: str) -> CandidateSummary:
+def _candidate_summary(
+    dataset_id: str, recorded_modalities: Optional[list[str]] = None,
+) -> CandidateSummary:
     """
     Candidates that a previous analysis stored, counted -- never re-detected.
 
@@ -307,25 +309,42 @@ def _candidate_summary(dataset_id: str) -> CandidateSummary:
     `human_interpretation` or a `ground_truth` label is a different kind of
     claim and is deliberately not folded in: mixing them is exactly how a
     benchmark's truth ends up counted as a machine's output.
+
+    `recorded_modalities` (see `frame_modalities` / `identity.recorded_modalities`)
+    only changes the NOT-YET-ANALYSED default: a non-empty composition with no
+    `gpr` in it says candidate analysis does not apply, rather than "has not
+    been run" -- the latter would read as an invitation to run it, which is
+    exactly what `api/candidates.py::generate` also now refuses. A dataset
+    that already has a stored set or labels is reported as it actually is,
+    regardless of composition -- this never hides real evidence.
     """
     stored = _stored_candidate_summary(dataset_id)
     if stored is not None:
         return stored
 
-    not_run = CandidateSummary(
-        analysed=False, status="blocked",
-        status_reason="candidate generation has not been run for this dataset",
-        missing=["a candidate generation run"])
+    def _not_run() -> CandidateSummary:
+        if recorded_modalities and "gpr" not in recorded_modalities:
+            return CandidateSummary(
+                analysed=False, status="blocked",
+                status_reason=(
+                    f"this dataset's recorded modality composition is "
+                    f"{', '.join(recorded_modalities)}; candidate analysis is a "
+                    f"GPR-trace capability and does not apply to it"),
+                missing=["a GPR acquisition, or frames recording GPR traces"])
+        return CandidateSummary(
+            analysed=False, status="blocked",
+            status_reason="candidate generation has not been run for this dataset",
+            missing=["a candidate generation run"])
 
     try:
         label_set = load_labels(dataset_id)
     except Exception:  # noqa: BLE001 -- absent or unreadable label file
-        return not_run
+        return _not_run()
 
     candidates = [l for l in getattr(label_set, "labels", [])
                   if l.kind == LabelKind.DETECTOR_CANDIDATE]
     if not candidates:
-        return not_run
+        return _not_run()
 
     shape_classes: dict[str, int] = {}
     frames: set[str] = set()
@@ -395,7 +414,7 @@ def build_dataset_report(dataset, *, now: Optional[datetime] = None) -> DatasetR
             and abs(stored - computed) > 1e-6),
     )
 
-    candidates = _candidate_summary(dataset_id)
+    candidates = _candidate_summary(dataset_id, identity.recorded_modalities)
     applied = _processing_applied(records)
     local_anomaly = _local_anomaly_stamp(records)
 

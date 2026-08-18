@@ -36,7 +36,7 @@
       <option value="points">Point cloud</option>
       <option value="heatmap">Heatmap (top-down)</option>
       <option value="surface">Surface (elevation-draped)</option>
-      <option value="bscan">B-scan (trace × depth)</option>
+      <option value="bscan" id="bscanOption">B-scan (trace × depth)</option>
     </select>
   </div>
   <div class="slider-group" id="focusGroup" style="display:none;">
@@ -75,6 +75,28 @@ async function fetchDatasetPoints(datasetId) {
     throw new Error(`Dataset ${datasetId}: ${body.detail || resp.statusText}`);
   }
   return resp.json();
+}
+
+// Whether "candidate analysis does not apply" for this dataset -- the same
+// signal frontend/components/candidates/candidate-intelligence.tsx (slices
+// 10-16) already reads from this exact endpoint. Cached per dataset and used
+// wherever a B-scan (a GPR-trace view) would otherwise be offered or claimed
+// as working on a composition it does not apply to (slices 5-6, 15-16): the
+// empty-scene status sentence (slice 19) and the B-scan option in the View
+// dropdown (slice 20). Any failure to determine this -- a network error, an
+// unexpected shape -- resolves to false, so the historical GPR behaviour is
+// the fail-closed default, same as the React panes.
+async function fetchDatasetDoesNotApply(datasetId) {
+  try {
+    const resp = await fetch(`${API_BASE}/candidates/${datasetId}`);
+    if (!resp.ok) return false;
+    const body = await resp.json();
+    return body.status === "blocked"
+      && typeof body.status_reason === "string"
+      && body.status_reason.includes("does not apply");
+  } catch (e) {
+    return false;
+  }
 }
 
 // Only records that actually carry a geographic position may be placed on
@@ -150,6 +172,10 @@ async function loadDatasets() {
       // Split once, here, so every placing view reads the same filtered set.
       data.geoPoints = geographicPoints(data);
       data.excludedNoPosition = data.points.length - data.geoPoints.length;
+      // Fetched once per load, cached on the entry -- render() stays
+      // synchronous and does not refetch on every depth/anomaly/focus
+      // re-render.
+      data.candidateAnalysisDoesNotApply = await fetchDatasetDoesNotApply(id);
       allTraces[id] = data;
       for (const pt of data.points) {
         if (pt.depth !== null && pt.depth !== undefined) {
@@ -184,6 +210,23 @@ async function loadDatasets() {
   }
   refLat = n ? sumLat / n : 0;
   refLon = n ? sumLon / n : 0;
+
+  // The B-scan view is a GPR-trace capability -- offering it as a
+  // selectable option once candidate analysis does not apply would be the
+  // same invitation slices 10-12 already removed elsewhere (the generate
+  // button, the radargram link). Reuses the flag slice 19 already cached;
+  // no second fetch. Not deleted from the HTML source: the GPR path and the
+  // fail-closed default still need it. Applied on every successful load,
+  // not left sticky, so an off-GPR load followed by a GPR load brings the
+  // option back. An empty allTraces (nothing loaded) leaves it visible --
+  // there is nothing to gate on yet.
+  const bscanDoesNotApply = Object.keys(allTraces).length > 0
+    && Object.values(allTraces).every(d => d.candidateAnalysisDoesNotApply);
+  document.getElementById("bscanOption").style.display = bscanDoesNotApply ? "none" : "";
+  if (bscanDoesNotApply && viewMode === "bscan") {
+    viewMode = "points";
+    document.getElementById("viewMode").value = "points";
+  }
 
   populateFocusSelect();
   render();
@@ -534,12 +577,20 @@ function render(depthLo, depthHi) {
   if (traces.length === 0 && Object.keys(allTraces).length > 0) {
     const excluded = Object.values(allTraces)
       .reduce((t, d) => t + d.excludedNoPosition, 0);
+    // The B-scan clause is a GPR-trace claim (slices 5-6, 15-16): only kept
+    // when at least one loaded dataset is NOT the off-GPR blocked reason
+    // (GPR, empty composition, mixed, or the candidates fetch failed/was
+    // inconclusive -- fail closed toward the historical sentence).
+    const allDoesNotApply = Object.values(allTraces)
+      .every(d => d.candidateAnalysisDoesNotApply);
     Plotly.purge("plot");
     setStatus(
       excluded
         ? `Nothing to plot: all ${excluded} loaded record(s) carry no geographic `
-          + `position, so none can be placed. They remain available through the API, `
-          + `and the B-scan view still works because it is indexed by trace, not by coordinate.`
+          + `position, so none can be placed. They remain available through the API`
+          + (allDoesNotApply
+              ? `.`
+              : `, and the B-scan view still works because it is indexed by trace, not by coordinate.`)
         : "Nothing to plot: no point survived the current depth/anomaly filters."
     );
     return;

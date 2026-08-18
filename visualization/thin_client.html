@@ -70,7 +70,7 @@
 
 <main>
   <div class="panel"><div id="map" style="width:100%;height:100%"></div></div>
-  <div class="panel">
+  <div class="panel" id="radargramPanel">
     <div id="radargram" style="width:100%;height:100%"></div>
     <div id="radargramState" style="padding:10px"></div>
   </div>
@@ -115,6 +115,20 @@ function stateBox(kind, title, detail, missing) {
 
 /* ---------------- loading ---------------- */
 
+/** Whether "candidate analysis does not apply" for this dataset -- the same
+ *  signal visualization/viewer.html (slices 19-20) and the workspace
+ *  candidate panes (slices 10-21) already read from this exact endpoint.
+ *  Fails closed to false on any error or unexpected shape, so the
+ *  historical radargram half stays the default when this cannot be
+ *  determined. */
+async function fetchDoesNotApply(id) {
+  const r = await api(`/api/candidates/${encodeURIComponent(id)}`);
+  if (!r.ok) return false;
+  return r.data?.status === "blocked"
+    && typeof r.data?.status_reason === "string"
+    && r.data.status_reason.includes("does not apply");
+}
+
 async function loadDatasets() {
   const r = await api("/api/datasets/");
   if (!r.ok) { $("datasetState").innerHTML =
@@ -135,8 +149,24 @@ async function loadDataset(id) {
   renderLists(); renderMap(); renderComposition();
   $("selection").innerHTML = `<div class="state">Nothing selected.</div>`;
   $("views").innerHTML = "";
-  $("radargramState").innerHTML = stateBox("", "No radargram selected",
-    "Select an object, label or map point.");
+
+  // The radargram half is a GPR-trace invitation -- the same class of lie
+  // slice 21 removed from the workspace's dedicated Radargram pane, and
+  // slices 19-20 removed from the Plotly viewer's B-scan claim and option.
+  // Cached once per load; select() reads this rather than fetching again.
+  state.candidateAnalysisDoesNotApply = await fetchDoesNotApply(id);
+  const main = document.querySelector("main");
+  if (state.candidateAnalysisDoesNotApply) {
+    $("radargramPanel").style.display = "none";
+    main.style.gridTemplateRows = "1fr";
+    Plotly.purge("radargram");
+    $("radargramState").innerHTML = "";
+  } else {
+    $("radargramPanel").style.display = "";
+    main.style.gridTemplateRows = "1fr 1fr";
+    $("radargramState").innerHTML = stateBox("", "No radargram selected",
+      "Select an object, label or map point.");
+  }
 }
 
 async function loadLayers(id) {
@@ -300,10 +330,17 @@ async function select(kind, id) {
   }
   renderViews(r.data);
   highlightOnMap(id);
-  const rg = r.data.views.find(v => v.view === "radargram");
-  if (rg?.resolved) loadRadargram(rg.coordinates);
-  else $("radargramState").innerHTML = Plotly.purge("radargram") ||
-    stateBox("unavailable", "Radargram unavailable", rg?.reason, rg?.missing);
+  // The radargram half is hidden entirely when candidate analysis does not
+  // apply (see loadDataset) -- no fetch here, no "Radargram unavailable"
+  // write into a panel the reader cannot see. The Views list above still
+  // prints the backend's own radargram row verbatim (slice 6); that list is
+  // not this invitation.
+  if (!state.candidateAnalysisDoesNotApply) {
+    const rg = r.data.views.find(v => v.view === "radargram");
+    if (rg?.resolved) loadRadargram(rg.coordinates);
+    else $("radargramState").innerHTML = Plotly.purge("radargram") ||
+      stateBox("unavailable", "Radargram unavailable", rg?.reason, rg?.missing);
+  }
 }
 
 function renderViews(res) {

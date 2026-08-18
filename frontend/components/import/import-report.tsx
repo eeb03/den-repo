@@ -87,6 +87,14 @@ export function ImportReport({ job, onReset }: { job: ImportJob; onReset: () => 
   const { data, error, isLoading } = useDatasetInfo(job.dataset_id ?? undefined)
   const { data: candidates } = useCandidates(job.dataset_id ?? undefined)
 
+  // Slices 10-12's exact signal, reused verbatim: no second fetch (still the
+  // same useCandidates hook), no composition parsing, no new API field.
+  // MISSING means "the data does not contain it" in this screen's own
+  // vocabulary -- the wrong word for an inapplicable GPR capability, which
+  // is what this reason describes.
+  const doesNotApply =
+    candidates?.status === 'blocked' && candidates.status_reason.includes('does not apply')
+
   const positioned = data?.geographic_record_count ?? 0
   const total = data?.record_count ?? 0
   const crs = Array.isArray(data?.coordinate_system)
@@ -164,7 +172,9 @@ export function ImportReport({ job, onReset }: { job: ImportJob; onReset: () => 
               status={positioned > 0 ? 'AVAILABLE' : 'MISSING'}
               note={
                 positioned === 0
-                  ? 'No record carries a geographic position, so map, heatmap and surface views have nothing to place. The B-scan is indexed by trace and depth and is unaffected.'
+                  ? doesNotApply
+                    ? 'No record carries a geographic position, so map, heatmap and surface views have nothing to place.'
+                    : 'No record carries a geographic position, so map, heatmap and surface views have nothing to place. The B-scan is indexed by trace and depth and is unaffected.'
                   : undefined
               }
             />
@@ -206,25 +216,40 @@ export function ImportReport({ job, onReset }: { job: ImportJob; onReset: () => 
                   : undefined
               }
               status={
-                !candidates?.generation
-                  ? 'MISSING'
-                  : candidates.status === 'blocked'
-                    ? 'BLOCKED'
-                    : 'AVAILABLE'
+                doesNotApply
+                  ? 'BLOCKED'
+                  : !candidates?.generation
+                    ? 'MISSING'
+                    : candidates.status === 'blocked'
+                      ? 'BLOCKED'
+                      : 'AVAILABLE'
               }
               note={
-                !candidates?.generation
+                !candidates
                   ? 'Candidate detection has not been run for this dataset. It is a separate, explicit step from the dataset workspace, not something import performs.'
                   : candidates.status !== 'available'
                     ? candidates.status_reason
                     : undefined
               }
             />
+            {/*
+              `?? 'trace'` would fabricate a recorded pipeline mode: the
+              backend already forbids inferring one for a dataset that
+              records none (tests/test_gpr_default_mode.py). null means
+              unrecorded, not "trace" -- print it as MISSING, with no note,
+              rather than dressing an absence up as a fact.
+            */}
             <Row
               label="Processing"
-              value={data.last_preprocessing_mode ?? 'trace'}
-              status="AVAILABLE"
-              note="Preprocessing ran at import. Candidates are generated on demand and are not detections."
+              value={data.last_preprocessing_mode ?? undefined}
+              status={data.last_preprocessing_mode ? 'AVAILABLE' : 'MISSING'}
+              note={
+                data.last_preprocessing_mode
+                  ? doesNotApply
+                    ? 'Preprocessing ran at import.'
+                    : 'Preprocessing ran at import. Candidates are generated on demand and are not detections.'
+                  : undefined
+              }
             />
           </dl>
 
