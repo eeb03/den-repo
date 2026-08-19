@@ -4,19 +4,21 @@ The data foundation for the Subterra AI ecosystem — downloads, validates,
 standardizes, fuses, and serves multimodal underground sensing datasets
 (GPR, seismic, magnetometer, ERT, gravity, LiDAR, satellite, GPS/IMU).
 
-## Status: Phase 1 (foundation build)
+## Status
 
-This is a working skeleton with real logic in the core modules, built in the
-milestone order recommended by the PRD: **ingest → validate → convert →
-fuse → serve → benchmark**. Later milestones (AI training pipeline,
-HuggingFace export, full visualization suite, auth/security hardening) are
-stubbed with clear TODOs so we can build and test each layer before moving on.
+Core backend and data platform: complete. Ingestion across four formats and
+multiple vendors, provenance-tracked preprocessing, spatial reference
+handling, candidate detection, authentication/ownership, and a full Next.js
+workspace UI all exist and are tested. The authoritative, evidenced status of
+every work area — including what is still blocked and why — is tracked in
+[`docs/roadmap.md`](docs/roadmap.md). The longer-term product vision and
+phase sequence is in [`ROADMAP.md`](ROADMAP.md).
 
 ## Quickstart
 
 ```bash
-bash setup.sh          # unpacks the project (if run from the bundle)
-cd Subterra_Data_Platform
+git clone https://github.com/eeb03/den-repo.git
+cd den-repo
 cp .env.example .env
 docker compose up --build
 ```
@@ -28,7 +30,20 @@ docker compose up --build
 Core's own API and Postgres already hold 8000 and 5432 on the same machine.
 `docker-compose.yml` is the authority for the mapping.)
 
-Run without Docker (SQLite dev mode):
+`docker compose up` starts the **backend API and database only** — it does not
+build or serve the frontend. To see the actual product UI (the dataset
+workspace), start the frontend separately; see
+[`frontend/README.md`](frontend/README.md) for the full detail:
+
+```bash
+cd frontend
+corepack enable            # once
+corepack pnpm install
+corepack pnpm dev          # http://localhost:3000
+```
+
+Run the backend without Docker (SQLite dev mode — no `.env` required, the
+default `DATABASE_URL` is already a local SQLite file):
 
 ```bash
 python -m venv venv && source venv/bin/activate
@@ -45,42 +60,31 @@ pytest -v
 ## Architecture
 
 ```
-datasets/       raw + processed data, organized by sensor
-ingestion/       downloader manager (resume, checksum, retry, dedupe)
-converters/       per-format -> Universal Subterra Record
-validators/       integrity / quality / coordinate checks
-preprocessing/    noise reduction, normalization, interpolation, sync
-fusion/           spatial matching + multimodal fusion samples
-database/         SQLAlchemy models (Postgres/PostGIS + SQLite dev fallback)
-api/              FastAPI app + routes
-tests/            pytest suite
+datasets/          raw + processed data, organized by sensor
+frontend/          Next.js workspace UI -- see frontend/README.md
+ingestion/         downloader manager (resume, checksum, retry, dedupe)
+converters/        per-format -> Universal Subterra Record
+validators/        integrity / quality / coordinate checks
+preprocessing/     noise reduction, normalization, interpolation, sync
+fusion/            spatial matching + multimodal fusion samples
+interpretation/    candidate generation, read-only anomaly interpretation
+schemas/           Pydantic models shared across the backend and API
+auth/              sessions, ownership, password reset
+database/          SQLAlchemy models (Postgres/PostGIS + SQLite dev fallback)
+api/               FastAPI app + routes
+visualization/     Plotly viewer + thin client, served by the API
+tests/             pytest suite
 ```
 
 ## Universal Subterra Record
 
 Every dataset, regardless of source format, converts into one schema
-(`schemas/subterra_record.py`):
+(`schemas/subterra_record.py`). `position` is the authoritative spatial
+field — a discriminated union (geographic / projected / odometry / none),
+never an optional lat/lon — with `latitude`/`longitude` kept only as a
+derived convenience view:
 
 ```
-sensor_type, latitude, longitude, elevation, timestamp,
+dataset_id, sensor_type, position, elevation, timestamp,
 depth, signal, metadata, ground_truth, confidence
 ```
-
-## Roadmap
-
-- [x] Folder structure + config
-- [x] Database models (metadata registry)
-- [x] Universal record schema
-- [x] Downloader manager (checksum/resume/retry/dedupe)
-- [x] Converters: CSV, SEG-Y (segyio), LAS (laspy), GeoTIFF (rasterio) — with graceful fallback if optional libs aren't installed
-- [x] Validator (integrity, coordinates, missing-data, quality score)
-- [x] Preprocessing pipeline (normalize, denoise, interpolate)
-- [x] Sensor fusion (spatial matching across sensor types)
-- [x] REST API (load/search/convert/fuse/benchmark stubs)
-- [x] Docker Compose (Postgres/PostGIS + API)
-- [x] Pytest suite for converters/validators/fusion
-- [ ] Training pipeline (PyTorch/TF DataLoaders) — Phase 2
-- [ ] Benchmark suite (detection/classification metrics) — Phase 2
-- [ ] Interactive 3D viewer (Open3D) — Phase 2
-- [ ] Dataset source auto-download connectors (Zenodo, OpenTopography, USGS APIs) — Phase 2
-- [ ] Auth, encryption, dataset signing — Phase 2
