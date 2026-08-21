@@ -322,6 +322,23 @@ def test_an_unauthenticated_fusion_samples_request_is_still_401(two_users):
     assert _client().get("/api/fusion/samples").status_code == 401
 
 
+def test_fusion_samples_report_radius_and_reprojected_count(two_users, env):
+    """Phase 7, slice 28: GET completeness. radius_m and n_reprojected are
+    real stored columns and now travel with the visible response; the
+    response still carries only the nine-plus-two fields the route
+    actually returns."""
+    Session, _ = env
+    a, b, ds_a, ds_b, system = two_users
+
+    sid = _seed_fusion_sample(Session, [ds_a], radius_m=12.5, n_reprojected=3)
+
+    sample = next(s for s in a.get("/api/fusion/samples").json() if s["id"] == sid)
+    assert sample["radius_m"] == 12.5
+    assert sample["n_reprojected"] == 3
+    assert "created_at" not in sample
+    assert "record_counts" not in sample
+
+
 ID_ROUTES = [
     "/api/datasets/{id}",
     "/api/datasets/{id}/info",

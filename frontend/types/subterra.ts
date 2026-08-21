@@ -477,12 +477,15 @@ export interface Composition {
  * filters `dataset_ids` itself.
  *
  * Deliberately 1:1 with the route's actual response, not the full
- * `FusionSample` database model: `radius_m` and `n_reprojected` are real
- * stored columns, but this endpoint does not return them, so they are not
- * typed here. Only `spatial_ref_kind` says which centre pair is meaningful --
- * `center_lat`/`center_lon` for `"geographic"`, `center_x`/`center_y`
- * otherwise. `sensor_types` and `has_ground_truth` are stored facts, not a
- * claim that the sample is "fused", "aligned" or validated.
+ * `FusionSample` database model. Only `spatial_ref_kind` says which centre
+ * pair is meaningful -- `center_lat`/`center_lon` for `"geographic"`,
+ * `center_x`/`center_y` otherwise. `sensor_types` and `has_ground_truth` are
+ * stored facts, not a claim that the sample is "fused", "aligned" or
+ * validated. `radius_m` is the stored clustering radius, not an accuracy or
+ * tolerance figure. `n_reprojected` is the stored count of member records
+ * that reached this centre through a CRS transform rather than carrying a
+ * geographic coordinate of their own -- printed as the integer it is, never
+ * used here to qualify or hide the centre.
  */
 export interface FusionSample {
   id: string
@@ -494,6 +497,8 @@ export interface FusionSample {
   sensor_types: string[]
   dataset_ids: string[]
   has_ground_truth: boolean
+  radius_m: number
+  n_reprojected: number
 }
 
 /* ------------------------------- provenance ------------------------------- */

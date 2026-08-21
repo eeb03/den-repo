@@ -116,6 +116,8 @@ def list_fusion_samples(
             "sensor_types": s.sensor_types,
             "dataset_ids": s.dataset_ids,
             "has_ground_truth": s.has_ground_truth,
+            "radius_m": s.radius_m,
+            "n_reprojected": s.n_reprojected,
         }
         for s in samples
         if visible.intersection(s.dataset_ids or [])

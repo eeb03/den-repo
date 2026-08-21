@@ -591,13 +591,13 @@ export const api = {
   /* -------------------------------- fusion -------------------------------- */
 
   /**
-   * Every stored fusion sample, across all datasets -- the endpoint takes no
-   * parameters and is not scoped to one dataset. A caller filters by
-   * `dataset_ids` itself. Deliberately 1:1 with what `GET /api/fusion/samples`
-   * returns today: no `radius_m`, no `n_reprojected` -- both exist as stored
-   * columns but this GET does not return them, so neither is typed or read
-   * here. There is no `runFusion` here: `POST /api/fusion/run` is a run
-   * control, not a read, and no UI surface has one yet.
+   * Every stored fusion sample, visible to this caller -- the endpoint
+   * takes no parameters and is not scoped to one dataset; a caller filters
+   * `dataset_ids` itself. Deliberately 1:1 with what
+   * `GET /api/fusion/samples` returns: `radius_m` and `n_reprojected` are
+   * both now part of that response, so both are typed. There is no
+   * `runFusion` here: `POST /api/fusion/run` is a run control, not a read,
+   * and no UI surface has one yet.
    */
   listFusionSamples(): Promise<FusionSample[]> {
     return request('/api/fusion/samples')

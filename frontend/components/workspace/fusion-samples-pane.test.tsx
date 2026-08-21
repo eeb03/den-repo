@@ -41,6 +41,8 @@ function sample(overrides: Partial<FusionSample> = {}): FusionSample {
     sensor_types: ['gpr'],
     dataset_ids: ['d1'],
     has_ground_truth: false,
+    radius_m: 5,
+    n_reprojected: 0,
     ...overrides,
   }
 }
@@ -214,5 +216,61 @@ describe('read-only', () => {
     expect(container.querySelector('button')).toBeNull()
     expect(container.querySelector('[data-action]')).toBeNull()
     expect(container.textContent).not.toContain('fusion/run')
+  })
+})
+
+describe('radius and reprojected count (Phase 7, slice 28)', () => {
+  it('prints the stored radius via formatMetres and the reprojected count', async () => {
+    listFusionSamples.mockResolvedValue([sample({ radius_m: 5, n_reprojected: 3 })])
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-fusion-samples]')).toBeTruthy())
+    const row = container.querySelector('[data-fusion-sample="fs-1"]')
+    expect(row?.textContent).toContain('5.0 m')
+    expect(row?.textContent).toContain('Reprojected')
+  })
+
+  it('prints a genuine 0 reprojected count, never omitted', async () => {
+    listFusionSamples.mockResolvedValue([sample({ n_reprojected: 0 })])
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-fusion-samples]')).toBeTruthy())
+    const row = container.querySelector('[data-fusion-sample="fs-1"]')
+    const reprojectedDt = Array.from(row?.querySelectorAll('dt') ?? []).find(
+      (dt) => dt.textContent === 'Reprojected',
+    )
+    expect(reprojectedDt?.parentElement?.querySelector('dd')?.textContent).toBe('0')
+  })
+
+  it('a non-zero reprojected count does not change how Centre renders', async () => {
+    listFusionSamples.mockResolvedValue([
+      sample({
+        spatial_ref_kind: 'geographic',
+        center_lat: 52.24,
+        center_lon: 6.85,
+        n_reprojected: 3,
+      }),
+    ])
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-fusion-samples]')).toBeTruthy())
+    const row = container.querySelector('[data-fusion-sample="fs-1"]')
+    // Still the real geographic centre -- not replaced by NO_VALUE, and no
+    // "derived"/"unreliable" qualifier added because reprojection happened.
+    expect(row?.textContent).toContain('52.240000')
+    expect(row?.textContent).toContain('6.850000')
+  })
+
+  it('never adds a trustworthiness qualifier for radius or reprojected count', async () => {
+    listFusionSamples.mockResolvedValue([sample({ radius_m: 5, n_reprojected: 3 })])
+    const { container } = view()
+
+    await waitFor(() => expect(container.querySelector('[data-fusion-samples]')).toBeTruthy())
+    const text = container.textContent?.toLowerCase() ?? ''
+    for (const forbidden of [
+      'unreliable', 'derived', 'native', 'trustworthy', 'accurate', 'tolerance',
+    ]) {
+      expect(text).not.toContain(forbidden)
+    }
   })
 })

@@ -4,7 +4,7 @@ import { Field, SectionLabel } from '@/components/subterra/panel'
 import { QueryState } from '@/components/subterra/query-state'
 import { StateBox } from '@/components/subterra/state-box'
 import { useFusionSamples } from '@/hooks/use-subterra'
-import { NO_VALUE, formatMetric } from '@/lib/format'
+import { NO_VALUE, formatCount, formatMetres, formatMetric } from '@/lib/format'
 
 /**
  * Phase 7, slice 26. The first workspace surface for `GET
@@ -35,6 +35,17 @@ import { NO_VALUE, formatMetric } from '@/lib/format'
  * `center_lon` for `"geographic"`, `center_x`/`center_y` otherwise. A
  * missing value renders as the explained absence, never a fabricated
  * geographic centre for a sample that was never geographic.
+ *
+ * RADIUS AND REPROJECTED COUNT ARE PRINTED, NOT INTERPRETED (Phase 7, slice
+ * 28). `radius_m` is the stored clustering radius, not "accuracy" or
+ * "tolerance". `n_reprojected` is the stored count of member records that
+ * reached this centre through a CRS transform rather than carrying a
+ * geographic coordinate of their own -- printed as the integer it is,
+ * including a genuine `0`, which is never omitted or read as "native
+ * coordinates". Neither field changes how Centre renders: this pane states
+ * the fact and leaves the reading of it to whoever looks, the same
+ * discipline `ModalityCompositionPane` and the candidate panes already
+ * hold.
  */
 export function FusionSamplesPane({ datasetId }: { datasetId: string }) {
   const { data, error, isLoading } = useFusionSamples()
@@ -87,6 +98,8 @@ export function FusionSamplesPane({ datasetId }: { datasetId: string }) {
                     </span>
                   )}
                 </Field>
+                <Field label="Radius">{formatMetres(sample.radius_m)}</Field>
+                <Field label="Reprojected">{formatCount(sample.n_reprojected)}</Field>
                 <Field label="Datasets">
                   <span className="font-mono text-[11px]">
                     {sample.dataset_ids.join(', ') || NO_VALUE}
