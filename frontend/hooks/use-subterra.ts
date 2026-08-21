@@ -129,6 +129,15 @@ export function useFrameProvenance(datasetId: string | undefined) {
   )
 }
 
+/**
+ * Every stored fusion sample. Global, same as `useDatasets` -- the endpoint
+ * takes no dataset id, so this is not per-dataset like the hooks above.
+ * `FusionSamplesPane` filters `dataset_ids` itself.
+ */
+export function useFusionSamples() {
+  return useSWR(['fusion-samples'], () => api.listFusionSamples(), options)
+}
+
 export function useTraceGrid(
   datasetId: string | undefined,
   sourceFile?: string | null,

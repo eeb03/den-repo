@@ -23,6 +23,7 @@ import { SignalChainPane } from './signal-chain-pane'
 import { CandidateRegionsPane } from './candidate-regions-pane'
 import { DatasetSummaryPane } from './dataset-summary-pane'
 import { ModalityCompositionPane } from './modality-composition-pane'
+import { FusionSamplesPane } from './fusion-samples-pane'
 import { DatasetSwitcher } from './dataset-switcher'
 import { ProvenancePane } from './provenance-pane'
 import {
@@ -93,6 +94,8 @@ export function DatasetWorkspace({ datasetId }: { datasetId: string }) {
             <DatasetSummaryPane datasetId={datasetId} />
 
             <ModalityCompositionPane datasetId={datasetId} />
+
+            <FusionSamplesPane datasetId={datasetId} />
 
             <AcquisitionPane datasetId={datasetId} />
 

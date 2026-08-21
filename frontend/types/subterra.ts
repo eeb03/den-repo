@@ -470,6 +470,32 @@ export interface Composition {
   notes?: string[]
 }
 
+/* --------------------------------- fusion --------------------------------- */
+
+/**
+ * `GET /api/fusion/samples`. Global, not scoped to one dataset -- a caller
+ * filters `dataset_ids` itself.
+ *
+ * Deliberately 1:1 with the route's actual response, not the full
+ * `FusionSample` database model: `radius_m` and `n_reprojected` are real
+ * stored columns, but this endpoint does not return them, so they are not
+ * typed here. Only `spatial_ref_kind` says which centre pair is meaningful --
+ * `center_lat`/`center_lon` for `"geographic"`, `center_x`/`center_y`
+ * otherwise. `sensor_types` and `has_ground_truth` are stored facts, not a
+ * claim that the sample is "fused", "aligned" or validated.
+ */
+export interface FusionSample {
+  id: string
+  spatial_ref_kind: string
+  center_lat: number | null
+  center_lon: number | null
+  center_x: number | null
+  center_y: number | null
+  sensor_types: string[]
+  dataset_ids: string[]
+  has_ground_truth: boolean
+}
+
 /* ------------------------------- provenance ------------------------------- */
 
 export interface FrameProvenance {
