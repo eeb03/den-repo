@@ -148,6 +148,49 @@ def test_the_existing_modality_behaviour_is_unchanged_when_nobody_declares(raste
         AxisKind.NONE
 
 
+# ---------------------------------------------------------------------------
+# inventory D, first increment: DEM is not lidar
+# ---------------------------------------------------------------------------
+
+def test_dem_is_a_sensor_type():
+    assert SensorType.DEM.value == "dem"
+
+
+def test_a_dem_raster_infers_an_elevation_axis_when_nobody_declares(raster):
+    """
+    DEM gets the same modality inference LIDAR already had. COP30 was ingested
+    as satellite for lack of a DEM member -- this is the member, not a re-tag
+    of stored COP30.
+    """
+    result = convert(raster, sensor_type=SensorType.DEM)
+    inferred = assumption(frame_of(result), "band_is_elevation")
+
+    assert frame_of(result).vertical_axis.kind == AxisKind.ELEVATION_M
+    assert all(r.elevation is not None for r in result.records)
+    assert inferred.value is True
+    assert "INFERRED" in inferred.basis
+    assert "dem" in inferred.basis
+
+
+def test_satellite_with_no_declaration_still_has_no_elevation_axis(raster):
+    """The COP30 case must not start anchoring just because DEM now exists."""
+    result = convert(raster, sensor_type=SensorType.SATELLITE)
+    assert frame_of(result).vertical_axis.kind == AxisKind.NONE
+    assert all(r.elevation is None for r in result.records)
+
+
+def test_lidar_with_no_declaration_is_still_elevation(raster):
+    result = convert(raster, sensor_type=SensorType.LIDAR)
+    assert frame_of(result).vertical_axis.kind == AxisKind.ELEVATION_M
+
+
+def test_a_dem_raster_declared_not_elevation_is_respected(raster):
+    """`band_is_elevation=False` on a DEM means no elevation axis, same as LIDAR intensity."""
+    result = convert(raster, sensor_type=SensorType.DEM, band_is_elevation=False)
+    assert frame_of(result).vertical_axis.kind == AxisKind.NONE
+    assert all(r.elevation is None for r in result.records)
+
+
 def test_a_lidar_raster_now_also_carries_elevations(raster):
     """The `record.elevation` defect applied to every raster, not just DEMs."""
     result = convert(raster, sensor_type=SensorType.LIDAR)

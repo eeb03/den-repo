@@ -86,8 +86,9 @@ class GeoTIFFConverter(BaseConverter):
         MEANS. A GeoTIFF band carries numbers and no statement of what they
         measure: elevation, reflectance, temperature and slope are
         indistinguishable from the file. Until this stage the answer was
-        inferred from the operator's declared MODALITY -- a raster called lidar
-        got an elevation axis and one called satellite did not -- which is why
+        inferred from the operator's declared MODALITY -- a raster declared
+        lidar or dem got an elevation axis and one called satellite did not --
+        which is why
         the COP30 DEM held here has `AxisKind.NONE` and cannot anchor anything,
         while an AHN raster got an elevation axis nobody had actually asserted.
 
@@ -119,7 +120,7 @@ class GeoTIFFConverter(BaseConverter):
         # frame agree about what band 1 is.
         declared = band_is_elevation is not None
         is_elevation = (band_is_elevation if declared
-                        else sensor_type == SensorType.LIDAR)
+                        else sensor_type in (SensorType.LIDAR, SensorType.DEM))
 
         with rasterio.open(str(path)) as ds:
             band1 = ds.read(1)

@@ -21,6 +21,7 @@ class SensorType(str, Enum):
     ERT = "ert"                 # electrical resistivity tomography
     GRAVITY = "gravity"
     LIDAR = "lidar"
+    DEM = "dem"
     SATELLITE = "satellite"
     GPS = "gps"
     IMU = "imu"

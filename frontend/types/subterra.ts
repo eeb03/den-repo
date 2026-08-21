@@ -210,6 +210,7 @@ export type SensorType =
   | 'ert'
   | 'gravity'
   | 'lidar'
+  | 'dem'
   | 'satellite'
   | 'gps'
   | 'imu'
