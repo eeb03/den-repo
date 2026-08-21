@@ -339,6 +339,67 @@ def test_fusion_samples_report_radius_and_reprojected_count(two_users, env):
     assert "record_counts" not in sample
 
 
+# --------------------------------------------------------------------------
+# fusion run: POST /api/fusion/run applies the same visibility rule as the
+# GET (slice 27) and the dataset list -- the write side of the same leak
+# --------------------------------------------------------------------------
+
+def test_naming_an_invisible_dataset_id_on_fusion_run_is_a_404(two_users):
+    a, b, ds_a, ds_b, system = two_users
+
+    # A visible id is not refused.
+    own = a.post("/api/fusion/run", params={"dataset_ids": ds_a, "persist": False})
+    assert own.status_code == 200
+
+    # B's own dataset is invisible to A.
+    other = a.post("/api/fusion/run", params={"dataset_ids": ds_b, "persist": False})
+    assert other.status_code == 404
+    assert other.json()["detail"] == "Dataset not found"
+
+    # A mixed list is refused whole, not partially run.
+    mixed = a.post(
+        "/api/fusion/run",
+        params={"dataset_ids": [ds_a, ds_b], "persist": False},
+    )
+    assert mixed.status_code == 404
+    assert mixed.json()["detail"] == "Dataset not found"
+
+
+def test_omitting_dataset_ids_on_fusion_run_does_not_load_another_users_records(two_users, env):
+    Session, _ = env
+    a, b, ds_a, ds_b, system = two_users
+
+    from schemas.spatial import GeographicPosition
+    from schemas.subterra_record import SensorType, SubterraRecord
+    from database.records_store import save_records
+
+    save_records(
+        ds_b,
+        [
+            SubterraRecord(
+                dataset_id=ds_b, sensor_type=SensorType.GPR,
+                position=GeographicPosition(lat=41.0, lon=15.0),
+                depth=0.5, signal=[1.0],
+                metadata={"source_file": "line.sgy", "trace_index": 0},
+            )
+        ],
+    )
+
+    r = a.post("/api/fusion/run", params={"persist": False})
+    assert r.status_code == 200
+    body = r.json()
+    # A and the unowned system dataset have no stored records at all, so
+    # omitting dataset_ids must resolve to A's visible set, not every
+    # *.jsonl on disk -- B's record must not be counted or fused in.
+    assert body["input_record_count"] == 0
+    for sample in body["samples"]:
+        assert ds_b not in sample["dataset_ids"]
+
+
+def test_an_unauthenticated_fusion_run_request_is_still_401(two_users):
+    assert _client().post("/api/fusion/run").status_code == 401
+
+
 ID_ROUTES = [
     "/api/datasets/{id}",
     "/api/datasets/{id}/info",

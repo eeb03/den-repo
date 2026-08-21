@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from auth.dependencies import get_current_user, visible_dataset_ids
@@ -26,8 +26,33 @@ def run_fusion(
     """
     Run spatial sensor fusion across ingested datasets and return (optionally
     persist) the resulting multimodal training samples.
+
+    VISIBILITY, THE SAME RULE AS THE GET (slice 27). Omitting `dataset_ids`
+    used to glob and fuse every `*.jsonl` on disk -- every user's records,
+    not this caller's. It now resolves to this caller's visible set (their
+    own datasets, plus unowned/system data) instead. Naming a dataset the
+    caller cannot see is refused whole, as a 404 -- the same wording
+    `dataset_or_404` already uses elsewhere -- rather than silently fusing
+    only the visible ids from a mixed list, which would let a caller learn
+    which of several ids exist by seeing which ones got fused.
     """
-    records = load_all_records(dataset_ids)
+    visible = visible_dataset_ids(db, user)
+
+    if dataset_ids is None:
+        # Omit means "what I can see", not "every file that has ever been
+        # ingested by anyone".
+        resolved_ids = sorted(visible)
+    else:
+        invisible = [d for d in dataset_ids if d not in visible]
+        if invisible:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        resolved_ids = dataset_ids
+
+    # load_all_records(ids) reads `ids or glob(*.jsonl)` -- an empty list is
+    # falsy, so passing [] straight through would glob every file on disk,
+    # the exact leak this endpoint exists to close. A resolved set of
+    # nothing must load nothing, never fall through to "everything".
+    records = load_all_records(resolved_ids) if resolved_ids else []
     # Frames carry the declared CRS, so a projected survey can be reprojected
     # into the geographic frame and fused with it. Without them, projected
     # records stay excluded -- which is the honest outcome, not a failure.
