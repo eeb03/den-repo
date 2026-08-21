@@ -261,6 +261,67 @@ def test_each_user_lists_only_their_own_datasets_plus_system_data(two_users):
     assert system in a_ids and system in b_ids
 
 
+# --------------------------------------------------------------------------
+# fusion samples: GET /api/fusion/samples applies the same visibility rule
+# --------------------------------------------------------------------------
+
+def _seed_fusion_sample(Session, dataset_ids, **overrides):
+    from database.models import FusionSample, gen_uuid
+
+    sid = gen_uuid()
+    with Session() as s:
+        s.add(
+            FusionSample(
+                id=sid,
+                spatial_ref_kind=overrides.pop("spatial_ref_kind", "geographic"),
+                radius_m=overrides.pop("radius_m", 5.0),
+                dataset_ids=list(dataset_ids),
+                sensor_types=overrides.pop("sensor_types", ["gpr"]),
+                **overrides,
+            )
+        )
+        s.commit()
+    return sid
+
+
+def _sample_ids(client) -> set[str]:
+    return {s["id"] for s in client.get("/api/fusion/samples").json()}
+
+
+def test_fusion_samples_follow_the_same_visibility_rule_as_the_dataset_list(two_users, env):
+    Session, _ = env
+    a, b, ds_a, ds_b, system = two_users
+
+    only_a = _seed_fusion_sample(Session, [ds_a])
+    only_b = _seed_fusion_sample(Session, [ds_b])
+    only_system = _seed_fusion_sample(Session, [system])
+    a_and_system = _seed_fusion_sample(Session, [ds_a, system])
+    a_and_b = _seed_fusion_sample(Session, [ds_a, ds_b])
+
+    a_ids = _sample_ids(a)
+    b_ids = _sample_ids(b)
+
+    # 1/2: a dataset-owner-only sample is visible only to its owner.
+    assert only_a in a_ids and only_a not in b_ids
+    assert only_b in b_ids and only_b not in a_ids
+
+    # 3: unowned/system-only membership is visible to both.
+    assert only_system in a_ids and only_system in b_ids
+
+    # 4: owner + system -- both see it, since system alone is enough for B.
+    assert a_and_system in a_ids and a_and_system in b_ids
+
+    # 5: both owners as members -- both see it, and dataset_ids stays the
+    # full, unredacted list even for the caller who cannot open the partner.
+    assert a_and_b in a_ids and a_and_b in b_ids
+    sample = next(s for s in a.get("/api/fusion/samples").json() if s["id"] == a_and_b)
+    assert set(sample["dataset_ids"]) == {ds_a, ds_b}
+
+
+def test_an_unauthenticated_fusion_samples_request_is_still_401(two_users):
+    assert _client().get("/api/fusion/samples").status_code == 401
+
+
 ID_ROUTES = [
     "/api/datasets/{id}",
     "/api/datasets/{id}/info",

@@ -96,6 +96,14 @@ def list_fusion_samples(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    # Same visibility rule as the dataset list: a sample is returned iff at
+    # least one of its member datasets is visible to this caller (their own,
+    # or unowned/system). `dataset_ids` on the response stays verbatim,
+    # including partner IDs the caller cannot open -- hiding those would make
+    # a sample that DOES include a visible dataset look like it does not
+    # exist, which is false. The remaining partner-ID leak inside a visible
+    # sample's dataset_ids is a separate, parked concern.
+    visible = visible_dataset_ids(db, user)
     samples = db.query(FusionSampleModel).all()
     return [
         {
@@ -110,4 +118,5 @@ def list_fusion_samples(
             "has_ground_truth": s.has_ground_truth,
         }
         for s in samples
+        if visible.intersection(s.dataset_ids or [])
     ]
