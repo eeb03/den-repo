@@ -13,9 +13,9 @@ import { formatCount } from '@/lib/format'
  * hook, so SWR dedupes the two rather than issuing a second request.
  *
  * A DATASET-LEVEL FACT, NOT THE INGEST DECLARATION. `DatasetSummaryPane`'s
- * "Sensor" field is `dataset.sensor_type`, what the dataset claimed at
- * ingest; this pane follows `survey_frames[].modality`, what each frame was
- * actually recorded as. The two can disagree -- a dataset declared `gpr`
+ * "Declared sensor" field is `dataset.sensor_type`, what the dataset claimed
+ * at ingest; this pane follows `survey_frames[].modality`, what each frame
+ * was actually recorded as. The two can disagree -- a dataset declared `gpr`
  * that also carries a `lidar` frame is not corrected here, and the extra
  * modality is not hidden. Neither field is touched or collapsed into the
  * other.

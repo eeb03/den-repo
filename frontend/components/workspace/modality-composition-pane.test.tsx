@@ -109,8 +109,9 @@ describe('a single recorded modality', () => {
 
     await waitFor(() => expect(container.querySelector('[data-modality-composition]')).toBeTruthy())
     // This pane names frame modalities, not the ingest declaration -- no
-    // "Sensor" field lives here.
+    // "Sensor" field lives here, under either label DatasetSummaryPane uses.
     expect(container.textContent).not.toContain('Sensor')
+    expect(container.textContent).not.toContain('Declared sensor')
   })
 })
 

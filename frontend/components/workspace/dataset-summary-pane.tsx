@@ -33,7 +33,7 @@ export function DatasetSummaryPane({ datasetId }: { datasetId: string }) {
       {data && (
         <dl className="space-y-0">
           <Field label="Name">{data.name}</Field>
-          <Field label="Sensor">{data.sensor_type ?? NO_VALUE}</Field>
+          <Field label="Declared sensor">{data.sensor_type ?? NO_VALUE}</Field>
           <Field label="Format">{data.original_format ?? NO_VALUE}</Field>
           <Field label="Source">{data.source ?? NO_VALUE}</Field>
           <Field label="Licence">{data.license ?? NO_VALUE}</Field>
