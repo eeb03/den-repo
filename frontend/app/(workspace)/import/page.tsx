@@ -30,7 +30,7 @@ import type { ImportJob } from '@/types/subterra'
  * The format verdict is decided before upload, from the registry the backend
  * serves. Nothing here keeps its own list of extensions.
  */
-const SENSOR_TYPES = ['gpr', 'lidar', 'seismic', 'magnetometer', 'satellite', 'other']
+const SENSOR_TYPES = ['gpr', 'lidar', 'dem', 'seismic', 'magnetometer', 'satellite', 'other']
 
 export default function ImportPage() {
   // Suspense because the page reads the session id from the query string.

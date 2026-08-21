@@ -135,6 +135,64 @@ describe('bare /import (no session)', () => {
     await waitFor(() => expect(createImport).toHaveBeenCalled())
     expect(createImport).toHaveBeenCalledWith(file, 'gpr', true, undefined)
   })
+
+  it('offers dem among the declared-sensor-type choices', async () => {
+    renderPage()
+    await screen.findByText(/drop a dataset here/i)
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File(['x'], 'line1.sgy')
+    Object.defineProperty(input, 'files', { value: [file] })
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+
+    expect(await screen.findByRole('button', { name: 'dem' })).toBeTruthy()
+  })
+
+  it('creates the import with dem when that choice is clicked', async () => {
+    createImport.mockResolvedValue({
+      job: { id: 'j1', state: 'IDENTIFIED', dataset_id: null, session_id: null },
+    })
+    renderPage()
+    await screen.findByText(/drop a dataset here/i)
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File(['x'], 'line1.sgy')
+    Object.defineProperty(input, 'files', { value: [file] })
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+
+    const demButton = await screen.findByRole('button', { name: 'dem' })
+    demButton.click()
+    const importButton = await screen.findByRole('button', { name: /import dataset/i })
+    importButton.click()
+
+    await waitFor(() => expect(createImport).toHaveBeenCalled())
+    expect(createImport).toHaveBeenCalledWith(file, 'dem', true, undefined)
+  })
+
+  it('still offers other among the declared-sensor-type choices', async () => {
+    renderPage()
+    await screen.findByText(/drop a dataset here/i)
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File(['x'], 'line1.sgy')
+    Object.defineProperty(input, 'files', { value: [file] })
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+
+    expect(await screen.findByRole('button', { name: 'other' })).toBeTruthy()
+  })
+
+  it('still offers lidar and gpr among the declared-sensor-type choices', async () => {
+    renderPage()
+    await screen.findByText(/drop a dataset here/i)
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File(['x'], 'line1.sgy')
+    Object.defineProperty(input, 'files', { value: [file] })
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+
+    expect(await screen.findByRole('button', { name: 'lidar' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'gpr' })).toBeTruthy()
+  })
 })
 
 describe('/import?session=<id>', () => {
