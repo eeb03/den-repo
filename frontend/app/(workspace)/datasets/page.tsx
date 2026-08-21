@@ -80,9 +80,16 @@ function DatasetRow({ dataset }: { dataset: DatasetSummary }) {
             >
               {dataset.name}
             </Link>
+            {/*
+              Phase 7, slice 30. sensor_type is what the dataset claimed at
+              ingest, same fact DatasetSummaryPane calls "Declared sensor"
+              (slice 25) -- "declared" in the badge text so this compact tag
+              reads as the declaration it is, not the recorded instrument.
+              The value is unchanged and unreconciled against frames.
+            */}
             {dataset.sensor_type && (
               <span className="rounded border border-border px-1.5 py-px font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                {dataset.sensor_type}
+                declared {dataset.sensor_type}
               </span>
             )}
             {dataset.original_format && (

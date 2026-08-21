@@ -37,7 +37,10 @@ export function DatasetSwitcher({ datasetId }: { datasetId: string }) {
         {data.map((dataset) => (
           <option key={dataset.id} value={dataset.id}>
             {dataset.name}
-            {dataset.sensor_type ? ` · ${dataset.sensor_type}` : ''}
+            {/* Phase 7, slice 30: same "declared" wording as the datasets
+                list badge and DatasetSummaryPane (slice 25) -- sensor_type
+                is the ingest claim, not the recorded instrument. */}
+            {dataset.sensor_type ? ` · declared ${dataset.sensor_type}` : ''}
             {dataset.center_lat === null ? ' · no geographic centre' : ''}
           </option>
         ))}
