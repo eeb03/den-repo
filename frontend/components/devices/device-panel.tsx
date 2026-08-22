@@ -90,6 +90,11 @@ export function DevicePanel() {
     // a GPR device, the same defect slices 35-36 closed on the import
     // picker.
     device_type: null as string | null,
+    // What ELSE this same instrument produces, beyond the declared type --
+    // a GPR cart that also carries GPS and IMU, for example. The declared
+    // type is always the first modality; this is only the rest. Empty until
+    // the operator ticks something, never inferred from device_type.
+    extra_modalities: [] as string[],
     simulated: false,
     // What the instrument CAN produce. Declared here so the gap between
     // capability and evidence is reachable at all: without these, every
@@ -139,6 +144,16 @@ export function DevicePanel() {
         samplingConfiguration.samples_per_trace = Number(form.samples_per_trace)
       }
 
+      // The declared type is always first, then any extras in DEVICE_TYPES
+      // order -- computed from the enum rather than click order, so this is
+      // deduped and ordered even if state ever drifted.
+      const modalities = [
+        form.device_type,
+        ...DEVICE_TYPES.filter(
+          (t) => t !== form.device_type && form.extra_modalities.includes(t),
+        ),
+      ]
+
       await api.registerDevice({
         device_type: form.device_type,
         manufacturer: form.manufacturer || undefined,
@@ -146,7 +161,7 @@ export function DevicePanel() {
         serial_number: form.serial_number || undefined,
         kind: form.simulated ? 'simulated' : 'physical',
         capabilities: {
-          modalities: [form.device_type],
+          modalities,
           reports_position: form.reports_position,
           reports_orientation: form.reports_orientation,
           reports_absolute_time: form.reports_absolute_time,
@@ -164,6 +179,7 @@ export function DevicePanel() {
         serial_number: '',
         // A second Record must not inherit the previous declaration.
         device_type: null,
+        extra_modalities: [],
         frequency_mhz: '',
         channels: '',
         sample_interval_ns: '',
@@ -412,7 +428,18 @@ export function DevicePanel() {
                     <button
                       key={type}
                       type="button"
-                      onClick={() => setForm({ ...form, device_type: type })}
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          device_type: type,
+                          // The previous primary does not silently survive as
+                          // an "extra", and the new primary cannot also be
+                          // ticked as one -- it is already the first modality.
+                          extra_modalities: form.extra_modalities.filter(
+                            (m) => m !== type,
+                          ),
+                        })
+                      }
                       className={cn(
                         'rounded-md border px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors',
                         form.device_type === type
@@ -425,6 +452,53 @@ export function DevicePanel() {
                   ))}
                 </div>
               </fieldset>
+              {/*
+                WHAT ELSE THIS SAME INSTRUMENT PRODUCES. Still a capability,
+                not evidence and not a fusion claim -- ticking gps here says
+                the cart also carries a GPS, not that this session used it.
+                Nothing to offer until a primary type is declared, and the
+                primary is never offered again here: it is already the first
+                modality.
+              */}
+              {form.device_type && (
+                <fieldset className="space-y-1 pt-1">
+                  <legend className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                    Other modalities
+                  </legend>
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">
+                    These are capabilities — what the instrument can produce —
+                    not evidence that any session did, and not a fusion claim.
+                    The declared sensor type above is always recorded as a
+                    modality. Tick others only if this instrument also
+                    produces them. The platform will not guess them.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {DEVICE_TYPES.filter((type) => type !== form.device_type).map(
+                      (type) => (
+                        <label
+                          key={type}
+                          className="flex items-center gap-1.5 text-xs text-muted-foreground"
+                        >
+                          <input
+                            type="checkbox"
+                            data-device-modality-extra={type}
+                            checked={form.extra_modalities.includes(type)}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                extra_modalities: e.target.checked
+                                  ? [...form.extra_modalities, type]
+                                  : form.extra_modalities.filter((m) => m !== type),
+                              })
+                            }
+                          />
+                          {type}
+                        </label>
+                      ),
+                    )}
+                  </div>
+                </fieldset>
+              )}
               {/*
                 CAPABILITY, NOT EVIDENCE. Ticking these says the instrument is
                 able to report something -- never that any particular session

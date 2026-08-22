@@ -310,6 +310,74 @@ describe('the stored modality capability', () => {
   })
 })
 
+describe('additional declared modalities', () => {
+  function tickExtra(container: HTMLElement, type: string) {
+    fireEvent.click(container.querySelector(`[data-device-modality-extra="${type}"]`)!)
+  }
+
+  it('sends the declared type plus ticked extras as capabilities.modalities', async () => {
+    registerDevice.mockResolvedValue({ device: device() })
+    const { container } = await renderPanel([])
+    fireEvent.click(container.querySelector('[data-action="register-device"]')!)
+    clickDeviceType(container, 'gpr')
+    tickExtra(container, 'gps')
+    tickExtra(container, 'imu')
+    fireEvent.submit(container.querySelector('form')!)
+
+    await waitFor(() => expect(registerDevice).toHaveBeenCalled())
+    const sent = registerDevice.mock.calls[0]?.[0] as {
+      device_type?: string
+      capabilities?: { modalities?: string[] }
+    }
+    expect(sent.device_type).toBe('gpr')
+    expect(sent.capabilities?.modalities).toEqual(['gpr', 'gps', 'imu'])
+  })
+
+  it('never uses fusion or readiness vocabulary for the extras fieldset', async () => {
+    const { container } = await renderPanel([])
+    fireEvent.click(container.querySelector('[data-action="register-device"]')!)
+    clickDeviceType(container, 'gpr')
+
+    const form = container.querySelector('[data-device-form]')!
+    const text = form.textContent?.toLowerCase() ?? ''
+    for (const forbidden of ['fused', 'aligned', 'ready for fusion', 'multi-modal']) {
+      expect(text).not.toContain(forbidden)
+    }
+  })
+
+  it('defaults to no extras -- the slice 37 write path is preserved', async () => {
+    registerDevice.mockResolvedValue({ device: device({ device_type: 'dem' }) })
+    const { container } = await renderPanel([])
+    fireEvent.click(container.querySelector('[data-action="register-device"]')!)
+    clickDeviceType(container, 'dem')
+    fireEvent.submit(container.querySelector('form')!)
+
+    await waitFor(() => expect(registerDevice).toHaveBeenCalled())
+    const sent = registerDevice.mock.calls[0]?.[0] as {
+      capabilities?: { modalities?: string[] }
+    }
+    expect(sent.capabilities?.modalities).toEqual(['dem'])
+  })
+
+  it('drops the previous primary as an extra when the declared type is switched', async () => {
+    registerDevice.mockResolvedValue({ device: device({ device_type: 'dem' }) })
+    const { container } = await renderPanel([])
+    fireEvent.click(container.querySelector('[data-action="register-device"]')!)
+    clickDeviceType(container, 'gpr')
+    tickExtra(container, 'gps')
+    clickDeviceType(container, 'dem')
+    fireEvent.submit(container.querySelector('form')!)
+
+    await waitFor(() => expect(registerDevice).toHaveBeenCalled())
+    const sent = registerDevice.mock.calls[0]?.[0] as {
+      device_type?: string
+      capabilities?: { modalities?: string[] }
+    }
+    expect(sent.device_type).toBe('dem')
+    expect(sent.capabilities?.modalities).toEqual(['dem', 'gps'])
+  })
+})
+
 describe('capability declaration', () => {
   it('lets a device declare what it can report, framed as capability', async () => {
     const { container } = await renderPanel([])
