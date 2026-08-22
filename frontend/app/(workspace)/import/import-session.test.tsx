@@ -169,7 +169,12 @@ describe('bare /import (no session)', () => {
     expect(createImport).toHaveBeenCalledWith(file, 'dem', true, undefined)
   })
 
-  it('still offers other among the declared-sensor-type choices', async () => {
+  it('no longer offers other, which the backend has never accepted', async () => {
+    // sensor_type is a real backend enum (schemas/subterra_record.py
+    // SensorType) with no OTHER member -- choosing it always 422'd, and the
+    // error path here (`String(detail)` on FastAPI's list-of-objects
+    // validation detail) rendered that as "[object Object]", not an
+    // explanation. Confirmed against the live route before removing it.
     renderPage()
     await screen.findByText(/drop a dataset here/i)
 
@@ -178,7 +183,8 @@ describe('bare /import (no session)', () => {
     Object.defineProperty(input, 'files', { value: [file] })
     input.dispatchEvent(new Event('change', { bubbles: true }))
 
-    expect(await screen.findByRole('button', { name: 'other' })).toBeTruthy()
+    await screen.findByRole('button', { name: 'gpr' })
+    expect(screen.queryByRole('button', { name: 'other' })).toBeNull()
   })
 
   it('still offers lidar and gpr among the declared-sensor-type choices', async () => {

@@ -30,7 +30,14 @@ import type { ImportJob } from '@/types/subterra'
  * The format verdict is decided before upload, from the registry the backend
  * serves. Nothing here keeps its own list of extensions.
  */
-const SENSOR_TYPES = ['gpr', 'lidar', 'dem', 'seismic', 'magnetometer', 'satellite', 'other']
+// 'other' used to be offered here. The backend's sensor_type is a real enum
+// (schemas/subterra_record.py SensorType) with no OTHER member, so choosing
+// it always failed the upload with a 422 the UI could not render sensibly --
+// FastAPI's validation `detail` for an enum mismatch is a list of objects,
+// and this page's error path does `String(detail)`, which prints
+// "[object Object]", not an explanation. Every choice offered here must be
+// a value the backend actually accepts.
+const SENSOR_TYPES = ['gpr', 'lidar', 'dem', 'seismic', 'magnetometer', 'satellite']
 
 export default function ImportPage() {
   // Suspense because the page reads the session id from the query string.
