@@ -42,6 +42,11 @@ export default function FusionPage() {
   const [previewedParams, setPreviewedParams] = useState<string | null>(null)
   const [saved, setSaved] = useState<FusionRunResult | null>(null)
   const [runError, setRunError] = useState<string | null>(null)
+  // What was actually ATTEMPTED, not what succeeded -- `saved` alone
+  // cannot title a failure, since it stays null both before any save and
+  // after a save that failed. Set before the request, so it reflects the
+  // attempt even when it never resolves.
+  const [lastAttempt, setLastAttempt] = useState<'preview' | 'save' | null>(null)
 
   const currentParams = JSON.stringify({
     ids: Array.from(selected).sort(),
@@ -55,6 +60,7 @@ export default function FusionPage() {
     setPreviewedParams(null)
     setSaved(null)
     setRunError(null)
+    setLastAttempt(null)
   }
 
   function toggleDataset(id: string) {
@@ -70,6 +76,7 @@ export default function FusionPage() {
   async function run(persist: boolean) {
     setRunning(true)
     setRunError(null)
+    setLastAttempt(persist ? 'save' : 'preview')
     try {
       const result = await api.runFusion({
         datasetIds: selected.size > 0 ? Array.from(selected) : undefined,
@@ -222,7 +229,7 @@ export default function FusionPage() {
                 <StateBox
                   kind="error"
                   className="mt-3"
-                  title={saved === null ? 'Run failed' : 'Save failed'}
+                  title={lastAttempt === 'save' ? 'Save failed' : 'Preview failed'}
                   detail={runError}
                 />
               )}

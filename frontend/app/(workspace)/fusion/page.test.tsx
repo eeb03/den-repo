@@ -14,6 +14,7 @@ import { SWRConfig } from 'swr'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DatasetSummary, FusionRunResult } from '@/types/subterra'
+import { ApiError } from '@/services/api'
 
 const listDatasets = vi.fn()
 const runFusion = vi.fn()
@@ -295,5 +296,37 @@ describe('save is gated on an exact, current preview', () => {
       const save = document.querySelector('[data-action="save-fusion"]') as HTMLButtonElement
       expect(save.disabled).toBe(true)
     })
+  })
+})
+
+describe('a failed run is titled by what was actually attempted', () => {
+  it('titles a failed preview "Preview failed"', async () => {
+    runFusion.mockRejectedValue(new ApiError(500, 'the backend fell over'))
+    view()
+    await screen.findByText('Site A')
+    fireEvent.click(document.querySelector('[data-action="preview-fusion"]')!)
+
+    expect(await screen.findByText('Preview failed')).toBeTruthy()
+  })
+
+  it('titles a failed save "Save failed", not "Run failed"', async () => {
+    // `saved` stays null on a failed save exactly as it does before any
+    // save has been attempted -- the title must not be decided from that
+    // alone, or a failed save reads as if nothing was ever tried.
+    runFusion.mockResolvedValueOnce(result())
+    view()
+    await screen.findByText('Site A')
+    fireEvent.click(document.querySelector('[data-action="preview-fusion"]')!)
+    await waitFor(() =>
+      expect(
+        (document.querySelector('[data-action="save-fusion"]') as HTMLButtonElement).disabled,
+      ).toBe(false),
+    )
+
+    runFusion.mockRejectedValueOnce(new ApiError(500, 'the backend fell over'))
+    fireEvent.click(document.querySelector('[data-action="save-fusion"]')!)
+
+    expect(await screen.findByText('Save failed')).toBeTruthy()
+    expect(screen.queryByText('Run failed')).toBeNull()
   })
 })

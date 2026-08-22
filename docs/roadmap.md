@@ -24,7 +24,7 @@ Last verified against `0daa3e7` on 2026-08-08.
 | Localisation / X-Y-Z scoring | 🔒 **BLOCKED** | Both artifacts carry the gate; 4TU publishes no trench coordinates, BAM's absolute origin is unverified |
 | Frontend architecture audit | ✅ Complete | `frontend/README.md` |
 | V0 frontend migration | 🟡 In progress | workspace, datasets and benchmark pages ship; marketing landing page not ported |
-| Real API → new frontend | 🟡 Substantially complete | 8 of 12 backend route groups have UI; `exports`, `fusion`, `sources`, `training` do not |
+| Real API → new frontend | 🟡 Substantially complete | 9 of 12 backend route groups have UI (`fusion` added: `/fusion`, preview-then-save); `exports`, `sources`, `training` do not |
 | Browser verification | ✅ Complete (first pass) | `browser-verification.md` — 11 routes, all 6 datasets, 0 page errors, 0 failed requests |
 | Detection improvement | ⏳ Open — one candidate tried and **rejected** | `detector-multiscale-experiment.md` |
 | Author / evidence requests | 🟡 Open | outstanding queries to dataset publishers |
