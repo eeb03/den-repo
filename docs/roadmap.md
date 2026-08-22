@@ -10,29 +10,32 @@ numbering referenced by `dataset-benchmark-plan.md` and
 `benchmark-acquisition-plan.md` is still not committed anywhere, so the phase
 numbers in those documents remain inferred, exactly as they say.
 
-Last verified against `0daa3e7` on 2026-08-08.
+Last verified against `ea53ba7` on 2026-08-22.
 
 | Area | Status | Evidence |
 |---|---|---|
-| Core backend / data platform | ✅ Complete | 1,116 tests pass in Docker; 1,167 files and 749,315 traces ingest across four formats and three vendors |
+| Core backend / data platform | ✅ Complete | 2,188 tests pass in Docker, re-verified 2026-08-22; 1,167 files and 749,315 traces ingest across four formats and three vendors (that ingest figure is from 2026-08-08, not re-checked this pass) |
 | Open GPR dataset investigation | ✅ Complete | `dataset-inventory.md`, `dataset-benchmark-plan.md`, `cmugpr-acquisition-assessment.md` |
 | BAM benchmark acquisition | ✅ Complete | `external-gpr-benchmark-acquisition.md`; acquired and checksum-verified |
 | BAM detection benchmark | ✅ Complete | `artifacts/bam/*.json`, 161 lines scored at both frequencies |
 | 4TU utility benchmark | ✅ Complete | `artifacts/4tu/benchmark.json`, complete **125**-activity corpus |
-| Benchmark test infrastructure | ✅ Strong | GPR regression 26 pass bit-identical; baseline identity 12/12 |
+| Benchmark test infrastructure | ✅ Strong | GPR regression 26 pass bit-identical (re-verified: 26 tests still collect); baseline identity 12/12 |
 | Ground-truth / provenance safeguards | ✅ Established | `provenance.md`; enforced in backend tests and in the UI |
-| Localisation / X-Y-Z scoring | 🔒 **BLOCKED** | Both artifacts carry the gate; 4TU publishes no trench coordinates, BAM's absolute origin is unverified |
+| Localisation / X-Y-Z scoring | 🔒 **BLOCKED** | Both artifacts carry the gate; 4TU publishes no trench coordinates, BAM's absolute origin is unverified. Unaffected by everything below — see "What blocks localisation" |
+| Composition honesty — the off-GPR invitation cascade | ✅ Complete for the surfaces audited | 23+ commits (keyword search on `git log`, likely an undercount): every surface that used to say a GPR-only capability "has not been run" for a non-GPR dataset (report, radargram viewer, thin-client, workspace panes, import-report, exports, candidates inspect route, dataset list/switcher/summary, device registration/card) now says it does not apply and names the actual recorded/declared composition instead. `dataset.sensor_type` is labelled "declared" everywhere it surfaces, never presented as the recorded instrument |
+| Inventory D — DEM as a first-class modality | ✅ DEM closed; other members open | `SensorType.DEM` added next to `LIDAR` (`schemas/subterra_record.py`); GeoTIFF's undeclared-band elevation inference fires for LIDAR or DEM (`docs/surface-reference.md`); import picker and device registration both offer the full ten-member enum, no pre-selected default, no `other` (a value the backend never accepted). Held reference datasets (COP30, AHN) intentionally not migrated. `ert`/`gravity`/`gps`/`imu` still have no dedicated converter — declarable, not yet ingestable as their own modality |
+| Fusion: visibility, redaction, and a run control | ✅ Complete | `GET`/`POST /api/fusion/*` apply the same visibility rule as the dataset list; another user's dataset id inside a shared sample is redacted (`dataset-not-visible`), not shown or dropped; `/fusion` is a real UI (preview then save — `persist` has no dedup against stored samples, so it defaults to `false` and Save is disabled until a preview matches the current configuration by value) |
 | Frontend architecture audit | ✅ Complete | `frontend/README.md` |
-| V0 frontend migration | 🟡 In progress | workspace, datasets and benchmark pages ship; marketing landing page not ported |
+| V0 frontend migration | 🟡 In progress | workspace, datasets and benchmark pages ship; marketing landing page still not ported (components exist under `components/landing/`, no route mounts them — re-checked 2026-08-22) |
 | Real API → new frontend | 🟡 Substantially complete | 9 of 12 backend route groups have UI (`fusion` added: `/fusion`, preview-then-save); `exports`, `sources`, `training` do not |
-| Browser verification | ✅ Complete (first pass) | `browser-verification.md` — 11 routes, all 6 datasets, 0 page errors, 0 failed requests |
+| Browser verification | 🟡 Complete for its own scope, coverage now stale | `browser-verification.md` — 11 routes, all 6 datasets, 0 page errors, 0 failed requests, run 2026-08-08 against `0daa3e7`. Predates every row above from composition honesty onward, including the entire `/fusion` route — none of that has been checked in a real browser. No browser-automation tool was available in the 2026-08-22 session to re-run this pass; re-verification is still owed |
 | Detection improvement | ⏳ Open — one candidate tried and **rejected** | `detector-multiscale-experiment.md` |
-| Author / evidence requests | 🟡 Open | outstanding queries to dataset publishers |
+| Author / evidence requests | 🟡 Open, narrower than before | The 4TU author replied once already and resolved the vertical-datum question (WGS84 ellipsoidal, confirmed by measurement against AHN) — see "External evidence: the 4TU author replied" below. What is still open is two specific questions, not the whole topic: the time-zero/air-gap magnitude, and whether a propagation velocity was ever determined. A follow-up letter draft exists (`docs/4tu-author-letter-draft.md`) |
 | Authentication and ownership | ✅ Complete | `docs/authentication.md`; sessions, PBKDF2, dataset ownership, login limiting, password reset with Resend delivery |
 | Dataset reports | ✅ Complete | `docs/dataset-report.md`; `GET /api/datasets/{id}/report`, eight capability assessments per dataset |
 | Depth-axis origin → ground | ✅ Complete | `docs/depth-origin.md`; a declared offset now participates in the vertical assessment instead of being recorded and ignored |
-| Surface reference / vertical anchor | ✅ Complete | `docs/surface-reference.md`; a raster band can be declared elevation, so `surface_reference` can reach `available` for the first time |
-| Device abstraction | ✅ Complete | `docs/devices.md`; device + session records converging on the Stage 9 acquisition boundary. No hardware integration |
+| Surface reference / vertical anchor | ✅ Complete | `docs/surface-reference.md`; a raster band can be declared elevation, so `surface_reference` can reach `available` for the first time. Extended 2026-08-22: the same inference now covers DEM, not only LIDAR |
+| Device abstraction | ✅ Complete, capability extended | `docs/devices.md`; device + session records converging on the Stage 9 acquisition boundary. No hardware integration. Extended 2026-08-22: registration offers the full sensor-type enum with no default (was hardcoded `gpr`), and a device can declare it also produces additional modalities beyond its primary type, both readable on the saved card |
 | FileDrop acquisition | ✅ Complete | `docs/filedrop.md`; acquisition boundary, checksum at receipt, identification before ingestion, review hold |
 | Spatial reference workflow | ✅ Complete | `docs/spatial-reference.md`; seven-dimension assessment, append-only declaration log, six declaration kinds |
 | Dataset lifecycle management | ✅ Complete | `docs/dataset-lifecycle.md`; rename, safe delete, derived status, duplicate detection, rescore |
