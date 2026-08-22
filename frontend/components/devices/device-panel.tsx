@@ -35,6 +35,16 @@ import type { SessionPayload, SessionState } from '@/types/subterra'
  * backend's words, because a device that can report a position has said nothing
  * about whether this survey got one.
  */
+// The full backend enum, in the same order as schemas/subterra_record.py
+// SensorType / frontend/types/subterra.ts. Handwritten here rather than
+// imported from the import page -- this form has its own copy and its own
+// voice, the same way slice 36 kept the import picker's list independent of
+// the type union. No 'other': the backend has never accepted it.
+const DEVICE_TYPES = [
+  'gpr', 'seismic', 'magnetometer', 'ert', 'gravity',
+  'lidar', 'dem', 'satellite', 'gps', 'imu',
+]
+
 export function DevicePanel() {
   // SWR rather than a manual effect: the repo fetches this way everywhere, and
   // setting state inside an effect is what the lint rule is there to stop.
@@ -74,7 +84,12 @@ export function DevicePanel() {
     manufacturer: '',
     model: '',
     serial_number: '',
-    device_type: 'gpr',
+    // No pre-selected type. This form is user-supplied like every other
+    // field here -- Subterra cannot read a modality off an instrument, so a
+    // default of 'gpr' would have silently declared every registered device
+    // a GPR device, the same defect slices 35-36 closed on the import
+    // picker.
+    device_type: null as string | null,
     simulated: false,
     // What the instrument CAN produce. Declared here so the gap between
     // capability and evidence is reachable at all: without these, every
@@ -109,6 +124,7 @@ export function DevicePanel() {
 
   async function register(event: React.FormEvent) {
     event.preventDefault()
+    if (!form.device_type) return
     setBusy(true)
     setError(null)
     try {
@@ -146,6 +162,8 @@ export function DevicePanel() {
         manufacturer: '',
         model: '',
         serial_number: '',
+        // A second Record must not inherit the previous declaration.
+        device_type: null,
         frequency_mhz: '',
         channels: '',
         sample_interval_ns: '',
@@ -367,6 +385,38 @@ export function DevicePanel() {
                 </div>
               ))}
               {/*
+                THE DECLARED TYPE. Supplied by the operator, not read off the
+                instrument -- the platform will not guess it. No pre-selected
+                button and no submit until one is chosen, same discipline as
+                the import picker (slice 35).
+              */}
+              <fieldset className="space-y-1 pt-1">
+                <legend className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                  Declared sensor type
+                </legend>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  This is supplied by you, not read from the device, and is
+                  recorded with that provenance. The platform will not guess it.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {DEVICE_TYPES.map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setForm({ ...form, device_type: type })}
+                      className={cn(
+                        'rounded-md border px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors',
+                        form.device_type === type
+                          ? 'border-primary text-primary'
+                          : 'border-border text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+              {/*
                 CAPABILITY, NOT EVIDENCE. Ticking these says the instrument is
                 able to report something -- never that any particular session
                 did. A session that provides none of them shows the difference
@@ -517,7 +567,7 @@ export function DevicePanel() {
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  disabled={busy}
+                  disabled={busy || !form.device_type}
                   className={cn(buttonVariants({ variant: 'default', size: 'sm' }))}
                 >
                   Record device

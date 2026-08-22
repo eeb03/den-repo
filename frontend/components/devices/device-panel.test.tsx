@@ -106,6 +106,13 @@ async function renderPanel(devices: Device[] = [device()]) {
   return result
 }
 
+function clickDeviceType(container: HTMLElement, type: string) {
+  const button = Array.from(container.querySelectorAll('button')).find(
+    (b) => b.textContent === type,
+  )
+  fireEvent.click(button!)
+}
+
 beforeEach(() => {
   listDevices.mockReset()
   registerDevice.mockReset()
@@ -176,11 +183,85 @@ describe('user-declared identity', () => {
     fireEvent.change(container.querySelector('#device-manufacturer')!, {
       target: { value: 'IDS' },
     })
+    clickDeviceType(container, 'gpr')
     fireEvent.submit(container.querySelector('form')!)
 
     await waitFor(() => expect(registerDevice).toHaveBeenCalled())
     const sent = registerDevice.mock.calls[0]?.[0] as Record<string, unknown>
     expect(Object.keys(sent)).not.toContain('identity_source')
+  })
+})
+
+describe('the declared sensor type', () => {
+  const EXPECTED = [
+    'gpr', 'seismic', 'magnetometer', 'ert', 'gravity',
+    'lidar', 'dem', 'satellite', 'gps', 'imu',
+  ]
+
+  it('offers exactly the full backend enum of sensor types, in that order', async () => {
+    const { container } = await renderPanel([])
+    fireEvent.click(container.querySelector('[data-action="register-device"]')!)
+
+    const typeButtons = Array.from(container.querySelectorAll('button')).filter((b) =>
+      EXPECTED.includes(b.textContent ?? ''),
+    )
+    expect(typeButtons.map((b) => b.textContent)).toEqual(EXPECTED)
+  })
+
+  it('does not offer other, which the backend has never accepted', async () => {
+    const { container } = await renderPanel([])
+    fireEvent.click(container.querySelector('[data-action="register-device"]')!)
+
+    const otherButton = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'other',
+    )
+    expect(otherButton).toBeUndefined()
+  })
+
+  it('offers no pre-selected type and refuses to register until one is chosen', async () => {
+    const { container } = await renderPanel([])
+    fireEvent.click(container.querySelector('[data-action="register-device"]')!)
+
+    const gprButton = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'gpr',
+    ) as HTMLButtonElement
+    expect(gprButton.className).not.toMatch(/border-primary/)
+
+    const submitButton = container.querySelector(
+      'button[type="submit"]',
+    ) as HTMLButtonElement
+    expect(submitButton.disabled).toBe(true)
+    fireEvent.submit(container.querySelector('form')!)
+
+    expect(registerDevice).not.toHaveBeenCalled()
+  })
+
+  it('sends dem when that choice is clicked, as both device_type and the sole modality', async () => {
+    registerDevice.mockResolvedValue({ device: device({ device_type: 'dem' }) })
+    const { container } = await renderPanel([])
+    fireEvent.click(container.querySelector('[data-action="register-device"]')!)
+    clickDeviceType(container, 'dem')
+    fireEvent.submit(container.querySelector('form')!)
+
+    await waitFor(() => expect(registerDevice).toHaveBeenCalled())
+    const sent = registerDevice.mock.calls[0]?.[0] as {
+      device_type?: string
+      capabilities?: { modalities?: string[] }
+    }
+    expect(sent.device_type).toBe('dem')
+    expect(sent.capabilities?.modalities).toEqual(['dem'])
+  })
+
+  it('sends imu when that choice is clicked -- the default is not secretly gpr', async () => {
+    registerDevice.mockResolvedValue({ device: device({ device_type: 'imu' }) })
+    const { container } = await renderPanel([])
+    fireEvent.click(container.querySelector('[data-action="register-device"]')!)
+    clickDeviceType(container, 'imu')
+    fireEvent.submit(container.querySelector('form')!)
+
+    await waitFor(() => expect(registerDevice).toHaveBeenCalled())
+    const sent = registerDevice.mock.calls[0]?.[0] as { device_type?: string }
+    expect(sent.device_type).toBe('imu')
   })
 })
 
@@ -199,6 +280,7 @@ describe('capability declaration', () => {
     const { container } = await renderPanel([])
     fireEvent.click(container.querySelector('[data-action="register-device"]')!)
     fireEvent.click(container.querySelector('#device-reports_position')!)
+    clickDeviceType(container, 'gpr')
     fireEvent.submit(container.querySelector('form')!)
 
     await waitFor(() => expect(registerDevice).toHaveBeenCalled())
@@ -274,6 +356,7 @@ describe('the device profile', () => {
       (l) => l.textContent === '.sgy',
     )?.querySelector('input')
     fireEvent.click(sgyBox!)
+    clickDeviceType(container, 'gpr')
     fireEvent.submit(container.querySelector('form')!)
 
     await waitFor(() => expect(registerDevice).toHaveBeenCalled())
@@ -332,6 +415,7 @@ describe('the device adapter', () => {
     const { container } = await renderPanel([])
     fireEvent.click(container.querySelector('[data-action="register-device"]')!)
     fireEvent.click(container.querySelector('#device-file_drop')!)
+    clickDeviceType(container, 'gpr')
     fireEvent.submit(container.querySelector('form')!)
 
     await waitFor(() => expect(registerDevice).toHaveBeenCalled())
@@ -343,6 +427,7 @@ describe('the device adapter', () => {
     registerDevice.mockResolvedValue({ device: device() })
     const { container } = await renderPanel([])
     fireEvent.click(container.querySelector('[data-action="register-device"]')!)
+    clickDeviceType(container, 'gpr')
     fireEvent.submit(container.querySelector('form')!)
 
     await waitFor(() => expect(registerDevice).toHaveBeenCalled())
