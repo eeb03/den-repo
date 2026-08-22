@@ -164,16 +164,21 @@ instrument), so it cannot itself demonstrate cross-*modality* fusion.
 | Modality | Held? | Evidence |
 |---|---|---|
 | **GPR** | ✅ Extensively — `4tu-nl-utility`, `tu1208-ifsttar`, `bam-concrete-gpr`, `hillside-lancaster`, TestUM, `guangzhou-ids`, `ingv-unisa` | multiple SEG-Y/DZT/rd3 corpora, converters for all three vendor formats |
-| **DEM** | ✅ `ahn-dtm-05m` — AHN DTM 0.5 m, 13 site windows | GeoTIFF converter, `SensorType.LIDAR` used as the closest existing category (see caveat below) |
+| **DEM** | ✅ `ahn-dtm-05m` — AHN DTM 0.5 m, 13 site windows | GeoTIFF converter; `SensorType.DEM` now exists (Phase 7, slice 31) but the stored dataset is still tagged `SensorType.LIDAR` (see caveat below) |
 | **Seismic** | ❌ **UNAVAILABLE** | `external-calibration-dataset-audit.md` §7: "Well-tied seismic... not pursued to acquisition, deliberately." Marmousi excluded as synthetic; Sleipner/SEAM/SEG volumes not individually audited; no seismic dataset appears in the corpus |
 | **Borehole** | ⚠️ Held, but cross-site to the selected pair | TestUM: 22 two-inch wells + 8 multilevel wells, DGPS + deviation-surveyed, CC-BY, downloaded |
 
-**Caveat on "DEM".** `SensorType` has no dedicated DEM/terrain-model member;
-`ahn-dtm-05m` is tagged `SensorType.LIDAR` as the nearest existing category.
-The inventory already records this precisely: *"DTM only — ground-classified
-returns resampled to a raster, not the LAZ point cloud."* This document does
-not propose adding a `SensorType` member — that is explicitly out of scope
-for this stage.
+**Caveat on "DEM", updated (Phase 7, slice 31).** At the time this document
+was written, `SensorType` had no dedicated DEM/terrain-model member and
+`ahn-dtm-05m` was tagged `SensorType.LIDAR` as the nearest existing category.
+`SensorType.DEM` now exists, and the GeoTIFF converter's undeclared-band
+elevation inference fires for `DEM` the same way it already did for `LIDAR`
+(`docs/surface-reference.md`). The stored `ahn-dtm-05m` dataset itself was
+**not** migrated or re-ingested -- it still carries its original `lidar` tag,
+by the same rule that keeps every held reference dataset exactly as ingested
+unless a user re-ingests it. The inventory's underlying fact is unchanged
+either way: *"DTM only — ground-classified returns resampled to a raster,
+not the LAZ point cloud."*
 
 ## 7. CRS inventory
 

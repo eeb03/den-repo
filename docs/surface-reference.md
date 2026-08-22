@@ -138,3 +138,25 @@ anything else is a 422.
 - **Re-ingestion is the only route for already-imported rasters.** A declaration
   changes what the converter produces, and the converter has already run. Stage
   8's declarations write frame metadata and deliberately never rewrite records.
+
+## Update — DEM is now a first-class modality (Phase 7, slice 31)
+
+At the time this document was written, `SensorType` had no member for a
+digital elevation model, so the snippet above (`sensor_type ==
+SensorType.LIDAR`) was the whole undeclared-band inference. A DEM had to be
+tagged `lidar` or `satellite` -- the nearest existing category -- which is
+the same kind of category error this stage's fix removed for LIDAR itself,
+just not yet named.
+
+`SensorType.DEM` now exists, next to `LIDAR`. The inference this document
+describes fires identically for either: `sensor_type in (SensorType.LIDAR,
+SensorType.DEM)`. Everything else here is unchanged -- `band_is_elevation`
+still wins outright when declared, the inference is still recorded as
+`INFERRED` with `verified=False`, and satellite with no declaration is still
+`AxisKind.NONE`.
+
+The held COP30 dataset discussed above, tagged `satellite`, was **not**
+re-ingested as `dem` -- stored data is never migrated to take advantage of a
+later fix, the same rule that keeps `ahn-dtm-05m` tagged `lidar` in
+`docs/multimodal-fusion-dataset-selection.md`. A newly ingested DEM can now
+be declared as what it is.
