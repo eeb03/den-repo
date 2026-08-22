@@ -40,6 +40,7 @@ import type {
   Device,
   DeletionResult,
   FrameProvenanceResponse,
+  FusionRunResult,
   FusionSample,
   LabelsResponse,
   LayersResponse,
@@ -630,12 +631,41 @@ export const api = {
    * takes no parameters and is not scoped to one dataset; a caller filters
    * `dataset_ids` itself. Deliberately 1:1 with what
    * `GET /api/fusion/samples` returns: `radius_m` and `n_reprojected` are
-   * both now part of that response, so both are typed. There is no
-   * `runFusion` here: `POST /api/fusion/run` is a run control, not a read,
-   * and no UI surface has one yet.
+   * both now part of that response, so both are typed.
    */
   listFusionSamples(): Promise<FusionSample[]> {
     return request('/api/fusion/samples')
+  },
+
+  /**
+   * Run spatial fusion, and optionally persist the result.
+   *
+   * `datasetIds` omitted (not an empty array) means every dataset visible
+   * to this caller -- the backend's own distinction between "say nothing"
+   * and "say none", and `URLSearchParams.append` per id is what produces
+   * FastAPI's expected repeated `dataset_ids=` query keys for a `list[str]`
+   * parameter.
+   *
+   * `persist` defaults to `false`: this is a run control that writes new
+   * `FusionSample` rows with no dedup against what is already stored, so
+   * every caller must say `persist: true` on purpose. There is no
+   * "preview" flag on the backend -- `persist: false` already IS the
+   * preview, run as many times as wanted with nothing written.
+   */
+  runFusion(options?: {
+    datasetIds?: string[]
+    radiusM?: number
+    multimodalOnly?: boolean
+    persist?: boolean
+  }): Promise<FusionRunResult> {
+    const params = new URLSearchParams()
+    for (const id of options?.datasetIds ?? []) params.append('dataset_ids', id)
+    if (options?.radiusM !== undefined) params.set('radius_m', String(options.radiusM))
+    if (options?.multimodalOnly !== undefined) {
+      params.set('multimodal_only_flag', String(options.multimodalOnly))
+    }
+    params.set('persist', String(options?.persist ?? false))
+    return request(`/api/fusion/run?${params.toString()}`, { method: 'POST' })
   },
 }
 

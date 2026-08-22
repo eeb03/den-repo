@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Beaker, Database, FileUp, Layers, Radio, type LucideIcon } from 'lucide-react'
+import { Beaker, Combine, Database, FileUp, Layers, Radio, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SubterraLogo } from '@/components/brand/logo'
 import { ProvenanceLegend } from '@/components/subterra/provenance-tag'
@@ -43,6 +43,12 @@ const navItems: NavItem[] = [
     label: 'Devices',
     icon: Radio,
     description: 'Instruments and acquisition sessions',
+  },
+  {
+    href: '/fusion',
+    label: 'Fusion',
+    icon: Combine,
+    description: 'Cluster records across your datasets',
   },
   {
     href: '/benchmark',

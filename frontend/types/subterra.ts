@@ -507,6 +507,49 @@ export interface FusionSample {
   n_reprojected: number
 }
 
+/**
+ * A record partition `POST /api/fusion/run` could not fuse -- reported
+ * with its reason rather than silently dropped, same discipline as every
+ * other absence in this app. `dataset_ids`/`sensor_types` describe what
+ * was excluded, not why; `reason` is the backend's own words.
+ */
+export interface FusionRunExcludedPartition {
+  position_kind: string
+  record_count: number
+  dataset_ids: string[]
+  sensor_types: string[]
+  reason: string
+}
+
+/**
+ * One sample from a live `POST /api/fusion/run` call -- NOT the stored
+ * `FusionSample` shape. No `id` (nothing is persisted unless `persist`
+ * was true) and no `dataset-not-visible` redaction (every input dataset
+ * was already the caller's own visible set, enforced server-side). Carries
+ * `record_counts`, a per-sensor breakdown the stored GET does not report.
+ */
+export interface FusionRunSample {
+  spatial_ref_kind: string
+  center_lat: number | null
+  center_lon: number | null
+  center_x: number | null
+  center_y: number | null
+  radius_m: number
+  sensor_types: string[]
+  dataset_ids: string[]
+  has_ground_truth: boolean
+  n_reprojected: number
+  record_counts: Record<string, number>
+}
+
+/** The full response of `POST /api/fusion/run`, `persist` true or false. */
+export interface FusionRunResult {
+  input_record_count: number
+  fusion_sample_count: number
+  excluded_from_fusion: FusionRunExcludedPartition[]
+  samples: FusionRunSample[]
+}
+
 /* ------------------------------- provenance ------------------------------- */
 
 export interface FrameProvenance {
