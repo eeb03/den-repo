@@ -1536,3 +1536,84 @@ export interface DatasetAcquisition {
   /** Present only when `acquisition` is null. */
   reason?: string
 }
+
+/**
+ * The reconstructed-scene payload, from `GET /api/scene/{datasetId}`.
+ *
+ * THREE CLAIMS, never collapsed (see `schemas/scene.py`): DECLARED (an
+ * operator supplied a value), DERIVED (Subterra computed one from declared
+ * inputs), VALIDATED (independent external evidence confirms a physical
+ * position). This payload only ever carries the first two.
+ * `validation_status` says so explicitly on every response, resolved or
+ * not — render it, do not paraphrase it.
+ */
+export type VerticalRelationshipKind =
+  | 'absolute_elevation' | 'relative_depth_only' | 'registration_required' | 'unrelated'
+
+export interface ScenePosition {
+  available: boolean
+  lat: number | null
+  lon: number | null
+  basis: LocalisationCertainty
+  reason: string
+}
+
+export interface SceneElevation {
+  available: boolean
+  elevation_m: number | null
+  depth_m: number | null
+  depth_certainty: DepthCertainty
+  provenance: string
+  reason: string
+}
+
+export interface SceneSurfacePoint {
+  lat: number
+  lon: number
+  elevation_m: number
+}
+
+export interface SceneSurface {
+  frame_id: string
+  dataset_id: string
+  modality: string
+  vertical_datum_code: string | null
+  vertical_datum_provenance: string | null
+  points: SceneSurfacePoint[]
+  point_count_total: number
+  downsampled: boolean
+}
+
+export interface SceneCandidate {
+  id: string
+  position: ScenePosition
+  elevation: SceneElevation
+  score: number
+  score_meaning: string
+  anomaly_class: string
+  note: string
+  source_file: string
+  trace_range: [number, number]
+  depth_range: [number, number]
+  evidence_reference: string
+}
+
+export interface SceneVerticalRelationship {
+  kind: VerticalRelationshipKind
+  subsurface_frame_id: string | null
+  surface_frame_id: string | null
+  reasons: string[]
+  missing: string[]
+}
+
+export interface ScenePayload {
+  dataset_id: string
+  resolved: boolean
+  resolution_reason: string | null
+  missing: string[]
+  vertical_relationship: SceneVerticalRelationship | null
+  surface: SceneSurface | null
+  candidates: SceneCandidate[]
+  validation_status: string
+  diagnostic_views: Record<string, string>
+}

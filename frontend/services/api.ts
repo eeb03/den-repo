@@ -29,6 +29,7 @@ import type {
   BenchmarkArtifactsResponse,
   BenchmarkRun,
   CandidateIntelligence,
+  ScenePayload,
   CandidateReviewStatus,
   Composition,
   DatasetAcquisition,
@@ -588,6 +589,26 @@ export const api = {
    */
   getCandidates(datasetId: string): Promise<CandidateIntelligence> {
     return request(`/api/candidates/${encodeURIComponent(datasetId)}`)
+  },
+
+  /* -------------------------------- scene -------------------------------- */
+
+  /**
+   * The reconstructed-scene payload: what a 3D renderer needs to draw an
+   * elevation-anchored scene for this dataset, or exactly why it cannot yet.
+   *
+   * `resolved: false` is the correct, common answer — it means
+   * `fusion.vertical_reference.assess` has not been satisfied for this
+   * dataset (see `resolution_reason`/`missing`), not that the request
+   * failed. `surfaceDatasetId` names a SEPARATE dataset holding the surface
+   * (DEM/LiDAR) frame, the same cross-dataset relationship `/api/fusion/*`
+   * already reads.
+   */
+  getScene(datasetId: string, surfaceDatasetId?: string): Promise<ScenePayload> {
+    const params = new URLSearchParams()
+    if (surfaceDatasetId) params.set('surface_dataset_id', surfaceDatasetId)
+    const qs = params.toString()
+    return request(`/api/scene/${encodeURIComponent(datasetId)}${qs ? `?${qs}` : ''}`)
   },
 
   /**

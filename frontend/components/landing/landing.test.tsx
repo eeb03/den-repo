@@ -297,19 +297,18 @@ describe('the page stands alone', () => {
   })
 
   it('introduces no 3D runtime and no randomness', () => {
+    // The landing page stands alone: no fetch, no data hook, and (per its
+    // own docstring above) no 3D runtime or randomness of its own -- even
+    // though `three` is now a real workspace dependency for the resolved
+    // scene (schemas/scene.py -> /api/scene), which renders real backend
+    // coordinates, not decorative geometry. See
+    // tests/no-synthetic-geometry.test.ts for the workspace-wide guard
+    // against fabricated geometry.
     const source = landingSource()
     const randomCall = new RegExp(['Math', '\\.', 'random', '\\s*\\('].join(''))
     expect(source).not.toMatch(randomCall)
     expect(source).not.toMatch(/from\s+['"]three/)
     expect(source).not.toMatch(/@react-three/)
-
-    const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
-    const deps = { ...pkg.dependencies, ...pkg.devDependencies }
-    expect(
-      Object.keys(deps).filter(
-        (d) => d === 'three' || d.startsWith('@react-three/') || d === '@types/three',
-      ),
-    ).toEqual([])
   })
 
   it('uses no external image, video or stock asset', () => {

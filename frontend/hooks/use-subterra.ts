@@ -77,6 +77,19 @@ export function useCandidates(datasetId: string | undefined) {
   )
 }
 
+/**
+ * The reconstructed-scene payload. Keyed on `surfaceDatasetId` too, so
+ * pointing the scene at a different surface dataset refetches rather than
+ * serving the previous surface's cached payload.
+ */
+export function useScene(datasetId: string | undefined, surfaceDatasetId?: string) {
+  return useSWR(
+    datasetId ? ['scene', datasetId, surfaceDatasetId ?? null] : null,
+    () => api.getScene(datasetId as string, surfaceDatasetId),
+    options,
+  )
+}
+
 export function useSession(sessionId: string | undefined) {
   return useSWR(
     sessionId ? ['session', sessionId] : null,

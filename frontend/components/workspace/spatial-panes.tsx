@@ -5,10 +5,11 @@ import { Panel, PanelBody, PanelHeader } from '@/components/subterra/panel'
 import { QueryState } from '@/components/subterra/query-state'
 import { StateBox } from '@/components/subterra/state-box'
 import { EmbeddedThinClient, EmbeddedViewer } from './embedded-viewer'
+import { ReconstructedScene } from '@/components/scene/reconstructed-scene'
 import { useCandidates, useTraceGrid } from '@/hooks/use-subterra'
 import type { Selection } from '@/types/subterra'
 
-type SpatialTab = 'viewer' | 'client'
+type SpatialTab = 'viewer' | 'client' | 'scene'
 
 /**
  * The centre column: the spatial view above, the radargram below.
@@ -60,13 +61,15 @@ export function SpatialPanes({
               <TabButton active={tab === 'client'} onClick={() => setTab('client')}>
                 Thin client
               </TabButton>
+              <TabButton active={tab === 'scene'} onClick={() => setTab('scene')}>
+                Reconstructed scene
+              </TabButton>
             </div>
           }
         />
         <div className="min-h-0 flex-1">
-          {tab === 'viewer' ? (
-            <EmbeddedViewer datasetId={datasetId} />
-          ) : (
+          {tab === 'viewer' && <EmbeddedViewer datasetId={datasetId} />}
+          {tab === 'client' && (
             <div className="flex h-full flex-col">
               <p className="border-b border-border px-3.5 py-1.5 text-[11px] leading-relaxed text-muted-foreground">
                 The thin client opens on its own first dataset — it takes no
@@ -77,6 +80,7 @@ export function SpatialPanes({
               </div>
             </div>
           )}
+          {tab === 'scene' && <ReconstructedScene datasetId={datasetId} />}
         </div>
       </Panel>
 

@@ -8,11 +8,18 @@
  * this UI could do, because unlike a wrong number it carries no units a
  * reader could sanity-check.
  *
- * The rule is structural rather than a matter of care: the workspace may
- * not import a 3D engine or generate geometry at all, and the packages
- * that would make it possible are not installed. A source scan is the right
- * shape of test for that -- it fails when someone adds the import, not
- * later when someone notices the picture is invented.
+ * The rule targets fabrication, not the rendering technology: no source
+ * file may generate its own geometry (`Math.random()`, a literal null-island
+ * coordinate, a depth/elevation derived client-side from a velocity -- see
+ * the two describe blocks below). `components/scene/reconstructed-scene.tsx`
+ * legitimately imports `three` to render the `/api/scene` payload -- real
+ * positions and elevations traced to backend-declared/derived values, never
+ * generated in the browser -- and carries its own honesty guard in
+ * `reconstructed-scene.test.tsx` (unresolved datasets get no canvas at all;
+ * `validation_status` is always shown verbatim; ungrounded candidates are
+ * listed as "not shown", never drawn). `UndergroundScene`/`HeroScene`/
+ * `SceneViewport`, the specific decorative v0 components, remain banned by
+ * name below regardless of which package they'd be built on.
  *
  * Scope note: `visualization/viewer.html` legitimately renders 3D from real
  * `/points` data via Plotly and is out of scope here; its own honesty guard
@@ -52,24 +59,34 @@ function importsOf(source: string): string[] {
   ].map((m) => m[1] as string)
 }
 
-describe('the workspace imports no 3D engine', () => {
+describe('the workspace adds no heavier 3D framework than the one real scene needs', () => {
   it('scans a non-trivial number of files', () => {
     // guards against the walker silently finding nothing and passing
     expect(FILES.length).toBeGreaterThan(15)
   })
 
-  it.each([
-    'three',
-    '@react-three/fiber',
-    '@react-three/drei',
-    'three/examples/jsm/controls/OrbitControls',
-  ])('no source file imports %s', (pkg) => {
+  // `three` itself (and its OrbitControls example module) is allowed: it
+  // renders /api/scene's real, backend-derived positions. A React
+  // reconciler on top of it (react-three-fiber/drei) is not -- if a second
+  // scene is ever justified, that decision should be made deliberately, not
+  // arrive as a transitive default.
+  it.each(['@react-three/fiber', '@react-three/drei'])('no source file imports %s', (pkg) => {
     for (const file of FILES) {
       const imports = importsOf(readFileSync(file, 'utf8'))
       expect(
         imports.some((i) => i === pkg || i.startsWith(`${pkg}/`)),
         `${relative(ROOT, file)} imports ${pkg}`,
       ).toBe(false)
+    }
+  })
+
+  it('only reconstructed-scene.tsx imports three', () => {
+    for (const file of FILES) {
+      const imports = importsOf(readFileSync(file, 'utf8'))
+      const importsThree = imports.some((i) => i === 'three' || i.startsWith('three/'))
+      if (importsThree) {
+        expect(relative(ROOT, file)).toBe('components/scene/reconstructed-scene.tsx')
+      }
     }
   })
 
@@ -84,13 +101,11 @@ describe('the workspace imports no 3D engine', () => {
     }
   })
 
-  it('the 3D packages are not installed at all', () => {
+  it('react-three-fiber/drei are not installed at all', () => {
     const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
     const deps = { ...pkg.dependencies, ...pkg.devDependencies }
-    const threeD = Object.keys(deps).filter(
-      (d) => d === 'three' || d.startsWith('@react-three/') || d === '@types/three',
-    )
-    expect(threeD).toEqual([])
+    const heavier = Object.keys(deps).filter((d) => d.startsWith('@react-three/'))
+    expect(heavier).toEqual([])
   })
 })
 
