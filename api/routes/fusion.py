@@ -13,6 +13,17 @@ from fusion.sensor_fusion import fuse_datasets, multimodal_only, non_fusable_par
 
 router = APIRouter()
 
+# A fusion sample stays listed once ANY of its member datasets is visible to
+# the caller (slice 27) -- dropping the sample would misreport that a sample
+# involving something the caller CAN see does not exist. But the other
+# member IDs in that sample can name a dataset the caller cannot open: a real
+# UUID for another user's private data, discoverable only because it shares
+# a fusion sample with something the caller owns. This placeholder replaces
+# each invisible ID in place -- the array's length and each visible id's
+# position are unchanged, so the reported dataset count stays honest while
+# no foreign identity leaks.
+REDACTED_DATASET_ID = "dataset-not-visible"
+
 
 @router.post("/run")
 def run_fusion(
@@ -123,11 +134,12 @@ def list_fusion_samples(
 ):
     # Same visibility rule as the dataset list: a sample is returned iff at
     # least one of its member datasets is visible to this caller (their own,
-    # or unowned/system). `dataset_ids` on the response stays verbatim,
-    # including partner IDs the caller cannot open -- hiding those would make
-    # a sample that DOES include a visible dataset look like it does not
-    # exist, which is false. The remaining partner-ID leak inside a visible
-    # sample's dataset_ids is a separate, parked concern.
+    # or unowned/system). A sample that DOES include a visible dataset must
+    # not disappear -- that would misreport it as not existing. Within an
+    # included sample, any OTHER member id the caller cannot open is replaced
+    # with REDACTED_DATASET_ID rather than shown verbatim or dropped: showing
+    # it would leak another user's dataset id, dropping it would misreport
+    # how many datasets went into the sample.
     visible = visible_dataset_ids(db, user)
     samples = db.query(FusionSampleModel).all()
     return [
@@ -139,7 +151,10 @@ def list_fusion_samples(
             "center_x": s.center_x,
             "center_y": s.center_y,
             "sensor_types": s.sensor_types,
-            "dataset_ids": s.dataset_ids,
+            "dataset_ids": [
+                d if d in visible else REDACTED_DATASET_ID
+                for d in (s.dataset_ids or [])
+            ],
             "has_ground_truth": s.has_ground_truth,
             "radius_m": s.radius_m,
             "n_reprojected": s.n_reprojected,

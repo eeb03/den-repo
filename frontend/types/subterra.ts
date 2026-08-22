@@ -487,6 +487,11 @@ export interface Composition {
  * that reached this centre through a CRS transform rather than carrying a
  * geographic coordinate of their own -- printed as the integer it is, never
  * used here to qualify or hide the centre.
+ *
+ * `dataset_ids` entries the caller cannot open (another user's dataset that
+ * happens to share this sample) come back as the literal string
+ * `"dataset-not-visible"` rather than the real id -- the array's length
+ * still reports the true dataset count, but that entry is not a usable id.
  */
 export interface FusionSample {
   id: string

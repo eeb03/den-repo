@@ -311,11 +311,54 @@ def test_fusion_samples_follow_the_same_visibility_rule_as_the_dataset_list(two_
     # 4: owner + system -- both see it, since system alone is enough for B.
     assert a_and_system in a_ids and a_and_system in b_ids
 
-    # 5: both owners as members -- both see it, and dataset_ids stays the
-    # full, unredacted list even for the caller who cannot open the partner.
+    # 5: both owners as members -- both see the sample.
     assert a_and_b in a_ids and a_and_b in b_ids
-    sample = next(s for s in a.get("/api/fusion/samples").json() if s["id"] == a_and_b)
-    assert set(sample["dataset_ids"]) == {ds_a, ds_b}
+
+
+def test_a_shared_samples_partner_id_is_redacted_not_shown_or_dropped(two_users, env):
+    """
+    A sample naming both A's and B's datasets is visible to both -- but the
+    OTHER owner's dataset id is not something either caller can open. Showing
+    it verbatim would leak a real id for another user's private dataset;
+    dropping it would misreport how many datasets went into the sample. It
+    is replaced in place with REDACTED_DATASET_ID instead.
+    """
+    from api.routes.fusion import REDACTED_DATASET_ID
+
+    Session, _ = env
+    a, b, ds_a, ds_b, system = two_users
+
+    a_and_b = _seed_fusion_sample(Session, [ds_a, ds_b])
+
+    from_a = next(s for s in a.get("/api/fusion/samples").json() if s["id"] == a_and_b)
+    from_b = next(s for s in b.get("/api/fusion/samples").json() if s["id"] == a_and_b)
+
+    # A sees A's own id verbatim; B's id is redacted, not dropped -- the
+    # array still has two entries, so the dataset count stays honest.
+    assert set(from_a["dataset_ids"]) == {ds_a, REDACTED_DATASET_ID}
+    assert len(from_a["dataset_ids"]) == 2
+
+    # And symmetrically from B's side.
+    assert set(from_b["dataset_ids"]) == {ds_b, REDACTED_DATASET_ID}
+    assert len(from_b["dataset_ids"]) == 2
+
+    # Neither caller's raw dataset_ids response ever names the id they
+    # cannot open.
+    assert ds_b not in from_a["dataset_ids"]
+    assert ds_a not in from_b["dataset_ids"]
+
+
+def test_a_system_dataset_in_a_shared_sample_is_never_redacted(two_users, env):
+    """Unowned/system data is visible to everyone, so it is never a partner
+    id to hide -- only another user's actually-private dataset is."""
+    Session, _ = env
+    a, b, ds_a, ds_b, system = two_users
+
+    sample_id = _seed_fusion_sample(Session, [ds_a, system])
+
+    from_a = next(s for s in a.get("/api/fusion/samples").json() if s["id"] == sample_id)
+    assert system in from_a["dataset_ids"]
+    assert ds_a in from_a["dataset_ids"]
 
 
 def test_an_unauthenticated_fusion_samples_request_is_still_401(two_users):
