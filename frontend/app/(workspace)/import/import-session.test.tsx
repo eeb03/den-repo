@@ -129,11 +129,58 @@ describe('bare /import (no session)', () => {
     Object.defineProperty(input, 'files', { value: [file] })
     input.dispatchEvent(new Event('change', { bubbles: true }))
 
+    const gprButton = await screen.findByRole('button', { name: 'gpr' })
+    gprButton.click()
     const button = await screen.findByRole('button', { name: /import dataset/i })
     button.click()
 
     await waitFor(() => expect(createImport).toHaveBeenCalled())
     expect(createImport).toHaveBeenCalledWith(file, 'gpr', true, undefined)
+  })
+
+  it('offers no pre-selected sensor type and refuses to import until one is chosen', async () => {
+    // The panel says this is supplied by the operator and the platform will
+    // not guess it -- a pre-highlighted gpr, or an Import that fires without
+    // a click, would both make that copy false.
+    renderPage()
+    await screen.findByText(/drop a dataset here/i)
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File(['x'], 'line1.sgy')
+    Object.defineProperty(input, 'files', { value: [file] })
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+
+    const gprButton = await screen.findByRole('button', { name: 'gpr' })
+    expect(gprButton.className).not.toMatch(/border-primary/)
+
+    const importButton = (await screen.findByRole('button', {
+      name: /import dataset/i,
+    })) as HTMLButtonElement
+    expect(importButton.disabled).toBe(true)
+    importButton.click()
+
+    expect(createImport).not.toHaveBeenCalled()
+  })
+
+  it('creates the import with lidar when that choice is clicked -- the default is not secretly gpr', async () => {
+    createImport.mockResolvedValue({
+      job: { id: 'j1', state: 'IDENTIFIED', dataset_id: null, session_id: null },
+    })
+    renderPage()
+    await screen.findByText(/drop a dataset here/i)
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File(['x'], 'line1.sgy')
+    Object.defineProperty(input, 'files', { value: [file] })
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+
+    const lidarButton = await screen.findByRole('button', { name: 'lidar' })
+    lidarButton.click()
+    const importButton = await screen.findByRole('button', { name: /import dataset/i })
+    importButton.click()
+
+    await waitFor(() => expect(createImport).toHaveBeenCalled())
+    expect(createImport).toHaveBeenCalledWith(file, 'lidar', true, undefined)
   })
 
   it('offers dem among the declared-sensor-type choices', async () => {
@@ -241,6 +288,8 @@ describe('/import?session=<id>', () => {
     Object.defineProperty(input, 'files', { value: [file] })
     input.dispatchEvent(new Event('change', { bubbles: true }))
 
+    const gprButton = await screen.findByRole('button', { name: 'gpr' })
+    gprButton.click()
     const button = await screen.findByRole('button', { name: /import dataset/i })
     button.click()
 
@@ -261,6 +310,8 @@ describe('/import?session=<id>', () => {
     Object.defineProperty(input, 'files', { value: [file] })
     input.dispatchEvent(new Event('change', { bubbles: true }))
 
+    const gprButton = await screen.findByRole('button', { name: 'gpr' })
+    gprButton.click()
     const button = await screen.findByRole('button', { name: /import dataset/i })
     button.click()
 

@@ -58,7 +58,11 @@ function ImportPageContent() {
     useSession(sessionId)
   const { data: formats, error: formatsError, isLoading } = useImportFormats()
   const [file, setFile] = useState<File | null>(null)
-  const [sensorType, setSensorType] = useState('gpr')
+  // No pre-selected type. The panel says this is supplied by the operator,
+  // not read from the file, and that the platform will not guess it -- a
+  // default of 'gpr' would have made that copy false for every drop nobody
+  // clicked a button for.
+  const [sensorType, setSensorType] = useState<string | null>(null)
   const [jobId, setJobId] = useState<string | undefined>()
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -72,10 +76,11 @@ function ImportPageContent() {
   const { data: job } = useImportJob(jobId)
 
   const verdict: Verdict | null = file && formats ? classify(file, formats) : null
-  const canImport = verdict?.kind === 'supported' && !submitting
+  const canImport = verdict?.kind === 'supported' && !submitting && !!sensorType
 
   const reset = useCallback(() => {
     setFile(null)
+    setSensorType(null)
     setJobId(undefined)
     setHeld(null)
     setSubmitError(null)
@@ -83,7 +88,7 @@ function ImportPageContent() {
   }, [])
 
   const submit = useCallback(async () => {
-    if (!file) return
+    if (!file || !sensorType) return
     setSubmitting(true)
     setSubmitError(null)
     try {
