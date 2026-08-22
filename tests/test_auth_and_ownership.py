@@ -443,6 +443,24 @@ def test_an_unauthenticated_fusion_run_request_is_still_401(two_users):
     assert _client().post("/api/fusion/run").status_code == 401
 
 
+def test_the_dataset_ids_query_description_does_not_claim_every_dataset(two_users):
+    """
+    Slice 29 changed what omitting dataset_ids resolves to (the caller's
+    visible set, not every *.jsonl on disk) but the OpenAPI-facing
+    description on the parameter still said "omit for all" -- exactly the
+    pre-fix, leaky behaviour, to anyone reading the API docs rather than
+    this file. A caller trusting that text could reasonably expect the
+    security hole slice 29 closed to still be open.
+    """
+    schema = app.openapi()
+    params = schema["paths"]["/api/fusion/run"]["post"]["parameters"]
+    dataset_ids_param = next(p for p in params if p["name"] == "dataset_ids")
+    description = dataset_ids_param["description"]
+
+    assert "omit for all" not in description
+    assert "visible to you" in description
+
+
 ID_ROUTES = [
     "/api/datasets/{id}",
     "/api/datasets/{id}/info",

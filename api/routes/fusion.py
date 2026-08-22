@@ -27,7 +27,14 @@ REDACTED_DATASET_ID = "dataset-not-visible"
 
 @router.post("/run")
 def run_fusion(
-    dataset_ids: Optional[list[str]] = Query(None, description="Restrict fusion to these dataset IDs; omit for all"),
+    dataset_ids: Optional[list[str]] = Query(
+        None,
+        description=(
+            "Restrict fusion to these dataset IDs; omit to use every dataset "
+            "visible to you (your own, plus unowned/system data) -- not "
+            "every dataset on the server"
+        ),
+    ),
     radius_m: Optional[float] = None,
     multimodal_only_flag: bool = True,
     persist: bool = True,
