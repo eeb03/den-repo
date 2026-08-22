@@ -37,7 +37,16 @@ def run_fusion(
     ),
     radius_m: Optional[float] = None,
     multimodal_only_flag: bool = True,
-    persist: bool = True,
+    persist: bool = Query(
+        False,
+        description=(
+            "Write the resulting samples as new stored FusionSample rows. "
+            "There is no check for an existing equivalent sample, so calling "
+            "this twice with persist=true and the same inputs writes two "
+            "full sets of rows. Omitting this parameter previews the result "
+            "-- nothing is written -- and can be called repeatedly."
+        ),
+    ),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):

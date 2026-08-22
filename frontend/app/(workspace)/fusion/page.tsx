@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useSWRConfig } from 'swr'
 import { AppHeader } from '@/components/shell/app-header'
 import { Panel, PanelBody, PanelHeader, Field } from '@/components/subterra/panel'
 import { QueryState } from '@/components/subterra/query-state'
@@ -32,6 +33,7 @@ import type { FusionRunResult } from '@/types/subterra'
  */
 export default function FusionPage() {
   const { data: datasets, error: datasetsError, isLoading: datasetsLoading } = useDatasets()
+  const { mutate } = useSWRConfig()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [radiusInput, setRadiusInput] = useState('')
   const [multimodalOnly, setMultimodalOnly] = useState(true)
@@ -77,6 +79,9 @@ export default function FusionPage() {
       })
       if (persist) {
         setSaved(result)
+        // New rows exist now; the stored-samples pane elsewhere in the
+        // workspace must not keep showing a cached absence.
+        await mutate(['fusion-samples'])
       } else {
         setPreview(result)
         setPreviewedParams(currentParams)

@@ -461,6 +461,64 @@ def test_the_dataset_ids_query_description_does_not_claim_every_dataset(two_user
     assert "visible to you" in description
 
 
+def test_persist_defaults_to_false_on_fusion_run(two_users, env):
+    """
+    Slice 41. `persist: bool = True` was the route's own default -- any
+    caller other than this app's frontend (curl, the OpenAPI docs page, a
+    future client) hitting POST /api/fusion/run without naming `persist`
+    silently wrote a full set of FusionSample rows, with no check for an
+    existing equivalent. The frontend (slice's fusion page) only avoids
+    this by always sending `persist` explicitly; the contract itself still
+    did the dangerous thing.
+
+    Two things pinned: the OpenAPI schema states the true default and does
+    not leave a reader thinking omission writes anything, and an actual
+    request with no `persist` param does not insert a row.
+    """
+    Session, _ = env
+    a, b, ds_a, ds_b, system = two_users
+
+    schema = app.openapi()
+    params = schema["paths"]["/api/fusion/run"]["post"]["parameters"]
+    persist_param = next(p for p in params if p["name"] == "persist")
+    assert persist_param["schema"]["default"] is False
+    assert "omit" in persist_param["description"].lower()
+
+    from schemas.spatial import GeographicPosition
+    from schemas.subterra_record import SensorType, SubterraRecord
+    from database.records_store import save_records
+    from database.models import FusionSample
+
+    save_records(
+        ds_a,
+        [
+            SubterraRecord(
+                dataset_id=ds_a, sensor_type=SensorType.GPR,
+                position=GeographicPosition(lat=41.0, lon=15.0),
+                depth=0.5, signal=[1.0],
+                metadata={"source_file": "line.sgy", "trace_index": 0},
+            ),
+            SubterraRecord(
+                dataset_id=ds_a, sensor_type=SensorType.GPS,
+                position=GeographicPosition(lat=41.0, lon=15.0),
+                metadata={"source_file": "line.sgy", "trace_index": 1},
+            ),
+        ],
+    )
+
+    with Session() as s:
+        before = s.query(FusionSample).count()
+
+    # No `persist` param at all -- the omission case the OpenAPI docs and
+    # any client following them would take.
+    r = a.post("/api/fusion/run", params={"dataset_ids": ds_a})
+    assert r.status_code == 200
+
+    with Session() as s:
+        after = s.query(FusionSample).count()
+    assert after == before
+
+
 ID_ROUTES = [
     "/api/datasets/{id}",
     "/api/datasets/{id}/info",
