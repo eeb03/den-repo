@@ -265,6 +265,51 @@ describe('the declared sensor type', () => {
   })
 })
 
+describe('the stored modality capability', () => {
+  it('prints the stored modalities list verbatim', async () => {
+    const { container } = await renderPanel([
+      device({ capabilities: { modalities: ['gpr', 'gps', 'imu'] } }),
+    ])
+    expect(
+      container.querySelector('[data-device-modalities]')?.textContent,
+    ).toBe('gpr, gps, imu')
+  })
+
+  it('never upgrades a multi-item list into a fusion or readiness claim', async () => {
+    const { container } = await renderPanel([
+      device({ capabilities: { modalities: ['gpr', 'gps', 'imu'] } }),
+    ])
+    const text = container.textContent?.toLowerCase() ?? ''
+    for (const forbidden of ['fused', 'aligned', 'ready for fusion', 'multi-modal']) {
+      expect(text).not.toContain(forbidden)
+    }
+  })
+
+  it('shows the absence, not device_type, when modalities is empty or missing', async () => {
+    const { container } = await renderPanel([
+      device({ device_type: 'gpr', capabilities: { modalities: [] } }),
+    ])
+    expect(container.querySelector('[data-device-modalities]')).toBeNull()
+    const modalitiesField = Array.from(container.querySelectorAll('dt')).find(
+      (dt) => dt.textContent === 'Modalities',
+    )?.nextElementSibling
+    expect(modalitiesField?.textContent).toBe('—')
+  })
+
+  it('does not secretly render device_type as the modality list', async () => {
+    const { container } = await renderPanel([
+      device({ device_type: 'gpr', capabilities: { modalities: ['dem'] } }),
+    ])
+    const typeField = Array.from(container.querySelectorAll('dt')).find(
+      (dt) => dt.textContent === 'Type',
+    )?.nextElementSibling
+    expect(typeField?.textContent).toBe('gpr')
+    expect(
+      container.querySelector('[data-device-modalities]')?.textContent,
+    ).toBe('dem')
+  })
+})
+
 describe('capability declaration', () => {
   it('lets a device declare what it can report, framed as capability', async () => {
     const { container } = await renderPanel([])

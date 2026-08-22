@@ -259,6 +259,15 @@ export function DevicePanel() {
               </div>
               <dl className="mt-1.5">
                 <Field label="Type">{device.device_type}</Field>
+                <Field label="Modalities">
+                  {device.capabilities.modalities?.length ? (
+                    <span data-device-modalities>
+                      {device.capabilities.modalities.join(', ')}
+                    </span>
+                  ) : (
+                    NO_VALUE
+                  )}
+                </Field>
                 <Field label="Serial">
                   {device.serial_number ?? NO_VALUE}
                   {device.serial_number && (
