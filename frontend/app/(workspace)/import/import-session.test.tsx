@@ -246,6 +246,71 @@ describe('bare /import (no session)', () => {
     expect(await screen.findByRole('button', { name: 'lidar' })).toBeTruthy()
     expect(await screen.findByRole('button', { name: 'gpr' })).toBeTruthy()
   })
+
+  it('offers exactly the full backend enum of sensor types, in that order', async () => {
+    // Presence-only checks cannot catch a silent drop or a reshuffle that
+    // puts 'other' back -- this pins the ordered list itself.
+    const EXPECTED = [
+      'gpr', 'seismic', 'magnetometer', 'ert', 'gravity',
+      'lidar', 'dem', 'satellite', 'gps', 'imu',
+    ]
+    renderPage()
+    await screen.findByText(/drop a dataset here/i)
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File(['x'], 'line1.sgy')
+    Object.defineProperty(input, 'files', { value: [file] })
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+
+    await screen.findByRole('button', { name: 'gpr' })
+    const typeButtons = screen
+      .getAllByRole('button')
+      .filter((b) => EXPECTED.includes(b.textContent ?? ''))
+
+    expect(typeButtons.map((b) => b.textContent)).toEqual(EXPECTED)
+  })
+
+  it('creates the import with ert when that choice is clicked', async () => {
+    createImport.mockResolvedValue({
+      job: { id: 'j1', state: 'IDENTIFIED', dataset_id: null, session_id: null },
+    })
+    renderPage()
+    await screen.findByText(/drop a dataset here/i)
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File(['x'], 'line1.sgy')
+    Object.defineProperty(input, 'files', { value: [file] })
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+
+    const ertButton = await screen.findByRole('button', { name: 'ert' })
+    ertButton.click()
+    const importButton = await screen.findByRole('button', { name: /import dataset/i })
+    importButton.click()
+
+    await waitFor(() => expect(createImport).toHaveBeenCalled())
+    expect(createImport).toHaveBeenCalledWith(file, 'ert', true, undefined)
+  })
+
+  it('creates the import with imu when that choice is clicked', async () => {
+    createImport.mockResolvedValue({
+      job: { id: 'j1', state: 'IDENTIFIED', dataset_id: null, session_id: null },
+    })
+    renderPage()
+    await screen.findByText(/drop a dataset here/i)
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File(['x'], 'line1.sgy')
+    Object.defineProperty(input, 'files', { value: [file] })
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+
+    const imuButton = await screen.findByRole('button', { name: 'imu' })
+    imuButton.click()
+    const importButton = await screen.findByRole('button', { name: /import dataset/i })
+    importButton.click()
+
+    await waitFor(() => expect(createImport).toHaveBeenCalled())
+    expect(createImport).toHaveBeenCalledWith(file, 'imu', true, undefined)
+  })
 })
 
 describe('/import?session=<id>', () => {

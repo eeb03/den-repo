@@ -37,7 +37,24 @@ import type { ImportJob } from '@/types/subterra'
 // and this page's error path does `String(detail)`, which prints
 // "[object Object]", not an explanation. Every choice offered here must be
 // a value the backend actually accepts.
-const SENSOR_TYPES = ['gpr', 'lidar', 'dem', 'seismic', 'magnetometer', 'satellite']
+// 'other' used to be offered here. The backend's sensor_type is a real enum
+// (schemas/subterra_record.py SensorType) with no OTHER member, so choosing
+// it always failed the upload with a 422 the UI could not render sensibly --
+// FastAPI's validation `detail` for an enum mismatch is a list of objects,
+// and this page's error path does `String(detail)`, which prints
+// "[object Object]", not an explanation. Every choice offered here must be
+// a value the backend actually accepts.
+//
+// The list below is the full backend enum, in the same order as
+// schemas/subterra_record.py SensorType / frontend/types/subterra.ts -- not
+// a curated subset. It used to omit ert/gravity/gps/imu, the opposite
+// defect from 'other': four values the backend DOES accept that this picker
+// could not declare, forcing a neighbouring-word guess for them the same
+// way DEM once had to guess lidar or satellite.
+const SENSOR_TYPES = [
+  'gpr', 'seismic', 'magnetometer', 'ert', 'gravity',
+  'lidar', 'dem', 'satellite', 'gps', 'imu',
+]
 
 export default function ImportPage() {
   // Suspense because the page reads the session id from the query string.
