@@ -10,7 +10,7 @@ numbering referenced by `dataset-benchmark-plan.md` and
 `benchmark-acquisition-plan.md` is still not committed anywhere, so the phase
 numbers in those documents remain inferred, exactly as they say.
 
-Last verified against `ea53ba7` on 2026-08-22.
+Last verified against `22b08ba` on 2026-08-22 (browser verification pass).
 
 | Area | Status | Evidence |
 |---|---|---|
@@ -28,7 +28,7 @@ Last verified against `ea53ba7` on 2026-08-22.
 | Frontend architecture audit | ✅ Complete | `frontend/README.md` |
 | V0 frontend migration | 🟡 In progress | workspace, datasets and benchmark pages ship; marketing landing page still not ported (components exist under `components/landing/`, no route mounts them — re-checked 2026-08-22) |
 | Real API → new frontend | 🟡 Substantially complete | 9 of 12 backend route groups have UI (`fusion` added: `/fusion`, preview-then-save); `exports`, `sources`, `training` do not |
-| Browser verification | 🟡 Complete for its own scope, coverage now stale | `browser-verification.md` — 11 routes, all 6 datasets, 0 page errors, 0 failed requests, run 2026-08-08 against `0daa3e7`. Predates every row above from composition honesty onward, including the entire `/fusion` route — none of that has been checked in a real browser. No browser-automation tool was available in the 2026-08-22 session to re-run this pass; re-verification is still owed |
+| Browser verification | ✅ Complete through the Phase 7 sweep | `browser-verification.md` Pass 2 — run 2026-08-22 against `22b08ba`, real Chromium via Playwright MCP. Covers everything Pass 1 (2026-08-08, `0daa3e7`) predated: composition honesty across five surfaces, the full DEM import workflow (enum, no default, elevation-inference checkbox, ready screen), device registration with multi-modality declaration and reload persistence, `/fusion` preview-then-save end to end (200,288 records, 9 samples, redaction confirmed by a second test account plus the passing dedicated test), and the generic 422 serializer confirmed live via a real oversized-password submission. No regressions, no genuine product bugs found; backend 2,188/2,188 and frontend 570/570 pass against a freshly built image/current tree, typecheck/lint/build all clean |
 | Detection improvement | ⏳ Open — one candidate tried and **rejected** | `detector-multiscale-experiment.md` |
 | Author / evidence requests | 🟡 Open, narrower than before | The 4TU author replied once already and resolved the vertical-datum question (WGS84 ellipsoidal, confirmed by measurement against AHN) — see "External evidence: the 4TU author replied" below. What is still open is two specific questions, not the whole topic: the time-zero/air-gap magnitude, and whether a propagation velocity was ever determined. A follow-up letter draft exists (`docs/4tu-author-letter-draft.md`) |
 | Authentication and ownership | ✅ Complete | `docs/authentication.md`; sessions, PBKDF2, dataset ownership, login limiting, password reset with Resend delivery |
