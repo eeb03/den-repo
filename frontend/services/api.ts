@@ -97,6 +97,41 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * FastAPI's `detail`, rendered as one string.
+ *
+ * A route-level `HTTPException` gives `detail` as a plain string -- the
+ * common case, handled below unchanged. But a 422 from FastAPI's own
+ * request validation (a bad enum member, a missing field) gives `detail`
+ * as an ARRAY of Pydantic error objects (`{loc, msg, type, ...}`), and
+ * `String()` on an array of plain objects joins their
+ * `Object.prototype.toString()` -- literally "[object Object]", not an
+ * explanation. This was found and fixed for one caller (the sensor-type
+ * picker, slice 33); it applies to every 422 this module can receive, not
+ * just that one, so the fix belongs here, not as another special case.
+ */
+function formatDetail(detail: unknown): string {
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        if (item && typeof item === 'object' && 'msg' in item) {
+          const msg = String((item as { msg: unknown }).msg)
+          const loc = (item as { loc?: unknown }).loc
+          // `loc` is typically ["body", "<field>"]; "body" itself names
+          // nothing a reader would recognise, so it is dropped.
+          const field = Array.isArray(loc)
+            ? loc.filter((part) => part !== 'body').join('.')
+            : ''
+          return field ? `${field}: ${msg}` : msg
+        }
+        return typeof item === 'string' ? item : JSON.stringify(item)
+      })
+      .join('; ')
+  }
+  return String(detail)
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response
   try {
@@ -123,7 +158,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     const detail =
       body && typeof body === 'object' && 'detail' in body
-        ? String((body as { detail: unknown }).detail)
+        ? formatDetail((body as { detail: unknown }).detail)
         : typeof body === 'string' && body
           ? body
           : response.statusText
