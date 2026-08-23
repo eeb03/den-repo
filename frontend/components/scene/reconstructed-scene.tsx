@@ -33,6 +33,17 @@ import type { SceneCandidate, ScenePayload } from '@/types/subterra'
  * elevation is never placed at a fallback coordinate -- the same rule
  * `components/subterra/not-on-map.tsx` already enforces for objects and
  * labels. It is listed instead, with the backend's own reason.
+ *
+ * CAMERA FRAMING. A browser audit found the original camera fixed at
+ * `(30, 30, 30)` looking at the origin: fine for a small, roughly-centred
+ * survey, but a real dataset can combine a small GPR footprint with a
+ * DEM tile whose own points span hundreds of metres. At that scale the
+ * DEM's points sat roughly 90 degrees outside the camera's view frustum --
+ * the scene rendered, but nothing in it was ever visible. The camera is
+ * now framed from the actual bounding sphere of whatever is being drawn
+ * (see `computeLocalBounds`/`fitDistance` below), and "Fit to scene" /
+ * "Reset view" both re-run that same computation, so a user who scrolls
+ * into an empty void always has a one-click way back.
  */
 export function ReconstructedScene({ datasetId }: { datasetId: string }) {
   // GPR and its surface (DEM/LiDAR) are almost always two separate
@@ -124,8 +135,107 @@ function metresPerDegreeLon(latDeg: number): number {
 }
 const METRES_PER_DEGREE_LAT = 110_540
 
+type LocalPoint = { x: number; y: number; z: number }
+
+/** Clamp a value into [min, max]. Used only for rendering parameters (point/marker size, grid density) — never for a coordinate. */
+export function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
+
+/**
+ * The bounding centre and radius of a set of already-local-metre points.
+ * Pure and framework-free so the camera-framing math is testable without a
+ * WebGL context: this is the "actual scene bounds" the audit asked for,
+ * computed from what is really being drawn rather than assumed.
+ *
+ * Returns `null` for an empty input rather than a fabricated origin --
+ * there is no real point to centre a camera on, and the caller (gated on
+ * `hasAnyGeometry`) never has an empty set to pass in practice.
+ */
+export function computeLocalBounds(points: LocalPoint[]): { center: LocalPoint; radius: number } | null {
+  if (points.length === 0) {
+    return null
+  }
+  let minX = Infinity
+  let minY = Infinity
+  let minZ = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  let maxZ = -Infinity
+  for (const p of points) {
+    if (p.x < minX) minX = p.x
+    if (p.y < minY) minY = p.y
+    if (p.z < minZ) minZ = p.z
+    if (p.x > maxX) maxX = p.x
+    if (p.y > maxY) maxY = p.y
+    if (p.z > maxZ) maxZ = p.z
+  }
+  const center = { x: (minX + maxX) / 2, y: (minY + maxY) / 2, z: (minZ + maxZ) / 2 }
+  let radius = 0
+  for (const p of points) {
+    const dx = p.x - center.x
+    const dy = p.y - center.y
+    const dz = p.z - center.z
+    const d = Math.sqrt(dx * dx + dy * dy + dz * dz)
+    if (d > radius) radius = d
+  }
+  // Floored, not zeroed: a single point (or several coincident ones) is a
+  // real, valid scene and still needs a positive camera distance to frame.
+  return { center, radius: Math.max(radius, 0.5) }
+}
+
+/**
+ * Camera distance that fits a sphere of `radius` inside both the vertical
+ * and horizontal field of view -- whichever is tighter, since `aspect` can
+ * be either side of 1. The caller applies its own safety margin on top.
+ */
+export function fitDistance(radius: number, verticalFovRad: number, aspect: number): number {
+  const vFov = verticalFovRad
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect)
+  const distV = radius / Math.sin(vFov / 2)
+  const distH = radius / Math.sin(hFov / 2)
+  return Math.max(distV, distH)
+}
+
+// A fixed, chosen viewing angle (elevated three-quarter view) -- not a
+// scale-dependent position. Only the *distance* along this direction is
+// derived from the data; the direction itself is a deliberate framing
+// choice, same as any other renderer's default "isometric-ish" camera.
+const FIT_DIRECTION = new THREE.Vector3(1, 0.8, 1).normalize()
+const FIT_MARGIN = 1.35
+
+/**
+ * Reposition `camera`/`controls` to frame `bounds` entirely, with near/far
+ * clipping planes and orbit-distance limits scaled to the same bounds --
+ * never fixed constants, so a tiny survey and a continental DEM tile both
+ * get a camera that can actually see what was rendered. Used for the
+ * initial framing and for both "Fit to scene" and "Reset view": bounds are
+ * fixed for the lifetime of one resolved payload, so recomputing them and
+ * restoring the initial framing are the same operation here.
+ */
+function applyFit(
+  camera: THREE.PerspectiveCamera,
+  controls: OrbitControls,
+  bounds: { center: LocalPoint; radius: number },
+) {
+  const vFovRad = (camera.fov * Math.PI) / 180
+  const distance = fitDistance(bounds.radius, vFovRad, camera.aspect || 1) * FIT_MARGIN
+  const center = new THREE.Vector3(bounds.center.x, bounds.center.y, bounds.center.z)
+
+  camera.position.copy(center).addScaledVector(FIT_DIRECTION, distance)
+  camera.near = Math.max(bounds.radius / 1000, 0.001)
+  camera.far = (distance + bounds.radius) * 20 + 10
+  camera.updateProjectionMatrix()
+
+  controls.target.copy(center)
+  controls.minDistance = Math.max(bounds.radius * 0.02, 0.05)
+  controls.maxDistance = distance * 15
+  controls.update()
+}
+
 function ResolvedScene({ payload }: { payload: ScenePayload }) {
   const mountRef = useRef<HTMLDivElement>(null)
+  const fitCameraRef = useRef<(() => void) | null>(null)
   const [selected, setSelected] = useState<SceneCandidate | null>(null)
 
   // A local metres-based frame centred on the surface's own mean position,
@@ -162,19 +272,56 @@ function ResolvedScene({ payload }: { payload: ScenePayload }) {
   const placeable = payload.candidates.filter((c) => c.position.available && c.elevation.available)
   const notShown = payload.candidates.filter((c) => !c.position.available || !c.elevation.available)
 
+  const hasSurface = (payload.surface?.points.length ?? 0) > 0
+  const hasCandidates = placeable.length > 0
+  const hasAnyGeometry = hasSurface || hasCandidates
+
   useEffect(() => {
     const mount = mountRef.current
-    if (!mount) return
+    if (!mount || !hasAnyGeometry) {
+      fitCameraRef.current = null
+      return
+    }
+
+    // Computed before any renderer/DOM setup below: if this were ever
+    // empty (unreachable given the `hasAnyGeometry` guard above, which
+    // guarantees at least one local point exists) there would be nothing
+    // to build or append yet, so bailing out here is always safe.
+    const surfacePoints = payload.surface?.points ?? []
+    let surfaceElevMean = 0
+    const localSurface: LocalPoint[] = []
+    if (surfacePoints.length > 0 && toLocal) {
+      const elevs = surfacePoints.map((p) => p.elevation_m)
+      surfaceElevMean = elevs.reduce((a, b) => a + b, 0) / elevs.length
+      for (const p of surfacePoints) {
+        const { x, z } = toLocal(p.lat, p.lon)
+        localSurface.push({ x, y: p.elevation_m - surfaceElevMean, z })
+      }
+    }
+
+    const localCandidates: (LocalPoint & { candidate: SceneCandidate })[] = []
+    if (toLocal) {
+      for (const c of placeable) {
+        const { x, z } = toLocal(c.position.lat as number, c.position.lon as number)
+        const y = (c.elevation.elevation_m as number) - surfaceElevMean
+        localCandidates.push({ x, y, z, candidate: c })
+      }
+    }
+
+    const bounds = computeLocalBounds([
+      ...localSurface,
+      ...localCandidates.map(({ x, y, z }) => ({ x, y, z })),
+    ])
+    if (!bounds) {
+      fitCameraRef.current = null
+      return
+    }
 
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0x0b0f14)
 
-    const camera = new THREE.PerspectiveCamera(
-      50,
-      mount.clientWidth / mount.clientHeight,
-      0.1,
-      100_000,
-    )
+    const aspect = mount.clientHeight ? mount.clientWidth / mount.clientHeight : 1
+    const camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 100_000)
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(mount.clientWidth, mount.clientHeight)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -187,52 +334,80 @@ function ResolvedScene({ payload }: { payload: ScenePayload }) {
 
     // The surface: a point cloud, coloured by elevation, at its own
     // declared/derived height -- never a fabricated continuous mesh (see
-    // the module docstring).
-    const surfacePoints = payload.surface?.points ?? []
-    let surfaceElevMean = 0
-    if (surfacePoints.length > 0 && toLocal) {
-      const elevs = surfacePoints.map((p) => p.elevation_m)
-      surfaceElevMean = elevs.reduce((a, b) => a + b, 0) / elevs.length
+    // the module docstring). Coordinates are `toLocal`'s real lat/lon/
+    // elevation transform -- nothing here moves or rescales a coordinate,
+    // only the *rendering* parameters below (point size, grid size) are
+    // derived from the data's own extent.
+    //
+    // Surface points and candidate markers live in their own group so the
+    // reference grid (sized FROM this group's bounds, below) is never
+    // itself part of the bounds it is sized to enclose.
+    const dataGroup = new THREE.Group()
+
+    if (localSurface.length > 0) {
+      // A fixed, un-attenuated pixel size -- not world units. A coarse DEM's
+      // few points sit far enough from a properly-fitted camera that even a
+      // several-metre point would shrink to sub-pixel with distance
+      // attenuation (this is the second half of the original visibility
+      // bug: fitting the camera made the points reachable, but their old
+      // world-unit, distance-attenuated size still shrank them away).
+      // Fewer points render larger -- a sparse DEM tile should read as
+      // individually visible samples, not a faint haze.
+      const pointPixelSize = clamp(24 / Math.sqrt(localSurface.length), 3, 10)
       const geo = new THREE.BufferGeometry()
-      const positions = new Float32Array(surfacePoints.length * 3)
-      surfacePoints.forEach((p, i) => {
-        const { x, z } = toLocal(p.lat, p.lon)
-        positions[i * 3] = x
-        positions[i * 3 + 1] = p.elevation_m - surfaceElevMean
-        positions[i * 3 + 2] = z
+      const positions = new Float32Array(localSurface.length * 3)
+      localSurface.forEach((p, i) => {
+        positions[i * 3] = p.x
+        positions[i * 3 + 1] = p.y
+        positions[i * 3 + 2] = p.z
       })
       geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-      const mat = new THREE.PointsMaterial({ color: 0x8fbf7f, size: 0.6, sizeAttenuation: true })
-      scene.add(new THREE.Points(geo, mat))
+      const mat = new THREE.PointsMaterial({
+        color: 0x8fbf7f,
+        size: pointPixelSize,
+        sizeAttenuation: false,
+      })
+      dataGroup.add(new THREE.Points(geo, mat))
 
-      // A thin reference grid at the surface's mean elevation, purely for
-      // visual grounding -- it carries no data of its own.
-      const grid = new THREE.GridHelper(200, 20, 0x2c3742, 0x1a212a)
+      // A thin reference grid at the surface's own extent, purely for
+      // visual grounding -- it carries no data of its own. Sized from
+      // `bounds.radius` rather than a fixed 200 units, so a coarse DEM
+      // tile spanning hundreds of metres still gets a grid that reaches
+      // its points, and a tight local survey does not drown in one.
+      const gridSize = Math.max(bounds.radius * 2.5, 1)
+      const divisions = clamp(Math.round(gridSize / 10), 8, 40)
+      const grid = new THREE.GridHelper(gridSize, divisions, 0x2c3742, 0x1a212a)
+      grid.position.set(bounds.center.x, bounds.center.y, bounds.center.z)
       scene.add(grid)
     }
 
     // Candidates: small spheres, coloured by anomaly class, positioned at
     // their own declared/derived elevation relative to the surface mean.
+    // Marker radius scales with the scene's own extent so a candidate is
+    // neither an invisible speck in a large DEM nor an oversized blob in a
+    // tight survey.
+    const candidateRadius = clamp(bounds.radius * 0.02, 0.15, 6)
     const candidateMeshes: { mesh: THREE.Mesh; candidate: SceneCandidate }[] = []
-    for (const c of placeable) {
-      if (!toLocal) break
-      const { x, z } = toLocal(c.position.lat as number, c.position.lon as number)
-      const y = (c.elevation.elevation_m as number) - surfaceElevMean
-      const geo = new THREE.SphereGeometry(0.8, 16, 16)
+    for (const lc of localCandidates) {
+      const geo = new THREE.SphereGeometry(candidateRadius, 16, 16)
       const mat = new THREE.MeshStandardMaterial({
-        color: c.anomaly_class === 'unclassified' ? 0x9aa7b5 : 0xe0a030,
+        color: lc.candidate.anomaly_class === 'unclassified' ? 0x9aa7b5 : 0xe0a030,
       })
       const mesh = new THREE.Mesh(geo, mat)
-      mesh.position.set(x, y, z)
-      mesh.userData.candidateId = c.id
-      scene.add(mesh)
-      candidateMeshes.push({ mesh, candidate: c })
+      mesh.position.set(lc.x, lc.y, lc.z)
+      mesh.userData.candidateId = lc.candidate.id
+      dataGroup.add(mesh)
+      candidateMeshes.push({ mesh, candidate: lc.candidate })
     }
 
-    camera.position.set(30, 30, 30)
+    scene.add(dataGroup)
+
     const controls = new OrbitControls(camera, renderer.domElement)
-    controls.target.set(0, 0, 0)
     controls.enableDamping = true
+
+    const fit = () => applyFit(camera, controls, bounds)
+    fit()
+    fitCameraRef.current = fit
 
     const raycaster = new THREE.Raycaster()
     const onClick = (ev: MouseEvent) => {
@@ -260,13 +435,14 @@ function ResolvedScene({ payload }: { payload: ScenePayload }) {
 
     const onResize = () => {
       if (!mount) return
-      camera.aspect = mount.clientWidth / mount.clientHeight
+      camera.aspect = mount.clientHeight ? mount.clientWidth / mount.clientHeight : 1
       camera.updateProjectionMatrix()
       renderer.setSize(mount.clientWidth, mount.clientHeight)
     }
     window.addEventListener('resize', onResize)
 
     return () => {
+      fitCameraRef.current = null
       cancelAnimationFrame(frame)
       window.removeEventListener('resize', onResize)
       renderer.domElement.removeEventListener('click', onClick)
@@ -274,7 +450,7 @@ function ResolvedScene({ payload }: { payload: ScenePayload }) {
       renderer.dispose()
       mount.removeChild(renderer.domElement)
     }
-  }, [payload, toLocal, placeable])
+  }, [payload, toLocal, placeable, hasAnyGeometry])
 
   return (
     <div className="flex h-full flex-col">
@@ -282,17 +458,56 @@ function ResolvedScene({ payload }: { payload: ScenePayload }) {
         <p className="text-[11px] leading-relaxed text-muted-foreground">
           {payload.validation_status}
         </p>
+        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+          In plain terms: everything placed here uses positions and elevations that were either
+          declared by someone or worked out from what was declared. That makes them useful for
+          looking around and for spotting where evidence sits relative to the surface — it does
+          not mean an independent survey has confirmed these are the true absolute coordinates.
+        </p>
       </div>
-      <div className="relative min-h-0 flex-1">
-        <div ref={mountRef} className="h-full w-full" />
-        {isSurfaceEmpty(payload) && (
-          <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center">
-            <span className="rounded-md bg-background/80 px-2 py-1 text-[11px] text-muted-foreground">
-              Surface unavailable — no positioned surface records for this dataset
-            </span>
+      {hasAnyGeometry ? (
+        <div className="relative min-h-0 flex-1">
+          <div ref={mountRef} className="h-full w-full" />
+          <div className="pointer-events-none absolute inset-x-0 top-2 flex flex-col items-center gap-1 px-16">
+            {!hasSurface && (
+              <span className="rounded-md bg-background/80 px-2 py-1 text-center text-[11px] text-muted-foreground">
+                Surface unavailable — no positioned surface records for this dataset
+              </span>
+            )}
+            {hasSurface && !hasCandidates && (
+              <span className="max-w-md rounded-md bg-background/80 px-2 py-1 text-center text-[11px] text-muted-foreground">
+                No subsurface candidates to display yet. The spatial scene is resolved, but no
+                candidates with sufficient position/elevation information are currently
+                available.
+              </span>
+            )}
           </div>
-        )}
-      </div>
+          <div className="absolute right-2 top-2 flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => fitCameraRef.current?.()}
+              className="rounded-md border border-border bg-background/80 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+            >
+              Fit to scene
+            </button>
+            <button
+              type="button"
+              onClick={() => fitCameraRef.current?.()}
+              className="rounded-md border border-border bg-background/80 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+            >
+              Reset view
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="min-h-0 flex-1 overflow-y-auto p-3.5">
+          <StateBox
+            kind="empty"
+            title="Nothing to render yet"
+            detail="The spatial scene is resolved, but there is no surface data and no candidates with sufficient position/elevation information currently available."
+          />
+        </div>
+      )}
       {selected && <CandidateDetail candidate={selected} onClose={() => setSelected(null)} />}
       {placeable.length > 0 && (
         <div className="max-h-28 overflow-y-auto border-t border-border px-3.5 py-2">
@@ -336,10 +551,6 @@ function ResolvedScene({ payload }: { payload: ScenePayload }) {
       )}
     </div>
   )
-}
-
-function isSurfaceEmpty(payload: ScenePayload): boolean {
-  return (payload.surface?.points.length ?? 0) === 0
 }
 
 function CandidateDetail({
