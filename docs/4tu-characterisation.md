@@ -42,10 +42,47 @@ Activities are the dataset's own `LocationID`. Project 13's directories are name
 | GPR two-way time | **measured** by the instrument |
 | Background removal / dewow / gain | **derived** from the measured signal |
 | Ring z-score | **derived** statistic, not a physical unit |
-| Velocity | **caller-supplied**, derived from the provider's published relative permittivity per activity (`c/sqrt(eps_r)`) — a site estimate, not a subsurface measurement |
-| Depth | **assumed**, because it inherits that velocity |
+| Velocity | **derived**, from the provider's **declared** relative permittivity per activity (`c/sqrt(eps_r)`, `ingestion.four_tu_velocity`) — a site estimate, not a subsurface measurement, and not independently validated (see "Declared-permittivity velocity" below) |
+| Depth | **derived**, because it inherits that velocity — never "assumed": the permittivity behind it is a real, source-declared value, not a converter placeholder |
 | Vertical datum | **unavailable** — see `docs/vertical-reference-site01.md` |
 | Trench information | **source-reported**, joined by LocationID only |
+
+### Declared-permittivity velocity
+
+Each of 4TU's 125 activities publishes its own "Ground relative permittivity"
+in `Metadata.csv` (8.16–19.46 across the corpus). `ingestion.four_tu_velocity`
+resolves it into a velocity (`v = c/sqrt(eps_r)`) for a `dataset_id` of the
+form `4tu_<LocationID>` and hands it to `SEGYConverter.load()` through four
+generic, opt-in hooks (`velocity_basis`, `velocity_source_quantity/value/
+basis`) that this converter accepts from any caller with a declared-quantity
+velocity — it does not know 4TU exists. This module is the single copy of the
+logic: `scripts/characterise_4tu.py` imports it rather than duplicating it.
+
+The resulting provenance chain is `declared eps_r` (**DECLARED_BY_SOURCE**) →
+`derived velocity` (**DERIVED**) → `derived depth` (**DERIVED**), read
+automatically off the frame's assumptions by `schemas.provenance.
+frame_provenance`. Neither step is **ASSUMED**: an assumed value is a
+converter placeholder nobody measured or declared for the site (Subterra's own
+default `DEFAULT_GPR_VELOCITY_M_PER_NS = 0.1`, unchanged and untouched by this
+path); this velocity rests on a real, source-declared number instead. Neither
+step is **VALIDATED** either: `Codebook.pdf` defines the permittivity field
+only as "the relative permittivity of the subsurface soil", with no published
+method, instrument, or uncertainty, and the resulting depth cannot be checked
+against 4TU's own trench-depth ground truth — the public archive withholds
+trench coordinates, and its `survey_map.png` sketches carry no scale or
+origin to tie a trench distance to a trace index (independently verified: one
+activity's 12 real survey lines are all 5.88–6.32 m long, but their drawn
+arrows differ by roughly 3x, so the sketches do not even preserve real line
+length proportionally). See `docs/cross-dataset-evidence-audit.md` §2.3 and
+`docs/external-calibration-dataset-audit.md`.
+
+**This is dataset-specific and opt-in.** It activates only when a caller
+resolves a velocity for a `dataset_id` matching the `4tu_<LocationID>`
+convention with a usable declared permittivity; any other `dataset_id`,
+including every other dataset SEG-Y ingestion already handles (BAM does not
+use this converter at all), keeps today's exact default-velocity behaviour
+unchanged. It is not, and must not be presented as, a calibrated velocity
+model.
 
 ## 4. Detector configuration
 

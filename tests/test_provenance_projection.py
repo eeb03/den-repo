@@ -128,6 +128,10 @@ def test_absent_depth_conversion_is_a_state_not_a_silence():
     ("SUPPLIED BY CALLER: velocity 0.1 m/ns", False, ProvenanceClass.SUPPLIED_BY_CALLER),
     ("inferred from the values' range", False, ProvenanceClass.INFERRED),
     ("assumed default soil velocity", False, ProvenanceClass.ASSUMED),
+    ("derived from the relative permittivity 9.0 published for this activity", False,
+     ProvenanceClass.DERIVED),
+    ("declared by the 4TU data provider in Metadata.csv", False,
+     ProvenanceClass.DECLARED_BY_SOURCE),
 ])
 def test_frame_assumptions_classify_from_their_own_basis(basis, verified, expected):
     f = _frame(assumptions=[Assumption(key="k", value=1, basis=basis, verified=verified)])
@@ -166,6 +170,20 @@ def test_a_derived_depth_names_the_velocity_and_calls_it_an_assertion():
     p = _by_quantity(record_provenance(r))["depth"]
     assert p.provenance == ProvenanceClass.DERIVED
     assert "not a measurement of it" in p.basis
+
+
+def test_a_depth_from_a_declared_quantity_velocity_is_derived_not_assumed():
+    """
+    The 4TU declared-permittivity path's own tag
+    (`converters.segy_converter`'s `velocity_source_tag`), exercised through
+    the same generic depth logic every other velocity source already uses.
+    """
+    r = _record(depth=0.5, metadata={"velocity_m_per_ns": 0.0999,
+                                     "velocity_source": "declared:relative permittivity"})
+    p = _by_quantity(record_provenance(r))["depth"]
+    assert p.provenance == ProvenanceClass.DERIVED
+    assert p.provenance != ProvenanceClass.ASSUMED
+    assert "declared:relative permittivity" in p.basis
 
 
 def test_a_native_position_is_measured():

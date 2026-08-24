@@ -19,6 +19,8 @@ from pathlib import Path
 
 import pytest
 
+from ingestion.four_tu_velocity import resolve_four_tu_velocity
+from schemas.provenance import ProvenanceClass, frame_provenance
 from scripts.characterise_4tu import (
     C_M_PER_NS, CORPUS, THRESHOLD_SWEEP, characterise_file, load_metadata,
     normalise_location_id, velocity_for,
@@ -48,7 +50,11 @@ def test_a_published_permittivity_becomes_a_velocity_labelled_as_an_estimate():
     assert v == pytest.approx(C_M_PER_NS / 3.0)
     assert "PROVIDER SITE ESTIMATE" in basis
     assert "not a measurement of the subsurface" in basis
-    assert "assumed" in basis
+    # DERIVED (from a declared quantity), never ASSUMED -- that distinction
+    # is the whole point of the declared-permittivity velocity path.
+    assert "derived from" in basis
+    assert "not independently validated" in basis
+    assert "assumed" not in basis.lower()
 
 
 def test_permittivity_of_one_is_the_speed_of_light():
@@ -105,6 +111,50 @@ def test_a_real_radargram_runs_the_whole_existing_chain():
     assert out["samples_per_trace"] == 512
     assert out["spatial_ref_code"] in ("EPSG:4326", None)
     assert set(out["candidate_sweep"]) == {str(t) for t in THRESHOLD_SWEEP}
+
+
+@REAL
+def test_a_real_4tu_activity_gets_the_declared_permittivity_velocity_and_it_is_derived():
+    """
+    End to end, on the real archive: a genuine 4TU LocationID resolves a
+    declared velocity, the frame's assumptions classify it DERIVED (not
+    ASSUMED) with the permittivity itself DECLARED_BY_SOURCE, and a non-4TU
+    dataset_id on the SAME file falls back to today's exact default behaviour.
+    """
+    from converters.segy_converter import DEFAULT_GPR_VELOCITY_M_PER_NS, SEGYConverter
+    from schemas.subterra_record import SensorType
+
+    files = sorted(glob.glob(str(CORPUS / "01/**/*.sgy"), recursive=True),
+                   key=os.path.getsize)
+    resolution = resolve_four_tu_velocity("4tu_01.1")
+    assert resolution is not None, "activity 01.1 is expected to publish a usable permittivity"
+
+    out = characterise_file(Path(files[0]), "4tu_01.1", resolution.velocity_m_per_ns, resolution)
+    assert out["records"] > 0
+
+    result = SEGYConverter().load(
+        Path(files[0]), dataset_id="4tu_01.1", sensor_type=SensorType.GPR,
+        coordinate_encoding="ieee_nmea", velocity_m_per_ns=resolution.velocity_m_per_ns,
+        velocity_basis=resolution.velocity_basis,
+        velocity_source_quantity="relative permittivity", velocity_source_value=resolution.eps_r,
+        velocity_source_basis=resolution.permittivity_basis,
+    )
+    by_quantity = {p.quantity: p for p in frame_provenance(result.frames[0])}
+    assert by_quantity["assumption:gpr_velocity"].provenance == ProvenanceClass.DERIVED
+    assert by_quantity["assumption:gpr_velocity_source_quantity"].provenance == \
+        ProvenanceClass.DECLARED_BY_SOURCE
+    assert result.records[0].metadata.get("velocity_source") == "declared:relative permittivity"
+
+    # A non-4TU dataset_id on the identical file must NOT pick up 4TU's
+    # velocity or basis -- the default-velocity path stays untouched.
+    default_result = SEGYConverter().load(
+        Path(files[0]), dataset_id="unrelated_dataset", sensor_type=SensorType.GPR,
+        coordinate_encoding="ieee_nmea",
+    )
+    assert default_result.records[0].metadata.get("velocity_m_per_ns") == DEFAULT_GPR_VELOCITY_M_PER_NS
+    assert "velocity_source" not in default_result.records[0].metadata
+    default_by_quantity = {p.quantity: p for p in frame_provenance(default_result.frames[0])}
+    assert default_by_quantity["assumption:gpr_velocity"].provenance == ProvenanceClass.ASSUMED
 
 
 @REAL

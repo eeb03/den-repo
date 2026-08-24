@@ -174,6 +174,10 @@ def frame_provenance(frame) -> list[QuantityProvenance]:
             cls = ProvenanceClass.MEASURED if "measured" in basis else ProvenanceClass.DERIVED
         elif "supplied by caller" in basis or "asserted" in basis:
             cls = ProvenanceClass.SUPPLIED_BY_CALLER
+        elif "derived from" in basis:
+            cls = ProvenanceClass.DERIVED
+        elif "declared by" in basis:
+            cls = ProvenanceClass.DECLARED_BY_SOURCE
         elif "inferred" in basis:
             cls = ProvenanceClass.INFERRED
         else:

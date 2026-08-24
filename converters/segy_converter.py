@@ -154,13 +154,22 @@ class SEGYConverter(BaseConverter):
         velocity_m_per_ns: float = DEFAULT_GPR_VELOCITY_M_PER_NS,
         crs: str | None = None,
         coordinate_encoding: str = "int32_scaled",
+        velocity_basis: str | None = None,
+        velocity_source_quantity: str | None = None,
+        velocity_source_value: float | None = None,
+        velocity_source_basis: str | None = None,
         **kwargs,
     ) -> list[SubterraRecord]:
         """Records only. See `load()` for records plus the file's SurveyFrame."""
         return self.load(
             path, dataset_id=dataset_id, sensor_type=sensor_type,
             velocity_m_per_ns=velocity_m_per_ns, crs=crs,
-            coordinate_encoding=coordinate_encoding, **kwargs,
+            coordinate_encoding=coordinate_encoding,
+            velocity_basis=velocity_basis,
+            velocity_source_quantity=velocity_source_quantity,
+            velocity_source_value=velocity_source_value,
+            velocity_source_basis=velocity_source_basis,
+            **kwargs,
         ).records
 
     def load(
@@ -171,6 +180,10 @@ class SEGYConverter(BaseConverter):
         velocity_m_per_ns: float = DEFAULT_GPR_VELOCITY_M_PER_NS,
         crs: str | None = None,
         coordinate_encoding: str = "int32_scaled",
+        velocity_basis: str | None = None,
+        velocity_source_quantity: str | None = None,
+        velocity_source_value: float | None = None,
+        velocity_source_basis: str | None = None,
         **kwargs,
     ) -> ConversionResult:
         """
@@ -188,6 +201,14 @@ class SEGYConverter(BaseConverter):
         is a structural property the file can be checked against. Big-endian
         always wins: the little-endian reader is reached only when segyio
         could not have opened the file at all.
+
+        `velocity_basis`/`velocity_source_*` let a caller that resolved
+        `velocity_m_per_ns` from a DECLARED quantity (e.g.
+        `ingestion.four_tu_velocity.resolve_four_tu_velocity`) say so, instead
+        of the generic "supplied by caller" this converter would otherwise
+        record. This converter stays generic: it does not know what the
+        quantity IS, only that the caller is asserting one. All four default
+        to None, which reproduces today's exact behaviour.
         """
 
         try:
@@ -214,6 +235,17 @@ class SEGYConverter(BaseConverter):
         is_gpr = sensor_type == SensorType.GPR
         any_elevation = False
         declared_crs = _parse_declared_crs(crs, path) if crs is not None else None
+
+        # Recorded on each GPR record's metadata only when the velocity is
+        # NOT the converter's own default, so a default-velocity ingestion's
+        # per-record metadata is byte-for-byte what it was before this tag
+        # existed. `record_provenance` reads this key for its depth basis.
+        velocity_source_tag = None
+        if is_gpr and velocity_m_per_ns != DEFAULT_GPR_VELOCITY_M_PER_NS:
+            velocity_source_tag = (
+                f"declared:{velocity_source_quantity}" if velocity_source_quantity
+                else "supplied_by_caller"
+            )
 
         # ONE record-building path for both byte orders. LittleEndianSegyFile
         # presents the same surface segyio does, so nothing below is duplicated.
@@ -351,6 +383,8 @@ class SEGYConverter(BaseConverter):
                         axis_metadata = {
                             "two_way_time_ns": sample_time,
                             "velocity_m_per_ns": velocity_m_per_ns,
+                            **({"velocity_source": velocity_source_tag}
+                               if velocity_source_tag else {}),
                         }
                     else:
                         # No velocity model exists for this modality, so no
@@ -405,6 +439,10 @@ class SEGYConverter(BaseConverter):
                 byte_order=byte_order, endian_evidence=endian_evidence,
                 coordinate_encoding=coordinate_encoding,
                 has_elevation=any_elevation,
+                velocity_basis=velocity_basis,
+                velocity_source_quantity=velocity_source_quantity,
+                velocity_source_value=velocity_source_value,
+                velocity_source_basis=velocity_source_basis,
             )
 
         return ConversionResult(records=records, frames=[frame])
@@ -415,6 +453,8 @@ class SEGYConverter(BaseConverter):
         declared_crs=None, declared_crs_input=None,
         byte_order=BIG, endian_evidence=None, coordinate_encoding="int32_scaled",
         has_elevation=False,
+        velocity_basis=None, velocity_source_quantity=None,
+        velocity_source_value=None, velocity_source_basis=None,
     ) -> SurveyFrame:
         """Describes the acquisition line as a whole: CRS, vertical axis, provenance, assumptions."""
         kinds = {p.kind for p in trace_positions}
@@ -463,14 +503,16 @@ class SEGYConverter(BaseConverter):
         is_gpr = sensor_type == SensorType.GPR
 
         if is_gpr:
+            if velocity_basis is not None:
+                gpr_velocity_basis = velocity_basis
+            elif velocity_m_per_ns == DEFAULT_GPR_VELOCITY_M_PER_NS:
+                gpr_velocity_basis = "assumed default (typical near-surface soil, relative permittivity ~9)"
+            else:
+                gpr_velocity_basis = "supplied by caller"
             assumptions = [
                 Assumption(
                     key="gpr_velocity", value=velocity_m_per_ns,
-                    basis=(
-                        "assumed default (typical near-surface soil, relative permittivity ~9)"
-                        if velocity_m_per_ns == DEFAULT_GPR_VELOCITY_M_PER_NS
-                        else "supplied by caller"
-                    ),
+                    basis=gpr_velocity_basis,
                     verified=False,
                 ),
                 Assumption(
@@ -479,6 +521,16 @@ class SEGYConverter(BaseConverter):
                     verified=False,
                 ),
             ]
+            # Present only when the caller resolved the velocity from a
+            # declared quantity (e.g. ingestion.four_tu_velocity). This
+            # converter does not know what the quantity IS -- it only
+            # records that the caller named one, with its own basis.
+            if velocity_source_quantity is not None:
+                assumptions.append(Assumption(
+                    key="gpr_velocity_source_quantity", value=velocity_source_value,
+                    basis=velocity_source_basis or f"{velocity_source_quantity} supplied by caller",
+                    verified=False,
+                ))
         else:
             assumptions = [
                 Assumption(

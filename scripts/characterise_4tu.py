@@ -21,11 +21,14 @@ reported utility: the data cannot support that and this script must not
 imply it.
 
 VELOCITY. Depth requires one, and 4TU publishes a ground relative
-permittivity per activity in Metadata.csv. Velocity is derived from it as
-c/sqrt(eps_r). That is a SITE ESTIMATE SUPPLIED BY THE DATA PROVIDER, not a
-measurement of the subsurface, so every depth derived from it is assumed.
-Activities without a usable permittivity are reported and skipped rather
-than given a default.
+permittivity per activity in Metadata.csv. Velocity is DERIVED from it as
+c/sqrt(eps_r), and the frame's `gpr_velocity` assumption says so (see
+`ingestion.four_tu_velocity`, which this script now imports rather than
+duplicating). The permittivity ITSELF is DECLARED_BY_SOURCE: the data
+provider's own site estimate, not a measurement Subterra made -- and it has
+no published measurement method or uncertainty, so a depth built from it is
+never independently validated. Activities without a usable permittivity are
+reported and skipped rather than given a default.
 
 Detection itself is unaffected by the velocity: the ring z-score runs on
 the (trace_index, depth) grid, whose row ORDER depth only re-labels. The
@@ -37,10 +40,8 @@ velocity changes reported candidate depths, not which cells are flagged.
 from __future__ import annotations
 
 import argparse
-import csv
 import gc
 import json
-import math
 import os
 import time
 import traceback
@@ -53,6 +54,10 @@ from scipy import ndimage
 
 from converters.segy_converter import SEGYConverter
 from converters.segy_endian import BIG, LITTLE, LittleEndianSegyFile, detect_endianness
+from ingestion.four_tu_velocity import (
+    CORPUS, C_M_PER_NS, VALIDATION_NOTE, declared_permittivity_velocity, load_metadata,
+    normalise_location_id, resolve_four_tu_velocity,
+)
 from interpretation.anomaly_candidates import (
     DEFAULT_ANOMALY_THRESHOLD, DEFAULT_MIN_CELLS, find_anomaly_candidates,
 )
@@ -68,11 +73,6 @@ from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-CORPUS = Path("datasets/raw/4tu/96303227-5886-41c9-8607-70fdd2cfe7c1/extracted")
-
-#: Speed of light in vacuum, m/ns. Velocity in a medium is c / sqrt(eps_r).
-C_M_PER_NS = 0.299792458
-
 #: Peak memory is dominated by one radargram's records held at once, and the
 #: ring statistic legitimately needs the whole line in memory -- chunking it
 #: would change the z-scores at chunk boundaries, i.e. change the science. So
@@ -86,23 +86,9 @@ DEFAULT_MAX_RECORDS = 4_000_000
 #: re-runs detection on the SAME preprocessed z-grid.
 THRESHOLD_SWEEP = (2.5, 3.0, 3.5, 4.0, 5.0)
 
-#: The dataset's own directory names disagree with its LocationIDs for
-#: project 13 only: directories are '013.N', Metadata.csv says '13.N'. The
-#: mapping is one-to-one over 6 entries with no other candidate, so it is
-#: normalised here and reported as a source inconsistency -- not inferred.
-def normalise_location_id(activity_dir: str, known_ids: set[str]) -> tuple[str, bool]:
-    if activity_dir in known_ids:
-        return activity_dir, False
-    stripped = activity_dir.lstrip("0")
-    if stripped in known_ids:
-        return stripped, True
-    return activity_dir, False
-
-
-def load_metadata(corpus: Path) -> dict[str, dict]:
-    path = corpus / "Metadata.csv"
-    with open(path, encoding="utf-8-sig") as fh:
-        return {r["LocationID"]: r for r in csv.DictReader(fh, delimiter=";")}
+#: `normalise_location_id` and `load_metadata` now live in
+#: `ingestion.four_tu_velocity` (imported above) -- the production module
+#: `resolve_four_tu_velocity` also needs them, so there is one copy, not two.
 
 
 def velocity_for(meta_row: dict | None) -> tuple[float | None, str]:
@@ -111,22 +97,19 @@ def velocity_for(meta_row: dict | None) -> tuple[float | None, str]:
 
     Returns (velocity, basis). A missing or non-physical permittivity yields
     (None, reason) -- never a default.
+
+    Thin wrapper: `ingestion.four_tu_velocity.declared_permittivity_velocity`
+    is the one copy of the physics and validation; this function exists so
+    every prior caller and test of `scripts.characterise_4tu.velocity_for`
+    keeps working unchanged.
     """
-    if meta_row is None:
-        return None, "no Metadata.csv row for this LocationID"
-    raw = (meta_row.get("Ground relative permittivity") or "").strip()
-    if not raw:
-        return None, "Metadata.csv publishes no relative permittivity for this activity"
-    try:
-        eps = float(raw)
-    except ValueError:
-        return None, f"relative permittivity {raw!r} is not a number"
-    if eps < 1.0:
-        return None, f"relative permittivity {eps} is below 1, which is not physical"
-    return C_M_PER_NS / math.sqrt(eps), (
+    velocity, eps, reason = declared_permittivity_velocity(meta_row)
+    if velocity is None:
+        return None, reason
+    return velocity, (
         f"derived from the relative permittivity {eps} published for this activity in "
         f"Metadata.csv, as c/sqrt(eps_r). A PROVIDER SITE ESTIMATE, not a measurement of "
-        f"the subsurface; every depth derived from it is assumed.")
+        f"the subsurface; {VALIDATION_NOTE}")
 
 
 def count_components(anomaly_grid, threshold: float, min_cells: int) -> int:
@@ -240,12 +223,29 @@ def characterise_file_arraywise(path: Path, velocity: float) -> dict:
     }
 
 
-def characterise_file(path: Path, dataset_id: str, velocity: float) -> dict:
-    """Runs the full existing chain on one radargram and summarises it."""
+def characterise_file(path: Path, dataset_id: str, velocity: float, resolution=None) -> dict:
+    """
+    Runs the full existing chain on one radargram and summarises it.
+
+    `resolution`, when given (a `FourTuVelocityResolution`), makes the
+    frame's `gpr_velocity` assumption record ITS basis -- "derived from the
+    relative permittivity ... " -- instead of the converter's generic
+    "supplied by caller", and adds a second assumption for the declared
+    permittivity itself. Omitting it (None) reproduces the exact prior
+    behaviour.
+    """
     t0 = time.time()
+    extra = {}
+    if resolution is not None:
+        extra = dict(
+            velocity_basis=resolution.velocity_basis,
+            velocity_source_quantity="relative permittivity",
+            velocity_source_value=resolution.eps_r,
+            velocity_source_basis=resolution.permittivity_basis,
+        )
     result = SEGYConverter().load(path, dataset_id=dataset_id, sensor_type=SensorType.GPR,
                                   coordinate_encoding="ieee_nmea",
-                                  velocity_m_per_ns=velocity)
+                                  velocity_m_per_ns=velocity, **extra)
     records, frame = result.records, result.frames[0]
     if not records:
         raise ValueError("converter produced no records")
@@ -386,6 +386,10 @@ def main() -> int:
                                    "reason": basis, "stage": "velocity"})
             print(f"[{i}/{len(targets)}] {loc:<7} SKIPPED: {basis}")
             continue
+        # Same declared-permittivity result as `velocity_for(row)` above, in
+        # the richer shape `SEGYConverter.load` accepts so the frame's own
+        # assumptions name the permittivity, not just "supplied by caller".
+        resolution = resolve_four_tu_velocity(f"4tu_{loc}")
 
         per_file, failures = [], []
         for f in files:
@@ -398,7 +402,7 @@ def main() -> int:
                     # characterised -- never dropped.
                     per_file.append(characterise_file_arraywise(f, velocity))
                 else:
-                    per_file.append(characterise_file(f, f"4tu_{loc}", velocity))
+                    per_file.append(characterise_file(f, f"4tu_{loc}", velocity, resolution))
             except Exception as e:
                 failures.append({"file": f.name, "error": f"{type(e).__name__}: {e}",
                                  "traceback": traceback.format_exc(limit=3)})
