@@ -1598,6 +1598,33 @@ export interface SceneCandidate {
   evidence_reference: string
 }
 
+/**
+ * Stage A: one individual measurement whose processed signal exceeded the
+ * same anomaly-evidence threshold candidate generation uses -- placed
+ * individually, never grouped, never connected to a neighbour. NOT a
+ * candidate and NOT a structure: no shape, no class, no claim beyond "this
+ * one measurement's value was this strong, here".
+ */
+export interface SceneEvidenceSample {
+  source_file: string
+  trace_index: number
+  depth_m: number
+  evidence_value: number
+  reliable: boolean
+  position: ScenePosition
+  elevation: SceneElevation
+  evidence_reference: string
+}
+
+export interface SceneEvidenceField {
+  samples: SceneEvidenceSample[]
+  threshold: number
+  point_count_total: number
+  downsampled: boolean
+  excluded_unpositioned_count: number
+  reason: string | null
+}
+
 export interface SceneVerticalRelationship {
   kind: VerticalRelationshipKind
   subsurface_frame_id: string | null
@@ -1614,6 +1641,7 @@ export interface ScenePayload {
   vertical_relationship: SceneVerticalRelationship | null
   surface: SceneSurface | null
   candidates: SceneCandidate[]
+  evidence: SceneEvidenceField | null
   validation_status: string
   diagnostic_views: Record<string, string>
 }
