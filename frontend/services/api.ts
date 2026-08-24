@@ -40,6 +40,8 @@ import type {
   DeclarationKind,
   Device,
   DeletionResult,
+  ExportFormatsResponse,
+  ExportResult,
   FrameProvenanceResponse,
   FusionRunResult,
   FusionSample,
@@ -375,6 +377,24 @@ export const api = {
 
   getObjects(datasetId: string): Promise<ObjectsResponse> {
     return request(`/api/objects/${encodeURIComponent(datasetId)}`)
+  },
+
+  /* -------------------------------- exports -------------------------------- */
+
+  getExportFormats(): Promise<ExportFormatsResponse> {
+    return request('/api/exports/formats')
+  },
+
+  /**
+   * `format: 'csv'` resolves to a plain string (the backend serves it as
+   * `text/csv`, which `request()` returns as text, not JSON) — every other
+   * format resolves to `ExportResult`. The caller must discriminate on the
+   * `format` it passed, not on the shape of what came back.
+   */
+  exportDatasetObjects(datasetId: string, format: string): Promise<ExportResult | string> {
+    return request(
+      `/api/exports/${encodeURIComponent(datasetId)}/objects?format=${encodeURIComponent(format)}`,
+    )
   },
 
   getLabels(datasetId: string): Promise<LabelsResponse> {

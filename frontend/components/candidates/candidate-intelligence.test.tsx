@@ -17,10 +17,13 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { SWRConfig } from 'swr'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ApiError } from '@/services/api'
 import type { CandidateIntelligence, InspectableCandidate } from '@/types/subterra'
 
 const getCandidates = vi.fn()
 const generateCandidates = vi.fn()
+const getExportFormats = vi.fn()
+const exportDatasetObjects = vi.fn()
 
 vi.mock('@/services/api', async () => {
   const actual = await vi.importActual<typeof import('@/services/api')>('@/services/api')
@@ -30,6 +33,8 @@ vi.mock('@/services/api', async () => {
       ...actual.api,
       getCandidates: (id: string) => getCandidates(id),
       generateCandidates: (id: string) => generateCandidates(id),
+      getExportFormats: () => getExportFormats(),
+      exportDatasetObjects: (id: string, format: string) => exportDatasetObjects(id, format),
     },
   }
 })
@@ -179,8 +184,34 @@ function view() {
 beforeEach(() => {
   getCandidates.mockReset()
   generateCandidates.mockReset()
+  getExportFormats.mockReset()
+  exportDatasetObjects.mockReset()
+  getExportFormats.mockResolvedValue({
+    formats: [
+      { value: 'json', requires: 'identifiers only', carries_full_provenance: true },
+      { value: 'csv', requires: 'identifiers only', carries_full_provenance: true },
+      {
+        value: 'geojson',
+        requires: 'a geographic position per feature',
+        carries_full_provenance: false,
+        note: 'unplaceable features are skipped with their reason',
+      },
+    ],
+    rule: 'nothing is silently dropped: every export reports what it skipped',
+  })
+  // jsdom does not implement the Blob-download primitives; stubbed here
+  // rather than asserting a real download happened, which no DOM test can do.
+  vi.stubGlobal('URL', { ...URL, createObjectURL: vi.fn(() => 'blob:mock'), revokeObjectURL: vi.fn() })
+  // jsdom also tries to actually navigate a clicked <a href="blob:...">,
+  // which it does not implement and logs as an error -- stubbed so the
+  // component's real download trigger doesn't need a fake mechanism of
+  // its own just to be testable.
+  HTMLAnchorElement.prototype.click = vi.fn()
 })
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 describe('the measured performance is unavoidable', () => {
   it('renders the benchmark numbers on the page', async () => {
@@ -547,5 +578,86 @@ describe('provenance is shown', () => {
     const { container } = view()
     await screen.findByText('7.42')
     expect(container.textContent).toMatch(/no randomness is used/i)
+  })
+})
+
+describe('export', () => {
+  it('shows no export panel when there are no classified objects', async () => {
+    getCandidates.mockResolvedValue(intelligence({ classified_object_count: 0 }))
+    const { container } = view()
+    await screen.findByText('7.42')
+    expect(container.querySelector('[data-export-panel]')).toBeNull()
+  })
+
+  it('shows the export panel and object count when classified objects exist', async () => {
+    getCandidates.mockResolvedValue(intelligence({ classified_object_count: 3 }))
+    const { container } = view()
+    await screen.findByText('7.42')
+    const panel = container.querySelector('[data-export-panel]')
+    expect(panel).not.toBeNull()
+    expect(panel?.textContent).toMatch(/3 classified objects available/)
+  })
+
+  it('offers the formats the backend reports, not a hardcoded list', async () => {
+    getCandidates.mockResolvedValue(intelligence({ classified_object_count: 1 }))
+    view()
+    await screen.findByText('7.42')
+    const select = await screen.findByDisplayValue('json')
+    const options = Array.from(select.querySelectorAll('option')).map((o) => o.value)
+    expect(options).toEqual(['json', 'csv', 'geojson'])
+  })
+
+  it('exports the selected format and reports what was written and skipped', async () => {
+    exportDatasetObjects.mockResolvedValue({
+      format: 'geojson',
+      payload: { type: 'FeatureCollection', features: [] },
+      report: {
+        written: 2,
+        skipped: [{ id: 'o1', reason: 'no geographic position' }],
+        transformed: 2,
+      },
+    })
+    getCandidates.mockResolvedValue(intelligence({ classified_object_count: 3 }))
+    const { container } = view()
+    await screen.findByText('7.42')
+
+    const select = await screen.findByDisplayValue('json')
+    fireEvent.change(select, { target: { value: 'geojson' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+
+    await waitFor(() => expect(exportDatasetObjects).toHaveBeenCalledWith('d1', 'geojson'))
+    const report = await screen.findByText(/Wrote 2, skipped 1/)
+    expect(report).toBeTruthy()
+    expect(container.querySelector('[data-export-report]')?.textContent).toMatch(
+      /see the file for why each was skipped/,
+    )
+  })
+
+  it('downloads a csv export without asserting a report it cannot see', async () => {
+    exportDatasetObjects.mockResolvedValue('id,status\no1,proposed\n')
+    getCandidates.mockResolvedValue(intelligence({ classified_object_count: 1 }))
+    const { container } = view()
+    await screen.findByText('7.42')
+
+    fireEvent.change(await screen.findByDisplayValue('json'), { target: { value: 'csv' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+    await waitFor(() => expect(exportDatasetObjects).toHaveBeenCalledWith('d1', 'csv'))
+    // no crash, and no report node rendered -- the backend puts csv's counts in
+    // response headers, which the export panel deliberately does not fabricate
+    expect(container.querySelector('[data-export-report]')).toBeNull()
+  })
+
+  it('shows the backend refusal verbatim when export is refused', async () => {
+    exportDatasetObjects.mockRejectedValue(
+      new ApiError(409, 'this format needs an absolute elevation per feature; none is established'),
+    )
+    getCandidates.mockResolvedValue(intelligence({ classified_object_count: 1 }))
+    view()
+    await screen.findByText('7.42')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+    await screen.findByText(
+      'this format needs an absolute elevation per feature; none is established',
+    )
   })
 })

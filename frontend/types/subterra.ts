@@ -375,6 +375,48 @@ export interface ObjectsResponse {
   note?: string
 }
 
+/** One format `GET /api/exports/formats` offers, with what it needs and gives up. */
+export interface ExportFormatInfo {
+  value: string
+  requires: string
+  carries_full_provenance: boolean
+  note?: string
+}
+
+export interface ExportFormatsResponse {
+  formats: ExportFormatInfo[]
+  rule: string
+}
+
+/**
+ * What an export skipped, and why -- never silently. Fields beyond `id`/
+ * `reason` vary by format (see `exports/exporters.py`), so they are kept
+ * as unknown rather than typed field-by-field here.
+ */
+export interface ExportSkipped {
+  id?: string | null
+  reason: string
+  [key: string]: unknown
+}
+
+export interface ExportReport {
+  written: number
+  skipped: ExportSkipped[]
+  transformed: number
+}
+
+/**
+ * The JSON-shaped export response (`json`/`geojson`/`czml`/`3d_tiles`).
+ * `csv` is NOT this shape -- the backend returns it as `text/csv`, so
+ * `api.exportDatasetObjects` resolves to a plain string for that format,
+ * and this type is never assigned when `format === 'csv'`.
+ */
+export interface ExportResult {
+  format: string
+  payload: unknown
+  report: ExportReport
+}
+
 export interface LabelSource {
   kind: string
   name: string

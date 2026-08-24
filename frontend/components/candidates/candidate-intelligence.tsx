@@ -10,6 +10,9 @@ import { formatCount } from '@/lib/format'
 import type {
   CandidateIntelligence,
   DepthCertainty,
+  ExportFormatInfo,
+  ExportReport,
+  ExportResult,
   InspectableCandidate,
   LocalisationCertainty,
 } from '@/types/subterra'
@@ -349,6 +352,17 @@ export function CandidateIntelligenceView({ datasetId }: { datasetId: string }) 
               </p>
             )}
           </section>
+
+          {/*
+            Export follows CLASSIFIED OBJECTS, not raw candidates -- a
+            distinct, downstream store (`database.objects_store`) that a
+            dataset can hold zero of even with candidates present. Gating on
+            `classified_object_count` (already in this payload) means no
+            extra request decides whether to show the panel at all.
+          */}
+          {data.classified_object_count > 0 && (
+            <ExportPanel datasetId={datasetId} objectCount={data.classified_object_count} />
+          )}
         </>
       )}
     </div>
@@ -498,5 +512,133 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       </dt>
       <dd className="mt-0.5 text-foreground">{children}</dd>
     </div>
+  )
+}
+
+/** `format -> file extension`. `3d_tiles` is JSON (a tileset document); it
+ * has never succeeded on any held dataset (`GET /api/exports/formats`
+ * documents it as refused for all of them), so the extension is a small
+ * honesty gap, not a live one. */
+const EXPORT_EXTENSION: Record<string, string> = {
+  json: 'json',
+  csv: 'csv',
+  geojson: 'geojson',
+  czml: 'czml',
+  '3d_tiles': 'json',
+}
+
+const EXPORT_MIME: Record<string, string> = {
+  json: 'application/json',
+  csv: 'text/csv',
+  geojson: 'application/geo+json',
+  czml: 'application/json',
+  '3d_tiles': 'application/json',
+}
+
+/**
+ * Objects, in a real downloadable format.
+ *
+ * NEVER RENDERS THE PAYLOAD. This triggers a real file download and shows
+ * only the write/skip REPORT the backend returns alongside it -- the same
+ * "nothing silently dropped" contract `GET /api/exports/formats` states,
+ * surfaced rather than swallowed. CSV has no inline report: the backend
+ * carries its written/skipped counts in response HEADERS
+ * (`X-Subterra-Written`/`X-Subterra-Skipped`), which `services/api.ts`'s
+ * `request()` does not expose to callers -- the file itself is still
+ * complete and correct, this panel just cannot summarise it without a
+ * second request the backend does not offer.
+ */
+function ExportPanel({ datasetId, objectCount }: { datasetId: string; objectCount: number }) {
+  const { data: formatsData } = useSWR<{ formats: ExportFormatInfo[] }>(
+    ['export-formats'],
+    () => api.getExportFormats(),
+  )
+  const [format, setFormat] = useState('json')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [lastReport, setLastReport] = useState<ExportReport | null>(null)
+
+  async function runExport() {
+    setBusy(true)
+    setError(null)
+    setLastReport(null)
+    try {
+      const result = await api.exportDatasetObjects(datasetId, format)
+      const isCsv = format === 'csv'
+      const text = isCsv ? (result as string) : JSON.stringify((result as ExportResult).payload, null, 2)
+      const blob = new Blob([text], { type: EXPORT_MIME[format] ?? 'application/octet-stream' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${datasetId}.${EXPORT_EXTENSION[format] ?? 'json'}`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      if (!isCsv) setLastReport((result as ExportResult).report)
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.detail
+          : 'could not reach the Subterra API. Is the backend running?',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const formats = formatsData?.formats ?? []
+  const selected = formats.find((f) => f.value === format)
+
+  return (
+    <section data-export-panel className="space-y-2 border-t border-border pt-4">
+      <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+        Export
+      </p>
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        {formatCount(objectCount)} classified object{objectCount === 1 ? '' : 's'} available.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          data-export-format
+          value={format}
+          onChange={(e) => setFormat(e.target.value)}
+          className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          {(formats.length > 0 ? formats : [{ value: 'json' } as ExportFormatInfo]).map((f) => (
+            <option key={f.value} value={f.value}>
+              {f.value}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          data-action="export-objects"
+          disabled={busy}
+          onClick={runExport}
+          className={cn(buttonVariants({ variant: 'default', size: 'sm' }))}
+        >
+          {busy ? 'Exporting…' : 'Export'}
+        </button>
+      </div>
+      {selected?.note && (
+        <p className="text-xs leading-relaxed text-muted-foreground">{selected.note}</p>
+      )}
+      {selected && !selected.carries_full_provenance && (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          This format does not carry full provenance — requires {selected.requires}.
+        </p>
+      )}
+      {lastReport && (
+        <p data-export-report className="text-xs leading-relaxed text-foreground">
+          Wrote {formatCount(lastReport.written)}
+          {lastReport.skipped.length > 0
+            ? `, skipped ${formatCount(lastReport.skipped.length)} (see the file for why each was skipped)`
+            : ''}
+          .
+        </p>
+      )}
+      {error && <ActionError message={error} />}
+    </section>
   )
 }
