@@ -23,6 +23,15 @@ obspy>=1.4.1
 # Visualization (Phase 2)
 plotly==5.24.1
 
+# Learned Detector V1 (training/segmentation_model.py): CPU-only build,
+# gracefully degrades (MissingDependencyError) if absent -- same pattern as
+# the format converters above. --extra-index-url is scoped to this one
+# package by pip's own resolution (the default PyPI index is tried too;
+# torch resolves here to the CPU wheel rather than pulling the much larger
+# CUDA-bundled default), never a GPU/CUDA requirement.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.9.0
+
 # Testing
 pytest==8.3.3
 httpx==0.27.2
