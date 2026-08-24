@@ -6,7 +6,12 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { QueryState } from '@/components/subterra/query-state'
 import { StateBox } from '@/components/subterra/state-box'
 import { useDatasets, useScene } from '@/hooks/use-subterra'
-import type { SceneCandidate, ScenePayload } from '@/types/subterra'
+import type { SceneCandidate, SceneEvidenceSample, ScenePayload } from '@/types/subterra'
+
+/** Which detail panel is open -- a candidate (grouped, classified) or a Stage A evidence sample (one measurement, no grouping, no classification). */
+type Selection =
+  | { kind: 'candidate'; item: SceneCandidate }
+  | { kind: 'evidence'; item: SceneEvidenceSample }
 
 /**
  * The reconstructed scene: a real 3D spatial view of what Subterra currently
@@ -33,6 +38,16 @@ import type { SceneCandidate, ScenePayload } from '@/types/subterra'
  * elevation is never placed at a fallback coordinate -- the same rule
  * `components/subterra/not-on-map.tsx` already enforces for objects and
  * labels. It is listed instead, with the backend's own reason.
+ *
+ * STAGE A: EVIDENCE SAMPLES, NOT CANDIDATES. `payload.evidence.samples` are
+ * individual measurements above the same anomaly threshold candidate
+ * generation uses -- never grouped, never connected, never given a shape or
+ * a class. They render as small, flat (unlit) spheres, deliberately
+ * distinct from candidates' shaded ones, so nobody mistakes "a measurement
+ * was strong here" for "a classified region was found here". A sample
+ * missing position or elevation is excluded the same way a candidate is --
+ * `SceneEvidenceField.excluded_unpositioned_count` reports how many, as a
+ * count rather than a list, since this set can run into the thousands.
  *
  * CAMERA FRAMING. A browser audit found the original camera fixed at
  * `(30, 30, 30)` looking at the origin: fine for a small, roughly-centred
@@ -236,7 +251,7 @@ function applyFit(
 function ResolvedScene({ payload }: { payload: ScenePayload }) {
   const mountRef = useRef<HTMLDivElement>(null)
   const fitCameraRef = useRef<(() => void) | null>(null)
-  const [selected, setSelected] = useState<SceneCandidate | null>(null)
+  const [selected, setSelected] = useState<Selection | null>(null)
 
   // A local metres-based frame centred on the surface's own mean position,
   // so the scene draws at a human scale instead of at raw lat/lon degrees.
@@ -272,9 +287,18 @@ function ResolvedScene({ payload }: { payload: ScenePayload }) {
   const placeable = payload.candidates.filter((c) => c.position.available && c.elevation.available)
   const notShown = payload.candidates.filter((c) => !c.position.available || !c.elevation.available)
 
+  // Every sample the backend hands back already has a real geographic
+  // position (SceneEvidenceSample.position.available is only ever true for
+  // one) -- the only remaining reason one can't be placed is a missing DEM
+  // alignment for elevation, same as a candidate.
+  const evidenceSamples = payload.evidence?.samples ?? []
+  const placeableEvidence = evidenceSamples.filter((s) => s.elevation.available)
+  const evidenceWithoutElevation = evidenceSamples.length - placeableEvidence.length
+
   const hasSurface = (payload.surface?.points.length ?? 0) > 0
   const hasCandidates = placeable.length > 0
-  const hasAnyGeometry = hasSurface || hasCandidates
+  const hasEvidence = placeableEvidence.length > 0
+  const hasAnyGeometry = hasSurface || hasCandidates || hasEvidence
 
   useEffect(() => {
     const mount = mountRef.current
@@ -308,9 +332,19 @@ function ResolvedScene({ payload }: { payload: ScenePayload }) {
       }
     }
 
+    const localEvidence: (LocalPoint & { sample: SceneEvidenceSample })[] = []
+    if (toLocal) {
+      for (const s of placeableEvidence) {
+        const { x, z } = toLocal(s.position.lat as number, s.position.lon as number)
+        const y = (s.elevation.elevation_m as number) - surfaceElevMean
+        localEvidence.push({ x, y, z, sample: s })
+      }
+    }
+
     const bounds = computeLocalBounds([
       ...localSurface,
       ...localCandidates.map(({ x, y, z }) => ({ x, y, z })),
+      ...localEvidence.map(({ x, y, z }) => ({ x, y, z })),
     ])
     if (!bounds) {
       fitCameraRef.current = null
@@ -400,6 +434,22 @@ function ResolvedScene({ payload }: { payload: ScenePayload }) {
       candidateMeshes.push({ mesh, candidate: lc.candidate })
     }
 
+    // Evidence samples: small, FLAT (unlit) spheres -- deliberately smaller
+    // and visually plainer than a candidate's shaded sphere, so a measured
+    // point never reads as "a classified region", only as "evidence was
+    // here". Low segment count keeps a scene with hundreds of samples
+    // affordable to render.
+    const evidenceRadius = clamp(bounds.radius * 0.012, 0.08, 3)
+    const evidenceMeshes: { mesh: THREE.Mesh; sample: SceneEvidenceSample }[] = []
+    for (const le of localEvidence) {
+      const geo = new THREE.SphereGeometry(evidenceRadius, 6, 6)
+      const mat = new THREE.MeshBasicMaterial({ color: 0x5fc2d6, transparent: true, opacity: 0.85 })
+      const mesh = new THREE.Mesh(geo, mat)
+      mesh.position.set(le.x, le.y, le.z)
+      dataGroup.add(mesh)
+      evidenceMeshes.push({ mesh, sample: le.sample })
+    }
+
     scene.add(dataGroup)
 
     const controls = new OrbitControls(camera, renderer.domElement)
@@ -417,10 +467,18 @@ function ResolvedScene({ payload }: { payload: ScenePayload }) {
         -((ev.clientY - rect.top) / rect.height) * 2 + 1,
       )
       raycaster.setFromCamera(pointer, camera)
-      const hit = raycaster.intersectObjects(candidateMeshes.map((c) => c.mesh))[0]
+      const hit = raycaster.intersectObjects([
+        ...candidateMeshes.map((c) => c.mesh),
+        ...evidenceMeshes.map((e) => e.mesh),
+      ])[0]
       if (hit) {
-        const found = candidateMeshes.find((c) => c.mesh === hit.object)
-        if (found) setSelected(found.candidate)
+        const foundCandidate = candidateMeshes.find((c) => c.mesh === hit.object)
+        if (foundCandidate) {
+          setSelected({ kind: 'candidate', item: foundCandidate.candidate })
+          return
+        }
+        const foundEvidence = evidenceMeshes.find((e) => e.mesh === hit.object)
+        if (foundEvidence) setSelected({ kind: 'evidence', item: foundEvidence.sample })
       }
     }
     renderer.domElement.addEventListener('click', onClick)
@@ -450,7 +508,7 @@ function ResolvedScene({ payload }: { payload: ScenePayload }) {
       renderer.dispose()
       mount.removeChild(renderer.domElement)
     }
-  }, [payload, toLocal, placeable, hasAnyGeometry])
+  }, [payload, toLocal, placeable, placeableEvidence, hasAnyGeometry])
 
   return (
     <div className="flex h-full flex-col">
@@ -481,6 +539,13 @@ function ResolvedScene({ payload }: { payload: ScenePayload }) {
                 available.
               </span>
             )}
+            {!hasEvidence && (
+              <span className="max-w-md rounded-md bg-background/80 px-2 py-1 text-center text-[11px] text-muted-foreground">
+                No spatial evidence samples to display.{' '}
+                {payload.evidence?.reason ??
+                  'No measurement above the anomaly threshold currently has a usable position.'}
+              </span>
+            )}
           </div>
           <div className="absolute right-2 top-2 flex gap-1.5">
             <button
@@ -504,11 +569,16 @@ function ResolvedScene({ payload }: { payload: ScenePayload }) {
           <StateBox
             kind="empty"
             title="Nothing to render yet"
-            detail="The spatial scene is resolved, but there is no surface data and no candidates with sufficient position/elevation information currently available."
+            detail="The spatial scene is resolved, but there is no surface data, no candidates, and no spatial evidence samples with sufficient position/elevation information currently available."
           />
         </div>
       )}
-      {selected && <CandidateDetail candidate={selected} onClose={() => setSelected(null)} />}
+      {selected?.kind === 'candidate' && (
+        <CandidateDetail candidate={selected.item} onClose={() => setSelected(null)} />
+      )}
+      {selected?.kind === 'evidence' && (
+        <EvidenceDetail sample={selected.item} onClose={() => setSelected(null)} />
+      )}
       {placeable.length > 0 && (
         <div className="max-h-28 overflow-y-auto border-t border-border px-3.5 py-2">
           <h3 className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -519,10 +589,10 @@ function ResolvedScene({ payload }: { payload: ScenePayload }) {
               <li key={c.id}>
                 <button
                   type="button"
-                  onClick={() => setSelected(c)}
-                  aria-pressed={selected?.id === c.id}
+                  onClick={() => setSelected({ kind: 'candidate', item: c })}
+                  aria-pressed={selected?.kind === 'candidate' && selected.item.id === c.id}
                   className={`rounded-md border px-1.5 py-0.5 text-[11px] transition-colors ${
-                    selected?.id === c.id
+                    selected?.kind === 'candidate' && selected.item.id === c.id
                       ? 'border-primary/50 bg-primary/10 text-foreground'
                       : 'border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
                   }`}
@@ -533,6 +603,45 @@ function ResolvedScene({ payload }: { payload: ScenePayload }) {
             ))}
           </ul>
         </div>
+      )}
+      {placeableEvidence.length > 0 && (
+        <div className="max-h-28 overflow-y-auto border-t border-border px-3.5 py-2">
+          <h3 className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+            Evidence samples in this scene — {placeableEvidence.length}
+            {payload.evidence && payload.evidence.point_count_total > placeableEvidence.length && (
+              <> (of {payload.evidence.point_count_total} above threshold)</>
+            )}
+          </h3>
+          <ul className="mt-1 flex flex-wrap gap-1.5">
+            {placeableEvidence.map((s, i) => {
+              const key = `${s.source_file}:${s.trace_index}:${s.depth_m}`
+              const isSelected = selected?.kind === 'evidence' && selected.item === s
+              return (
+                <li key={key || i}>
+                  <button
+                    type="button"
+                    onClick={() => setSelected({ kind: 'evidence', item: s })}
+                    aria-pressed={isSelected}
+                    className={`rounded-md border px-1.5 py-0.5 text-[11px] transition-colors ${
+                      isSelected
+                        ? 'border-primary/50 bg-primary/10 text-foreground'
+                        : 'border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
+                    }`}
+                  >
+                    {s.evidence_value.toFixed(1)}
+                    {!s.reliable && '*'}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+      {evidenceWithoutElevation > 0 && (
+        <p className="border-t border-border px-3.5 py-2 text-[11px] text-muted-foreground">
+          {evidenceWithoutElevation} more measurement(s) above threshold have no DEM-aligned
+          elevation and are not shown.
+        </p>
       )}
       {notShown.length > 0 && (
         <div className="max-h-32 overflow-y-auto border-t border-border px-3.5 py-2">
@@ -602,6 +711,63 @@ function CandidateDetail({
       </p>
       <a
         href={candidate.evidence_reference}
+        className="mt-2 inline-block text-[11px] text-primary underline-offset-4 hover:underline"
+      >
+        Inspect this evidence in the radargram
+      </a>
+    </div>
+  )
+}
+
+function EvidenceDetail({
+  sample,
+  onClose,
+}: {
+  sample: SceneEvidenceSample
+  onClose: () => void
+}) {
+  return (
+    <div className="border-t border-border bg-muted/20 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-xs font-medium text-foreground">Evidence sample</p>
+          <code className="text-[11px] text-muted-foreground">
+            {sample.source_file} · trace {sample.trace_index} · {sample.depth_m.toFixed(2)} m
+          </code>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-[11px] text-muted-foreground hover:text-foreground"
+        >
+          Close
+        </button>
+      </div>
+      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+        <Field label="Evidence value">{sample.evidence_value.toFixed(2)}</Field>
+        <Field label="Reliable">{sample.reliable ? 'yes' : 'no — near a trace/depth edge'}</Field>
+        <Field label="Elevation">
+          {sample.elevation.available
+            ? `${(sample.elevation.elevation_m as number).toFixed(2)} m`
+            : 'unavailable'}
+        </Field>
+        <Field label="Depth">
+          {sample.elevation.depth_m != null ? `${sample.elevation.depth_m.toFixed(2)} m` : '—'}
+          {' · '}
+          {sample.elevation.depth_certainty}
+        </Field>
+        <Field label="Position basis">{sample.position.basis}</Field>
+        <Field label="Source file">{sample.source_file}</Field>
+      </dl>
+      <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+        One individual measurement whose processed signal exceeded the anomaly-evidence
+        threshold — not grouped, not classified, not a claim that anything is buried here.
+      </p>
+      <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+        <strong className="text-foreground">Elevation provenance:</strong> {sample.elevation.provenance}
+      </p>
+      <a
+        href={sample.evidence_reference}
         className="mt-2 inline-block text-[11px] text-primary underline-offset-4 hover:underline"
       >
         Inspect this evidence in the radargram

@@ -25,7 +25,8 @@ from converters.geotiff_converter import GeoTIFFConverter
 from converters.segy_converter import SEGYConverter
 from fusion import vertical_reference as vr
 from schemas.spatial import (
-    AxisKind, CRSProvenance, VerticalAxis, VerticalDatum, VerticalRelationshipKind,
+    AcquisitionElevationDatum, AxisKind, CRSProvenance, VerticalAxis, VerticalDatum,
+    VerticalRelationshipKind,
 )
 from schemas.subterra_record import SensorType
 from schemas.survey_frame import SurveyFrame
@@ -52,10 +53,11 @@ def ahn_frame():
                                    stride=60, reproject=False)
 
 
-def _frame(axis, fid="f"):
+def _frame(axis, fid="f", acquisition_elevation_datum=None):
     return SurveyFrame.model_construct(
         frame_id=fid, dataset_id="d", modality=SensorType.GPR, source_format="x",
-        spatial_ref=None, vertical_axis=axis, assumptions=[], source_metadata={})
+        spatial_ref=None, vertical_axis=axis, assumptions=[], source_metadata={},
+        acquisition_elevation_datum=acquisition_elevation_datum)
 
 
 def _axis(kind, origin, datum=None, conversion=None):
@@ -252,6 +254,58 @@ def test_a_fully_declared_and_ground_referenced_pair_is_absolute():
     assert rel.kind == VerticalRelationshipKind.ABSOLUTE_ELEVATION
     assert rel.absolute_elevation_available is True
     assert rel.missing == []
+
+
+# --- the acquisition-elevation route: a fallback when the axis is undeclared ---
+
+WGS84_ELLIPSOIDAL = VerticalDatum(code="WGS84 ellipsoidal", provenance=CRSProvenance.SUPPLIED_BY_CALLER,
+                                  name="direct written response from the dataset author")
+
+
+def test_an_undeclared_axis_falls_back_to_a_matching_acquisition_elevation_datum():
+    """The exact real-world case this route exists for: the 4TU GPR frame's
+    axis (two-way time) declares no datum, but its acquisition elevation does."""
+    sub = _frame(_axis(AxisKind.DEPTH_M, "ground surface at each trace"), "sub",
+                acquisition_elevation_datum=AcquisitionElevationDatum(
+                    datum=WGS84_ELLIPSOIDAL, field="SEG-Y bytes 45-48"))
+    sur = _frame(_axis(AxisKind.ELEVATION_M, "raster band 1 value", WGS84_ELLIPSOIDAL), "sur")
+    rel = vr.assess(sub, sur)
+    assert rel.kind == VerticalRelationshipKind.ABSOLUTE_ELEVATION
+    assert rel.missing == []
+    assert any("acquisition elevation" in r for r in rel.reasons)
+
+
+def test_a_declared_axis_datum_is_never_overridden_by_acquisition_elevation():
+    """Additive, not a replacement: a declared (even if mismatched) axis
+    datum stays authoritative -- an acquisition elevation never upgrades or
+    silently relabels it."""
+    sub = _frame(_axis(AxisKind.DEPTH_M, "ground surface at each trace", NAP), "sub",
+                acquisition_elevation_datum=AcquisitionElevationDatum(
+                    datum=WGS84_ELLIPSOIDAL, field="SEG-Y bytes 45-48"))
+    sur = _frame(_axis(AxisKind.ELEVATION_M, "raster band 1 value", WGS84_ELLIPSOIDAL), "sur")
+    rel = vr.assess(sub, sur)
+    # NAP (axis) vs WGS84 ellipsoidal (surface axis) still differ: the
+    # matching acquisition elevation must not have been substituted in.
+    assert rel.kind != VerticalRelationshipKind.ABSOLUTE_ELEVATION
+    assert any("NAP" in r and "WGS84 ellipsoidal" in r for r in rel.reasons)
+
+
+def test_acquisition_elevation_alone_does_not_resolve_a_mismatched_pair():
+    sub = _frame(_axis(AxisKind.DEPTH_M, "ground surface at each trace"), "sub",
+                acquisition_elevation_datum=AcquisitionElevationDatum(
+                    datum=WGS84_ELLIPSOIDAL, field="SEG-Y bytes 45-48"))
+    sur = _frame(_axis(AxisKind.ELEVATION_M, "raster band 1 value", NAP), "sur")
+    rel = vr.assess(sub, sur)
+    assert rel.kind != VerticalRelationshipKind.ABSOLUTE_ELEVATION
+    assert any("differ" in r for r in rel.reasons)
+
+
+def test_neither_axis_nor_acquisition_elevation_declared_is_still_undeclared():
+    sub = _frame(_axis(AxisKind.DEPTH_M, "ground surface at each trace"), "sub")
+    sur = _frame(_axis(AxisKind.ELEVATION_M, "raster band 1 value"), "sur")
+    rel = vr.assess(sub, sur)
+    assert rel.kind != VerticalRelationshipKind.ABSOLUTE_ELEVATION
+    assert any("declares no vertical datum" in r for r in rel.reasons)
 
 
 def test_ground_referenced_but_undeclared_datum_is_relative_depth_only():

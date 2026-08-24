@@ -269,6 +269,236 @@ def test_cross_dataset_surface_via_surface_dataset_id(isolated_store, no_declara
     assert payload.surface.point_count_total == 1
 
 
+def _evidence_records(dataset_id, source_file, with_elevation, with_velocity, latitude=52.0, longitude=6.0):
+    """One 8x40 GPR line with a real anomaly block, same shape as
+    _anomaly_records but exposing per-record position/velocity control for
+    Stage A evidence tests."""
+    records = []
+    for t in range(8):
+        for d in range(40):
+            value = 9.0 if (3 <= t <= 5 and 18 <= d <= 20) else 0.0
+            metadata = {"source_file": source_file, "trace_index": t,
+                       "sample_index": d, "anomaly_reliable": True}
+            if with_velocity:
+                metadata["velocity_m_per_ns"] = 0.1
+            records.append(SubterraRecord(
+                dataset_id=dataset_id, sensor_type=SensorType.GPR,
+                latitude=latitude, longitude=longitude,
+                position=GeographicPosition(lat=latitude, lon=longitude),
+                elevation=250.0 if with_elevation else None,
+                depth=round(d * 0.01, 6), signal=[value],
+                metadata=metadata,
+            ))
+    return records
+
+
+def test_resolved_scene_carries_evidence_samples_distinct_from_candidates(isolated_store, no_declarations):
+    """Stage A: individually positioned measurements above threshold, not clustered into candidates."""
+    from api.scene import build_scene
+
+    sub = _frame("ds10", "ds10:line",
+                _axis(AxisKind.DEPTH_M, "ground surface at each trace", NAP))
+    sur = _frame("ds10", "ds10:dem", _axis(AxisKind.ELEVATION_M, "raster band 1 value", NAP),
+                modality=SensorType.DEM)
+    save_frames("ds10", [sub, sur])
+    save_records("ds10", _evidence_records("ds10", "line.SGY", with_elevation=True, with_velocity=True))
+
+    payload = build_scene(db=None, dataset_id="ds10")
+    assert payload.resolved is True
+    assert payload.evidence is not None
+    assert len(payload.evidence.samples) > 0
+    s = payload.evidence.samples[0]
+    assert s.position.available is True
+    assert s.position.lat == pytest.approx(52.0)
+    assert s.elevation.available is True
+    assert s.evidence_value == 9.0
+    # Evidence samples are individual measurements, not the grouped candidate set.
+    assert len(payload.evidence.samples) != len(payload.candidates)
+
+
+def test_evidence_elevation_uses_the_same_arithmetic_as_candidates(isolated_store, no_declarations):
+    from api.scene import build_scene
+
+    sub = _frame("ds11", "ds11:line",
+                _axis(AxisKind.DEPTH_M, "ground surface at each trace", NAP))
+    sur = _frame("ds11", "ds11:dem", _axis(AxisKind.ELEVATION_M, "raster band 1 value", NAP),
+                modality=SensorType.DEM)
+    save_frames("ds11", [sub, sur])
+    save_records("ds11", _evidence_records("ds11", "line.SGY", with_elevation=True, with_velocity=True))
+
+    payload = build_scene(db=None, dataset_id="ds11")
+    s = payload.evidence.samples[0]
+    expected = compute_absolute_elevation(250.0, s.elevation.depth_m, None)
+    assert s.elevation.elevation_m == pytest.approx(expected)
+    assert "derived" in s.elevation.provenance
+
+
+def test_evidence_without_dem_alignment_reports_elevation_unavailable(isolated_store, no_declarations):
+    from api.scene import build_scene
+
+    sub = _frame("ds12", "ds12:line",
+                _axis(AxisKind.DEPTH_M, "ground surface at each trace", NAP))
+    sur = _frame("ds12", "ds12:dem", _axis(AxisKind.ELEVATION_M, "raster band 1 value", NAP),
+                modality=SensorType.DEM)
+    save_frames("ds12", [sub, sur])
+    save_records("ds12", _evidence_records("ds12", "line.SGY", with_elevation=False, with_velocity=True))
+
+    payload = build_scene(db=None, dataset_id="ds12")
+    assert len(payload.evidence.samples) > 0
+    s = payload.evidence.samples[0]
+    assert s.elevation.available is False
+    assert s.elevation.elevation_m is None
+    assert "never aligned with a DEM" in s.elevation.reason
+
+
+def test_evidence_without_velocity_is_derived_certainty_unavailable_not_measured(isolated_store, no_declarations):
+    from api.scene import build_scene
+
+    sub = _frame("ds13", "ds13:line",
+                _axis(AxisKind.DEPTH_M, "ground surface at each trace", NAP))
+    sur = _frame("ds13", "ds13:dem", _axis(AxisKind.ELEVATION_M, "raster band 1 value", NAP),
+                modality=SensorType.DEM)
+    save_frames("ds13", [sub, sur])
+    save_records("ds13", _evidence_records("ds13", "line.SGY", with_elevation=True, with_velocity=False))
+
+    payload = build_scene(db=None, dataset_id="ds13")
+    assert len(payload.evidence.samples) > 0
+    from interpretation.candidate_intelligence import DepthCertainty
+    for s in payload.evidence.samples:
+        assert s.elevation.depth_certainty == DepthCertainty.UNAVAILABLE
+
+
+def test_evidence_with_no_trace_addressable_data_reports_honest_empty_reason(isolated_store, no_declarations):
+    """A depth-slice CSV (no trace_index) resolves the scene but carries no evidence field data."""
+    from api.scene import build_scene
+
+    sub = _frame("ds14", "ds14:line",
+                _axis(AxisKind.DEPTH_M, "ground surface at each trace", NAP))
+    sur = _frame("ds14", "ds14:dem", _axis(AxisKind.ELEVATION_M, "raster band 1 value", NAP),
+                modality=SensorType.DEM)
+    save_frames("ds14", [sub, sur])
+    save_records("ds14", [
+        SubterraRecord(dataset_id="ds14", sensor_type=SensorType.GPR,
+                       latitude=52.0, longitude=6.0,
+                       position=GeographicPosition(lat=52.0, lon=6.0),
+                       depth=0.1, signal=[9.0], metadata={}),
+    ])
+
+    payload = build_scene(db=None, dataset_id="ds14")
+    assert payload.resolved is True
+    assert payload.evidence is not None
+    assert payload.evidence.samples == []
+    assert "no genuine multi-sample GPR trace data" in payload.evidence.reason
+
+
+def test_evidence_excludes_unpositioned_measurements_and_counts_them(isolated_store, no_declarations):
+    from api.scene import build_scene
+
+    sub = _frame("ds15", "ds15:line",
+                _axis(AxisKind.DEPTH_M, "ground surface at each trace", NAP))
+    sur = _frame("ds15", "ds15:dem", _axis(AxisKind.ELEVATION_M, "raster band 1 value", NAP),
+                modality=SensorType.DEM)
+    save_frames("ds15", [sub, sur])
+    records = []
+    for t in range(8):
+        for d in range(40):
+            value = 9.0 if (3 <= t <= 5 and 18 <= d <= 20) else 0.0
+            records.append(SubterraRecord(
+                dataset_id="ds15", sensor_type=SensorType.GPR,
+                depth=round(d * 0.01, 6), signal=[value],
+                metadata={"source_file": "line.SGY", "trace_index": t,
+                         "sample_index": d, "anomaly_reliable": True},
+            ))
+    save_records("ds15", records)
+
+    payload = build_scene(db=None, dataset_id="ds15")
+    assert payload.evidence.samples == []
+    assert payload.evidence.excluded_unpositioned_count > 0
+
+
+#: Same fixture CRS/point as tests/test_cross_crs_fusion.py and
+#: tests/test_spatial_evidence.py: UTM zone 33N, landing at (lon=15.0, lat=41.05).
+UTM33N = "EPSG:32633"
+PROJ_E, PROJ_N = 500_000.0, 4_544_705.0
+
+
+def _evidence_records_projected(dataset_id, source_file, frame_id, with_elevation, with_velocity):
+    """Same shape as `_evidence_records`, but the GPR line's own position is
+    PROJECTED (as a real SEG-Y header position is) rather than geographic --
+    Stage A.1 fixture."""
+    from schemas.spatial import ProjectedPosition
+
+    records = []
+    for t in range(8):
+        for d in range(40):
+            value = 9.0 if (3 <= t <= 5 and 18 <= d <= 20) else 0.0
+            metadata = {"source_file": source_file, "trace_index": t,
+                       "sample_index": d, "anomaly_reliable": True}
+            if with_velocity:
+                metadata["velocity_m_per_ns"] = 0.1
+            records.append(SubterraRecord(
+                dataset_id=dataset_id, sensor_type=SensorType.GPR,
+                position=ProjectedPosition(easting=PROJ_E, northing=PROJ_N),
+                frame_id=frame_id,
+                elevation=250.0 if with_elevation else None,
+                depth=round(d * 0.01, 6), signal=[value],
+                metadata=metadata,
+            ))
+    return records
+
+
+def test_resolved_scene_with_projected_gpr_gets_reprojected_evidence(isolated_store, no_declarations):
+    """Stage A.1: a real-shaped SEG-Y line (PROJECTED position, declared CRS,
+    no native lat/lon) still produces positioned evidence samples once the
+    scene resolves -- via the same reprojection fusion already uses."""
+    from api.scene import build_scene
+    from schemas.spatial import CRSKind, CRSProvenance, SpatialRef
+
+    frame_id = "ds17:line"
+    sub = SurveyFrame(
+        frame_id=frame_id, dataset_id="ds17", modality=SensorType.GPR, source_format="segy",
+        spatial_ref=SpatialRef(kind=CRSKind.PROJECTED, code=UTM33N,
+                               crs_provenance=CRSProvenance.SUPPLIED_BY_CALLER,
+                               horizontal_units="m"),
+        vertical_axis=_axis(AxisKind.DEPTH_M, "ground surface at each trace", NAP),
+    )
+    sur = _frame("ds17", "ds17:dem", _axis(AxisKind.ELEVATION_M, "raster band 1 value", NAP),
+                modality=SensorType.DEM)
+    save_frames("ds17", [sub, sur])
+    save_records("ds17", _evidence_records_projected(
+        "ds17", "line.SGY", frame_id, with_elevation=True, with_velocity=True))
+
+    payload = build_scene(db=None, dataset_id="ds17")
+    assert payload.resolved is True
+    assert payload.evidence is not None
+    assert payload.evidence.samples, "reprojected PROJECTED position must still yield evidence"
+    s = payload.evidence.samples[0]
+    assert s.position.available is True
+    assert s.position.lon == pytest.approx(15.0, abs=1e-6)
+    assert s.position.lat == pytest.approx(41.05, abs=0.05)
+    # The declared-CRS-transform claim must read differently from a native fix.
+    assert "not an independently verified geodetic position" in s.position.reason
+
+
+def test_evidence_samples_are_bounded_and_flagged_when_downsampled(isolated_store, no_declarations, monkeypatch):
+    from schemas import scene as scene_schema
+    monkeypatch.setattr(scene_schema, "MAX_EVIDENCE_SAMPLES", 1)
+
+    sub = _frame("ds16", "ds16:line",
+                _axis(AxisKind.DEPTH_M, "ground surface at each trace", NAP))
+    sur = _frame("ds16", "ds16:dem", _axis(AxisKind.ELEVATION_M, "raster band 1 value", NAP),
+                modality=SensorType.DEM)
+    save_frames("ds16", [sub, sur])
+    save_records("ds16", _evidence_records("ds16", "line.SGY", with_elevation=True, with_velocity=True))
+
+    from api import scene as scene_mod
+    monkeypatch.setattr(scene_mod, "MAX_EVIDENCE_SAMPLES", 1)
+    payload = scene_mod.build_scene(db=None, dataset_id="ds16")
+    assert payload.evidence.point_count_total > 1
+    assert len(payload.evidence.samples) == 1
+    assert payload.evidence.downsampled is True
+
+
 def test_validation_status_never_claims_validated(isolated_store, no_declarations):
     """Every payload this module produces says the same honest thing, resolved or not."""
     from api.scene import build_scene

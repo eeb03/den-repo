@@ -82,8 +82,59 @@ def _datum(frame):
     return getattr(axis, "vertical_datum", None) if axis else None
 
 
+def _acquisition_elevation_datum(frame):
+    aed = getattr(frame, "acquisition_elevation_datum", None)
+    return getattr(aed, "datum", None) if aed else None
+
+
 def _declared(datum) -> bool:
     return bool(datum and datum.code and datum.provenance != CRSProvenance.NONE)
+
+
+def _usable_vertical_datum(frame):
+    """
+    The datum this frame's ELEVATION VALUE is actually expressed in for this
+    comparison, and which declaration supplied it: `"vertical_axis"` or
+    `"acquisition_elevation"`. `(None, None)` if neither is declared.
+
+    The vertical AXIS datum is authoritative when declared -- unchanged from
+    before this function existed. It is a FALLBACK ONLY: a declared axis
+    datum is never replaced by a different acquisition-elevation one, and an
+    undeclared axis is never silently promoted by a matching acquisition
+    elevation into something nobody asserted it to be.
+
+    WHY THE FALLBACK IS SOUND, NOT A SHORTCUT: `compute_absolute_elevation`
+    (schemas/scene.py) uses `record.elevation` directly as the surface term.
+    For the 4TU GPR lines this exists for, that value is read straight from
+    the SEG-Y header's per-trace acquisition elevation at ingest
+    (converters/segy_converter.py) -- so when the axis itself declares no
+    datum, the acquisition-elevation datum IS the datum of the number this
+    module's caller is about to use, not a stand-in for it.
+
+    THE CAVEAT THIS DOES NOT CLOSE: `preprocessing.dem_alignment` can later
+    overwrite `record.elevation` with a DEM-sampled value for some or all of
+    a frame's records. That value's datum is the SURFACE frame's, not this
+    one's acquisition-elevation declaration -- and nothing here can see that,
+    because `assess` classifies one frame pairing, never a record. A caller
+    that lets DEM alignment run against a dataset resolved through THIS
+    route must re-verify the datum question at the record level; this
+    function only answers it at the frame level, as it always has.
+
+    NOT THE SAME QUESTION `schemas.spatial_reference` asks. That module's
+    own vertical-reference dimension deliberately does NOT let an
+    acquisition-elevation datum resolve it (tests/test_vertical_datum_scope.py)
+    because that dimension asks what the DEPTH AXIS is referenced to, and an
+    elevation datum answers nothing about that. This function asks a
+    narrower, different question: what datum is the ELEVATION NUMBER actually
+    in. The two modules are allowed to disagree.
+    """
+    axis_datum = _datum(frame)
+    if _declared(axis_datum):
+        return axis_datum, "vertical_axis"
+    aed = _acquisition_elevation_datum(frame)
+    if _declared(aed):
+        return aed, "acquisition_elevation"
+    return None, None
 
 
 def assess(subsurface_frame, surface_frame) -> VerticalRelationship:
@@ -127,19 +178,24 @@ def assess(subsurface_frame, surface_frame) -> VerticalRelationship:
             "caller-supplied velocity; it is an assumption about the subsurface, not a "
             "measurement of it")
 
-    sub_datum, sur_datum = _datum(subsurface_frame), _datum(surface_frame)
-    if not _declared(sub_datum):
-        reasons.append("the subsurface frame declares no vertical datum")
+    sub_datum, sub_datum_route = _usable_vertical_datum(subsurface_frame)
+    sur_datum, sur_datum_route = _usable_vertical_datum(surface_frame)
+    if sub_datum is None:
+        reasons.append(
+            "the subsurface frame declares no vertical datum, on its vertical axis or "
+            "its acquisition elevation")
         missing.append(
             "a declared vertical datum for the acquisition elevations (the source states "
             "none, so this must be supplied by whoever knows it)")
-    if not _declared(sur_datum):
-        reasons.append("the surface frame declares no vertical datum")
+    if sur_datum is None:
+        reasons.append(
+            "the surface frame declares no vertical datum, on its vertical axis or its "
+            "acquisition elevation")
         missing.append(
             "a declared vertical datum for the surface model (AHN's NAP is documented by "
             "PDOK but is absent from the GeoTIFF, so it must be supplied explicitly)")
 
-    if _declared(sub_datum) and _declared(sur_datum) and sub_datum.code != sur_datum.code:
+    if sub_datum is not None and sur_datum is not None and sub_datum.code != sur_datum.code:
         reasons.append(
             f"the two declared datums differ: {sub_datum.code!r} vs {sur_datum.code!r}")
         missing.append(
@@ -196,10 +252,24 @@ def assess(subsurface_frame, surface_frame) -> VerticalRelationship:
         return VerticalRelationship(kind, sub_id, sur_id, reasons, missing)
 
     if not missing:
+        if sub_datum_route == "vertical_axis" and sur_datum_route == "vertical_axis":
+            datum_note = "both vertical datums are declared and equal"
+        else:
+            def _named(route, side):
+                return (f"the {side} frame's acquisition elevation (its vertical axis "
+                        f"declares none)" if route == "acquisition_elevation"
+                        else f"the {side} frame's vertical axis")
+            datum_note = (
+                f"the declared vertical datums agree ({sub_datum.code!r}), from "
+                f"{_named(sub_datum_route, 'subsurface')} and "
+                f"{_named(sur_datum_route, 'surface')} respectively; a datum taken from "
+                "an acquisition elevation describes that stored number only, and stops "
+                "being valid for a record whose elevation is later replaced by a DEM "
+                "lookup")
         return VerticalRelationship(
             VerticalRelationshipKind.ABSOLUTE_ELEVATION, sub_id, sur_id,
             reasons=reasons + [
-                "both vertical datums are declared and equal, and the depth axis origin "
+                datum_note + ", and the depth axis origin "
                 + ("is the ground surface" if origin_is_ground
                    else "has a declared offset to the ground")],
         )

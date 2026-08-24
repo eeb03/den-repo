@@ -17,14 +17,18 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from api import candidates as candidate_service
-from database.frames_store import load_frames_for
+from database.frames_store import frames_by_id, load_frames_for
 from database.records_store import load_records
 from fusion import vertical_reference as vr
 from interpretation.candidate_intelligence import LocalisationCertainty
+from interpretation.spatial_evidence import find_spatial_evidence_samples
 from schemas.scene import (
+    MAX_EVIDENCE_SAMPLES,
     MAX_SURFACE_POINTS,
     SceneCandidate,
     SceneElevation,
+    SceneEvidenceField,
+    SceneEvidenceSample,
     ScenePayload,
     ScenePosition,
     SceneSurface,
@@ -86,6 +90,70 @@ def _surface_points(dataset_id: str, frame_id: str) -> tuple[list[SceneSurfacePo
     points = [SceneSurfacePoint(lat=r.latitude, lon=r.longitude, elevation_m=r.elevation)
              for r in sample]
     return points, total, downsampled
+
+
+def _evidence_field(dataset_id: str, offset, radargram_url: str,
+                    frames: Optional[dict] = None) -> SceneEvidenceField:
+    """
+    Stage A: every individually positioned measurement above the anomaly
+    threshold, distinct from `candidates` (grouped, classified regions).
+    Reuses `compute_absolute_elevation` exactly as the candidate loop below
+    does -- the same arithmetic, the same declared offset, applied per
+    measurement instead of per cluster mean.
+
+    `frames` (frame_id -> SurveyFrame) is Stage A.1: it lets a record with a
+    declared, transformable PROJECTED position also qualify, through the
+    same `fusion.sensor_fusion.geographic_views` fusion itself calls.
+    """
+    records = load_records(dataset_id)
+    result = find_spatial_evidence_samples(records, frames=frames)
+
+    scene_samples: list[SceneEvidenceSample] = []
+    for s in result.samples:
+        position = ScenePosition(
+            available=True, lat=s.lat, lon=s.lon,
+            basis=s.localisation, reason=s.localisation_reason,
+        )
+        if s.surface_elevation_m is not None:
+            elevation_m = compute_absolute_elevation(s.surface_elevation_m, s.depth_m, offset)
+            elevation = SceneElevation(
+                available=True, elevation_m=elevation_m, depth_m=s.depth_m,
+                depth_certainty=s.depth_certainty,
+                provenance=(
+                    "derived: surface elevation (from this dataset's DEM alignment) minus "
+                    "depth" + (", adjusted by the declared axis-origin offset" if
+                              offset is not None and offset.relates_the_depth_axis else "")),
+                reason="computed from a declared/derived surface elevation and depth",
+            )
+        else:
+            elevation = SceneElevation(
+                available=False, depth_m=s.depth_m, depth_certainty=s.depth_certainty,
+                provenance="unavailable",
+                reason=(
+                    "this measurement was never aligned with a DEM surface, so no surface "
+                    "elevation exists at its location"),
+            )
+        scene_samples.append(SceneEvidenceSample(
+            source_file=s.source_file, trace_index=s.trace_index, depth_m=s.depth_m,
+            evidence_value=s.evidence_value, reliable=s.reliable,
+            position=position, elevation=elevation, evidence_reference=radargram_url,
+        ))
+
+    total = len(scene_samples)
+    downsampled = False
+    if total > MAX_EVIDENCE_SAMPLES:
+        stride = total / MAX_EVIDENCE_SAMPLES
+        scene_samples = [scene_samples[int(i * stride)] for i in range(MAX_EVIDENCE_SAMPLES)]
+        downsampled = True
+
+    return SceneEvidenceField(
+        samples=scene_samples,
+        threshold=result.threshold,
+        point_count_total=total,
+        downsampled=downsampled,
+        excluded_unpositioned_count=result.excluded_unpositioned_count,
+        reason=result.reason_if_empty,
+    )
 
 
 def build_scene(db: Session, dataset_id: str,
@@ -207,9 +275,12 @@ def build_scene(db: Session, dataset_id: str,
                 evidence_reference=diagnostic_views["radargram"],
             ))
 
+    evidence = _evidence_field(dataset_id, offset, diagnostic_views["radargram"],
+                               frames=frames_by_id(frames))
+
     return ScenePayload(
         dataset_id=dataset_id, resolved=True,
         vertical_relationship=vertical_relationship,
-        surface=surface, candidates=scene_candidates,
+        surface=surface, candidates=scene_candidates, evidence=evidence,
         diagnostic_views=diagnostic_views,
     )

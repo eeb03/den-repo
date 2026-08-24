@@ -30,7 +30,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { SWRConfig } from 'swr'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import type { ScenePayload, SceneCandidate } from '@/types/subterra'
+import type { ScenePayload, SceneCandidate, SceneEvidenceSample } from '@/types/subterra'
 import { clamp, computeLocalBounds, fitDistance } from './reconstructed-scene'
 
 vi.mock('three', async () => {
@@ -79,6 +79,7 @@ function unresolvedPayload(overrides: Partial<ScenePayload> = {}): ScenePayload 
     vertical_relationship: null,
     surface: null,
     candidates: [],
+    evidence: null,
     validation_status:
       'Positions and elevations in this scene are declared or derived from declared inputs. None of them is independently validated against physical ground truth.',
     diagnostic_views: { report: '/datasets/d1/report', radargram: '/datasets/d1/radargram' },
@@ -110,6 +111,27 @@ function candidate(overrides: Partial<SceneCandidate> = {}): SceneCandidate {
   }
 }
 
+function evidenceSample(overrides: Partial<SceneEvidenceSample> = {}): SceneEvidenceSample {
+  return {
+    source_file: 'line.SGY',
+    trace_index: 4,
+    depth_m: 0.3,
+    evidence_value: 3.8,
+    reliable: true,
+    position: { available: true, lat: 52.0001, lon: 6.0001, basis: 'spatially_registered', reason: '' },
+    elevation: {
+      available: true,
+      elevation_m: 11.9,
+      depth_m: 0.3,
+      depth_certainty: 'derived',
+      provenance: 'derived: surface elevation minus depth',
+      reason: '',
+    },
+    evidence_reference: '/datasets/d1/radargram',
+    ...overrides,
+  }
+}
+
 function resolvedPayload(overrides: Partial<ScenePayload> = {}): ScenePayload {
   return {
     ...unresolvedPayload(),
@@ -134,6 +156,14 @@ function resolvedPayload(overrides: Partial<ScenePayload> = {}): ScenePayload {
       downsampled: false,
     },
     candidates: [],
+    evidence: {
+      samples: [],
+      threshold: 3.0,
+      point_count_total: 0,
+      downsampled: false,
+      excluded_unpositioned_count: 0,
+      reason: 'trace-local anomaly preprocessing has not been run on this dataset yet',
+    },
     ...overrides,
   }
 }
@@ -270,7 +300,7 @@ describe('resolved scenes', () => {
 
     await waitFor(() => screen.getByText('Nothing to render yet'))
     expect(container.textContent).toMatch(
-      /no surface data and no candidates with sufficient position\/elevation information/,
+      /no surface data, no candidates, and no spatial evidence samples with sufficient/,
     )
     // No fabricated geometry: this is a real empty state, not a canvas
     // rendering nothing.
@@ -321,6 +351,94 @@ describe('resolved scenes', () => {
     expect(container.textContent).toMatch(
       /does not mean an independent survey has confirmed these are the true absolute coordinates/,
     )
+  })
+})
+
+describe('Stage A: spatial evidence samples', () => {
+  it('lists a placeable evidence sample and opens its detail panel with provenance', async () => {
+    const s = evidenceSample({ evidence_value: 4.75 })
+    getScene.mockResolvedValue(resolvedPayload({ evidence: { samples: [s], threshold: 3.0, point_count_total: 1, downsampled: false, excluded_unpositioned_count: 0, reason: null } }))
+    listDatasets.mockResolvedValue([])
+    const { container } = renderScene()
+
+    await waitFor(() => screen.getByText(/Evidence samples in this scene/))
+    fireEvent.click(screen.getByRole('button', { name: /4\.8/ }))
+
+    await screen.findByText('Evidence sample')
+    expect(container.textContent).toMatch(/derived: surface elevation minus depth/)
+    expect(container.textContent).toMatch(/11\.90 m/)
+    expect(container.textContent).toMatch(/not grouped, not classified/)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByText('Evidence sample')).toBeNull()
+  })
+
+  it('never mixes evidence samples into the candidate count, or vice versa', async () => {
+    const c = candidate()
+    const s = evidenceSample()
+    getScene.mockResolvedValue(resolvedPayload({
+      candidates: [c],
+      evidence: { samples: [s], threshold: 3.0, point_count_total: 1, downsampled: false, excluded_unpositioned_count: 0, reason: null },
+    }))
+    listDatasets.mockResolvedValue([])
+    const { container } = renderScene()
+
+    await waitFor(() => screen.getByText('Candidates in this scene — 1'))
+    expect(container.textContent).toMatch(/Evidence samples in this scene — 1/)
+  })
+
+  it('excludes an evidence sample without DEM-aligned elevation and reports the count, never a fabricated position', async () => {
+    const noElevation = evidenceSample({
+      elevation: {
+        available: false, elevation_m: null, depth_m: 0.3, depth_certainty: 'unavailable',
+        provenance: 'unavailable',
+        reason: 'this measurement was never aligned with a DEM surface, so no surface elevation exists at its location',
+      },
+    })
+    getScene.mockResolvedValue(resolvedPayload({
+      evidence: { samples: [noElevation], threshold: 3.0, point_count_total: 1, downsampled: false, excluded_unpositioned_count: 0, reason: null },
+    }))
+    listDatasets.mockResolvedValue([])
+    const { container } = renderScene()
+
+    await waitFor(() => screen.getByText(/1 more measurement\(s\)/))
+    expect(container.textContent).toMatch(/no DEM-aligned/)
+    // Never placed in the clickable/inspectable list -- it has no usable elevation.
+    expect(screen.queryByText(/Evidence samples in this scene/)).toBeNull()
+  })
+
+  it('shows the honest empty-state reason when no evidence samples exist', async () => {
+    getScene.mockResolvedValue(resolvedPayload({
+      evidence: {
+        samples: [], threshold: 3.0, point_count_total: 0, downsampled: false,
+        excluded_unpositioned_count: 0,
+        reason: "trace-local anomaly preprocessing has not been run on this dataset yet (preprocessing_mode='gpr_local_anomaly')",
+      },
+    }))
+    listDatasets.mockResolvedValue([])
+    const { container } = renderScene()
+
+    await waitFor(() => expect(container.querySelector('canvas')).not.toBeNull())
+    expect(container.textContent).toMatch(/No spatial evidence samples to display/)
+    expect(container.textContent).toMatch(/gpr_local_anomaly/)
+  })
+
+  it('never renders the word "validated" as a claim about an evidence sample', async () => {
+    const s = evidenceSample()
+    getScene.mockResolvedValue(resolvedPayload({
+      evidence: { samples: [s], threshold: 3.0, point_count_total: 1, downsampled: false, excluded_unpositioned_count: 0, reason: null },
+    }))
+    listDatasets.mockResolvedValue([])
+    renderScene()
+
+    await waitFor(() => screen.getByText(/Evidence samples in this scene/))
+    fireEvent.click(screen.getByRole('button', { name: /3\.8/ }))
+    await screen.findByText('Evidence sample')
+
+    const matches = screen.getAllByText(/validated/i)
+    for (const el of matches) {
+      expect(el.textContent).toMatch(/not independently validated|is independently validated/)
+    }
   })
 })
 

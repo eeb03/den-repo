@@ -54,6 +54,13 @@ VALIDATION_STATUS = (
 #: diagnostic views (the embedded point-cloud/heatmap viewer, the report).
 MAX_SURFACE_POINTS = 2000
 
+#: Same reasoning as MAX_SURFACE_POINTS, for the same reason: a dataset can
+#: carry far more above-threshold measurements than a scene should embed in
+#: one response. Downsampling is an even stride over the already-qualifying
+#: set (same technique `_surface_points` already uses) -- it never changes
+#: which measurements qualify as evidence.
+MAX_EVIDENCE_SAMPLES = 2000
+
 
 class ScenePosition(BaseModel):
     """
@@ -131,6 +138,53 @@ class SceneCandidate(BaseModel):
     evidence_reference: str
 
 
+class SceneEvidenceSample(BaseModel):
+    """
+    One individual measurement whose processed signal exceeded the same
+    anomaly-evidence threshold candidate generation uses -- placed
+    individually, never grouped, never connected to a neighbour. This is
+    NOT a candidate and NOT a structure: it carries no shape, no class, no
+    claim beyond "this one measurement's value was this strong, here".
+
+    `position`/`elevation` reuse the exact same types `SceneCandidate`
+    already uses, for the same reason a candidate does: an evidence sample
+    that lacks a real position is never placed here (the caller building
+    this list excludes it and counts it in
+    `SceneEvidenceField.excluded_unpositioned_count` instead of guessing).
+    """
+    source_file: str
+    trace_index: int
+    depth_m: float
+    evidence_value: float
+    reliable: bool
+    position: ScenePosition
+    elevation: SceneElevation
+    evidence_reference: str
+
+
+class SceneEvidenceField(BaseModel):
+    """
+    Every spatially-registered evidence sample above threshold for this
+    scene, or the reason there are none.
+
+    Deliberately sparse where the underlying measurements are sparse: no
+    interpolation, no fabricated coverage between samples, no mesh. A short
+    `samples` list is a correct, successful result -- not a partial one.
+    """
+    samples: list[SceneEvidenceSample] = Field(default_factory=list)
+    threshold: float
+    point_count_total: int = 0
+    downsampled: bool = False
+    #: Measurements that exceeded the threshold but had no usable geographic
+    #: position -- reported as a count (not individually: this can run into
+    #: the thousands) rather than silently dropped.
+    excluded_unpositioned_count: int = 0
+    #: Populated only when `samples` is empty, explaining why: preprocessing
+    #: never ran, nothing exceeded threshold, or nothing above threshold has
+    #: a usable position. A user should never have to guess which.
+    reason: Optional[str] = None
+
+
 class SceneVerticalRelationship(BaseModel):
     """The same `VerticalRelationship` `fusion.vertical_reference.assess` already computes, carried verbatim."""
     kind: VerticalRelationshipKind
@@ -155,6 +209,11 @@ class ScenePayload(BaseModel):
     vertical_relationship: Optional[SceneVerticalRelationship] = None
     surface: Optional[SceneSurface] = None
     candidates: list[SceneCandidate] = Field(default_factory=list)
+    #: Stage A: individual measured/derived evidence samples, distinct from
+    #: `candidates` (which are grouped, classified regions). `None` for an
+    #: unresolved scene -- same gate as `surface`/`candidates`, no second
+    #: opinion about whether a scene may be shown.
+    evidence: Optional[SceneEvidenceField] = None
     validation_status: str = VALIDATION_STATUS
     #: Pointers to the existing diagnostic surfaces, so a client that shows
     #: this scene can still offer "inspect the raw data" without
