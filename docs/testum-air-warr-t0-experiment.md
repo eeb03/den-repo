@@ -120,3 +120,31 @@ problem, which is far better conditioned than absolute onset detection:
 
 The slope test should be kept as the acceptance gate. It is the only thing in
 this line of work that has been able to say "you read the data wrong".
+
+## Follow-up: the recommended experiment was run -- also INCONCLUSIVE
+
+`scripts/testum_air_warr_crosscorr_t0.py` implements the five steps above
+exactly (detrend, X=3 m reference, cross-correlate, slope-anchor, only then
+take an intercept), plus a data-intrinsic acceptance gate (peak correlation
+must be positive and >=0.75 -- never based on whether the result matches the
+expected shift, which would be circular). Result: **0 of 26 files pass the
+slope falsifier**, worse than this stage's own 2/26.
+
+The reason is not a bug in the recommendation, but a real property of the
+data it did not anticipate: the air-coupling wavelet is oscillatory, and
+cross-correlation cleanly aligns only the 1-3 traces closest to the X=3 m
+reference (peak correlation 0.85-1.0, and on the closest pair, 2.6-2.8 m,
+the recovered shift agreed with 1/c_air to ~5%). Traces farther from the
+reference frequently lock onto the wrong half-cycle (near-double the
+expected shift, or negative/anti-phase correlation) -- cycle-skipping, and
+it leaves too few accepted points per file (1-2, occasionally 3) spanning
+too narrow a separation range to fit a reliable file-wide slope, even
+though the local relative alignment the recommendation predicted does hold
+up. Full per-observation detail (accepted/rejected, peak correlation, why)
+is in `artifacts/testum/testum_air_warr_t0_velocity_audit.json`.
+
+**Status unchanged: TestUM t0 not derived, independent of subsurface
+velocity.** Fixing a crosshole t0 from this method was accordingly not
+attempted for real (an explicitly-labelled illustrative-only exercise using
+this stage's own two non-adopted candidates is in the artifact instead).
+Nothing here changes the roadmap.
