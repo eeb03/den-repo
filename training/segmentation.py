@@ -56,6 +56,109 @@ result. See `docs/roadmap.md` and the milestone's own final report for the
 exact annotation deficit this leaves.
 
 ============================================================================
+REAL GPR ANNOTATION CORPUS V1 -- THE RE-AUDIT (still 4 targets, 1 site)
+============================================================================
+
+A second, narrower pass re-asked the SAME question differently: "can any
+part of this dataset produce a defensible trace/sample-level annotation",
+explicitly including datasets rejected above only for lacking ABSOLUTE
+localisation (this pass does not need absolute coordinates, only a real,
+defensible relative association). Re-examined, each with a concrete reason
+it stays excluded rather than a repeated conclusion:
+
+  TestUM     the PANGAEA archive holds real, precisely-surveyed borehole
+             positions but NO independent (non-GPR) measurement of actual
+             ice presence -- only the operators' own documented freeze-
+             cycle SCHEDULE (intent, not a measurement). Using it as truth
+             would validate the GPR against the experiment's own operation,
+             the exact circularity this project avoids elsewhere.
+  Grimsel    a DIFFERENT real GPR file (`GPR_AU_N-to-S.rd3`, MALA, distinct
+             from the geological-model toolkit) is genuinely held, licensed
+             In Copyright-NonCommercial (research-only even if usable). Its
+             `.rad` header carries the SAME class of untrusted vendor field
+             (`SIGNAL POSITION`) this codebase's own time-zero framework
+             already refuses to promote, and no coordinate field of any
+             kind. Independent shear-zone truth is genuinely strong
+             (borehole/OPTV logs, sequence-verified, non-circular) -- but
+             the one fact needed to use it (which point of the tunnel path
+             the profile's trace 0 corresponds to) is not established in
+             anything held, and the one artifact that attempts it
+             (`plot_GPR.m`) is a manual, approximate overlay, not a survey
+             tie, relative or absolute.
+  BAM Pk401  its raw archive was never downloaded at all (only Pk266/Pk050
+             are held) -- moot regardless of the drawing-only-position
+             problem. Also would not advance SITE independence even if it
+             were usable: same fabricator, lab and acquisition system as
+             Pk266.
+
+Three ADDITIONAL real datasets, never previously inventoried in any
+session, were found and investigated:
+
+  Grimsel AU-tunnel GPR   -- see above (same file, same conclusion).
+  Guangzhou University    CC-BY-4.0 (the most permissive of the three), and
+  GPR dataset             directories literally named `pipe/`/`rebar/`
+  (zenodo 14637589)       suggested real target-type labelling. RULED OUT
+                          CONCLUSIVELY: the full central-directory listing
+                          (all 5,046 archive members -- fetched via HTTP
+                          Range requests against the END of the remote zip,
+                          a few MB, not the 3.8 GB archive) contains zero
+                          coordinate/target/GPS/truth files of any kind;
+                          only `Mark*.txt`/`Nmkr*.txt` operator button-press
+                          bookkeeping. `pipe`/`rebar` are category folders,
+                          not per-target ground truth.
+  Hillside GPR dataset    CC-BY-4.0. Its own PROVENANCE.json claims
+  (zenodo 8253179)        "surveyed control points" -- checked directly:
+                          all 321 `.cor` coordinate files in the archive
+                          are 0 bytes. The claim is unverified/aspirational
+                          against what is actually readable; the one
+                          remaining unknown (a companion PDF) could not be
+                          opened in this environment (no PDF text extractor
+                          available) and was not pursued further.
+
+A genuinely NEW external search (not a repeat of the prior broad
+localisation search) covered every category the corpus milestone names --
+controlled utility test beds, buried-pipe/cable experiments, concrete/rebar
+GPR, archaeological/borehole-confirmed targets. Two more real, named
+datasets surfaced (a Morocco utilities/voids radargram set, and papers
+describing Sense-City/Zhejiang University buried-pipe test beds) and each
+was run to ground:
+
+  Morocco utilities/voids  Real bounding-box annotations exist (Level B),
+  (Mendeley ww7fd9t325)    but rejected on THREE independent grounds, any
+                          one of which would be disqualifying alone: (1)
+                          CC BY-NC -- research-only, per this module's own
+                          licensing policy; (2) ground truth is OPERATOR
+                          VISUAL INTERPRETATION ONLY, no independent
+                          excavation/as-built cross-check -- Evidence Grade
+                          C, not A/B; (3) only RENDERED JPEG IMAGES are
+                          published, no raw trace/sample values at all --
+                          structurally incompatible with this module's
+                          entire real-amplitude pipeline, which needs
+                          physical values, not a lossy picture of them.
+  Sense-City (Paris-Est)   A real COST TU1208-affiliated controlled pipe
+  / Zhejiang University    test bed, and a real controlled buried-pipeline
+                          site -- both described in real journal articles,
+                          NEITHER with a discoverable public open-data
+                          repository. Not a rejection of the evidence, an
+                          absence of a place to get it from; would need
+                          direct author contact, a separate, slower,
+                          human-reviewed track (the same discipline already
+                          used for the 4TU author correspondence), not
+                          pursued automatically here.
+  TU1208's own             Its unmined `Database_2018/{LIMESTONE,SILT,
+  `Database_2018`         GNEISS*,MULTI-LAYER,GPR3_ASCII}` supplement
+  (already held)          (found this session, zero-cost to check) is a
+                          soil/material dielectric-characterisation
+                          database, real ASCII trace data by SOIL TYPE --
+                          genuinely useful for a FUTURE velocity milestone,
+                          not this one: no target of any kind is named
+                          anywhere in it.
+
+CONCLUSION, UNCHANGED BY EITHER PASS: still 4 real, trace-associated
+targets, still 1 site (BAM Pk266). Corpus status: STILL BLOCKED, for a
+reason that is now exhaustively documented rather than assumed.
+
+============================================================================
 INPUT REPRESENTATION
 ============================================================================
 
@@ -106,12 +209,15 @@ import numpy as np
 
 from benchmark import bam_ingest, bam_truth
 from schemas.segmentation import (
+    PRIMARY_TRAINING_EVIDENCE_GRADES,
     TRAINABLE_LABEL_LEVELS,
+    EvidenceGrade,
     GPRTrainingExample,
     LabelLevel,
     LabelSource,
     MaskRegion,
 )
+from converters.base import MissingDependencyError
 from scripts.bam_hyperbola_velocity_audit import (
     DEFAULT_APERTURE_MM,
     DEFAULT_Y_MARGIN_MM,
@@ -203,18 +309,31 @@ def build_bam_pk266_examples(
             mask=mask,
             label_level=LabelLevel.A_MASK if len(mask.trace_indices) > 0 else LabelLevel.B_REGION,
             label_source=LabelSource.MEASURED_ASSOCIATION,
+            # Grade B, not A: the DUCT'S OWN EXISTENCE is about as strong as
+            # physical truth gets (a controlled object placed during
+            # fabrication) -- but the MASK here also depends on a real
+            # ridge-tracked arrival-time MEASUREMENT against a published
+            # (not independently re-surveyed) X position, and this grade
+            # rates the whole chain a mask rests on, not its strongest link.
+            evidence_grade=EvidenceGrade.B_MEASUREMENT_ASSOCIATED,
             label_basis=(
                 f"target {target.target_id}: real X footprint from "
                 f"benchmark.bam_truth.build_footprint (published X {target.x_mm} mm, "
                 f"outer diameter from benchmark/bam_pk266_targets.json, "
                 f"transcribed_from_publication), real per-trace arrival time from "
                 f"scripts.bam_hyperbola_velocity_audit.associate_target "
-                f"(confidence >= its own MIN_PICK_CONFIDENCE threshold)"
+                f"(confidence >= its own MIN_PICK_CONFIDENCE threshold). "
+                f"Evidence grade B: the duct's existence is a controlled, fabricated "
+                f"fact, but the mask rests on a real measurement against a published "
+                f"(not independently re-surveyed) position, not full independent X/Y/Z "
+                f"validation."
             ),
             sensor_vendor="GSSI",
             antenna_frequency_mhz=2600.0 if "2_6_GHz" in scan_id else 1500.0,
             sample_interval_ns=time_axis.sample_interval_ns,
             preprocessing_version=PREPROCESSING_VERSION,
+            license="CC0-1.0",
+            commercial_use_permitted=True,
             extra={"target_id": target.target_id, "n_traced_picks": len(assoc.curve)},
         ))
     return examples
@@ -254,11 +373,19 @@ def build_bam_pk050_negative_examples(
                         rule="empty by fabricator attestation, not an absence of evidence"),
         label_level=LabelLevel.A_MASK,
         label_source=LabelSource.PUBLISHED_TRUTH,
+        # Grade A: no measurement/association step is involved at all here
+        # (unlike the positives) -- the fabricator's own construction
+        # record is the direct, authoritative source for "nothing was
+        # placed in this specimen", the same standing a controlled
+        # negative control has in any other experimental setting.
+        evidence_grade=EvidenceGrade.A_INDEPENDENTLY_VERIFIED,
         label_basis=f"{control.attestation} Caveat: {control.caveat}",
         sensor_vendor="GSSI",
         antenna_frequency_mhz=2600.0 if "2_6_GHz" in scan_id else 1500.0,
         sample_interval_ns=time_axis.sample_interval_ns,
         preprocessing_version=PREPROCESSING_VERSION,
+        license="CC0-1.0",
+        commercial_use_permitted=True,
         extra={"attested_empty": True},
     )]
 
@@ -535,6 +662,216 @@ def baseline_statistical_detector(example: GPRTrainingExample) -> np.ndarray:
     )
     z_grid, unreliable = _local_anomaly_grid(processed.T, **TRACE_ANOMALY_WINDOWS)
     return np.where(unreliable, 0.0, np.abs(z_grid))
+
+
+
+# ---------------------------------------------------------------------------
+# corpus infrastructure: portable annotation records, QA, manifest, visual QA
+# ---------------------------------------------------------------------------
+
+def annotation_record(example: GPRTrainingExample, annotation_id: str) -> dict:
+    """
+    The portable, JSON-serializable "Annotation" view of one example --
+    Section 17's own sketch, deliberately WITHOUT the (potentially large)
+    `signal` array, so a corpus manifest can list thousands of these
+    cheaply. This is a VIEW of `GPRTrainingExample`, not a competing
+    representation: every field here is read straight off the example,
+    nothing is recomputed or reinterpreted.
+    """
+    return {
+        "annotation_id": annotation_id,
+        "dataset_id": example.dataset_id,
+        "site_id": example.site_id,
+        "source_file": example.source_file,
+        "target_id": example.extra.get("target_id"),
+        "trace_range": list(example.trace_range),
+        "sample_range": list(example.sample_range),
+        "label": "anomaly_event" if (example.mask and example.mask.n_cells > 0) else "attested_negative",
+        "label_level": example.label_level.value,
+        "evidence_grade": example.evidence_grade.value if example.evidence_grade else None,
+        "label_source": example.label_source.value if example.label_source else None,
+        "ground_truth_status": (
+            "not_independently_validated"
+            if example.evidence_grade != EvidenceGrade.A_INDEPENDENTLY_VERIFIED
+            else "independently_validated"
+        ),
+        "source": example.label_basis,
+        "license": example.license,
+        "commercial_use_permitted": example.commercial_use_permitted,
+        "mask_rule": example.mask.rule if example.mask else None,
+        "split": example.split,
+    }
+
+
+@dataclass(frozen=True)
+class QAIssue:
+    example_index: int
+    check: str
+    detail: str
+
+
+def validate_corpus(examples: list[GPRTrainingExample]) -> list[QAIssue]:
+    """
+    Structural QA over a whole corpus -- collects every issue rather than
+    raising on the first, so a caller sees the full picture in one pass.
+    An empty return means every check below passed; it does NOT mean the
+    corpus is scientifically sufficient (see `assess_split_adequacy` for
+    that separate question).
+    """
+    issues: list[QAIssue] = []
+    seen_keys: dict[tuple, int] = {}
+
+    for i, ex in enumerate(examples):
+        # 6: site ID present
+        if not ex.site_id:
+            issues.append(QAIssue(i, "site_id_present", "site_id is empty"))
+        # 3/4: trace/sample range valid (start <= end, non-negative)
+        if ex.trace_range[0] < 0 or ex.trace_range[1] < ex.trace_range[0]:
+            issues.append(QAIssue(i, "trace_range_valid", f"invalid trace_range {ex.trace_range}"))
+        if ex.sample_range[0] < 0 or ex.sample_range[1] < ex.sample_range[0]:
+            issues.append(QAIssue(i, "sample_range_valid", f"invalid sample_range {ex.sample_range}"))
+        # 13: signal dimensions match the declared ranges
+        n_samples_expected = ex.sample_range[1] - ex.sample_range[0] + 1
+        n_traces_expected = ex.trace_range[1] - ex.trace_range[0] + 1
+        if ex.signal:
+            actual_samples, actual_traces = len(ex.signal), len(ex.signal[0])
+            if (actual_samples, actual_traces) != (n_samples_expected, n_traces_expected):
+                issues.append(QAIssue(
+                    i, "mask_dimensions_correct",
+                    f"signal shape ({actual_samples}, {actual_traces}) does not match "
+                    f"declared ranges -> expected ({n_samples_expected}, {n_traces_expected})"))
+        # 5: annotation geometry -- mask cells fall within the declared window,
+        # and the two parallel arrays are the same length
+        if ex.mask is not None:
+            if len(ex.mask.trace_indices) != len(ex.mask.sample_indices):
+                issues.append(QAIssue(i, "annotation_geometry_valid",
+                                      "trace_indices and sample_indices have different lengths"))
+            for t, s in zip(ex.mask.trace_indices, ex.mask.sample_indices):
+                if not (0 <= t < n_traces_expected) or not (0 <= s < n_samples_expected):
+                    issues.append(QAIssue(i, "annotation_geometry_valid",
+                                          f"mask cell (trace={t}, sample={s}) falls outside the "
+                                          f"example's own window"))
+                    break
+        # 7/8/9: evidence grade, provenance, label source required for any labelled example
+        has_positive_label = ex.mask is not None and ex.mask.n_cells > 0
+        if ex.mask is not None:
+            if ex.evidence_grade is None:
+                issues.append(QAIssue(i, "evidence_grade_present", "labelled example has no evidence_grade"))
+            if not ex.label_basis:
+                issues.append(QAIssue(i, "provenance_present", "labelled example has no label_basis"))
+            if ex.label_source is None:
+                issues.append(QAIssue(i, "label_source_present", "labelled example has no label_source"))
+        # 14: license metadata present for anything entering the PRIMARY corpus
+        if (ex.evidence_grade in PRIMARY_TRAINING_EVIDENCE_GRADES) and not ex.license:
+            issues.append(QAIssue(i, "license_present",
+                                  "example qualifies for primary training but carries no license"))
+        # 11: duplicate detection. NOT keyed on trace_range/sample_range
+        # alone: those are WINDOW-LOCAL (re-zeroed per example, as BAM's
+        # own per-target construction does), so two genuinely different
+        # real targets can legitimately share identical local numbering --
+        # confirmed empirically: all 4 real BAM targets independently
+        # produced the same (0, 72) window before this fix, which the
+        # naive range-only key mistook for 3 duplicates. `target_id` (when
+        # a real one exists) or a content fingerprint of the actual signal
+        # is what genuinely distinguishes one real example from another.
+        if ex.extra.get("target_id") is not None:
+            identity = ("target_id", ex.extra["target_id"])
+        else:
+            flat = tuple(v for row in ex.signal for v in row) if ex.signal else ()
+            identity = ("signal_hash", hash(flat))
+        key = (ex.dataset_id, ex.site_id, ex.source_file, identity)
+        if key in seen_keys:
+            issues.append(QAIssue(i, "duplicate_annotation",
+                                  f"identical to example {seen_keys[key]}"))
+        else:
+            seen_keys[key] = i
+
+    # 10: no train/test site overlap, corpus-wide (defense in depth alongside
+    # split_by_site's own disjointness check, which this does not call --
+    # a corpus may be validated before any split is assigned at all).
+    by_split_site: dict[str, set] = {}
+    for ex in examples:
+        if ex.split:
+            by_split_site.setdefault(ex.split, set()).add(ex.site_id)
+    splits = list(by_split_site)
+    for a in range(len(splits)):
+        for b in range(a + 1, len(splits)):
+            overlap = by_split_site[splits[a]] & by_split_site[splits[b]]
+            if overlap:
+                issues.append(QAIssue(-1, "no_train_test_site_overlap",
+                                      f"sites {overlap} appear in both {splits[a]!r} and {splits[b]!r}"))
+
+    return issues
+
+
+def build_corpus_manifest(examples: list[GPRTrainingExample], version: str) -> dict:
+    """
+    Section 19's versioned manifest -- reproducible FROM the examples
+    themselves (every count below is computed, never hand-maintained), so
+    the manifest cannot silently drift from the corpus it describes.
+    """
+    def _count(key_fn) -> dict:
+        counts: dict = {}
+        for ex in examples:
+            k = key_fn(ex)
+            if k is not None:
+                counts[k] = counts.get(k, 0) + 1
+        return counts
+
+    positives = [ex for ex in examples if ex.mask is not None and ex.mask.n_cells > 0]
+    negatives = [ex for ex in examples if ex.mask is not None and ex.mask.n_cells == 0]
+    unlabelled = [ex for ex in examples if ex.mask is None]
+
+    return {
+        "corpus": "Real GPR Annotation Corpus", "version": version,
+        "n_examples": len(examples),
+        "n_positive": len(positives), "n_negative": len(negatives), "n_unlabelled": len(unlabelled),
+        "n_sites": len({ex.site_id for ex in examples}),
+        "sites": sorted({ex.site_id for ex in examples}),
+        "datasets": sorted({ex.dataset_id for ex in examples}),
+        "evidence_grade_distribution": _count(lambda ex: ex.evidence_grade.value if ex.evidence_grade else None),
+        "label_level_distribution": _count(lambda ex: ex.label_level.value),
+        "vendor_distribution": _count(lambda ex: ex.sensor_vendor),
+        "frequency_mhz_distribution": _count(lambda ex: ex.antenna_frequency_mhz),
+        "license_distribution": _count(lambda ex: ex.license),
+        "qa_issues": len(validate_corpus(examples)),
+    }
+
+
+def render_annotation_overlay(example: GPRTrainingExample, out_path: str) -> str:
+    """
+    Section 21's visual QA: the real signal, with the real mask cells
+    marked, saved as one PNG -- so a human can look at an annotation and
+    answer "does this actually correspond to the real GPR response" by
+    eye, not just by reading the JSON. NOT decorative: grayscale amplitude
+    only, mask cells as plain markers, no invented color scheme implying
+    a confidence gradient the data does not have.
+    """
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError as e:
+        raise MissingDependencyError(
+            "matplotlib is required for training.segmentation.render_annotation_overlay. "
+            "Install with: pip install matplotlib"
+        ) from e
+
+    arr = np.array(example.signal, dtype=float)
+    fig, ax = plt.subplots(figsize=(8, 5))
+    vmax = np.percentile(np.abs(arr), 99) or 1.0
+    ax.imshow(arr, cmap="gray", vmin=-vmax, vmax=vmax, aspect="auto", interpolation="nearest")
+    if example.mask is not None and example.mask.n_cells > 0:
+        ax.scatter(example.mask.trace_indices, example.mask.sample_indices,
+                   s=6, c="red", marker="o", label=f"annotation ({example.mask.n_cells} cells)")
+        ax.legend(loc="upper right", fontsize=8)
+    ax.set_xlabel("trace index (window-local)")
+    ax.set_ylabel("sample index")
+    ax.set_title(f"{example.dataset_id} / {example.source_file} -- {example.label_basis or 'unlabelled'}"[:100])
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=120)
+    plt.close(fig)
+    return out_path
 
 
 def aggregate_metrics(scores: list[ExampleScore]) -> dict:

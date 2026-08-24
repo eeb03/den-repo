@@ -82,6 +82,52 @@ class LabelSource(str, Enum):
     SYNTHETIC = "synthetic"
 
 
+class EvidenceGrade(str, Enum):
+    """
+    How confidently the underlying PHYSICAL FACT itself is known -- a
+    THIRD axis, deliberately distinct from both `LabelLevel` (spatial
+    PRECISION: mask vs. bbox vs. position-only vs. existence-only) and
+    `LabelSource` (which MECHANISM produced the association: a real
+    measurement, a transcribed publication value, a review, or a
+    fabrication). An example can be spatially precise (`LabelLevel.A_MASK`)
+    while resting on physical truth that is only Grade B, or vice versa --
+    collapsing this into either existing enum would lose exactly the
+    distinction the Real GPR Annotation Corpus V1 milestone asks to keep:
+    "target exists at this physical location" is a different claim from
+    "this exact radar reflection corresponds to that target", which is
+    different again from "these exact pixels define the target response"
+    (see `GPRTrainingExample.label_basis` for where that specific chain is
+    written out per example).
+    """
+    #: Physical target location independently known and associable with
+    #: the GPR observation -- excavated, surveyed, a controlled buried
+    #: object, a borehole intersection.
+    A_INDEPENDENTLY_VERIFIED = "independently_verified"
+    #: The radar event ties to physical target truth with a strong,
+    #: reproducible association, but not full independent X/Y/Z
+    #: validation -- e.g. a confidence-gated arrival-time pick against a
+    #: specimen whose target was placed at a published, not independently
+    #: re-surveyed, position.
+    B_MEASUREMENT_ASSOCIATED = "measurement_associated"
+    #: A knowledgeable reviewer selected a radar event by visual/technical
+    #: judgment. Useful for training research; not independent ground truth.
+    C_OPERATOR_REVIEWED = "operator_reviewed"
+    #: Publication-figure approximation, position-only with no trace tie,
+    #: a visual guess, an inferred coordinate, or a model-generated
+    #: pseudo-label. Never promoted upward, and never silently included.
+    D_WEAK_UNSUITABLE = "weak_unsuitable"
+
+
+#: Grade D must never enter the PRIMARY supervised training corpus (the
+#: milestone's own words). Grade C is retained -- "useful for training
+#: research" -- but kept out of this set: a caller building the primary
+#: corpus filters to this tuple; one building a research-only exploratory
+#: set makes that choice explicitly, not by omission.
+PRIMARY_TRAINING_EVIDENCE_GRADES = (
+    EvidenceGrade.A_INDEPENDENTLY_VERIFIED, EvidenceGrade.B_MEASUREMENT_ASSOCIATED,
+)
+
+
 class MaskRegion(BaseModel):
     """
     A segmentation target's positive region, in the SAME (trace, sample)
@@ -139,6 +185,12 @@ class GPRTrainingExample(BaseModel):
     mask: Optional[MaskRegion] = None
     label_level: LabelLevel
     label_source: Optional[LabelSource] = None
+    #: How confidently the underlying PHYSICAL FACT is known -- see
+    #: `EvidenceGrade`'s own docstring for why this is a third axis, not a
+    #: restatement of `label_level`/`label_source`. `None` only for an
+    #: example with no label at all (`mask is None`); any labelled example
+    #: must carry one.
+    evidence_grade: Optional[EvidenceGrade] = None
     #: Free text: exactly which real fact(s) this label rests on, and their
     #: own source. Required whenever a mask is present -- mirrors
     #: `QuantityProvenance.basis`'s own non-empty requirement.
@@ -148,6 +200,17 @@ class GPRTrainingExample(BaseModel):
     antenna_frequency_mhz: Optional[float] = None
     sample_interval_ns: Optional[float] = None
     preprocessing_version: str
+
+    #: SPDX-style identifier or plain name of the source's own licence
+    #: (e.g. "CC0-1.0", "CC-BY-4.0", "CC-BY-NC-4.0") -- required whenever
+    #: an example is attached to a real external source, so a corpus
+    #: consumer never has to re-derive it from a doc.
+    license: Optional[str] = None
+    #: Whether the source's own licence permits commercial model training,
+    #: stated as a fact about the licence, never inferred from "the data
+    #: looks freely available". `None` only when `license` itself is
+    #: `None` (nothing to classify yet).
+    commercial_use_permitted: Optional[bool] = None
     #: Assigned by `training.segmentation.split_by_site`, never by hand --
     #: see that function for why a trace-level random split is refused.
     split: Optional[str] = None
