@@ -239,3 +239,28 @@ def test_the_remaining_questions_cover_the_blocked_chain():
     ids = {q.id for q in OPEN_QUESTIONS}
     assert "time-zero-offset-magnitude" in ids
     assert "propagation-velocity" in ids
+
+
+def test_the_time_zero_question_is_narrowed_by_measurement_but_stays_outstanding():
+    """
+    Same discipline as the resolved elevation-field question, applied
+    without crossing the line that question crossed: Subterra's own
+    metadata_instrument_time_zero measurement and the topographic-
+    correction audit's derivation genuinely narrow this question (real
+    per-line numbers, not a guess), but neither is the author's own
+    confirmation -- so, unlike the elevation-field question, `status` must
+    NOT flip to ANSWERED. Only `subterra_evidence` carries the new content.
+    """
+    q = next(q for q in OPEN_QUESTIONS if q.id == "time-zero-offset-magnitude")
+    assert q.status.startswith("OUTSTANDING")
+    assert "sent by email on 2026-08-15" in q.status
+    assert "DelayRecordingTime" in q.subterra_evidence
+    assert "2.641 ns" in q.subterra_evidence
+    assert "NARROWED, NOT ANSWERED" in q.subterra_evidence
+    # the caveat that keeps this from overclaiming must survive verbatim
+    assert "only the author's own knowledge" in q.subterra_evidence
+
+    # propagation-velocity is untouched: BAM's independent-t0 finding is
+    # about a different dataset's ground and must never be borrowed here.
+    v = next(q for q in OPEN_QUESTIONS if q.id == "propagation-velocity")
+    assert v.subterra_evidence == ""

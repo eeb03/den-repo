@@ -192,6 +192,26 @@ OPEN_QUESTIONS: tuple[OpenQuestionForAuthor, ...] = (
                         "dataset can be referred to the ground"),
         status=("OUTSTANDING -- sent by email on 2026-08-15 (operator-stated); "
                 "awaiting reply; letter body at docs/4tu-author-letter-draft.md"),
+        subterra_evidence=(
+            "NARROWED, NOT ANSWERED, by Subterra's own measurement and derivation -- "
+            "the question stays OUTSTANDING because none of this is the author's "
+            "confirmation. schemas.time_zero's metadata_instrument_time_zero reads the "
+            "real SEG-Y DelayRecordingTime header field (a standard, documented field, "
+            "not a reinterpreted vendor one) and MEASURES a real, nonzero, per-line "
+            "value: 2.641 ns (01.1/Path8), 2.446 ns (01.5/Path1), 0.88 ns (06.1/Path1), "
+            "2.25 ns (012.8/Path1) -- genuinely different line to line, so no single "
+            "dataset-wide constant would be honest even if the author supplies one. "
+            "scripts/four_tu_topographic_correction_audit.py additionally found that "
+            "even after that per-line correction, the antenna's height above ground "
+            "varies enough WITHIN a line (5-16 cm, all 4 lines checked) to add a "
+            "further material per-trace refinement (0.19-0.60 ns, exceeding each "
+            "line's own ~0.097 ns sample interval). None of this tells us whether "
+            "DelayRecordingTime, for THIS instrument, means instrument electronic "
+            "delay, air-gap, or both combined -- only the author's own knowledge of "
+            "the acquisition setup can settle that, which is exactly why the letter "
+            "still asks. See docs/roadmap.md's Time-zero correction and Velocity "
+            "model estimation rows."
+        ),
     ),
     OpenQuestionForAuthor(
         id="propagation-velocity",
