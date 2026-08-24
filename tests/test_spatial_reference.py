@@ -34,6 +34,7 @@ from schemas.spatial import (
     CRSKind,
     CRSProvenance,
     GeographicPosition,
+    LocalCartesianPosition,
     NoPosition,
     OdometryPosition,
     ProjectedPosition,
@@ -61,6 +62,8 @@ GEOGRAPHIC = SpatialRef(kind=CRSKind.GEOGRAPHIC, code="EPSG:4326",
 PROJECTED_UNDECLARED = SpatialRef(kind=CRSKind.PROJECTED)
 ACQUISITION = SpatialRef(kind=CRSKind.ACQUISITION,
                          origin_description="along-track distance from line start")
+ENGINEERING = SpatialRef(kind=CRSKind.ENGINEERING,
+                         origin_description="local origin at the site benchmark")
 INFERRED = SpatialRef(kind=CRSKind.PROJECTED, code="EPSG:32635",
                       crs_provenance=CRSProvenance.INFERRED)
 
@@ -84,12 +87,12 @@ def orientation_assumption(heading_deg=47.0, reference="true_north"):
 
 
 def frame(frame_id="d:line1", *, crs=GEOGRAPHIC, axis=TIME_AXIS, dataset_id="d",
-          n_positions=10, assumptions=None, geo_tie=None):
+          n_positions=10, assumptions=None, geo_tie=None, affine_tie=None):
     return SurveyFrame(
         frame_id=frame_id, dataset_id=dataset_id, modality=SensorType.GPR,
         source_format="segy", source_file=f"{frame_id}.sgy",
         spatial_ref=crs, vertical_axis=axis, n_positions=n_positions,
-        assumptions=assumptions or [], geo_tie=geo_tie)
+        assumptions=assumptions or [], geo_tie=geo_tie, affine_tie=affine_tie)
 
 
 def record(i, position=None, dataset_id="d"):
@@ -112,6 +115,19 @@ def odometry_records(n=5, dataset_id="d", path_id=None):
         SubterraRecord(
             dataset_id=dataset_id, sensor_type=SensorType.GPR,
             position=OdometryPosition(along_track_m=i * 2.0, path_id=path_id),
+            latitude=None, longitude=None, frame_id=f"{dataset_id}:line1",
+            signal=[0.1, 0.2], metadata={"source_file": "line1.sgy", "trace_index": i})
+        for i in range(n)]
+
+
+def local_cartesian_records(n=5, dataset_id="d", spacing=10.0):
+    """A frame with a genuine 2D local coordinate and no along-track axis --
+    the shape of data GeoTie structurally cannot register (it reads only
+    `along_track_m`), and the one AffineTie exists for."""
+    return [
+        SubterraRecord(
+            dataset_id=dataset_id, sensor_type=SensorType.GPR,
+            position=LocalCartesianPosition(x=i * spacing, y=0.0),
             latitude=None, longitude=None, frame_id=f"{dataset_id}:line1",
             signal=[0.1, 0.2], metadata={"source_file": "line1.sgy", "trace_index": i})
         for i in range(n)]
@@ -271,6 +287,38 @@ def test_dataset_d_relative_frame_becomes_available_with_a_tie():
     after = assess([frame(crs=ACQUISITION, geo_tie=tie)], records)
     assert state_of(after, SpatialDimension.HORIZONTAL_POSITION) == "available"
     assert after.dimension(SpatialDimension.HORIZONTAL_POSITION).provenance == "registered"
+
+
+def test_dataset_e_local_cartesian_frame_becomes_available_with_an_affine_tie():
+    """The 2D counterpart of dataset D: a genuine local (x, y), no
+    along-track axis at all, so GeoTie cannot register it -- AffineTie can."""
+    from ingestion.affine_tie import apply_affine_tie, build_affine_tie
+    from schemas.spatial import AffineControlPoint
+
+    records = local_cartesian_records()
+    before = assess([frame(crs=ENGINEERING)], records)
+    assert state_of(before, SpatialDimension.HORIZONTAL_POSITION) == "partial"
+    assert state_of(before, SpatialDimension.CRS) == "missing"
+    assert before.dimension(SpatialDimension.HORIZONTAL_POSITION).action == \
+        DeclarationKind.AFFINE_TIE
+
+    tie = build_affine_tie(
+        [AffineControlPoint(x=0.0, y=0.0, lat=52.0, lon=4.3),
+         AffineControlPoint(x=100.0, y=0.0, lat=52.001, lon=4.3),
+         AffineControlPoint(x=0.0, y=100.0, lat=52.0, lon=4.301)],
+        supplied_by="site survey")
+    apply_affine_tie(records, tie)
+
+    after = assess([frame(crs=ENGINEERING, affine_tie=tie)], records)
+    assert state_of(after, SpatialDimension.HORIZONTAL_POSITION) == "available"
+    assert after.dimension(SpatialDimension.HORIZONTAL_POSITION).provenance == "registered"
+
+
+def test_the_geo_tie_action_is_unaffected_by_the_new_affine_tie_route():
+    """Pure odometry still suggests GEO_TIE, exactly as before this work."""
+    result = assess([frame(crs=ACQUISITION)], odometry_records())
+    assert result.dimension(SpatialDimension.HORIZONTAL_POSITION).action == \
+        DeclarationKind.GEO_TIE
 
 
 def test_dataset_e_time_axis_without_a_validated_depth_conversion():
@@ -719,6 +767,36 @@ def test_a_two_point_tie_is_usable_but_never_verified():
     assert value["rms_residual_m"] is None
 
 
+def test_a_two_point_affine_tie_is_refused():
+    with pytest.raises(service.DeclarationError) as exc:
+        service.validate_declaration(DeclarationKind.AFFINE_TIE, {
+            "control_points": [{"x": 0.0, "y": 0.0, "lat": 52.0, "lon": 4.3},
+                               {"x": 100.0, "y": 0.0, "lat": 52.001, "lon": 4.3}],
+            "supplied_by": "someone"})
+    assert "at least three control points" in str(exc.value)
+
+
+def test_collinear_affine_control_points_are_refused():
+    with pytest.raises(service.DeclarationError) as exc:
+        service.validate_declaration(DeclarationKind.AFFINE_TIE, {
+            "control_points": [{"x": 0.0, "y": 0.0, "lat": 52.0, "lon": 4.3},
+                               {"x": 10.0, "y": 0.0, "lat": 52.0005, "lon": 4.3},
+                               {"x": 20.0, "y": 0.0, "lat": 52.001, "lon": 4.3}],
+            "supplied_by": "someone"})
+    assert "collinear" in str(exc.value)
+
+
+def test_a_three_point_affine_tie_is_usable_but_never_verified():
+    value = service.validate_declaration(DeclarationKind.AFFINE_TIE, {
+        "control_points": [{"x": 0.0, "y": 0.0, "lat": 52.0, "lon": 4.3},
+                           {"x": 100.0, "y": 0.0, "lat": 52.001, "lon": 4.3},
+                           {"x": 0.0, "y": 100.0, "lat": 52.0, "lon": 4.301}],
+        "supplied_by": "site survey"})
+    assert value["verified"] is False
+    assert value["rms_residual_m"] is None
+    assert value["status"] == "registered"
+
+
 def test_an_orientation_declaration_requires_a_heading_and_a_reference():
     with pytest.raises(service.DeclarationError):
         service.validate_declaration(DeclarationKind.ORIENTATION, {})
@@ -943,6 +1021,72 @@ def test_an_orientation_declaration_does_not_touch_the_other_dimensions(env):
 
 def _state(body, dimension):
     return next(d["state"] for d in body["dimensions"] if d["dimension"] == dimension)
+
+
+def test_an_affine_tie_registers_without_overwriting_the_measurement(env):
+    Session, _ = env
+    client = signed_in()
+    seed(Session, client, frames=[frame("d:line1", crs=ENGINEERING)],
+         records=local_cartesian_records())
+
+    response = declare(client, "d", DeclarationKind.AFFINE_TIE, {
+        "control_points": [{"x": 0.0, "y": 0.0, "lat": 52.0, "lon": 4.3},
+                           {"x": 100.0, "y": 0.0, "lat": 52.001, "lon": 4.3},
+                           {"x": 0.0, "y": 100.0, "lat": 52.0, "lon": 4.301}],
+        "supplied_by": "site survey"})
+    assert response.status_code == 201
+
+    from database.records_store import load_records
+
+    for record_row in load_records("d"):
+        # The acquisition's own coordinate is untouched.
+        assert record_row.position.kind == "local_cartesian"
+        assert record_row.registered_position is not None
+        assert record_row.registered_position.kind == "geographic"
+
+    # Registration is not validation: the dataset's own report still says so.
+    report = client.get("/api/spatial/d").json()
+    horizontal = next(d for d in report["dimensions"] if d["dimension"] == "horizontal_position")
+    assert horizontal["state"] == "available"
+    assert horizontal["provenance"] == "registered"
+
+
+def test_insufficient_affine_control_points_is_a_422(env):
+    Session, _ = env
+    client = signed_in()
+    seed(Session, client, frames=[frame("d:line1", crs=ENGINEERING)],
+         records=local_cartesian_records())
+
+    response = declare(client, "d", DeclarationKind.AFFINE_TIE, {
+        "control_points": [{"x": 0.0, "y": 0.0, "lat": 52.0, "lon": 4.3},
+                           {"x": 100.0, "y": 0.0, "lat": 52.001, "lon": 4.3}],
+        "supplied_by": "someone"})
+    assert response.status_code == 422
+    assert "at least three control points" in response.json()["detail"]
+    # nothing was applied
+    assert client.get("/api/spatial/d/declarations").json()["count"] == 0
+
+
+def test_another_user_cannot_read_or_declare_an_affine_tie(env):
+    """Mirrors test_another_user_cannot_read_or_declare for the new kind
+    specifically: ownership enforcement is generic to every DeclarationKind,
+    but this proves it holds for AFFINE_TIE rather than assuming it."""
+    Session, _ = env
+    owner = signed_in("owner@example.test")
+    seed(Session, owner, frames=[frame("d:line1", crs=ENGINEERING)],
+         records=local_cartesian_records())
+    intruder = signed_in("intruder2@example.test")
+
+    assert intruder.get("/api/spatial/d").status_code == 404
+    assert declare(intruder, "d", DeclarationKind.AFFINE_TIE, {
+        "control_points": [{"x": 0.0, "y": 0.0, "lat": 52.0, "lon": 4.3},
+                           {"x": 100.0, "y": 0.0, "lat": 52.001, "lon": 4.3},
+                           {"x": 0.0, "y": 100.0, "lat": 52.0, "lon": 4.301}],
+        "supplied_by": "an intruder"}).status_code == 404
+
+    # The owner's own dataset was not touched by the refused attempt.
+    from database.records_store import load_records
+    assert all(r.registered_position is None for r in load_records("d"))
 
 
 def test_a_declaration_is_recorded_with_its_author(env):
