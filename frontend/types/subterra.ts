@@ -1300,6 +1300,7 @@ export type DeclarationKind =
   | 'antenna_offset'
   | 'depth_conversion'
   | 'geo_tie'
+  | 'affine_tie'
   | 'surface_reference'
   | 'orientation'
 

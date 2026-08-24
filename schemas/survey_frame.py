@@ -32,7 +32,7 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 from schemas.spatial import (
-    AcquisitionElevationDatum, Assumption, GeoTie, SpatialRef, VerticalAxis,
+    AcquisitionElevationDatum, AffineTie, Assumption, GeoTie, SpatialRef, VerticalAxis,
 )
 from schemas.subterra_record import SensorType
 
@@ -85,6 +85,14 @@ class SurveyFrame(BaseModel):
     #: Absent means the frame is not georeferenced, which is a legitimate
     #: terminal state -- not a gap waiting to be filled with a guess.
     geo_tie: Optional[GeoTie] = None
+    #: The 2D counterpart of `geo_tie`, for a frame whose native position is
+    #: `LocalCartesianPosition` -- a real (x, y) with no along-track axis for
+    #: a `GeoTie` to interpolate along. A frame carries at most one kind of
+    #: tie in practice (its native position is exactly one `PositionKind`),
+    #: but both fields exist because nothing here forbids a frame from
+    #: having neither, or -- if its position kind changed across a
+    #: correction -- from having both recorded historically.
+    affine_tie: Optional[AffineTie] = None
     #: What `registered_position` is expressed in, once a tie has been
     #: applied. `spatial_ref` above continues to describe the ACQUISITION's
     #: own coordinates; the two coexist rather than one replacing the other.

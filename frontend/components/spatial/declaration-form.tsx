@@ -151,6 +151,21 @@ const FIELDS: Record<
       },
     ],
   },
+  affine_tie: {
+    title: 'Register a local coordinate frame',
+    explain:
+      'Control points relating this frame’s own local (x, y) to real coordinates, for a frame with no along-track axis and no geographic position — a local-cartesian survey, not an acquisition line.',
+    consequence:
+      'Registration, not estimation: the frame’s own local coordinate is kept, and a fitted 2D affine map produces the tied position alongside it, so a bad registration can be corrected or discarded without destroying the measurement. Three non-collinear points fit exactly and can never be verified; four or more make the fit checkable, and the residual is reported rather than hidden. "Registered" describes the control points, not an independent physical validation.',
+    inputs: [
+      {
+        name: 'control_points',
+        label: 'Control points',
+        placeholder: '0, 0, 52.0, 4.3\n100, 0, 52.001, 4.3\n0, 100, 52.0, 4.301',
+        hint: 'one per line: local x, local y (metres), latitude, longitude — at least three, not on one line',
+      },
+    ],
+  },
   surface_reference: {
     title: 'Link a surface model',
     explain: 'Another dataset asserted to be this survey’s surface elevation model.',
@@ -199,6 +214,17 @@ function parseControlPoints(raw: string): unknown {
     })
 }
 
+function parseAffineControlPoints(raw: string): unknown {
+  return raw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [x, y, lat, lon] = line.split(',').map((part) => Number(part.trim()))
+      return { x, y, lat, lon }
+    })
+}
+
 export function DeclarationForm({
   datasetId,
   kind,
@@ -229,7 +255,11 @@ export function DeclarationForm({
         // record that somebody named the field and named it nothing.
         if (input.optional && raw.trim() === '') continue
         payload[input.name] =
-          input.name === 'control_points' ? parseControlPoints(raw) : raw
+          input.name === 'control_points'
+            ? kind === 'affine_tie'
+              ? parseAffineControlPoints(raw)
+              : parseControlPoints(raw)
+            : raw
       }
       await api.declareSpatialReference(datasetId, kind, payload, suppliedBy)
       // The reference, the report and the workspace all read the frames.

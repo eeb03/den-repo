@@ -312,6 +312,46 @@ describe('declaring', () => {
     expect(consequence).toContain('without destroying the measurement')
   })
 
+  it('says an affine registration is not an independent physical validation', () => {
+    const { container } = renderForm('affine_tie')
+    const consequence = container.querySelector('[data-consequence]')?.textContent ?? ''
+    expect(consequence).toContain('Registration, not estimation')
+    expect(consequence).toContain(
+      '"Registered" describes the control points, not an independent physical validation.',
+    )
+  })
+
+  it('parses affine control points as (x, y, lat, lon), distinct from a GeoTie line', async () => {
+    declareSpatialReference.mockResolvedValue({
+      declaration: {},
+      applied: { frames_changed: [] },
+      spatial_reference: reference(),
+    })
+    const { container } = renderForm('affine_tie')
+    fireEvent.change(container.querySelector('#affine_tie-control_points')!, {
+      target: { value: '0, 0, 52.0, 4.3\n100, 0, 52.001, 4.3\n0, 100, 52.0, 4.301' },
+    })
+    fireEvent.change(container.querySelector('#affine_tie-supplied-by')!, {
+      target: { value: 'site survey' },
+    })
+    fireEvent.submit(container.querySelector('form')!)
+
+    await waitFor(() =>
+      expect(declareSpatialReference).toHaveBeenCalledWith(
+        'd1',
+        'affine_tie',
+        {
+          control_points: [
+            { x: 0, y: 0, lat: 52.0, lon: 4.3 },
+            { x: 100, y: 0, lat: 52.001, lon: 4.3 },
+            { x: 0, y: 100, lat: 52.0, lon: 4.301 },
+          ],
+        },
+        'site survey',
+      ),
+    )
+  })
+
   it('says linking a surface model is not validating it', () => {
     const { container } = renderForm('surface_reference')
     expect(container.querySelector('[data-consequence]')?.textContent).toContain(

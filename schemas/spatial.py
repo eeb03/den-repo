@@ -545,6 +545,133 @@ class GeoTie(BaseModel):
         return max(d) - min(d)
 
 
+class AffineControlPoint(BaseModel):
+    """
+    One asserted correspondence between a frame-local 2D coordinate and a
+    real geographic one -- a surveyed corner, a mapped fiducial, a GNSS fix
+    taken at a known local (x, y).
+
+    Deliberately NOT `ControlPoint`: that type is parameterised by a single
+    scalar (`along_track_m`), which is what an odometry line actually has
+    and all a `GeoTie` needs. A frame whose native position carries a real
+    2D coordinate (`LocalCartesianPosition.x/y`) has no along-track axis at
+    all, so `ControlPoint` cannot express a correspondence for it -- this
+    type exists for that different shape of data, not as a replacement.
+    """
+    x: float
+    y: float
+    lat: float = Field(..., ge=-90, le=90)
+    lon: float = Field(..., ge=-180, le=180)
+    label: Optional[str] = None
+
+
+class AffineTieStatus(str, Enum):
+    """
+    The outcome of a fitted `AffineTie`, for a caller to render without
+    having to re-derive it from `verified`/`rms_residual_m` itself.
+
+    Construction-time failures (too few points, duplicate or collinear
+    source coordinates, non-finite values) are NOT a status here -- they
+    never produce an `AffineTie` at all, raising `AffineTieError` instead,
+    exactly as `GeoTie` refuses to exist for one control point rather than
+    reporting an "invalid" one. A status value only ever describes a
+    registration that was successfully fitted.
+    """
+    REGISTERED = "registered"
+    REGISTERED_WITH_HIGH_RESIDUAL = "registered_with_high_residual"
+
+
+class AffineTie(BaseModel):
+    """
+    Multi-point 2D affine registration: the sanctioned route from a frame
+    with a genuine 2D LOCAL coordinate and no Earth reference to a
+    geographic one, when `GeoTie`'s one-dimensional along-track model does
+    not apply.
+
+    `GeoTie` is not generalised into this: its `_interpolate` reads only
+    `along_track_m`, and `ingestion.geo_tie.apply_geo_tie` requires
+    `PositionKind.ODOMETRY` outright, so a frame whose position is
+    `LocalCartesianPosition` (a real (x, y), no along-track axis at all)
+    cannot pass through it at any effort. This is that different, genuinely
+    2D case, following the same registration philosophy in a new class
+    rather than bending `GeoTie`'s math to fit data it was not shaped for.
+
+    THE MODEL: lat = a*x + b*y + e ; lon = c*x + d*y + f -- an independent
+    least-squares linear fit per output coordinate against BOTH local axes,
+    the direct 2D generalisation of the exact numerical strategy
+    `ingestion.geo_tie._interpolate`/`assess_tie` already use for the 1D
+    case (independent fits of lat and lon against one parameter). A full
+    affine (six free parameters: two independent linear maps plus two
+    translations) is used rather than a similarity or rigid transform
+    because nothing in this platform's data model asserts that a sensor's
+    local frame is already correctly scaled, unsheared and axis-aligned
+    with true north -- assuming rigidity would be a stronger physical claim
+    than the control points themselves support, and choosing the more
+    general model is the honest default under that uncertainty.
+
+    A REGISTRATION, NOT A MEASUREMENT. Positions derived through this tie
+    are geographic, but DERIVED from an asserted correspondence -- the same
+    distinction `GeoTie` and depth-from-velocity both carry. `apply_affine_tie`
+    marks every record it touches so a consumer can tell a tied position
+    from a measured one, exactly as `apply_geo_tie` already does.
+
+    THREE NON-COLLINEAR POINTS FIT EXACTLY. Six unknowns, three independent
+    (x, y, 1) equations per output coordinate: with exactly three
+    non-collinear points the fit has zero residual by construction, so
+    `rms_residual_m` is None rather than a flattering 0.0 -- the same
+    reasoning `GeoTie` applies to its own two-point case, shifted by
+    exactly the added degree of freedom a second input dimension costs.
+    Four or more points make the fit checkable, and the residuals are
+    reported in metres via the same haversine distance `GeoTie` uses.
+    """
+    control_points: list[AffineControlPoint]
+    supplied_by: str                 # who asserted this, and on what authority
+    #: The ONE frame this tie was surveyed for, mirroring `GeoTie.applies_to`.
+    applies_to: Optional[str] = None
+    # Fitted parameters: lat = a*x + b*y + e ; lon = c*x + d*y + f.
+    a: float
+    b: float
+    e: float
+    c: float
+    d: float
+    f: float
+    rms_residual_m: Optional[float] = None
+    max_residual_m: Optional[float] = None
+    #: True only when the fit was checkable (4+ points) AND its RMS residual
+    #: was within a caller-supplied tolerance -- identical semantics to
+    #: `GeoTie.verified`.
+    verified: bool = False
+    status: AffineTieStatus = AffineTieStatus.REGISTERED
+    notes: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _needs_three_noncollinear_points(self) -> "AffineTie":
+        """
+        Structural checks only -- cheap, pure-Python, no numerical fitting.
+
+        A full 2D affine map has six unknowns, three per output coordinate,
+        so at least three point correspondences are needed even to attempt
+        a fit. Numerical collinearity (a degenerate configuration that
+        satisfies this count but still cannot determine an affine map) is
+        checked where the fit itself is computed
+        (`ingestion.affine_tie.fit_affine`), the same division of labour
+        `GeoTie` uses: this validator mirrors `_needs_two_distinct_points`,
+        not `assess_tie`.
+        """
+        if len(self.control_points) < 3:
+            raise ValueError(
+                "an AffineTie needs at least three control points; a 2D affine map has "
+                "six unknowns and three non-collinear point correspondences are the "
+                "minimum that can determine it"
+            )
+        coords = [(c.x, c.y) for c in self.control_points]
+        if len(set(coords)) < len(coords):
+            raise ValueError(
+                f"control points must sit at distinct (x, y) source locations, got {coords}"
+            )
+        return self
+
+
 #: The three ways a record can come to have a spatial position. Keeping them
 #: distinct is the whole point of registration being additive.
 POSITION_NATIVE = "native"          # the acquisition's own coordinate

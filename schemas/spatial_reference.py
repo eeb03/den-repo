@@ -66,6 +66,9 @@ class DeclarationKind(str, Enum):
     DEPTH_CONVERSION = "depth_conversion"
     #: Control points tying an along-track axis to real coordinates.
     GEO_TIE = "geo_tie"
+    #: Control points tying a genuine 2D local coordinate (not an
+    #: along-track axis) to real coordinates via a fitted affine map.
+    AFFINE_TIE = "affine_tie"
     #: Another dataset asserted to be this survey's surface elevation model.
     SURFACE_REFERENCE = "surface_reference"
     #: A claim about antenna heading -- not a track bearing, not an IMU record.
@@ -364,7 +367,8 @@ def assess_horizontal(frames, records) -> DimensionState:
     total = len(records)
     geographic = kinds.get(PositionKind.GEOGRAPHIC.value, 0)
     none = kinds.get(PositionKind.NONE.value, 0)
-    tied = [f.frame_id for f in frames if getattr(f, "geo_tie", None)]
+    tied = [f.frame_id for f in frames
+            if getattr(f, "geo_tie", None) or getattr(f, "affine_tie", None)]
     source_clause = _position_source_clause(records)
 
     if geographic == total:
@@ -381,7 +385,26 @@ def assess_horizontal(frames, records) -> DimensionState:
                       position_kinds=kinds)
     if geographic == 0:
         # Positions exist but are not on Earth: odometry, local cartesian, or
-        # projected coordinates. Whether they CAN be is the CRS's question.
+        # projected coordinates. Whether they CAN be is the CRS's question --
+        # except LOCAL_CARTESIAN, which has no CRS route at all
+        # (SpatialRef._code_only_for_earth_referenced refuses a code for an
+        # engineering frame) and no along-track axis for a GEO_TIE to
+        # interpolate along either. Suggesting GEO_TIE there would point at
+        # a mechanism that `apply_geo_tie` hard-refuses (it requires
+        # PositionKind.ODOMETRY), so this is the one sub-case that names
+        # AFFINE_TIE instead.
+        only_local_cartesian = (
+            kinds.get(PositionKind.LOCAL_CARTESIAN.value, 0) == total - none - geographic
+            and kinds.get(PositionKind.LOCAL_CARTESIAN.value, 0) > 0
+        )
+        if only_local_cartesian:
+            return _state(D, "partial",
+                          "positions exist but are not geographic; a local-cartesian frame "
+                          f"has no coordinate reference system of its own ({source_clause})",
+                          ["an AffineTie: control points tying this frame's local (x, y) "
+                           "to real coordinates"],
+                          action=DeclarationKind.AFFINE_TIE, provenance="measured",
+                          position_kinds=kinds)
         return _state(D, "partial",
                       "positions exist but are not geographic; whether they can be placed "
                       f"on Earth depends on the coordinate reference system ({source_clause})",

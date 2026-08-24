@@ -34,6 +34,7 @@ from database.models import SpatialDeclaration, gen_uuid
 from database.records_store import load_records, save_records
 from schemas.spatial import (
     AcquisitionElevationDatum,
+    AffineControlPoint,
     Assumption,
     AxisKind,
     ControlPoint,
@@ -267,6 +268,34 @@ def _validated_geo_tie(value: dict) -> dict:
     return tie.model_dump(mode="json")
 
 
+def _validated_affine_tie(value: dict) -> dict:
+    """Control points for a 2D affine registration, checked by the existing tie builder."""
+    from ingestion.affine_tie import build_affine_tie
+
+    raw_points = _require(value.get("control_points"), "control_points")
+    if not isinstance(raw_points, list) or len(raw_points) < 3:
+        raise DeclarationError(
+            "an AffineTie needs at least three control points: a 2D affine map has six "
+            "unknowns and three non-collinear point correspondences are the minimum that "
+            "can determine it")
+    try:
+        points = [AffineControlPoint.model_validate(p) for p in raw_points]
+    except Exception as exc:  # noqa: BLE001
+        raise DeclarationError(f"a control point is not valid: {exc}")
+
+    try:
+        tie = build_affine_tie(
+            points,
+            supplied_by=str(value.get("supplied_by") or "unattributed"),
+            max_rms_residual_m=value.get("max_rms_residual_m"),
+            applies_to=value.get("applies_to"),
+            notes=value.get("notes"),
+        )
+    except Exception as exc:  # noqa: BLE001 -- AffineTie's own validators
+        raise DeclarationError(str(exc))
+    return tie.model_dump(mode="json")
+
+
 def _validated_surface_reference(value: dict) -> dict:
     """
     Another dataset asserted to be this survey's surface.
@@ -316,6 +345,7 @@ _VALIDATORS = {
     DeclarationKind.ANTENNA_OFFSET: _validated_antenna_offset,
     DeclarationKind.DEPTH_CONVERSION: _validated_depth_conversion,
     DeclarationKind.GEO_TIE: _validated_geo_tie,
+    DeclarationKind.AFFINE_TIE: _validated_affine_tie,
     DeclarationKind.SURFACE_REFERENCE: _validated_surface_reference,
     DeclarationKind.ORIENTATION: _validated_orientation,
 }
@@ -362,6 +392,8 @@ def _assumption_for(kind: DeclarationKind, value: dict, supplied_by: str) -> Ass
             f"propagation velocity {value.get('velocity_m_per_ns')} m/ns",
         DeclarationKind.GEO_TIE:
             f"{len(value.get('control_points') or [])} control point(s)",
+        DeclarationKind.AFFINE_TIE:
+            f"{len(value.get('control_points') or [])} control point(s), 2D affine",
         DeclarationKind.SURFACE_REFERENCE:
             f"surface model {value.get('surface_dataset_id')}",
         DeclarationKind.ORIENTATION:
@@ -509,6 +541,26 @@ def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
             changed.append(frame.frame_id)
         assumption = _assumption_for(kind, value, supplied_by)
         logger.info("geo tie registered %d record(s) in %s", registered, dataset_id)
+
+    elif kind == DeclarationKind.AFFINE_TIE:
+        from ingestion.affine_tie import (
+            AffineTie, AffineTieError, apply_affine_tie, tied_spatial_ref_for_affine,
+        )
+
+        tie = AffineTie.model_validate(value)
+        try:
+            registered = apply_affine_tie(records, tie, path_id=tie.applies_to)
+        except AffineTieError as exc:
+            raise DeclarationError(str(exc))
+        # ADDITIVE: `apply_affine_tie` wrote `registered_position` and left
+        # every `position` as the instrument reported it.
+        save_records(dataset_id, records)
+        for frame in targets:
+            frame.affine_tie = tie
+            frame.registered_spatial_ref = tied_spatial_ref_for_affine(tie)
+            changed.append(frame.frame_id)
+        assumption = _assumption_for(kind, value, supplied_by)
+        logger.info("affine tie registered %d record(s) in %s", registered, dataset_id)
 
     elif kind == DeclarationKind.SURFACE_REFERENCE:
         changed = [f.frame_id for f in targets]
