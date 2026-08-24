@@ -18,9 +18,10 @@ from converters.registry import get_converter
 from converters.base import MissingDependencyError
 from validators.dataset_validator import validate_dataset
 from preprocessing.pipeline import run_pipeline
+from preprocessing.time_zero import apply_time_zero_for_dataset
 from database.records_store import save_records, load_records
 from database.frames_store import load_frames, save_frames, synthesize_frames_from_records
-from schemas.spatial import Assumption, has_geographic_coordinates
+from schemas.spatial import Assumption, AxisKind, has_geographic_coordinates
 from ingestion.downloader import download_file, DownloadError
 from converters.registry import supported_extensions
 from preprocessing.dem_alignment import align_records_with_dem
@@ -389,6 +390,89 @@ def reprocess_dataset(
         "record_count": len(records),
         "quality_score": report.quality_score,
         "preprocessing_mode": preprocessing_mode,
+    }
+
+
+@router.post("/{dataset_id}/apply_time_zero")
+def apply_time_zero(
+    dataset_id: str,
+    velocity_m_per_ns: Optional[float] = None,
+    db: Session = Depends(get_db),
+    _dataset=Depends(require_owned_dataset),
+):
+    """
+    Resolve and apply a time-zero correction to this dataset's stored
+    records, PER FRAME (per acquisition line/file) -- the method hierarchy
+    from `preprocessing.time_zero.resolve_time_zero_for_frame`: Method A
+    (SEG-Y `DelayRecordingTime`) -> an existing operator
+    `DeclarationKind.TIME_ZERO` declaration -> Method C
+    (`direct_wave_consensus_time_zero`, the one algorithmic method).
+
+    THE FIRST LIVE CALLER. Until this endpoint existed, the time-zero
+    framework was fully implemented and tested but never invoked by any
+    real path. A `DeclarationKind.TIME_ZERO` declaration itself remains
+    non-retroactive (see `api/spatial.py`'s own TIME_ZERO branch, which
+    only records the claim) -- calling THIS endpoint is the explicit,
+    separate step that actually writes a correction onto records,
+    mirroring how `/reprocess` above is the explicit step for
+    dewow/background/gain rather than something ingest reruns silently.
+
+    NEVER GUESSES. A frame with no metadata field, no declaration, and
+    whose traces don't produce a defensible cross-trace consensus is
+    reported `unavailable`/`inconclusive` for that frame -- its records'
+    `corrected_time_ns` stays unset and `depth` is left exactly as it was.
+    `original_time_ns` is always preserved, for every frame, regardless of
+    outcome.
+
+    `velocity_m_per_ns`, if supplied, overrides the velocity used to
+    recompute depth for every frame this call resolves a correction for
+    (recorded with source `"supplied_by_caller"`). Without it, each
+    frame's OWN already-recorded ingest velocity is reused -- this
+    endpoint never estimates a new velocity, only reapplies the existing
+    one to the now-corrected time axis.
+    """
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    # Uncached: this call mutates records and saves them back.
+    records = load_records(dataset_id, use_cache=False)
+    if not records:
+        raise HTTPException(status_code=404, detail="No stored records found for this dataset")
+
+    frames = load_frames(dataset_id) or synthesize_frames_from_records(records)
+    eligible = [f for f in frames
+                if f.vertical_axis.kind in (AxisKind.TWO_WAY_TIME_NS,
+                                            AxisKind.TWO_WAY_TIME_MS,
+                                            AxisKind.TWO_WAY_TIME_S)]
+    if not eligible:
+        raise HTTPException(
+            status_code=409,
+            detail="no frame carries a measured time axis, so there is no time-zero to correct")
+
+    velocity_overrides = (
+        {f.frame_id: velocity_m_per_ns for f in eligible}
+        if velocity_m_per_ns is not None else None)
+    records, results = apply_time_zero_for_dataset(records, frames, velocity_overrides=velocity_overrides)
+    save_records(dataset_id, records)
+
+    report = validate_dataset(records, dataset_id=dataset_id)
+    dataset.quality_score = report.quality_score
+    dataset.extra_metadata = {
+        **(dataset.extra_metadata or {}),
+        "validation_issues": report.issues,
+    }
+    db.commit()
+
+    return {
+        "dataset_id": dataset_id,
+        "record_count": len(records),
+        "quality_score": report.quality_score,
+        "frames": {
+            frame_id: result.model_dump(mode="json") for frame_id, result in results.items()
+        },
+        "resolved_frame_count": sum(1 for r in results.values() if r.resolved),
+        "frame_count": len(results),
     }
 
 

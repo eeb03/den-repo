@@ -65,6 +65,8 @@ import statistics
 from datetime import datetime, timezone
 from typing import Optional
 
+from preprocessing.trace_processing import _reconstruct_traces_by_index
+from schemas.dataset_report import DECLARED_TIME_ZERO_KEY
 from schemas.subterra_record import SubterraRecord
 from schemas.time_zero import TimeZeroMethod, TimeZeroResult, TimeZeroStatus
 
@@ -363,3 +365,136 @@ def recompute_depth_with_time_zero(
         r.metadata["velocity_m_per_ns"] = velocity_m_per_ns
         r.metadata["velocity_source"] = velocity_source
     return records
+
+
+# ---------------------------------------------------------------------------
+# production wiring: the method hierarchy, per frame, then applied and saved
+# ---------------------------------------------------------------------------
+
+def resolve_time_zero_for_frame(
+    frame, records: list[SubterraRecord], sample_interval_ns: Optional[float] = None,
+) -> TimeZeroResult:
+    """
+    The method hierarchy for ONE frame's own records, in priority order:
+    Method A (`metadata_instrument_time_zero`) -> an existing operator
+    `DeclarationKind.TIME_ZERO` declaration -> Method C
+    (`direct_wave_consensus_time_zero`). The first resolved result wins;
+    a stronger method is never overridden by a weaker one that happens to
+    also succeed.
+
+    SCOPED PER FRAME, DELIBERATELY, NOT PER DATASET. A real cross-file 4TU
+    experiment (three independent SEG-Y lines, each DERIVED via Method C)
+    found genuinely different values -- 0.776 / 0.873 / 1.764 ns -- so
+    averaging them into one dataset-wide constant would misrepresent every
+    one of the three. `records` must be this frame's own records only: a
+    caller that mixes frames together would corrupt Method C's cross-trace
+    consensus, which assumes every trace shares one acquisition clock.
+    """
+    result = metadata_instrument_time_zero(frame)
+    if result.resolved:
+        return result
+
+    declared = frame.assumption(DECLARED_TIME_ZERO_KEY)
+    if declared is not None:
+        try:
+            correction = float(declared.value)
+        except (TypeError, ValueError):
+            correction = None
+        if correction is not None and math.isfinite(correction):
+            return TimeZeroResult(
+                status=TimeZeroStatus.DECLARED, method=TimeZeroMethod.OPERATOR_DECLARED,
+                correction_ns=correction, basis=declared.basis,
+                source="DeclarationKind.TIME_ZERO", generated_utc=_now(),
+            )
+
+    by_trace = _reconstruct_traces_by_index(records)
+    if by_trace is None:
+        return TimeZeroResult(
+            status=TimeZeroStatus.UNAVAILABLE, method=TimeZeroMethod.DIRECT_WAVE_CONSENSUS,
+            basis="these records are not in the per-sample GPR shape (missing trace_index/"
+                 "depth identity, or already multi-sample-per-record) -- there is nothing "
+                 "to reconstruct whole traces from",
+        )
+
+    whole_traces: list[SubterraRecord] = []
+    intervals: list[float] = []
+    for recs in by_trace.values():
+        whole_traces.append(recs[0].model_copy(update={"signal": [r.signal[0] for r in recs]}))
+        times = [r.metadata.get("two_way_time_ns") for r in recs[:2]]
+        if len(times) == 2 and all(t is not None for t in times):
+            intervals.append(times[1] - times[0])
+
+    if sample_interval_ns is None:
+        sample_interval_ns = statistics.median(intervals) if intervals else None
+    if not sample_interval_ns or sample_interval_ns <= 0:
+        return TimeZeroResult(
+            status=TimeZeroStatus.UNAVAILABLE, method=TimeZeroMethod.DIRECT_WAVE_CONSENSUS,
+            basis="no usable sample interval could be established from these records' own "
+                 "two_way_time_ns spacing",
+        )
+
+    return direct_wave_consensus_time_zero(whole_traces, sample_interval_ns)
+
+
+def apply_time_zero_for_dataset(
+    records: list[SubterraRecord], frames: list,
+    velocity_overrides: Optional[dict[str, float]] = None,
+) -> tuple[list[SubterraRecord], dict[str, TimeZeroResult]]:
+    """
+    Runs `resolve_time_zero_for_frame` and applies the winning result, PER
+    FRAME, mutating `records` in place (they are the same objects grouped
+    by `frame_id`, not copies) and returning them alongside one
+    `TimeZeroResult` per frame_id actually resolved.
+
+    Records with no `frame_id` (pre-frame datasets, or a non-GPR modality)
+    are left completely untouched -- there is no frame to resolve
+    `metadata_instrument_time_zero` or a declaration against, and this is
+    not the place to invent one.
+
+    DEPTH IS NEVER RE-ESTIMATED HERE, ONLY RECOMPUTED. For a frame whose
+    correction resolved, depth is recomputed using the SAME velocity its
+    own records already carried from ingest (or `velocity_overrides`, for a
+    caller supplying one explicitly) -- never a new estimate. If no
+    velocity is known for that frame at all, any existing depth was
+    computed from the UNCORRECTED time axis and is now stale rather than
+    merely uncertain, so it is cleared (not left standing) -- the same
+    "never silently valid" rule `apply_time_zero_correction` already
+    applies to a negative corrected time.
+    """
+    velocity_overrides = velocity_overrides or {}
+    frames_by_frame_id = {f.frame_id: f for f in frames}
+    by_frame: dict[Optional[str], list[SubterraRecord]] = {}
+    for r in records:
+        by_frame.setdefault(r.frame_id, []).append(r)
+
+    results: dict[str, TimeZeroResult] = {}
+    for frame_id, frame_records in by_frame.items():
+        frame = frames_by_frame_id.get(frame_id)
+        if frame is None:
+            continue
+
+        result = resolve_time_zero_for_frame(frame, frame_records)
+        if result.resolved:
+            result = result.model_copy(update={"applied": True})
+        apply_time_zero_correction(frame_records, result)
+
+        if result.resolved:
+            velocity = velocity_overrides.get(frame_id)
+            if velocity is not None:
+                velocity_source = "supplied_by_caller"
+            else:
+                velocity, velocity_source = None, None
+                for r in frame_records:
+                    if r.metadata.get("velocity_m_per_ns") is not None:
+                        velocity = r.metadata["velocity_m_per_ns"]
+                        velocity_source = r.metadata.get("velocity_source")
+                        break
+            if velocity is not None:
+                recompute_depth_with_time_zero(frame_records, velocity, velocity_source=velocity_source)
+            else:
+                for r in frame_records:
+                    r.depth = None
+
+        results[frame_id] = result
+
+    return records, results

@@ -9,12 +9,16 @@ import pytest
 
 from preprocessing.time_zero import (
     MAX_CONSENSUS_SPREAD_NS,
+    SEGY_ORIGIN_OFFSET_KEY,
     apply_time_zero_correction,
+    apply_time_zero_for_dataset,
     direct_wave_consensus_time_zero,
     metadata_instrument_time_zero,
     operator_declared_time_zero,
     recompute_depth_with_time_zero,
+    resolve_time_zero_for_frame,
 )
+from schemas.dataset_report import DECLARED_TIME_ZERO_KEY
 from schemas.provenance import ProvenanceClass, record_provenance
 from schemas.spatial import Assumption
 from schemas.subterra_record import SensorType, SubterraRecord
@@ -38,15 +42,45 @@ def _trace_record(signal, dataset_id="ds", **meta):
     )
 
 
-def _frame(assumptions=None):
+def _frame(assumptions=None, frame_id="ds:line"):
     from schemas.spatial import CRSKind, SpatialRef
     return SurveyFrame.model_construct(
-        frame_id="ds:line", dataset_id="ds", modality=SensorType.GPR,
+        frame_id=frame_id, dataset_id="ds", modality=SensorType.GPR,
         source_format="segy", source_file="line.sgy",
         spatial_ref=SpatialRef(kind=CRSKind.UNKNOWN, name="none"),
         vertical_axis=None, n_positions=1, position_index_name="trace_index",
         assumptions=assumptions or [],
     )
+
+
+def _per_sample_records(traces, sample_interval_ns, source_file="line.sgy",
+                        frame_id="ds:line", dataset_id="ds",
+                        velocity_m_per_ns=None, velocity_source=None):
+    """
+    One record per (trace, depth) SAMPLE -- the shape `SEGYConverter` emits
+    and `resolve_time_zero_for_frame`/`apply_time_zero_for_dataset` consume
+    directly. `traces` is a list of whole-trace sample lists.
+    """
+    records = []
+    for trace_index, trace in enumerate(traces):
+        for sample_index, value in enumerate(trace):
+            two_way_time_ns = sample_index * sample_interval_ns
+            meta = {
+                "source_file": source_file, "trace_index": trace_index,
+                "two_way_time_ns": two_way_time_ns,
+            }
+            depth = None
+            if velocity_m_per_ns is not None:
+                depth = (two_way_time_ns * velocity_m_per_ns) / 2.0
+                meta["velocity_m_per_ns"] = velocity_m_per_ns
+                if velocity_source is not None:
+                    meta["velocity_source"] = velocity_source
+            records.append(SubterraRecord.model_construct(
+                dataset_id=dataset_id, latitude=None, longitude=None, elevation=None,
+                depth=depth, signal=[float(value)], sensor_type=SensorType.GPR,
+                ground_truth="none", frame_id=frame_id, metadata=meta,
+            ))
+    return records
 
 
 def _pulse(n=200, onset=60, amp=5000.0, noise=1.0, seed=0):
@@ -329,3 +363,138 @@ class TestSerializationAndReport:
                                      basis="no documented field exists")
         assert not_run.status != unavailable.status
         assert not not_run.resolved and not unavailable.resolved
+
+
+# --- 15. Production wiring: the method hierarchy, applied per frame ---------
+
+class TestProductionWiring:
+    """
+    `resolve_time_zero_for_frame` / `apply_time_zero_for_dataset` are the
+    first callers that actually run this framework against records the way
+    a live `POST /{dataset_id}/apply_time_zero` request would -- everything
+    above this class tests the algorithms in isolation; this class tests
+    the orchestration that wires them together.
+    """
+
+    def test_method_a_wins_over_a_declaration_and_over_method_c(self):
+        frame = _frame(assumptions=[
+            Assumption(key=SEGY_ORIGIN_OFFSET_KEY, value=3.5,
+                      basis="SEG-Y DelayRecordingTime header", verified=False),
+            Assumption(key=DECLARED_TIME_ZERO_KEY, value=99.0,
+                      basis="SUPPLIED BY CALLER: declared from field notebook. Evidence: x",
+                      verified=False),
+        ])
+        records = [_record(metadata={"two_way_time_ns": 10.0})]
+        result = resolve_time_zero_for_frame(frame, records)
+        assert result.status == TimeZeroStatus.MEASURED
+        assert result.method == TimeZeroMethod.METADATA_INSTRUMENT
+        assert result.correction_ns == 3.5
+
+    def test_a_declaration_wins_over_method_c_when_no_metadata_field_exists(self):
+        frame = _frame(assumptions=[
+            Assumption(key=DECLARED_TIME_ZERO_KEY, value=7.25,
+                      basis="SUPPLIED BY CALLER: declared from field notebook. Evidence: x",
+                      verified=False),
+        ])
+        records = [_record(metadata={"two_way_time_ns": 10.0})]
+        result = resolve_time_zero_for_frame(frame, records)
+        assert result.status == TimeZeroStatus.DECLARED
+        assert result.method == TimeZeroMethod.OPERATOR_DECLARED
+        assert result.correction_ns == 7.25
+
+    def test_method_c_fires_when_neither_metadata_nor_a_declaration_exists(self):
+        frame = _frame()
+        traces = [_pulse(onset=60, seed=i) for i in range(20)]
+        records = _per_sample_records(traces, sample_interval_ns=0.5, velocity_m_per_ns=0.1)
+        result = resolve_time_zero_for_frame(frame, records)
+        assert result.method == TimeZeroMethod.DIRECT_WAVE_CONSENSUS
+        assert result.status == TimeZeroStatus.DERIVED
+        assert result.correction_ns == pytest.approx(30.0, abs=1.0)  # onset=60 samples * 0.5ns
+
+    def test_method_c_reports_unavailable_for_non_gpr_shaped_records(self):
+        frame = _frame()
+        records = [_record(depth=1.2, metadata={})]  # depth-slice shape, no trace identity
+        result = resolve_time_zero_for_frame(frame, records)
+        assert result.status == TimeZeroStatus.UNAVAILABLE
+        assert result.method == TimeZeroMethod.DIRECT_WAVE_CONSENSUS
+
+    def test_two_frames_in_one_dataset_are_resolved_independently_not_averaged(self):
+        frame_a = _frame(frame_id="ds:a", assumptions=[
+            Assumption(key=DECLARED_TIME_ZERO_KEY, value=2.0, basis="SUPPLIED BY CALLER: x", verified=False)])
+        frame_b = _frame(frame_id="ds:b", assumptions=[
+            Assumption(key=DECLARED_TIME_ZERO_KEY, value=9.0, basis="SUPPLIED BY CALLER: y", verified=False)])
+        records_a = _per_sample_records([[0.0]], sample_interval_ns=1.0, frame_id="ds:a")
+        records_b = _per_sample_records([[0.0]], sample_interval_ns=1.0, frame_id="ds:b")
+
+        records, results = apply_time_zero_for_dataset(records_a + records_b, [frame_a, frame_b])
+
+        assert results["ds:a"].correction_ns == 2.0
+        assert results["ds:b"].correction_ns == 9.0
+        by_frame = {r.frame_id: r for r in records}
+        assert by_frame["ds:a"].metadata["corrected_time_ns"] == pytest.approx(-2.0)
+        assert by_frame["ds:b"].metadata["corrected_time_ns"] == pytest.approx(-9.0)
+
+    def test_a_resolved_correction_is_marked_applied_in_processing_applied(self):
+        frame = _frame(assumptions=[
+            Assumption(key=DECLARED_TIME_ZERO_KEY, value=1.5, basis="SUPPLIED BY CALLER: x", verified=False)])
+        records = _per_sample_records([[0.0]], sample_interval_ns=1.0)
+        records, results = apply_time_zero_for_dataset(records, [frame])
+        assert results["ds:line"].applied is True
+        assert records[0].metadata["processing_applied"]["time_zero"] is True
+
+    def test_depth_is_recomputed_using_the_records_own_existing_velocity(self):
+        frame = _frame(assumptions=[
+            Assumption(key=DECLARED_TIME_ZERO_KEY, value=1.0, basis="SUPPLIED BY CALLER: x", verified=False)])
+        records = _per_sample_records(
+            [[0.0, 0.0, 0.0]], sample_interval_ns=1.0,
+            velocity_m_per_ns=0.1, velocity_source="assumed_default")
+        # raw depth from uncorrected time (sample 2: t=2.0ns): 2.0*0.1/2 = 0.1
+        assert records[2].depth == pytest.approx(0.1)
+
+        records, results = apply_time_zero_for_dataset(records, [frame])
+
+        # corrected time at sample 2: 2.0 - 1.0 = 1.0ns -> depth 1.0*0.1/2 = 0.05
+        assert records[2].depth == pytest.approx(0.05)
+        assert records[2].metadata["velocity_source"] == "assumed_default"
+
+    def test_depth_is_cleared_not_left_stale_when_no_velocity_is_known(self):
+        frame = _frame(assumptions=[
+            Assumption(key=DECLARED_TIME_ZERO_KEY, value=1.0, basis="SUPPLIED BY CALLER: x", verified=False)])
+        records = _per_sample_records([[0.0, 0.0, 0.0]], sample_interval_ns=1.0)  # no velocity anywhere
+        records, results = apply_time_zero_for_dataset(records, [frame])
+        assert all(r.depth is None for r in records)
+
+    def test_an_explicit_velocity_override_wins_and_is_labelled_supplied_by_caller(self):
+        frame = _frame(assumptions=[
+            Assumption(key=DECLARED_TIME_ZERO_KEY, value=1.0, basis="SUPPLIED BY CALLER: x", verified=False)])
+        records = _per_sample_records(
+            [[0.0, 0.0, 0.0]], sample_interval_ns=1.0,
+            velocity_m_per_ns=0.1, velocity_source="assumed_default")
+        records, results = apply_time_zero_for_dataset(
+            records, [frame], velocity_overrides={"ds:line": 0.2})
+        # corrected time at sample 2 = 1.0ns -> depth 1.0*0.2/2 = 0.1
+        assert records[2].depth == pytest.approx(0.1)
+        assert records[2].metadata["velocity_source"] == "supplied_by_caller"
+
+    def test_an_inconclusive_frame_leaves_existing_depth_untouched(self):
+        frame = _frame()  # no metadata field, no declaration
+        # Flat, featureless traces: no real onset for Method C to pick.
+        records = _per_sample_records(
+            [[0.0] * 30 for _ in range(6)], sample_interval_ns=1.0,
+            velocity_m_per_ns=0.1, velocity_source="assumed_default")
+        original_depths = [r.depth for r in records]
+
+        records, results = apply_time_zero_for_dataset(records, [frame])
+
+        assert not results["ds:line"].resolved
+        assert [r.depth for r in records] == original_depths
+
+    def test_records_with_no_frame_id_are_left_completely_untouched(self):
+        r = SubterraRecord.model_construct(
+            dataset_id="ds", latitude=None, longitude=None, elevation=None,
+            depth=0.3, signal=[0.0], sensor_type=SensorType.GPR, ground_truth="none",
+            frame_id=None, metadata={"two_way_time_ns": 5.0})
+        records, results = apply_time_zero_for_dataset([r], [_frame()])
+        assert results == {}
+        assert "corrected_time_ns" not in r.metadata
+        assert r.depth == 0.3
