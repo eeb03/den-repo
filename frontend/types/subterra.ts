@@ -1303,6 +1303,7 @@ export type DeclarationKind =
   | 'affine_tie'
   | 'surface_reference'
   | 'orientation'
+  | 'time_zero'
 
 export interface DimensionState {
   dimension: SpatialDimensionName

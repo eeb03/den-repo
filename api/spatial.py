@@ -241,6 +241,42 @@ def _validated_depth_conversion(value: dict) -> dict:
     }
 
 
+def _validated_time_zero(value: dict) -> dict:
+    """
+    An operator-declared correction to where the measured time axis starts.
+
+    Reuses `preprocessing.time_zero.operator_declared_time_zero` for the
+    actual validation (finite number, evidence required) so there is one
+    definition of what makes a declared time-zero acceptable, not a second
+    that could drift from `schemas.time_zero`'s own vocabulary. NEVER
+    computes or checks the physical correctness of the number -- exactly
+    the same discipline `_validated_antenna_offset` states for its own
+    declaration: syntax is not physics.
+    """
+    from preprocessing.time_zero import operator_declared_time_zero
+    from schemas.time_zero import TimeZeroStatus
+
+    raw = _require(value.get("correction_ns"), "correction_ns")
+    try:
+        correction = float(raw)
+    except (TypeError, ValueError):
+        raise DeclarationError(f"correction_ns {raw!r} is not a number")
+    source = str(_require(value.get("source"), "source"))
+    evidence = str(_require(value.get("evidence"), "evidence"))
+
+    result = operator_declared_time_zero(
+        correction_ns=correction, source=source, evidence=evidence,
+        supplied_by=value.get("supplied_by"))
+    if result.status != TimeZeroStatus.DECLARED:
+        raise DeclarationError(result.basis)
+    return {
+        "correction_ns": result.correction_ns,
+        "method": result.method.value,
+        "basis": result.basis,
+        "source": result.source,
+    }
+
+
 def _validated_geo_tie(value: dict) -> dict:
     """Control points, checked by the existing tie builder."""
     from ingestion.geo_tie import build_geo_tie
@@ -344,6 +380,7 @@ _VALIDATORS = {
     DeclarationKind.VERTICAL_DATUM: _validated_vertical_datum,
     DeclarationKind.ANTENNA_OFFSET: _validated_antenna_offset,
     DeclarationKind.DEPTH_CONVERSION: _validated_depth_conversion,
+    DeclarationKind.TIME_ZERO: _validated_time_zero,
     DeclarationKind.GEO_TIE: _validated_geo_tie,
     DeclarationKind.AFFINE_TIE: _validated_affine_tie,
     DeclarationKind.SURFACE_REFERENCE: _validated_surface_reference,
@@ -390,6 +427,9 @@ def _assumption_for(kind: DeclarationKind, value: dict, supplied_by: str) -> Ass
             f"reference point is above the ground",
         DeclarationKind.DEPTH_CONVERSION:
             f"propagation velocity {value.get('velocity_m_per_ns')} m/ns",
+        DeclarationKind.TIME_ZERO:
+            f"time-zero correction {value.get('correction_ns')} ns from "
+            f"{value.get('source')} ({value.get('basis') or 'no basis recorded'})",
         DeclarationKind.GEO_TIE:
             f"{len(value.get('control_points') or [])} control point(s)",
         DeclarationKind.AFFINE_TIE:
@@ -404,10 +444,15 @@ def _assumption_for(kind: DeclarationKind, value: dict, supplied_by: str) -> Ass
     # alone identifies the claim, and a heading of exactly 0.0 (due north) is
     # a real, valid value that the `or`-chain would treat as falsy and skip.
     # `assess_orientation` reads this dict back to name the heading verbatim.
+    # TIME_ZERO has the identical problem: a correction of exactly 0.0 ns is
+    # a real, valid declaration (an operator asserting the axis already
+    # starts at the right place), not an absent one.
     if kind == DeclarationKind.ORIENTATION:
         assumption_value: Any = {
             "heading_deg": value.get("heading_deg"), "reference": value.get("reference"),
         }
+    elif kind == DeclarationKind.TIME_ZERO:
+        assumption_value = value.get("correction_ns")
     else:
         assumption_value = (value.get("code") or value.get("velocity_m_per_ns")
                             or value.get("offset_m") or value.get("surface_dataset_id")
@@ -503,6 +548,27 @@ def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
         for frame in eligible:
             frame.vertical_axis = frame.vertical_axis.model_copy(update={"conversion": value})
             changed.append(frame.frame_id)
+
+    elif kind == DeclarationKind.TIME_ZERO:
+        # Same eligibility rule as DEPTH_CONVERSION: a time-zero correction
+        # only means anything on a frame with a measured two-way-time axis.
+        # Nothing structured is written onto the axis -- unlike
+        # DEPTH_CONVERSION's `conversion` dict, there is no existing typed
+        # slot for this, and inventing one now would duplicate what the
+        # frame Assumption (attached below, for every kind) already carries.
+        # A caller that wants the correction actually APPLIED to records
+        # calls `preprocessing.time_zero.apply_time_zero_correction`
+        # separately -- declaring is recording the claim, not re-running
+        # preprocessing inside an API request, exactly as DEPTH_CONVERSION
+        # already does not retroactively recompute every record's depth.
+        eligible = [f for f in targets
+                    if f.vertical_axis.kind in (AxisKind.TWO_WAY_TIME_NS,
+                                                AxisKind.TWO_WAY_TIME_MS,
+                                                AxisKind.TWO_WAY_TIME_S)]
+        if not eligible:
+            raise DeclarationError(
+                "no frame carries a measured time axis, so there is no time-zero to correct")
+        changed = [f.frame_id for f in eligible]
 
     elif kind == DeclarationKind.ANTENNA_OFFSET:
         # WRITTEN ONTO THE AXIS, which is what changed in stage 12. Before this

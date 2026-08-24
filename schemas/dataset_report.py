@@ -792,26 +792,51 @@ def build_geometry(records, frames, bounds=None, spans=None) -> SurveyGeometry:
     )
 
 
-def _time_zero_claim(frames) -> Optional[Any]:
-    """The first frame's `time_zero_offset_not_applied` assumption, if any."""
+#: The frame assumption key `api.spatial._assumption_for` stamps for an
+#: operator's `DeclarationKind.TIME_ZERO` declaration (`f"declared_{kind.value}"`,
+#: same pattern every other declaration kind uses). Distinct from
+#: `TIME_ZERO_ASSUMPTION_KEY`: that one means "a converter recorded a
+#: vendor field of unestablished meaning"; this one means "a person
+#: declared a correction from evidence" -- different facts, reported
+#: differently, never conflated.
+DECLARED_TIME_ZERO_KEY = "declared_time_zero"
+
+
+def _time_zero_claim(frames) -> tuple[Optional[Any], bool]:
+    """
+    The first frame's time-zero-related assumption, if any, and whether it
+    is an operator DECLARATION (True) or an unresolved vendor-field claim
+    (False, `TIME_ZERO_ASSUMPTION_KEY`). Declared takes priority when a
+    frame somehow carries both, since a human declaration is a stronger
+    fact than an unresolved header field about the same axis.
+    """
+    for f in frames:
+        declared = f.assumption(DECLARED_TIME_ZERO_KEY)
+        if declared is not None:
+            return declared, True
     for f in frames:
         claim = f.assumption(TIME_ZERO_ASSUMPTION_KEY)
         if claim is not None:
-            return claim
-    return None
+            return claim, False
+    return None, False
 
 
-def _time_zero_step(applied: Optional[dict], claim: Optional[Any]) -> SignalProcessingStep:
+def _time_zero_step(applied: Optional[dict], claim: Optional[Any],
+                    claim_is_declared: bool = False) -> SignalProcessingStep:
     """
     ALWAYS RETURNS A STEP -- this is only called once the chain as a whole is
     already known to be `recorded`, and `time_zero` is never omitted from it.
 
-    Reads, in order: (1) `processing_applied`'s own time-zero keys, if a
-    future step of `process_gpr_traces` ever stamps them -- none does today;
-    (2) the survey-frame assumption a converter already stamped (GSSI's
-    `rhf_position`, recorded but explicitly not applied); (3) otherwise the
-    honest fact that no time-zero correction is applied and nothing was
-    recorded about one.
+    Reads, in order: (1) `processing_applied`'s own time-zero keys, stamped
+    by `preprocessing.time_zero.apply_time_zero_correction` when a
+    correction has actually been run against this dataset's records; (2)
+    an operator's `DeclarationKind.TIME_ZERO` declaration, recorded but NOT
+    YET applied to records (the same non-retroactive contract
+    `DeclarationKind.DEPTH_CONVERSION` already has); (3) the survey-frame
+    assumption a converter already stamped (GSSI's `rhf_position`,
+    recorded but explicitly not applied because its meaning is
+    unestablished); (4) otherwise the honest fact that no time-zero
+    correction is applied and nothing was recorded about one.
     """
     if applied:
         time_zero_keys = [k for k in applied if k == "time_zero" or k.startswith("time_zero_")]
@@ -821,6 +846,13 @@ def _time_zero_step(applied: Optional[dict], claim: Optional[Any]) -> SignalProc
                 k: v for k, v in applied.items()
                 if k != "time_zero" and k.startswith("time_zero_") and v is not None}
             return SignalProcessingStep(step="time_zero", ran=ran, parameters=parameters)
+
+    if claim is not None and claim_is_declared:
+        return SignalProcessingStep(
+            step="time_zero", ran=False,
+            parameters={"time_zero_status": "declared", "time_zero_correction_ns": claim.value},
+            reason=(f"declared by an operator ({claim.basis}), not yet applied to this "
+                   f"dataset's records"))
 
     if claim is not None:
         return SignalProcessingStep(
@@ -897,7 +929,7 @@ def build_signal_chain(
                 f"(time-zero, background removal, dewow, gain) does not apply to it"))
 
     frames = frames or []
-    claim = _time_zero_claim(frames)
+    claim, claim_is_declared = _time_zero_claim(frames)
     local_anomaly_step = _local_anomaly_step(local_anomaly)
 
     if not applied and claim is None and local_anomaly_step is None:
@@ -906,7 +938,7 @@ def build_signal_chain(
             reason="no record carries a processing_applied entry -- preprocessing "
                    "was not recorded for this dataset")
 
-    time_zero_step = _time_zero_step(applied, claim)
+    time_zero_step = _time_zero_step(applied, claim, claim_is_declared)
 
     if not applied:
         # Only whichever of a time-zero claim / a local-anomaly stamp exist;

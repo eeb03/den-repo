@@ -969,6 +969,59 @@ def test_a_claim_alone_with_no_processing_applied_still_recorded():
     assert chain.steps[0].parameters == {TIME_ZERO_ASSUMPTION_KEY: -10}
 
 
+def _declared_time_zero_assumption(correction_ns=11.8):
+    from schemas.dataset_report import DECLARED_TIME_ZERO_KEY
+    return Assumption(
+        key=DECLARED_TIME_ZERO_KEY, value=correction_ns,
+        basis=(f"SUPPLIED BY CALLER through the spatial reference workflow: time-zero "
+              f"correction {correction_ns} ns from field notebook, asserted by 'operator'."),
+        verified=False,
+    )
+
+
+def test_an_operator_declaration_is_distinguished_from_an_unresolved_vendor_claim():
+    """DECLARED_TIME_ZERO_KEY (a person asserted a correction) must not be
+    reported with the same reason text as TIME_ZERO_ASSUMPTION_KEY (a
+    converter recorded a vendor field of unestablished meaning) -- they are
+    different facts."""
+    declarant = frame(assumptions=[_declared_time_zero_assumption(11.8)])
+    chain = build_signal_chain(None, [declarant])
+
+    assert chain.recorded is True
+    assert chain.steps[0].step == "time_zero"
+    assert chain.steps[0].ran is False
+    assert chain.steps[0].parameters["time_zero_status"] == "declared"
+    assert chain.steps[0].parameters["time_zero_correction_ns"] == 11.8
+    assert "declared by an operator" in chain.steps[0].reason
+    assert "NOT applied" not in chain.steps[0].reason  # that phrase is the OTHER case's wording
+
+
+def test_an_actually_applied_correction_reports_ran_true_with_full_parameters():
+    """`preprocessing.time_zero.apply_time_zero_correction`'s own stamp,
+    read with zero changes to `_time_zero_step`'s `applied`-dict path."""
+    applied = {
+        "time_zero": True, "time_zero_status": "derived", "time_zero_method": "direct_wave_consensus",
+        "time_zero_correction_ns": 0.776, "time_zero_traces_evaluated": 314,
+        "time_zero_successful_picks": 314, "time_zero_spread_ns": 0.0,
+        "dewow": True, "dewow_window": 15, "background_removal": True,
+        "gain": True, "gain_type": "linear", "gain_power": 1.0,
+    }
+    chain = build_signal_chain(applied, [frame()])
+
+    assert chain.steps[0].step == "time_zero"
+    assert chain.steps[0].ran is True
+    assert chain.steps[0].parameters["time_zero_status"] == "derived"
+    assert chain.steps[0].parameters["time_zero_correction_ns"] == 0.776
+    assert chain.steps[0].parameters["time_zero_traces_evaluated"] == 314
+
+
+def test_a_declaration_takes_priority_over_a_vendor_claim_on_the_same_frame():
+    both = frame(assumptions=[_time_zero_claim(99.04), _declared_time_zero_assumption(11.8)])
+    chain = build_signal_chain(None, [both])
+    assert chain.steps[0].parameters.get("time_zero_status") == "declared"
+    assert chain.steps[0].parameters.get("time_zero_correction_ns") == 11.8
+
+
 def test_no_processing_applied_and_no_claim_stays_not_recorded():
     """The existing not-recorded meaning survives unchanged when nothing at
     all was recorded -- no processing_applied, no time-zero claim."""

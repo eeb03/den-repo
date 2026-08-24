@@ -238,18 +238,44 @@ def record_provenance(record, frame=None) -> list[QuantityProvenance]:
         out.append(_q("two_way_time_ns", ProvenanceClass.MEASURED,
                       "acquisition time axis recorded by the instrument",
                       value=meta["two_way_time_ns"], source="converter"))
+    # A time-zero correction, if attempted, is reported as its own quantity
+    # (see schemas.time_zero) regardless of whether depth exists at all --
+    # "unavailable" and "excluded for being negative" are different facts
+    # from "no correction was ever attempted", and none of them should be
+    # silently absorbed into the depth line alone.
+    tz_status = meta.get("time_zero_status")
+    if tz_status is not None:
+        tz_basis = meta.get("time_zero_basis") or "no basis recorded"
+        tz_class = {
+            "declared": ProvenanceClass.SUPPLIED_BY_CALLER,
+            "derived": ProvenanceClass.DERIVED,
+            "measured": ProvenanceClass.MEASURED,
+        }.get(tz_status, ProvenanceClass.UNAVAILABLE)
+        out.append(_q("time_zero", tz_class, tz_basis,
+                      value=meta.get("time_zero_correction_ns"), source="preprocessing.time_zero"))
+
     if getattr(record, "depth", None) is None:
-        out.append(_q("depth", ProvenanceClass.UNAVAILABLE,
-                      "no depth exists: no propagation velocity was supplied",
-                      source="SubterraRecord.depth"))
+        if meta.get("time_zero_excluded"):
+            reason = (f"no depth exists: the time-zero-corrected two-way time "
+                     f"({meta.get('corrected_time_ns')} ns) is negative -- this sample "
+                     f"precedes the corrected time origin and is excluded rather than "
+                     f"clamped to a fabricated depth")
+        else:
+            reason = "no depth exists: no propagation velocity was supplied"
+        out.append(_q("depth", ProvenanceClass.UNAVAILABLE, reason, source="SubterraRecord.depth"))
     else:
         v = meta.get("velocity_m_per_ns")
         src = meta.get("velocity_source")
+        tz_clause = (
+            f" Two-way time was time-zero corrected ({tz_status}, {meta.get('time_zero_correction_ns')} ns) "
+            f"before this conversion; that does not make the velocity any more validated."
+            if tz_status in ("declared", "derived", "measured") else ""
+        )
         out.append(_q(
             "depth", ProvenanceClass.DERIVED,
             (f"derived from the measured time axis and a velocity of {v} m/ns "
              f"({src or 'source unrecorded'}); the velocity is an assertion about the "
-             f"subsurface, not a measurement of it"),
+             f"subsurface, not a measurement of it.{tz_clause}"),
             value=record.depth, source="SubterraRecord.depth"))
 
     # --- elevation ---

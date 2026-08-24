@@ -136,6 +136,33 @@ const FIELDS: Record<
       },
     ],
   },
+  time_zero: {
+    title: 'Declare a time-zero correction',
+    explain:
+      'Where the measured time axis actually starts, relative to the physical event depth should be measured from — applied BEFORE a propagation velocity ever sees the two-way time.',
+    consequence:
+      'This is a declaration, not a measurement or an automatic estimate: the number is recorded with its evidence and reported as DECLARED, never algorithmically derived or applied retroactively to existing records. It does not validate itself, and it does not upgrade any depth already computed from this frame’s velocity.',
+    inputs: [
+      {
+        name: 'correction_ns',
+        label: 'Correction (nanoseconds)',
+        placeholder: '11.8',
+        hint: 'subtracted from the measured two-way time: corrected = raw − correction',
+      },
+      {
+        name: 'source',
+        label: 'Source',
+        placeholder: 'field notebook',
+        hint: 'who or what this correction comes from',
+      },
+      {
+        name: 'evidence',
+        label: 'Evidence',
+        placeholder: 'measured against a known utility depth on 2026-08-24',
+        hint: 'what makes this number defensible',
+      },
+    ],
+  },
   geo_tie: {
     title: 'Define a spatial tie',
     explain:

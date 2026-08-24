@@ -64,6 +64,12 @@ class DeclarationKind(str, Enum):
     ANTENNA_OFFSET = "antenna_offset"
     #: A propagation velocity, turning a measured time axis into a derived depth.
     DEPTH_CONVERSION = "depth_conversion"
+    #: A correction to WHERE the measured time axis starts (instrument
+    #: time-zero vs. the physical event depth should be measured from) --
+    #: applied to two_way_time BEFORE DEPTH_CONVERSION's velocity ever sees
+    #: it. See `schemas.time_zero` for the full vocabulary this represents;
+    #: this declaration is the OPERATOR_DECLARED route into it.
+    TIME_ZERO = "time_zero"
     #: Control points tying an along-track axis to real coordinates.
     GEO_TIE = "geo_tie"
     #: Control points tying a genuine 2D local coordinate (not an
