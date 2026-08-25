@@ -153,7 +153,9 @@ describe('the existing UIs are unaffected', () => {
 describe('benchmark figures are not transformed in transit', () => {
   liveIt('the served artifact equals the artifact the UI parses', async () => {
     const listing = await api.listBenchmarkArtifacts()
-    const bam = listing.artifacts.find((a) => a.group === 'bam')
+    // `bam/` also holds later research/audit artifacts now; only
+    // `bam/score_*` is a real scoring run with a localisation gate.
+    const bam = listing.artifacts.find((a) => a.name.startsWith('bam/score_'))
     if (!bam) return
 
     // fetch raw text and compare against the parsed object the adapter returns
@@ -170,9 +172,10 @@ describe('benchmark figures are not transformed in transit', () => {
 
   liveIt('a full-precision metric is not rounded by the transport', async () => {
     const listing = await api.listBenchmarkArtifacts()
-    const bam = listing.artifacts.find(
-      (a) => a.group === 'bam' && !a.filename.includes('probe'),
-    )
+    // Same fix as above: `!filename.includes('probe')` stopped being specific
+    // enough once non-probe, non-score research artifacts (velocity/time-zero
+    // audits) joined `bam/` -- only `bam/score_*` carries a `detection` block.
+    const bam = listing.artifacts.find((a) => a.name.startsWith('bam/score_'))
     if (!bam) return
     const artifact = await api.getBenchmarkArtifact(bam.name)
     const detection = artifact.detection as Record<string, number>

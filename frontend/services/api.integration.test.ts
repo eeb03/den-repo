@@ -206,7 +206,11 @@ describe('benchmark artifacts', () => {
       expect(entry.name).toMatch(/^[^/]+\/[^/]+$/)
     }
 
-    const bam = listing.artifacts.find((a) => a.group === 'bam')
+    // `bam/` now also holds later research/audit artifacts (velocity and
+    // time-zero investigations) alongside the actual scoring runs -- only
+    // `bam/score_*` is the detection-benchmark shape this test checks, so
+    // picking merely "the first bam artifact" is no longer specific enough.
+    const bam = listing.artifacts.find((a) => a.name.startsWith('bam/score_'))
     if (!bam) return
     const artifact = await api.getBenchmarkArtifact(bam.name)
 
