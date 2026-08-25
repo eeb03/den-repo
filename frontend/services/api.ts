@@ -59,6 +59,10 @@ import type {
   InspectableCandidate,
   RadargramField,
   TraceGrid,
+  AnnotationGeometry,
+  CandidateReview,
+  ReviewStatus,
+  ReviewSummary,
 } from '@/types/subterra'
 
 /**
@@ -663,6 +667,63 @@ export const api = {
         `/status?status=${encodeURIComponent(status)}`,
       { method: 'POST' },
     )
+  },
+
+  /* --------------------- human-in-the-loop review (V1) --------------------- */
+
+  /**
+   * A dataset's review progress — reviewed/confirmed/rejected/uncertain/
+   * unreviewed counts and how many missed-event annotations exist.
+   */
+  getReviewSummary(datasetId: string): Promise<{ dataset_id: string; summary: ReviewSummary }> {
+    return request(`/api/reviews/${encodeURIComponent(datasetId)}/summary`)
+  },
+
+  /** One candidate's review, or a 404 (ApiError) meaning it has not been reviewed yet. */
+  getCandidateReview(datasetId: string, candidateId: string): Promise<CandidateReview> {
+    return request(
+      `/api/reviews/${encodeURIComponent(datasetId)}/candidate/${encodeURIComponent(candidateId)}`,
+    )
+  },
+
+  /**
+   * Records a human judgement about an EXISTING candidate. This establishes
+   * no identity and no ground truth — see the backend's own `note` in the
+   * response, rendered verbatim by the caller.
+   */
+  submitCandidateReview(
+    datasetId: string,
+    candidateId: string,
+    body: {
+      review_status: ReviewStatus
+      operator_label?: string | null
+      annotation_geometry?: AnnotationGeometry | null
+      notes?: string | null
+    },
+  ): Promise<CandidateReview & { note: string }> {
+    return postJson(
+      `/api/reviews/${encodeURIComponent(datasetId)}/candidate/${encodeURIComponent(candidateId)}`,
+      body,
+    )
+  },
+
+  /**
+   * A candidate-INDEPENDENT annotation for a real event the detector never
+   * proposed — so the future training corpus is not limited to the
+   * detector's own blind spots.
+   */
+  createMissedEvent(
+    datasetId: string,
+    body: {
+      source_file: string
+      trace_range: [number, number]
+      review_status?: ReviewStatus
+      operator_label?: string | null
+      annotation_geometry?: AnnotationGeometry | null
+      notes?: string | null
+    },
+  ): Promise<CandidateReview & { note: string }> {
+    return postJson(`/api/reviews/${encodeURIComponent(datasetId)}/missed_event`, body)
   },
 
   /* -------------------------------- fusion -------------------------------- */

@@ -29,6 +29,10 @@ import type {
 const getTraceGrid = vi.fn()
 const getCandidates = vi.fn()
 const reviewCandidate = vi.fn()
+const getReviewSummary = vi.fn()
+const getCandidateReview = vi.fn()
+const submitCandidateReview = vi.fn()
+const createMissedEvent = vi.fn()
 
 vi.mock('@/services/api', async () => {
   const actual = await vi.importActual<typeof import('@/services/api')>('@/services/api')
@@ -39,6 +43,11 @@ vi.mock('@/services/api', async () => {
       getTraceGrid: (id: string, opts: unknown) => getTraceGrid(id, opts),
       getCandidates: (id: string) => getCandidates(id),
       reviewCandidate: (d: string, c: string, s: string) => reviewCandidate(d, c, s),
+      getReviewSummary: (id: string) => getReviewSummary(id),
+      getCandidateReview: (d: string, c: string) => getCandidateReview(d, c),
+      submitCandidateReview: (d: string, c: string, body: unknown) =>
+        submitCandidateReview(d, c, body),
+      createMissedEvent: (d: string, body: unknown) => createMissedEvent(d, body),
     },
   }
 })
@@ -261,6 +270,18 @@ beforeEach(() => {
   getTraceGrid.mockReset()
   getCandidates.mockReset()
   reviewCandidate.mockReset()
+  getReviewSummary.mockReset()
+  getCandidateReview.mockReset()
+  submitCandidateReview.mockReset()
+  createMissedEvent.mockReset()
+  // Sensible defaults so tests that do not exercise the human-review
+  // panels are not left with a network call that never resolves: an
+  // absent review is a 404, matching what a real, never-reviewed
+  // candidate returns.
+  getReviewSummary.mockResolvedValue({
+    summary: { total_reviews: 0, by_status: { unreviewed: 0, confirmed: 0, rejected: 0, uncertain: 0 }, missed_events: 0, eligible_for_corpus: 0 },
+  })
+  getCandidateReview.mockRejectedValue(new ApiError(404, 'this candidate has not been reviewed yet'))
   drawCalls.length = 0
   stubCanvas()
 })
@@ -785,5 +806,212 @@ describe('the amplitude toggle', () => {
     )
 
     expect(getCandidates).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('human-in-the-loop review', () => {
+  it('shows the review controls once a candidate is selected', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+    fireEvent.click(container.querySelector('[data-candidate-marker]')!)
+    await screen.findByText(/Human review/i)
+
+    expect(container.querySelector('[data-action="review-confirmed"]')).toBeTruthy()
+    expect(container.querySelector('[data-action="review-rejected"]')).toBeTruthy()
+    expect(container.querySelector('[data-action="review-uncertain"]')).toBeTruthy()
+  })
+
+  it('the real radar evidence is visible before any review control', async () => {
+    /* Section 5: no blind labeling -- the evidence panel must render above/beside the review controls, not stand alone. */
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+    fireEvent.click(container.querySelector('[data-candidate-marker]')!)
+    await screen.findByText(/Human review/i)
+
+    expect(container.querySelector('[data-evidence-panel]')).toBeTruthy()
+    expect(container.querySelector('[data-human-review-panel]')).toBeTruthy()
+  })
+
+  it('saves a confirmed review and reports it does not promote the candidate', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    submitCandidateReview.mockResolvedValue({
+      id: 'rev1', dataset_id: 'd1', candidate_id: 'c1', site_id: null,
+      source_file: 'Path8.sgy', trace_range: [1, 1], reviewer_id: 'u1',
+      review_status: 'confirmed', operator_label: null, annotation_geometry: null,
+      notes: null, evidence_grade: 'operator_reviewed', label_source: 'operator_reviewed',
+      ground_truth_status: 'not_independently_validated', detector_snapshot: null,
+      history: [], created_utc: 't', updated_utc: 't',
+    })
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+    fireEvent.click(container.querySelector('[data-candidate-marker]')!)
+    await screen.findByText(/Human review/i)
+
+    fireEvent.click(container.querySelector('[data-action="review-confirmed"]')!)
+    await waitFor(() =>
+      expect(submitCandidateReview).toHaveBeenCalledWith(
+        'd1', 'c1', expect.objectContaining({ review_status: 'confirmed' }),
+      ),
+    )
+    expect(container.querySelector('[data-review-disclaimer]')?.textContent).toMatch(
+      /does not make this candidate a detection, an object, or independently validated ground truth/i,
+    )
+  })
+
+  it('confirming with no operator label is a valid, savable state', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    submitCandidateReview.mockResolvedValue({
+      id: 'rev1', dataset_id: 'd1', candidate_id: 'c1', site_id: null,
+      source_file: 'Path8.sgy', trace_range: [1, 1], reviewer_id: 'u1',
+      review_status: 'confirmed', operator_label: null, annotation_geometry: null,
+      notes: null, evidence_grade: 'operator_reviewed', label_source: 'operator_reviewed',
+      ground_truth_status: 'not_independently_validated', detector_snapshot: null,
+      history: [], created_utc: 't', updated_utc: 't',
+    })
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+    fireEvent.click(container.querySelector('[data-candidate-marker]')!)
+    await screen.findByText(/Human review/i)
+
+    fireEvent.click(container.querySelector('[data-action="save-review"]')!)
+    await waitFor(() =>
+      expect(submitCandidateReview).toHaveBeenCalledWith(
+        'd1', 'c1', expect.objectContaining({ operator_label: null }),
+      ),
+    )
+  })
+
+  it('reloading shows the persisted review state', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    getCandidateReview.mockResolvedValue({
+      id: 'rev1', dataset_id: 'd1', candidate_id: 'c1', site_id: null,
+      source_file: 'Path8.sgy', trace_range: [1, 1], reviewer_id: 'u1',
+      review_status: 'confirmed', operator_label: 'pipe', annotation_geometry: null,
+      notes: 'clear hyperbola', evidence_grade: 'operator_reviewed',
+      label_source: 'operator_reviewed', ground_truth_status: 'not_independently_validated',
+      detector_snapshot: null, history: [], created_utc: 't', updated_utc: 't',
+    })
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+    fireEvent.click(container.querySelector('[data-candidate-marker]')!)
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-current-review-status]')?.textContent).toMatch(
+        /Confirmed.*pipe/i,
+      ),
+    )
+  })
+
+  it('shows the dataset-level review progress', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    getReviewSummary.mockResolvedValue({
+      summary: {
+        total_reviews: 84, missed_events: 3,
+        by_status: { unreviewed: 57, confirmed: 11, rejected: 10, uncertain: 6 },
+        eligible_for_corpus: 27,
+      },
+    })
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-review-progress]')?.textContent).toMatch(
+        /Confirmed: 11.*Rejected: 10.*Uncertain: 6.*Missed events added: 3/i,
+      ),
+    )
+  })
+
+  it('supports creating a missed-event annotation with no candidate present', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence({ candidates: [], candidate_count: 0 }))
+    createMissedEvent.mockResolvedValue({
+      id: 'rev-missed', dataset_id: 'd1', candidate_id: null, site_id: null,
+      source_file: 'Path8.sgy', trace_range: [50, 55], reviewer_id: 'u1',
+      review_status: 'confirmed', operator_label: null, annotation_geometry: null,
+      notes: null, evidence_grade: 'operator_reviewed', label_source: 'operator_reviewed',
+      ground_truth_status: 'not_independently_validated', detector_snapshot: null,
+      history: [], created_utc: 't', updated_utc: 't',
+    })
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+
+    fireEvent.click(screen.getByText(/Add a missed event/i))
+    fireEvent.change(container.querySelector('[data-missed-trace-start]')!, { target: { value: '50' } })
+    fireEvent.change(container.querySelector('[data-missed-trace-end]')!, { target: { value: '55' } })
+    fireEvent.click(container.querySelector('[data-action="save-missed-event"]')!)
+
+    await waitFor(() =>
+      expect(createMissedEvent).toHaveBeenCalledWith(
+        'd1', expect.objectContaining({ source_file: 'Path8.sgy', trace_range: [50, 55] }),
+      ),
+    )
+    expect(container.querySelector('[data-missed-event-saved]')).toBeTruthy()
+  })
+
+  it('rejects a missed event with an inverted trace range before calling the API', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+
+    fireEvent.click(screen.getByText(/Add a missed event/i))
+    fireEvent.change(container.querySelector('[data-missed-trace-start]')!, { target: { value: '55' } })
+    fireEvent.change(container.querySelector('[data-missed-trace-end]')!, { target: { value: '50' } })
+    fireEvent.click(container.querySelector('[data-action="save-missed-event"]')!)
+
+    expect(container.querySelector('[data-missed-event-error]')).toBeTruthy()
+    expect(createMissedEvent).not.toHaveBeenCalled()
+  })
+
+  it('offers a corpus export link once eligible reviews exist', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    getReviewSummary.mockResolvedValue({
+      summary: { total_reviews: 5, missed_events: 1,
+                by_status: { unreviewed: 0, confirmed: 4, rejected: 0, uncertain: 1 },
+                eligible_for_corpus: 5 },
+    })
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+
+    const link = await screen.findByText(/Export 5 reviewed annotation/i)
+    expect(link.closest('a')?.getAttribute('href')).toContain('/api/reviews/d1/corpus_export')
+  })
+
+  it('offers no export link with nothing eligible yet', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+    await waitFor(() => expect(container.querySelector('[data-review-progress]')).toBeTruthy())
+
+    expect(container.querySelector('[data-corpus-export-link]')).toBeNull()
+  })
+
+  it('never renders language claiming a detection anywhere on the review panels', async () => {
+    /*
+     * "Buried object" is a legitimate, selectable VOCABULARY option (Section
+     * 4's own example taxonomy) and is correctly excluded below -- the
+     * property under test is that nothing here ASSERTS a detection, not
+     * that the vocabulary avoids the word.
+     */
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+    fireEvent.click(container.querySelector('[data-candidate-marker]')!)
+    await screen.findByText(/Human review/i)
+
+    expect(container.textContent).not.toMatch(
+      /this is a detected|confirmed anomaly|target detected|Subterra detected/i,
+    )
   })
 })

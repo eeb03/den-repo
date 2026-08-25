@@ -6,12 +6,15 @@ import { ApiError, api } from '@/services/api'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { formatCount } from '@/lib/format'
+import { API_BASE } from '@/services/api'
 import { RadargramCanvas, RadargramScale } from './radargram-canvas'
+import { HumanReviewPanel, MissedEventForm } from './human-review-panel'
 import type {
   CandidateIntelligence,
   CandidateFootprint,
   InspectableCandidate,
   RadargramField,
+  ReviewSummary,
   TraceGrid,
 } from '@/types/subterra'
 
@@ -90,6 +93,17 @@ export function RadargramInspector({ datasetId }: { datasetId: string }) {
   const candidateQuery = useSWR<CandidateIntelligence>(
     gridQuery.data ? ['candidates', datasetId] : null,
     () => api.getCandidates(datasetId),
+    { revalidateOnFocus: false },
+  )
+
+  // Human-in-the-loop review (V1) -- deliberately separate from the
+  // existing accepted/rejected "worth retaining" mechanism above, which
+  // answers a different question (see schemas.review's own module
+  // docstring). `reviewSummaryQuery` failing is not an error state worth
+  // showing: a dataset with no reviews yet has no summary to report.
+  const reviewSummaryQuery = useSWR<{ summary: ReviewSummary }>(
+    ['review-summary', datasetId],
+    () => api.getReviewSummary(datasetId),
     { revalidateOnFocus: false },
   )
 
@@ -175,6 +189,32 @@ export function RadargramInspector({ datasetId }: { datasetId: string }) {
           {String(grid.name ?? '')} · {grid.source_file}
         </p>
       </header>
+
+      {reviewSummaryQuery.data && (
+        <p data-review-progress className="text-[11px] leading-relaxed text-muted-foreground">
+          Reviewed: {reviewSummaryQuery.data.summary.total_reviews -
+            reviewSummaryQuery.data.summary.by_status.unreviewed} ·{' '}
+          Confirmed: {reviewSummaryQuery.data.summary.by_status.confirmed} ·{' '}
+          Rejected: {reviewSummaryQuery.data.summary.by_status.rejected} ·{' '}
+          Uncertain: {reviewSummaryQuery.data.summary.by_status.uncertain} ·{' '}
+          Missed events added: {reviewSummaryQuery.data.summary.missed_events}
+          {reviewSummaryQuery.data.summary.eligible_for_corpus > 0 && (
+            <>
+              {' · '}
+              <a
+                data-corpus-export-link
+                href={`${API_BASE}/api/reviews/${encodeURIComponent(datasetId)}/corpus_export`}
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                Export {reviewSummaryQuery.data.summary.eligible_for_corpus} reviewed
+                annotation(s) to the corpus format
+              </a>
+            </>
+          )}
+        </p>
+      )}
 
       {/*
         WHAT YOU ARE LOOKING AT. Placed above the image: a reader who scrolls
@@ -364,6 +404,21 @@ export function RadargramInspector({ datasetId }: { datasetId: string }) {
               error={reviewError}
             />
           )}
+
+          {selectedId && (
+            <HumanReviewPanel
+              key={selectedId}
+              datasetId={datasetId}
+              candidateId={selectedId}
+              onSaved={() => reviewSummaryQuery.mutate()}
+            />
+          )}
+
+          <MissedEventForm
+            datasetId={datasetId}
+            sourceFile={grid.source_file ?? ''}
+            onSaved={() => reviewSummaryQuery.mutate()}
+          />
         </aside>
       </div>
     </div>

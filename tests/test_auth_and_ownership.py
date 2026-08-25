@@ -538,6 +538,9 @@ ID_ROUTES = [
     "/api/objects/{id}/associations",
     "/api/exports/{id}/objects",
     "/api/training/{id}/detect_objects",
+    "/api/reviews/{id}",
+    "/api/reviews/{id}/summary",
+    "/api/reviews/{id}/corpus_export",
 ]
 
 
@@ -771,6 +774,7 @@ def test_the_public_surface_is_exactly_what_we_intend():
         "/api/objects/vocabulary",
         "/api/overlays/vocabulary",
         "/api/provenance/vocabulary",
+        "/api/reviews/vocabulary",
         "/api/spatial/vocabulary",
         "/api/views/vocabulary",
     }, sorted(public)

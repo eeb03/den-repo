@@ -1039,6 +1039,73 @@ export interface CandidateFootprint {
   peak_row: number | null
 }
 
+/* --------------------- human-in-the-loop review (V1) --------------------- */
+
+/**
+ * Section 3's vocabulary. Deliberately not binary — UNCERTAIN is a first-class
+ * outcome, distinct from the existing, unrelated `CandidateReviewStatus`
+ * (proposed/reviewed/accepted/rejected), which answers "is this candidate
+ * worth retaining", not "does this represent genuine radar evidence".
+ */
+export type ReviewStatus = 'unreviewed' | 'confirmed' | 'rejected' | 'uncertain'
+
+export type AnnotationGeometryKind = 'rectangle' | 'ridge_path'
+
+export interface AnnotationGeometry {
+  kind: AnnotationGeometryKind
+  trace_start?: number | null
+  trace_end?: number | null
+  sample_start?: number | null
+  sample_end?: number | null
+  trace_indices: number[]
+  sample_indices: number[]
+}
+
+export interface ReviewRevision {
+  reviewer_id: string
+  timestamp: string
+  review_status: ReviewStatus
+  operator_label: string | null
+  notes: string | null
+}
+
+export interface DetectorSnapshot {
+  candidate_score: number | null
+  candidate_class: string | null
+  detector_method: string | null
+  detector_version: string | null
+  localisation: string | null
+  depth_certainty: string | null
+}
+
+export interface CandidateReview {
+  id: string
+  dataset_id: string
+  candidate_id: string | null
+  site_id: string | null
+  source_file: string
+  trace_range: [number, number]
+  reviewer_id: string
+  review_status: ReviewStatus
+  operator_label: string | null
+  annotation_geometry: AnnotationGeometry | null
+  notes: string | null
+  evidence_grade: string
+  label_source: string
+  ground_truth_status: 'not_independently_validated'
+  detector_snapshot: DetectorSnapshot | null
+  history: ReviewRevision[]
+  created_utc: string
+  updated_utc: string
+}
+
+export interface ReviewSummary {
+  total_reviews: number
+  by_status: Record<ReviewStatus, number>
+  missed_events: number
+  eligible_for_corpus: number
+}
+
 /* ------------------------ ground-truth benchmark ------------------------ */
 
 export type TruthLabel = 'positive' | 'negative' | 'unknown' | 'ambiguous' | 'excluded'
