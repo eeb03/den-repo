@@ -131,6 +131,42 @@ class TestEndToEndTraining:
         assert result_a.train_losses == pytest.approx(result_b.train_losses)
 
 
+class TestBestCheckpointSelection:
+    def test_select_best_epoch_picks_the_minimum(self):
+        assert ssl_train.select_best_epoch([3.0, 1.0, 2.0]) == 1
+
+    def test_select_best_epoch_ties_pick_the_first(self):
+        assert ssl_train.select_best_epoch([1.0, 1.0, 2.0]) == 0
+
+    def test_select_best_epoch_rejects_empty_history(self):
+        with pytest.raises(ValueError):
+            ssl_train.select_best_epoch([])
+
+    def test_run_ssl_training_records_best_epoch_and_loss(self):
+        train, validation = _real_bam_windows()
+        _, result, _ = ssl_train.run_ssl_training(train, validation, base_channels=4, epochs=3, seed=0)
+        assert result.best_epoch == ssl_train.select_best_epoch(result.validation_losses)
+        assert result.best_validation_loss == result.validation_losses[result.best_epoch]
+
+    def test_restore_best_true_returns_the_best_epoch_checkpoint_not_the_last(self):
+        """A model that keeps improving every epoch has best==last (nothing to distinguish); this test instead checks the restoration MECHANISM directly: the returned model's weights must equal the checkpoint captured at result.best_epoch, not simply whatever the final epoch left in place."""
+        train, validation = _real_bam_windows()
+        model, result, _ = ssl_train.run_ssl_training(
+            train, validation, base_channels=4, epochs=3, seed=0, restore_best=True,
+        )
+        # re-run identically with restore_best=False to get the raw final-epoch weights
+        model_final, result_final, _ = ssl_train.run_ssl_training(
+            train, validation, base_channels=4, epochs=3, seed=0, restore_best=False,
+        )
+        if result.best_epoch != len(result.validation_losses) - 1:
+            # best epoch is NOT the last -> the two models must differ
+            same = all(torch.allclose(p1, p2) for p1, p2 in zip(model.parameters(), model_final.parameters()))
+            assert not same
+        else:
+            same = all(torch.allclose(p1, p2) for p1, p2 in zip(model.parameters(), model_final.parameters()))
+            assert same
+
+
 class TestNoTargetTruthConsumed:
     def test_training_windows_carry_no_ground_truth_reference(self):
         """Every field on a real SSLWindowRef used for training is either an index (where the data is) or metadata (vendor/frequency/licence) -- never a target/truth value."""

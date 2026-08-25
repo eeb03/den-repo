@@ -72,6 +72,7 @@ future encoder use ever call).
 """
 from __future__ import annotations
 
+import copy
 import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -177,6 +178,18 @@ class TrainingResult:
     validation_losses: list[float] = field(default_factory=list)
     n_train_windows: int = 0
     n_validation_windows: int = 0
+    #: Index (0-based) of the epoch with the lowest `validation_losses` --
+    #: see `select_best_epoch`. Selection uses VALIDATION only, never the
+    #: reserved set (Section 5's own "reserved data is for evaluation only").
+    best_epoch: Optional[int] = None
+    best_validation_loss: Optional[float] = None
+
+
+def select_best_epoch(validation_losses: list[float]) -> int:
+    """The one place "best epoch" is decided -- by minimum VALIDATION loss, nothing else. A reusable, directly-testable function rather than logic inlined in the training loop."""
+    if not validation_losses:
+        raise ValueError("cannot select a best epoch from an empty validation loss history")
+    return int(np.argmin(validation_losses))
 
 
 def _git_commit() -> str:
@@ -221,6 +234,7 @@ def run_ssl_training(
     loss_kind: str = "l1",
     device_prefer: Optional[str] = None,
     max_train_windows: Optional[int] = None,
+    restore_best: bool = True,
 ) -> tuple["torch.nn.Module", TrainingResult, SSLArtifactProvenance]:
     """
     The complete V1 training driver: one gradient step per window (batch
@@ -231,6 +245,15 @@ def run_ssl_training(
     construction, kept simple rather than adding a batching layer this
     corpus does not need at V1 scale). Returns the trained model, the loss
     history, and a complete `SSLArtifactProvenance`.
+
+    `restore_best` (default `True`): after all epochs run, the returned
+    model's weights are the BEST-VALIDATION checkpoint (`select_best_epoch`),
+    not necessarily the last epoch's -- the SSL Encoder V1 Robustness
+    milestone's own holdout-integrity rule ("reserved data is for
+    evaluation only", checkpoint selection uses validation alone). Pass
+    `False` to inspect the raw final-epoch weights instead (e.g. for a
+    training-duration characterisation that wants every epoch's own loss,
+    not a single selected checkpoint).
     """
     _require_torch()
     from training.ssl_model import (
@@ -250,6 +273,7 @@ def run_ssl_training(
     dataset = SSLWindowDataset(train_refs, mask_config)
 
     result = TrainingResult(n_train_windows=len(train_refs), n_validation_windows=len(validation_refs))
+    best_state_dict = None
     for epoch in range(epochs):
         model.train()
         epoch_total, n = 0.0, 0
@@ -266,6 +290,16 @@ def run_ssl_training(
             n += 1
         result.train_losses.append(epoch_total / max(n, 1))
         result.validation_losses.append(evaluate(model, validation_refs, mask_config, device, loss_kind))
+        if select_best_epoch(result.validation_losses) == epoch:
+            # a NEW best (or the first epoch) -- checkpoint it now, before the
+            # next epoch's gradient steps overwrite these weights. Selection
+            # is validation-only; the reserved set is never consulted here.
+            best_state_dict = copy.deepcopy(model.state_dict())
+
+    result.best_epoch = select_best_epoch(result.validation_losses)
+    result.best_validation_loss = result.validation_losses[result.best_epoch]
+    if restore_best and best_state_dict is not None:
+        model.load_state_dict(best_state_dict)
 
     all_refs = train_refs + validation_refs
     licenses = {r.dataset_id: (r.license or "unrecorded") for r in all_refs}
@@ -295,6 +329,9 @@ def run_ssl_training(
         metrics={
             "final_train_loss": result.train_losses[-1] if result.train_losses else float("nan"),
             "final_validation_loss": result.validation_losses[-1] if result.validation_losses else float("nan"),
+            "best_epoch": float(result.best_epoch) if result.best_epoch is not None else float("nan"),
+            "best_validation_loss": result.best_validation_loss if result.best_validation_loss is not None else float("nan"),
+            "checkpoint_is_best_validation": float(restore_best),
         },
         model_checksum_sha256=model_checksum(model),
         trained_utc=datetime.now(timezone.utc).isoformat(),
