@@ -24,6 +24,33 @@ from schemas.segmentation import GPRTrainingExample, LabelLevel, MaskRegion
 REVIEW_PREPROCESSING_VERSION_PREFIX = "human-review-v1"
 
 
+def effective_trace_range(review: CandidateReview) -> tuple[int, int]:
+    """
+    The real trace span a corpus-export window must cover for this review --
+    NOT just `review.trace_range` (the ORIGINAL detector candidate's own,
+    often tiny, box). A reviewer's drawn `annotation_geometry` may mark a
+    real region the detector's box does not contain at all -- a genuine bug
+    this function exists to fix, caught live: a rectangle drawn well outside
+    a 1-trace-wide candidate box produced local mask indices far outside the
+    exported window (Section 13's own live-verification finding). The
+    window must cover the UNION of both, never just one, so neither the
+    original candidate location nor the human's actual marked evidence is
+    silently cropped out.
+    """
+    lo, hi = review.trace_range
+    geometry = review.annotation_geometry
+    if geometry is not None:
+        if geometry.kind == AnnotationGeometryKind.RECTANGLE:
+            if geometry.trace_start is not None:
+                lo = min(lo, geometry.trace_start)
+            if geometry.trace_end is not None:
+                hi = max(hi, geometry.trace_end)
+        elif geometry.kind == AnnotationGeometryKind.RIDGE_PATH and geometry.trace_indices:
+            lo = min(lo, min(geometry.trace_indices))
+            hi = max(hi, max(geometry.trace_indices))
+    return (lo, hi)
+
+
 def geometry_to_mask_region(geometry: AnnotationGeometry,
                             window_trace_start: int, window_sample_start: int) -> MaskRegion:
     """

@@ -414,6 +414,51 @@ def test_corpus_export_end_to_end_against_a_real_live_dataset():
     delete_reviews(dataset_id)
 
 
+def test_corpus_export_with_a_drawn_rectangle_outside_the_candidates_own_box():
+    """
+    Regression test for a real bug caught in live browser verification: a
+    reviewer's drawn rectangle can mark a real region the ORIGINAL detector
+    candidate's own (often 1-trace-wide) box does not contain at all. The
+    export window must expand to cover both, or the mask ends up with
+    negative/out-of-window local indices -- exactly what a live rectangle
+    drawn well outside a candidate's box produced before `effective_trace_range`
+    existed.
+    """
+    from database.records_store import save_records
+    from schemas.review import AnnotationGeometry
+
+    dataset_id = "review-corpus-export-outside-box-test"
+    # make_candidate's own defaults: source_file="Line1.sgy", trace_range=(10, 14).
+    save_records(dataset_id, _make_gpr_records(dataset_id, "Line1.sgy", n_traces=20))
+    candidate_id = _seed_candidate(dataset_id=dataset_id)
+    r = client.post(
+        f"/api/reviews/{dataset_id}/candidate/{candidate_id}",
+        json={
+            "review_status": "confirmed",
+            # far outside the candidate's own (10, 14) box
+            "annotation_geometry": {
+                "kind": "rectangle", "trace_start": 0, "trace_end": 3,
+                "sample_start": 0, "sample_end": 5, "trace_indices": [], "sample_indices": [],
+            },
+        },
+    )
+    assert r.status_code == 200
+
+    export = client.get(f"/api/reviews/{dataset_id}/corpus_export")
+    assert export.status_code == 200
+    body = export.json()
+    assert body["errors"] == []
+    assert body["qa_issues"] == []
+    assert body["n_examples_exported"] == 1
+    example = body["examples"][0]
+    assert example["label_level"] == "pixel_or_sample_mask"
+    # every mask cell must land inside the example's own declared window
+    for t, s in zip(example["mask"]["trace_indices"], example["mask"]["sample_indices"]):
+        assert 0 <= t <= example["trace_range"][1]
+        assert 0 <= s <= example["sample_range"][1]
+    delete_reviews(dataset_id)
+
+
 def test_export_serialization_confirmed_with_no_geometry_is_existence_only():
     """Section 4's critical valid state, carried into the corpus format: confirmed real, no marked extent."""
     from training.review_corpus import review_to_training_example

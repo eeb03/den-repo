@@ -1,5 +1,6 @@
 'use client'
 
+import type * as React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CandidateFootprint, TraceGrid } from '@/types/subterra'
 
@@ -50,6 +51,21 @@ function colourFor(value: number, domain: number): [number, number, number] {
   return [m, m, 255]
 }
 
+/** Section 6/18's canvas annotation, additive to the existing select behaviour. Real (trace, sample) values, never a pixel coordinate a caller would have to re-derive. */
+export type DrawMode = 'select' | 'draw-rectangle' | 'draw-ridge'
+
+export interface DrawnRectangle {
+  traceStart: number
+  traceEnd: number
+  sampleStart: number
+  sampleEnd: number
+}
+
+export interface RidgePoint {
+  trace: number
+  sample: number
+}
+
 export interface RadargramCanvasProps {
   grid: TraceGrid
   footprints: CandidateFootprint[]
@@ -59,6 +75,21 @@ export interface RadargramCanvasProps {
   /** Rendered pixel size of the plot area. */
   width?: number
   height?: number
+  /**
+   * Defaults to 'select' -- the ORIGINAL, unchanged candidate-marker click
+   * behaviour. The two draw modes are strictly additive: they add a
+   * transparent interaction layer on top of the same canvas, and never
+   * alter how the measured image itself is rendered.
+   */
+  mode?: DrawMode
+  /** draw-rectangle only: called once, on mouse-up, with the FINAL real (trace, sample) extent -- never per intermediate drag frame. */
+  onRectangleDrawn?: (rect: DrawnRectangle) => void
+  /** draw-ridge only: called once per click, with the real (trace, sample) of that click. */
+  onRidgePointAdded?: (point: RidgePoint) => void
+  /** The ridge points collected so far (state lives in the parent, so Finish/Clear/Cancel are the parent's decision, not this component's). */
+  ridgePoints?: RidgePoint[]
+  /** A completed (or currently-saved) rectangle to keep showing, independent of any drag in progress. */
+  savedRectangle?: DrawnRectangle | null
 }
 
 export function RadargramCanvas({
@@ -69,9 +100,16 @@ export function RadargramCanvas({
   showUnreliable,
   width = 900,
   height = 520,
+  mode = 'select',
+  onRectangleDrawn,
+  onRidgePointAdded,
+  ridgePoints = [],
+  savedRectangle = null,
 }: RadargramCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [hovered, setHovered] = useState<string | null>(null)
+  const [dragStart, setDragStart] = useState<{ col: number; row: number } | null>(null)
+  const [dragCurrent, setDragCurrent] = useState<{ col: number; row: number } | null>(null)
 
   const rows = grid.grid.length
   const columns = rows ? (grid.grid[0]?.length ?? 0) : 0
@@ -157,6 +195,66 @@ export function RadargramCanvas({
 
   const placeable = footprints.filter((f) => f.placeable)
 
+  /** Pixel offset (relative to the plot container) -> real (trace, sample). Clamped to the grid's own extent -- a drag that leaves the canvas still resolves to its nearest real cell, never an out-of-range value. */
+  function realCellAt(offsetX: number, offsetY: number): { col: number; row: number } | null {
+    if (!columns || !rows || !scaleX || !scaleY) return null
+    const col = Math.min(columns - 1, Math.max(0, Math.floor(offsetX / scaleX)))
+    const row = Math.min(rows - 1, Math.max(0, Math.floor(offsetY / scaleY)))
+    return { col, row }
+  }
+
+  function toRealRectangle(a: { col: number; row: number }, b: { col: number; row: number }): DrawnRectangle {
+    const colLo = Math.min(a.col, b.col)
+    const colHi = Math.max(a.col, b.col)
+    return {
+      traceStart: grid.trace_indices[colLo] ?? colLo,
+      traceEnd: grid.trace_indices[colHi] ?? colHi,
+      sampleStart: Math.min(a.row, b.row),
+      sampleEnd: Math.max(a.row, b.row),
+    }
+  }
+
+  function handleMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    if (mode !== 'draw-rectangle') return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const cell = realCellAt(e.clientX - rect.left, e.clientY - rect.top)
+    if (!cell) return
+    setDragStart(cell)
+    setDragCurrent(cell)
+  }
+
+  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (mode !== 'draw-rectangle' || !dragStart) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const cell = realCellAt(e.clientX - rect.left, e.clientY - rect.top)
+    if (cell) setDragCurrent(cell)
+  }
+
+  function handleMouseUp() {
+    if (mode !== 'draw-rectangle' || !dragStart || !dragCurrent) return
+    onRectangleDrawn?.(toRealRectangle(dragStart, dragCurrent))
+    setDragStart(null)
+    setDragCurrent(null)
+  }
+
+  function handleDrawClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (mode !== 'draw-ridge') return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const cell = realCellAt(e.clientX - rect.left, e.clientY - rect.top)
+    if (!cell) return
+    onRidgePointAdded?.({ trace: grid.trace_indices[cell.col] ?? cell.col, sample: cell.row })
+  }
+
+  /** A real (trace, sample) point back to a pixel position -- the inverse of realCellAt, for rendering only. */
+  function pixelFor(point: RidgePoint): { x: number; y: number } {
+    const col = grid.trace_indices.indexOf(point.trace)
+    const c = col >= 0 ? col : point.trace
+    return { x: (c + 0.5) * scaleX, y: (point.sample + 0.5) * scaleY }
+  }
+
+  const liveRectangle = dragStart && dragCurrent ? toRealRectangle(dragStart, dragCurrent) : null
+  const rectangleToShow = liveRectangle ?? savedRectangle
+
   return (
     <div className="relative" style={{ width, height }} data-radargram-plot>
       <canvas
@@ -204,6 +302,64 @@ export function RadargramCanvas({
           />
         )
       })}
+
+      {/*
+        The draw-mode interaction surface. Only present (and only capturing
+        the pointer) while a draw mode is active, so the existing
+        candidate-marker click behaviour above is completely unaffected in
+        the default 'select' mode -- this div does not exist then.
+      */}
+      {mode !== 'select' && (
+        <div
+          data-radargram-draw-surface
+          data-draw-mode={mode}
+          className="absolute inset-0 cursor-crosshair"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onClick={handleDrawClick}
+        />
+      )}
+
+      {/* The drawn (or in-progress) rectangle -- real trace/sample extent, not a decorative shape. */}
+      {rectangleToShow && (() => {
+        const c0 = grid.trace_indices.indexOf(rectangleToShow.traceStart)
+        const c1 = grid.trace_indices.indexOf(rectangleToShow.traceEnd)
+        const left = Math.min(c0, c1) * scaleX
+        const drawWidth = (Math.abs(c1 - c0) + 1) * scaleX
+        const top = rectangleToShow.sampleStart * scaleY
+        const drawHeight = (rectangleToShow.sampleEnd - rectangleToShow.sampleStart + 1) * scaleY
+        return (
+          <div
+            data-drawn-rectangle
+            className="pointer-events-none absolute border-2 border-dashed"
+            style={{ left, top, width: drawWidth, height: drawHeight, borderColor: '#16a34a' }}
+          />
+        )
+      })()}
+
+      {/* The ridge path drawn so far -- real traced points, connected in click order. */}
+      {ridgePoints.length > 0 && (
+        <svg
+          data-drawn-ridge
+          className="pointer-events-none absolute inset-0"
+          width={width}
+          height={height}
+        >
+          {ridgePoints.length > 1 && (
+            <polyline
+              points={ridgePoints.map((p) => { const px = pixelFor(p); return `${px.x},${px.y}` }).join(' ')}
+              fill="none"
+              stroke="#16a34a"
+              strokeWidth={2}
+            />
+          )}
+          {ridgePoints.map((p, i) => {
+            const px = pixelFor(p)
+            return <circle key={i} cx={px.x} cy={px.y} r={4} fill="#16a34a" data-ridge-point={i} />
+          })}
+        </svg>
+      )}
     </div>
   )
 }

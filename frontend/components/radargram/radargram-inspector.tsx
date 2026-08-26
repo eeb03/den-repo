@@ -7,9 +7,10 @@ import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { formatCount } from '@/lib/format'
 import { API_BASE } from '@/services/api'
-import { RadargramCanvas, RadargramScale } from './radargram-canvas'
+import { RadargramCanvas, RadargramScale, type DrawMode, type DrawnRectangle, type RidgePoint } from './radargram-canvas'
 import { HumanReviewPanel, MissedEventForm } from './human-review-panel'
 import type {
+  AnnotationGeometry,
   CandidateIntelligence,
   CandidateFootprint,
   InspectableCandidate,
@@ -66,6 +67,63 @@ export function RadargramInspector({ datasetId }: { datasetId: string }) {
   const [showUnreliable, setShowUnreliable] = useState(true)
   const [reviewError, setReviewError] = useState<string | null>(null)
   const [reviewing, setReviewing] = useState(false)
+
+  // Canvas annotation (Section 6/18): drawing is additive UI state that lives
+  // here, above both HumanReviewPanel and MissedEventForm, because either one
+  // may end up consuming whatever gets drawn -- there is exactly one
+  // in-progress drawing at a time, matching the single-focus review workflow.
+  const [drawMode, setDrawMode] = useState<DrawMode>('select')
+  const [ridgePoints, setRidgePoints] = useState<RidgePoint[]>([])
+  const [drawnGeometry, setDrawnGeometry] = useState<AnnotationGeometry | null>(null)
+
+  function clearDrawing() {
+    setDrawMode('select')
+    setRidgePoints([])
+    setDrawnGeometry(null)
+  }
+
+  function handleRectangleDrawn(rect: DrawnRectangle) {
+    setDrawnGeometry({
+      kind: 'rectangle',
+      trace_start: rect.traceStart, trace_end: rect.traceEnd,
+      sample_start: rect.sampleStart, sample_end: rect.sampleEnd,
+      trace_indices: [], sample_indices: [],
+    })
+    setDrawMode('select')
+  }
+
+  function handleRidgePointAdded(point: RidgePoint) {
+    setRidgePoints((prev) => [...prev, point])
+  }
+
+  function finishRidge() {
+    if (ridgePoints.length === 0) return
+    setDrawnGeometry({
+      kind: 'ridge_path',
+      trace_indices: ridgePoints.map((p) => p.trace),
+      sample_indices: ridgePoints.map((p) => p.sample),
+    })
+    setDrawMode('select')
+    setRidgePoints([])
+  }
+
+  const savedRectangle: DrawnRectangle | null =
+    drawnGeometry?.kind === 'rectangle' &&
+    drawnGeometry.trace_start != null && drawnGeometry.trace_end != null &&
+    drawnGeometry.sample_start != null && drawnGeometry.sample_end != null
+      ? {
+          traceStart: drawnGeometry.trace_start, traceEnd: drawnGeometry.trace_end,
+          sampleStart: drawnGeometry.sample_start, sampleEnd: drawnGeometry.sample_end,
+        }
+      : null
+  const ridgePointsToShow: RidgePoint[] =
+    drawMode === 'draw-ridge'
+      ? ridgePoints
+      : drawnGeometry?.kind === 'ridge_path'
+        ? drawnGeometry.trace_indices
+            .map((t, i) => ({ trace: t, sample: drawnGeometry.sample_indices[i] }))
+            .filter((p): p is RidgePoint => p.sample != null)
+        : []
 
   const gridQuery = useSWR<TraceGrid>(
     ['trace-grid', datasetId, selectedLine, field],
@@ -314,6 +372,57 @@ export function RadargramInspector({ datasetId }: { datasetId: string }) {
         </div>
       )}
 
+      {/*
+        Canvas annotation controls. Purely additive: 'Select' is the
+        default, original behaviour (candidate markers clickable, no draw
+        surface at all -- see RadargramCanvas's own mode prop).
+      */}
+      <div className="flex flex-wrap items-center gap-2 text-xs" data-draw-mode-controls>
+        <span className="text-muted-foreground">Annotate:</span>
+        {(['select', 'draw-rectangle', 'draw-ridge'] as DrawMode[]).map((m) => (
+          <button
+            key={m}
+            type="button"
+            data-draw-mode-option={m}
+            aria-pressed={drawMode === m}
+            onClick={() => {
+              if (m !== 'draw-ridge') setRidgePoints([])
+              setDrawMode(m)
+            }}
+            className={cn(buttonVariants({ variant: drawMode === m ? 'default' : 'ghost', size: 'sm' }))}
+          >
+            {m === 'select' ? 'Select' : m === 'draw-rectangle' ? 'Draw rectangle' : 'Trace ridge'}
+          </button>
+        ))}
+        {drawMode === 'draw-ridge' && ridgePoints.length > 0 && (
+          <button
+            type="button"
+            data-action="finish-ridge"
+            onClick={finishRidge}
+            className={cn(buttonVariants({ variant: 'default', size: 'sm' }))}
+          >
+            Finish ridge ({ridgePoints.length} point{ridgePoints.length === 1 ? '' : 's'})
+          </button>
+        )}
+        {drawnGeometry && (
+          <>
+            <span data-drawn-geometry-summary className="text-foreground">
+              {drawnGeometry.kind === 'rectangle'
+                ? `Rectangle: traces ${drawnGeometry.trace_start}–${drawnGeometry.trace_end}, samples ${drawnGeometry.sample_start}–${drawnGeometry.sample_end}`
+                : `Ridge: ${drawnGeometry.trace_indices.length} point(s)`}
+            </span>
+            <button
+              type="button"
+              data-action="clear-drawing"
+              onClick={clearDrawing}
+              className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}
+            >
+              Clear
+            </button>
+          </>
+        )}
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0 space-y-2">
           <div className="overflow-x-auto">
@@ -323,6 +432,11 @@ export function RadargramInspector({ datasetId }: { datasetId: string }) {
               selectedId={selectedId}
               onSelect={setSelectedId}
               showUnreliable={showUnreliable && reliabilityApplies}
+              mode={drawMode}
+              onRectangleDrawn={handleRectangleDrawn}
+              onRidgePointAdded={handleRidgePointAdded}
+              ridgePoints={ridgePointsToShow}
+              savedRectangle={savedRectangle}
             />
           </div>
 
@@ -410,14 +524,22 @@ export function RadargramInspector({ datasetId }: { datasetId: string }) {
               key={selectedId}
               datasetId={datasetId}
               candidateId={selectedId}
-              onSaved={() => reviewSummaryQuery.mutate()}
+              annotationGeometry={drawnGeometry}
+              onSaved={() => {
+                reviewSummaryQuery.mutate()
+                clearDrawing()
+              }}
             />
           )}
 
           <MissedEventForm
             datasetId={datasetId}
             sourceFile={grid.source_file ?? ''}
-            onSaved={() => reviewSummaryQuery.mutate()}
+            annotationGeometry={drawnGeometry}
+            onSaved={() => {
+              reviewSummaryQuery.mutate()
+              clearDrawing()
+            }}
           />
         </aside>
       </div>

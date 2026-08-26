@@ -5,7 +5,13 @@ import useSWR from 'swr'
 import { ApiError, api } from '@/services/api'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { CandidateReview, ReviewStatus } from '@/types/subterra'
+import type { AnnotationGeometry, CandidateReview, ReviewStatus } from '@/types/subterra'
+
+function geometrySummary(g: AnnotationGeometry): string {
+  return g.kind === 'rectangle'
+    ? `Rectangle: traces ${g.trace_start}–${g.trace_end}, samples ${g.sample_start}–${g.sample_end}`
+    : `Ridge: ${g.trace_indices.length} point(s)`
+}
 
 /**
  * Human-in-the-Loop Anomaly Verification V1.
@@ -46,10 +52,13 @@ const STATUS_LABEL: Record<ReviewStatus, string> = {
 export function HumanReviewPanel({
   datasetId,
   candidateId,
+  annotationGeometry = null,
   onSaved,
 }: {
   datasetId: string
   candidateId: string
+  /** A geometry drawn on the canvas (Section 6/18), controlled by the parent -- `null` means "no marked region", the existing, still-valid Section 4 state. */
+  annotationGeometry?: AnnotationGeometry | null
   onSaved?: () => void
 }) {
   const { data, error, isLoading, mutate } = useSWR<CandidateReview>(
@@ -87,6 +96,7 @@ export function HumanReviewPanel({
         review_status: nextStatus,
         operator_label: operatorLabel || null,
         notes: notes || null,
+        annotation_geometry: annotationGeometry,
       })
       setStatus(saved.review_status)
       await mutate(saved, { revalidate: false })
@@ -122,6 +132,13 @@ export function HumanReviewPanel({
           Current: {STATUS_LABEL[data.review_status]}
           {data.operator_label ? ` · ${data.operator_label}` : ' · no identity claimed'}
           {data.history.length > 0 ? ` · ${data.history.length} prior revision(s)` : ''}
+          {data.annotation_geometry ? ` · ${geometrySummary(data.annotation_geometry)}` : ''}
+        </p>
+      )}
+
+      {annotationGeometry && (
+        <p data-pending-geometry className="text-foreground">
+          Will save with: {geometrySummary(annotationGeometry)}
         </p>
       )}
 
@@ -210,10 +227,13 @@ export function HumanReviewPanel({
 export function MissedEventForm({
   datasetId,
   sourceFile,
+  annotationGeometry = null,
   onSaved,
 }: {
   datasetId: string
   sourceFile: string
+  /** When present, the trace range is DERIVED from the drawing, not typed -- the manual inputs below become read-only. */
+  annotationGeometry?: AnnotationGeometry | null
   onSaved?: () => void
 }) {
   const [open, setOpen] = useState(false)
@@ -226,9 +246,17 @@ export function MissedEventForm({
   const [error, setError] = useState<string | null>(null)
   const [savedId, setSavedId] = useState<string | null>(null)
 
+  const geometryRange: [number, number] | null =
+    annotationGeometry?.kind === 'rectangle' &&
+    annotationGeometry.trace_start != null && annotationGeometry.trace_end != null
+      ? [annotationGeometry.trace_start, annotationGeometry.trace_end]
+      : annotationGeometry?.kind === 'ridge_path' && annotationGeometry.trace_indices.length > 0
+        ? [Math.min(...annotationGeometry.trace_indices), Math.max(...annotationGeometry.trace_indices)]
+        : null
+
   async function submit() {
-    const start = Number(traceStart)
-    const end = Number(traceEnd)
+    const start = geometryRange ? geometryRange[0] : Number(traceStart)
+    const end = geometryRange ? geometryRange[1] : Number(traceEnd)
     if (!Number.isFinite(start) || !Number.isFinite(end) || start > end) {
       setError('trace start/end must be numbers, with start ≤ end')
       return
@@ -242,6 +270,7 @@ export function MissedEventForm({
         review_status: status,
         operator_label: operatorLabel || null,
         notes: notes || null,
+        annotation_geometry: annotationGeometry,
       })
       setSavedId(saved.id)
       onSaved?.()
@@ -272,8 +301,16 @@ export function MissedEventForm({
       </p>
       <p className="leading-relaxed text-muted-foreground">
         Use this only for a real event you can see in the radargram above that has no
-        candidate marker. Enter the exact trace range the event spans.
+        candidate marker. {geometryRange
+          ? 'The trace range below comes from what you drew.'
+          : 'Enter the exact trace range the event spans, or draw it above.'}
       </p>
+
+      {annotationGeometry && (
+        <p data-pending-geometry className="text-foreground">
+          {geometrySummary(annotationGeometry)}
+        </p>
+      )}
 
       <div className="flex gap-2">
         <label className="flex-1 space-y-1">
@@ -281,9 +318,10 @@ export function MissedEventForm({
           <input
             type="number"
             data-missed-trace-start
-            value={traceStart}
+            value={geometryRange ? geometryRange[0] : traceStart}
+            disabled={Boolean(geometryRange)}
             onChange={(e) => setTraceStart(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs"
+            className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs disabled:opacity-60"
           />
         </label>
         <label className="flex-1 space-y-1">
@@ -291,9 +329,10 @@ export function MissedEventForm({
           <input
             type="number"
             data-missed-trace-end
-            value={traceEnd}
+            value={geometryRange ? geometryRange[1] : traceEnd}
+            disabled={Boolean(geometryRange)}
             onChange={(e) => setTraceEnd(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs"
+            className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs disabled:opacity-60"
           />
         </label>
       </div>

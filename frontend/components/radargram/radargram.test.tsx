@@ -1015,3 +1015,129 @@ describe('human-in-the-loop review', () => {
     )
   })
 })
+
+describe('canvas-based review annotation', () => {
+  /** RadargramCanvas renders at its default 900x520 here; grid() is 3 columns x 2 rows -> scaleX=300, scaleY=260. */
+  function stubBoundingRect() {
+    const proto = globalThis.HTMLDivElement?.prototype
+    if (!proto) return
+    proto.getBoundingClientRect = vi.fn(() => ({
+      left: 0, top: 0, right: 900, bottom: 520, width: 900, height: 520, x: 0, y: 0, toJSON: () => {},
+    })) as unknown as typeof proto.getBoundingClientRect
+  }
+
+  beforeEach(() => stubBoundingRect())
+
+  it('defaults to select mode with no draw surface', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+
+    expect(container.querySelector('[data-draw-mode-option="select"]')?.getAttribute('aria-pressed')).toBe('true')
+    expect(container.querySelector('[data-radargram-draw-surface]')).toBeNull()
+  })
+
+  it('drawing a rectangle and confirming a candidate sends the real geometry', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    submitCandidateReview.mockResolvedValue({
+      id: 'rev1', dataset_id: 'd1', candidate_id: 'c1', site_id: null,
+      source_file: 'Path8.sgy', trace_range: [1, 1], reviewer_id: 'u1',
+      review_status: 'confirmed', operator_label: null, annotation_geometry: null,
+      notes: null, evidence_grade: 'operator_reviewed', label_source: 'operator_reviewed',
+      ground_truth_status: 'not_independently_validated', detector_snapshot: null,
+      history: [], created_utc: 't', updated_utc: 't',
+    })
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+
+    fireEvent.click(container.querySelector('[data-draw-mode-option="draw-rectangle"]')!)
+    const surface = container.querySelector('[data-radargram-draw-surface]')!
+    fireEvent.mouseDown(surface, { clientX: 310, clientY: 10 })   // col 1
+    fireEvent.mouseMove(surface, { clientX: 310, clientY: 270 })  // row 1
+    fireEvent.mouseUp(surface)
+
+    await screen.findByText(/Rectangle: traces 1–1, samples 0–1/i)
+
+    fireEvent.click(container.querySelector('[data-candidate-marker]')!)
+    await screen.findByText(/Human review/i)
+    fireEvent.click(container.querySelector('[data-action="review-confirmed"]')!)
+
+    await waitFor(() =>
+      expect(submitCandidateReview).toHaveBeenCalledWith(
+        'd1', 'c1',
+        expect.objectContaining({
+          annotation_geometry: { kind: 'rectangle', trace_start: 1, trace_end: 1, sample_start: 0, sample_end: 1, trace_indices: [], sample_indices: [] },
+        }),
+      ),
+    )
+  })
+
+  it('Clear removes the drawn geometry summary', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+
+    fireEvent.click(container.querySelector('[data-draw-mode-option="draw-rectangle"]')!)
+    const surface = container.querySelector('[data-radargram-draw-surface]')!
+    fireEvent.mouseDown(surface, { clientX: 10, clientY: 10 })
+    fireEvent.mouseUp(surface)
+    await screen.findByText(/Rectangle:/i)
+
+    fireEvent.click(container.querySelector('[data-action="clear-drawing"]')!)
+    expect(container.querySelector('[data-drawn-geometry-summary]')).toBeNull()
+  })
+
+  it('tracing a ridge accumulates points and Finish converts them to a path geometry', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+
+    fireEvent.click(container.querySelector('[data-draw-mode-option="draw-ridge"]')!)
+    const surface = container.querySelector('[data-radargram-draw-surface]')!
+    fireEvent.click(surface, { clientX: 10, clientY: 10 })
+    fireEvent.click(surface, { clientX: 310, clientY: 270 })
+
+    const finish = await screen.findByText(/Finish ridge \(2 points\)/i)
+    fireEvent.click(finish)
+
+    await screen.findByText(/Ridge: 2 point\(s\)/i)
+    expect(container.querySelector('[data-draw-mode-option="select"]')?.getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('missed-event trace range is derived from a drawn rectangle, not typed', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence({ candidates: [], candidate_count: 0 }))
+    createMissedEvent.mockResolvedValue({
+      id: 'rev-missed', dataset_id: 'd1', candidate_id: null, site_id: null,
+      source_file: 'Path8.sgy', trace_range: [1, 1], reviewer_id: 'u1',
+      review_status: 'confirmed', operator_label: null, annotation_geometry: null,
+      notes: null, evidence_grade: 'operator_reviewed', label_source: 'operator_reviewed',
+      ground_truth_status: 'not_independently_validated', detector_snapshot: null,
+      history: [], created_utc: 't', updated_utc: 't',
+    })
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+
+    fireEvent.click(container.querySelector('[data-draw-mode-option="draw-rectangle"]')!)
+    const surface = container.querySelector('[data-radargram-draw-surface]')!
+    fireEvent.mouseDown(surface, { clientX: 310, clientY: 10 })
+    fireEvent.mouseUp(surface)
+    await screen.findByText(/Rectangle:/i)
+
+    fireEvent.click(screen.getByText(/Add a missed event/i))
+    const startInput = container.querySelector('[data-missed-trace-start]') as HTMLInputElement
+    expect(startInput.disabled).toBe(true)
+    expect(startInput.value).toBe('1')
+
+    fireEvent.click(container.querySelector('[data-action="save-missed-event"]')!)
+    await waitFor(() =>
+      expect(createMissedEvent).toHaveBeenCalledWith(
+        'd1', expect.objectContaining({ trace_range: [1, 1] }),
+      ),
+    )
+  })
+})

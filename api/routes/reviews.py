@@ -183,7 +183,7 @@ def export_corpus(dataset_id: str, db: Session = Depends(get_db),
     """
     from preprocessing.spatial_grid import build_trace_depth_grid_for_records
     from schemas.dataset_report import frame_modalities
-    from training.review_corpus import review_to_training_example
+    from training.review_corpus import effective_trace_range, review_to_training_example
     from training.segmentation import build_corpus_manifest, validate_corpus
 
     review_set = load_reviews(dataset_id)
@@ -214,13 +214,18 @@ def export_corpus(dataset_id: str, db: Session = Depends(get_db),
             errors.append({"review_id": review.id, "error": str(e)[:200]})
             continue
 
+        # The UNION of the review's own trace_range and its drawn geometry's
+        # real extent (if any) -- see effective_trace_range's own docstring
+        # for the live-verified bug this fixes: a drawn rectangle can mark a
+        # real region the original candidate's own box does not contain.
+        span = effective_trace_range(review)
         trace_ids = grid_result["trace_indices"]
         try:
-            t0 = trace_ids.index(review.trace_range[0])
-            t1 = trace_ids.index(review.trace_range[1])
+            t0 = trace_ids.index(span[0])
+            t1 = trace_ids.index(span[1])
         except ValueError:
             errors.append({"review_id": review.id,
-                           "error": f"trace_range {review.trace_range} not found in this line's current grid"})
+                           "error": f"trace range {span} not found in this line's current grid"})
             continue
 
         window = [row[t0:t1 + 1] for row in grid_result["grid"]]
