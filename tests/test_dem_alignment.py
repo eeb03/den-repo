@@ -99,6 +99,64 @@ def test_align_records_with_dem_gives_shared_elevation_and_depth_varying_absolut
         assert abs(r.metadata["absolute_elevation_m"] - (surface_elev - r.depth)) < 1e-6
 
 
+def test_align_records_with_dem_preserves_a_pre_existing_elevation(tmp_path):
+    """
+    A record that already carries its own elevation (e.g. 4TU's antenna GNSS
+    reading, parsed at ingest) must not lose it silently when DEM alignment
+    overwrites `record.elevation` with ground-surface elevation -- the prior
+    value survives in metadata for a later topographic correction to read.
+    """
+    from preprocessing.dem_alignment import align_records_with_dem
+
+    dem_path = _write_tiny_geotiff(tmp_path / "flat3.tif", west=15.0, north=41.0, pixel_size=0.01, size=10, value=250.0)
+    records = [
+        SubterraRecord(
+            dataset_id="d", sensor_type=SensorType.GPR, latitude=41.0 - 0.03, longitude=15.0 + 0.03,
+            elevation=251.4, depth=1.0, signal=[1.0],
+        )
+    ]
+
+    aligned = align_records_with_dem(records, dem_path)
+
+    assert aligned[0].elevation == pytest.approx(250.0)
+    assert aligned[0].metadata["pre_dem_elevation_m"] == pytest.approx(251.4)
+
+
+def test_align_records_with_dem_running_twice_does_not_clobber_the_original(tmp_path):
+    """A second align_dem call must not overwrite the preserved original with the now-DEM-derived value from the first call."""
+    from preprocessing.dem_alignment import align_records_with_dem
+
+    dem_path = _write_tiny_geotiff(tmp_path / "flat4.tif", west=15.0, north=41.0, pixel_size=0.01, size=10, value=250.0)
+    records = [
+        SubterraRecord(
+            dataset_id="d", sensor_type=SensorType.GPR, latitude=41.0 - 0.03, longitude=15.0 + 0.03,
+            elevation=251.4, depth=1.0, signal=[1.0],
+        )
+    ]
+
+    once = align_records_with_dem(records, dem_path)
+    twice = align_records_with_dem(once, dem_path)
+
+    assert twice[0].metadata["pre_dem_elevation_m"] == pytest.approx(251.4)
+
+
+def test_align_records_with_dem_leaves_no_prior_elevation_field_absent(tmp_path):
+    """The common case -- a sensor with no elevation of its own -- must stay a no-op for pre_dem_elevation_m: nothing existed to preserve."""
+    from preprocessing.dem_alignment import align_records_with_dem
+
+    dem_path = _write_tiny_geotiff(tmp_path / "flat5.tif", west=15.0, north=41.0, pixel_size=0.01, size=10, value=250.0)
+    records = [
+        SubterraRecord(
+            dataset_id="d", sensor_type=SensorType.GPR, latitude=41.0 - 0.03, longitude=15.0 + 0.03,
+            depth=1.0, signal=[1.0],
+        )
+    ]
+
+    aligned = align_records_with_dem(records, dem_path)
+
+    assert "pre_dem_elevation_m" not in aligned[0].metadata
+
+
 def test_align_records_with_dem_flags_vertical_datum_as_unverified(tmp_path):
     """DEM elevation values (e.g. COP30's EGM2008 geoid heights) are used as-is, with no vertical-datum check or conversion -- must be visible in metadata, distinct from the horizontal CRS check."""
     from preprocessing.dem_alignment import align_records_with_dem

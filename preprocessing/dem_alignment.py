@@ -145,6 +145,18 @@ def align_records_with_dem(records: list[SubterraRecord], dem_path: str | Path) 
     # zipping against `records` would assign one record's elevation to another.
     for r, elev in zip(records_to_align, elevations):
         if not np.isnan(elev):
+            if r.elevation is not None and "pre_dem_elevation_m" not in r.metadata:
+                # This record already carried an elevation before DEM
+                # alignment -- e.g. 4TU's own per-trace antenna GNSS
+                # reading, parsed at ingest into `record.elevation`. That
+                # value is about to be overwritten with the DEM's GROUND
+                # elevation below; preserving it here is what lets a later
+                # topographic/air-gap correction (`preprocessing.
+                # topographic_correction`) recover BOTH elevations for the
+                # same record instead of only ever seeing the DEM's.
+                # Guarded so a second `align_dem` call never clobbers the
+                # real original with an already-DEM-derived value.
+                r.metadata["pre_dem_elevation_m"] = r.elevation
             r.elevation = float(elev)
             r.metadata["dem_vertical_datum_verified"] = False
             n_aligned += 1
