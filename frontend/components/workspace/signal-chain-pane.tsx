@@ -12,6 +12,7 @@ const STEP_LABEL: Record<string, string> = {
   dewow: 'Dewow',
   gain: 'Gain',
   local_anomaly: 'Local anomaly (z-score)',
+  topographic_correction: 'Topographic / air-gap correction',
 }
 
 function formatParameters(parameters: Record<string, unknown>): string | null {

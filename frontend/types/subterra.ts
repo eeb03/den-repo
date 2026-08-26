@@ -1243,10 +1243,13 @@ export interface CandidateIntelligence {
  * once), then dewow, then gain, both per trace. `local_anomaly` is last and,
  * unlike the other four, only present at all when
  * `preprocess_trace_local_anomaly` actually ran -- it is not a property of
- * every GPR record.
+ * every GPR record. `topographic_correction` is the same kind of optional,
+ * last-appended step: present only for a dataset that has explicitly run
+ * `POST /{id}/apply_topographic_correction`.
  */
 export type SignalProcessingStepName =
   | 'time_zero' | 'background_removal' | 'dewow' | 'gain' | 'local_anomaly'
+  | 'topographic_correction'
 
 export interface SignalProcessingStep {
   step: SignalProcessingStepName
