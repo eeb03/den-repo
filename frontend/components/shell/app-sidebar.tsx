@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Beaker, Combine, Database, FileUp, Layers, Radio, type LucideIcon } from 'lucide-react'
+import { Beaker, Combine, Database, FileUp, Globe, Layers, Radio, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SubterraLogo } from '@/components/brand/logo'
 import { ProvenanceLegend } from '@/components/subterra/provenance-tag'
@@ -55,6 +55,12 @@ const navItems: NavItem[] = [
     label: 'Benchmark',
     icon: Beaker,
     description: 'BAM and 4TU evaluation results',
+  },
+  {
+    href: '/sources',
+    label: 'Sources',
+    icon: Globe,
+    description: 'Fetch a DEM or search earthquakes',
   },
 ]
 

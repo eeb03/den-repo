@@ -731,6 +731,16 @@ class IngestLocalFileRequest(BaseModel):
     #: SEG-Y only -- see converters.segy_converter.COORDINATE_ENCODINGS.
     #: Omit to use the SEG-Y standard, exactly today's behaviour.
     coordinate_encoding: Optional[str] = None
+    #: False (default) reproduces every existing caller's behaviour exactly:
+    #: no owner_id is passed to _run_ingest_pipeline, so the result is a
+    #: system/public dataset -- correct for a script uploading shared
+    #: reference data (e.g. a COP30 tile), and unaffected by this field's
+    #: addition. A real, authenticated, end-user-facing caller (e.g. the
+    #: /sources page importing a DEM someone just fetched) sets this true so
+    #: the resulting dataset is actually theirs -- found live: without this,
+    #: a real ingested dataset became an undeletable "system reference"
+    #: dataset the fetching user could not even remove afterward.
+    assign_to_caller: bool = False
 
     @field_validator("coordinate_encoding")
     @classmethod
@@ -742,12 +752,16 @@ class IngestLocalFileRequest(BaseModel):
 
 
 @router.post("/ingest_local_file")
-def ingest_local_file(req: IngestLocalFileRequest, db: Session = Depends(get_db), _user=Depends(get_current_user)):
+def ingest_local_file(req: IngestLocalFileRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """
     Ingest a file that's already on disk in the container — e.g. a DEM
     tile saved by /api/sources/opentopography/dem — without re-uploading
     it through multipart. `path` is resolved relative to datasets/ unless
     given as absolute.
+
+    Ownership: `req.assign_to_caller` (default False) preserves this
+    endpoint's original behaviour for its existing script/system callers --
+    see that field's own docstring.
     """
     src_path = Path(req.path)
     if not src_path.is_absolute():
@@ -769,6 +783,7 @@ def ingest_local_file(req: IngestLocalFileRequest, db: Session = Depends(get_db)
         raw_path, req.sensor_type, req.name or src_path.name, db,
         source=req.source, license=req.license, apply_preprocessing=req.apply_preprocessing,
         preprocessing_mode=req.preprocessing_mode, converter_kwargs=converter_kwargs,
+        owner_id=user.id if req.assign_to_caller else None,
     )
 
 

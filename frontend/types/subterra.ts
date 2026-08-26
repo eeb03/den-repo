@@ -772,6 +772,30 @@ export interface ImportFormats {
   note: string
 }
 
+/* ------------------------------- sources -------------------------------- */
+
+/** One connector's search hit -- shape is the same across zenodo/opentopography/usgs, only `extra`'s keys differ per source. */
+export interface SourceSearchResult {
+  title: string
+  source: string
+  download_url: string
+  license: string | null
+  description: string | null
+  extra: Record<string, unknown>
+}
+
+/** code -> human description, for each of the two real dem_type buckets (global demtype vs usgs datasetName -- different endpoint params). */
+export interface OpenTopographyDemTypes {
+  global: Record<string, string>
+  usgs: Record<string, string>
+}
+
+/** Where a fetched DEM tile landed server-side, and how big it is -- not yet a dataset until ingested. */
+export interface DemFetchResult {
+  saved_to: string
+  size_bytes: number
+}
+
 
 /* --------------------------------- accounts -------------------------------- */
 

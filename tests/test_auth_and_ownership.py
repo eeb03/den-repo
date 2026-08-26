@@ -785,6 +785,78 @@ def test_the_public_surface_is_exactly_what_we_intend():
     }, sorted(public)
 
 
+class TestIngestLocalFileOwnership:
+    """
+    ingest_local_file's existing callers (scripts uploading shared
+    reference data, e.g. a COP30 tile) rely on the system/no-owner
+    default; `assign_to_caller` is the explicit opt-in a real
+    end-user-facing caller (the /sources page importing a DEM it just
+    fetched) uses instead. Found live: without opting in, a real ingested
+    dataset became an undeletable "system reference" dataset the fetching
+    user could not manage afterward.
+    """
+
+    def test_default_produces_no_owner_matching_existing_callers(self, env, tmp_path):
+        Session, _ = env
+        client = _client()
+        _register(client, "local-file-a@example.test")
+
+        raw = tmp_path / "raw" / "local.csv"
+        raw.parent.mkdir(exist_ok=True, parents=True)
+        raw.write_bytes(CSV)
+
+        resp = client.post("/api/datasets/ingest_local_file", json={
+            "path": str(raw), "sensor_type": "gpr",
+        })
+        assert resp.status_code == 200, resp.text
+        with Session() as s:
+            ds = s.query(Dataset).filter(Dataset.id == resp.json()["dataset_id"]).one()
+        assert ds.owner_id is None
+
+    def test_assign_to_caller_gives_the_dataset_a_real_owner(self, env, tmp_path):
+        Session, _ = env
+        client = _client()
+        _register(client, "local-file-b@example.test")
+        with Session() as s:
+            uid = s.query(User).filter(User.email == "local-file-b@example.test").one().id
+
+        raw = tmp_path / "raw" / "local2.csv"
+        raw.parent.mkdir(exist_ok=True, parents=True)
+        raw.write_bytes(CSV)
+
+        resp = client.post("/api/datasets/ingest_local_file", json={
+            "path": str(raw), "sensor_type": "gpr", "assign_to_caller": True,
+        })
+        assert resp.status_code == 200, resp.text
+        with Session() as s:
+            ds = s.query(Dataset).filter(Dataset.id == resp.json()["dataset_id"]).one()
+        assert ds.owner_id == uid
+
+    def test_the_owner_can_then_delete_what_they_imported(self, env, tmp_path):
+        """The exact real-world failure this fix addresses: an owned dataset can be deleted by its owner."""
+        Session, _ = env
+        client = _client()
+        _register(client, "local-file-c@example.test")
+
+        raw = tmp_path / "raw" / "local3.csv"
+        raw.parent.mkdir(exist_ok=True, parents=True)
+        raw.write_bytes(CSV)
+
+        created = client.post("/api/datasets/ingest_local_file", json={
+            "path": str(raw), "sensor_type": "gpr", "assign_to_caller": True,
+        })
+        dataset_id = created.json()["dataset_id"]
+
+        resp = client.delete(f"/api/datasets/{dataset_id}")
+        assert resp.status_code == 200, resp.text
+
+    def test_assign_to_caller_is_a_boolean_never_a_raw_identity_field(self):
+        """The client can only ever assign ownership to ITSELF -- never name an arbitrary owner_id/user_id, which test_no_route_accepts_a_user_or_owner_id_as_authority below also guards structurally."""
+        from api.routes.datasets import IngestLocalFileRequest
+
+        assert IngestLocalFileRequest.model_fields["assign_to_caller"].annotation is bool
+
+
 def test_no_route_accepts_a_user_or_owner_id_as_authority():
     """Identity must come from the session and nowhere a client can type."""
     import pathlib

@@ -63,6 +63,9 @@ import type {
   CandidateReview,
   ReviewStatus,
   ReviewSummary,
+  DemFetchResult,
+  OpenTopographyDemTypes,
+  SourceSearchResult,
 } from '@/types/subterra'
 
 /**
@@ -776,6 +779,102 @@ export const api = {
     }
     params.set('persist', String(options?.persist ?? false))
     return request(`/api/fusion/run?${params.toString()}`, { method: 'POST' })
+  },
+
+  /* ------------------------------- sources ------------------------------- */
+
+  /**
+   * The two real dem_type vocabularies OpenTopography's own connector
+   * accepts, and which bucket (`global` needs no `usgs` flag, `usgs` does)
+   * each code belongs to -- served, not hardcoded here, so this list can
+   * never drift from `ingestion.sources.OpenTopographyConnector`'s own.
+   */
+  getOpenTopographyDemTypes(): Promise<OpenTopographyDemTypes> {
+    return request('/api/sources/opentopography/dem_types')
+  },
+
+  /**
+   * Fetches a real DEM tile for a bounding box and saves it server-side
+   * (under datasets/downloads/) -- this does not create a dataset by
+   * itself; the returned `saved_to` path is what `ingestLocalFile` needs
+   * to actually bring it into the platform as one.
+   */
+  fetchOpenTopographyDem(options: {
+    demType: string
+    south: number
+    north: number
+    west: number
+    east: number
+    usgs?: boolean
+    outputFormat?: string
+  }): Promise<DemFetchResult> {
+    const params = new URLSearchParams({
+      dem_type: options.demType,
+      south: String(options.south),
+      north: String(options.north),
+      west: String(options.west),
+      east: String(options.east),
+      usgs: String(options.usgs ?? false),
+      output_format: options.outputFormat ?? 'GTiff',
+    })
+    return request(`/api/sources/opentopography/dem?${params.toString()}`)
+  },
+
+  /**
+   * Real USGS earthquake catalog events for a bounding box -- context data,
+   * not itself a Subterra dataset or sensor reading. `minMagnitude` narrows
+   * the query server-side rather than fetching everything and filtering here.
+   */
+  fetchUsgsEarthquakes(options: {
+    minLat: number
+    maxLat: number
+    minLon: number
+    maxLon: number
+    startTime?: string
+    endTime?: string
+    minMagnitude?: number
+    limit?: number
+  }): Promise<SourceSearchResult[]> {
+    const params = new URLSearchParams({
+      min_lat: String(options.minLat),
+      max_lat: String(options.maxLat),
+      min_lon: String(options.minLon),
+      max_lon: String(options.maxLon),
+    })
+    if (options.startTime) params.set('start_time', options.startTime)
+    if (options.endTime) params.set('end_time', options.endTime)
+    if (options.minMagnitude !== undefined) params.set('min_magnitude', String(options.minMagnitude))
+    if (options.limit !== undefined) params.set('limit', String(options.limit))
+    return request(`/api/sources/usgs/earthquakes?${params.toString()}`)
+  },
+
+  /**
+   * Ingests a file already on disk in the container -- e.g. one this same
+   * page just fetched via `fetchOpenTopographyDem`. Mirrors the multipart
+   * `/api/datasets/ingest` pipeline exactly (convert -> validate ->
+   * preprocess -> register); only the transport differs.
+   */
+  ingestLocalFile(options: {
+    path: string
+    sensorType: string
+    name?: string
+    source?: string
+    license?: string
+  }): Promise<{ dataset_id: string; record_count: number; quality_score: number; issues: string[] }> {
+    return postJson('/api/datasets/ingest_local_file', {
+      path: options.path,
+      sensor_type: options.sensorType,
+      name: options.name,
+      source: options.source,
+      license: options.license,
+      // This call is always on behalf of the signed-in caller (e.g. the
+      // /sources page importing a DEM they just fetched) -- never the
+      // system/no-owner default this endpoint's other, script-driven
+      // callers rely on. Without this, a real ingested dataset became an
+      // undeletable "system reference" dataset the fetching user could not
+      // manage afterward -- found live.
+      assign_to_caller: true,
+    })
   },
 }
 

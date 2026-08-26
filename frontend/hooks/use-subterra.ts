@@ -204,6 +204,20 @@ export function useImportFormats() {
   })
 }
 
+/* -------------------------------- sources ----------------------------- */
+
+/**
+ * OpenTopographyConnector's own dem_type vocabularies. Static for the life
+ * of a deployment, same as import formats.
+ */
+export function useOpenTopographyDemTypes() {
+  return useSWR('opentopography-dem-types', () => api.getOpenTopographyDemTypes(), {
+    ...options,
+    revalidateIfStale: false,
+    revalidateOnReconnect: false,
+  })
+}
+
 /**
  * An import job, polled until it finishes.
  *

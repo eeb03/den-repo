@@ -26,6 +26,22 @@ def search_source(source_name: str, q: str = Query(..., description="Search quer
     ]
 
 
+@router.get("/opentopography/dem_types")
+def opentopography_dem_types(_user=Depends(get_current_user)):
+    """
+    Served, not assumed: the two real dem_type vocabularies
+    `get_global_dem`/`get_usgs_dem` actually accept, and which endpoint
+    parameter (`usgs`) each one needs -- so a caller never has to guess
+    which bucket a type code came from, the way `/opentopography/search`'s
+    combined results alone cannot say.
+    """
+    connector: OpenTopographyConnector = SOURCE_REGISTRY["opentopography"]
+    return {
+        "global": connector.GLOBAL_DEM_TYPES,
+        "usgs": connector.USGS_DEM_TYPES,
+    }
+
+
 @router.get("/opentopography/dem")
 def fetch_opentopography_dem(
     dem_type: str,
@@ -43,7 +59,16 @@ def fetch_opentopography_dem(
             path = connector.get_global_dem(dem_type, south, north, west, east, output_format)
     except (ValueError, SourceAPIError) as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return {"saved_to": str(path), "size_bytes": path.stat().st_size}
+    # ABSOLUTE, not `str(path)` as such. `path` is built from
+    # `settings.downloads_dir`, itself relative ("./datasets/downloads"), so
+    # a bare str() returns something already relative to the server's own
+    # cwd -- and /ingest_local_file's OWN contract resolves a relative path
+    # against `datasets/` a SECOND time, doubling the prefix
+    # ("datasets/datasets/downloads/..."). Real bug, caught live: a real
+    # fetched tile 404'd on the very next real ingest attempt. An absolute
+    # path is unambiguous for every caller regardless of their own cwd
+    # assumptions.
+    return {"saved_to": str(path.resolve()), "size_bytes": path.stat().st_size}
 
 
 @router.get("/usgs/earthquakes")

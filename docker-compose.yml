@@ -30,6 +30,15 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       SUBTERRA_EMAIL_FROM: ${SUBTERRA_EMAIL_FROM:-}
       SUBTERRA_EMAIL_REPLY_TO: ${SUBTERRA_EMAIL_REPLY_TO:-}
+      # External dataset sources (ingestion/sources.py). Real bug found live
+      # while verifying the /sources UI: .dockerignore excludes .env from the
+      # build context, so configs.settings's own `env_file=".env"` reading
+      # finds nothing inside the container -- these two were being read
+      # correctly by host-run scripts (which see the real .env directly) but
+      # silently empty for the Dockerized API the whole time, with no prior
+      # live caller to surface it. See .env.example.
+      OPENTOPOGRAPHY_API_KEY: ${OPENTOPOGRAPHY_API_KEY:-}
+      ZENODO_ACCESS_TOKEN: ${ZENODO_ACCESS_TOKEN:-}
       # Dataset integrity signing (security.dataset_integrity). Empty means
       # signing is unavailable, not a per-restart random key -- see that
       # module's own docstring for why. Generate one with
