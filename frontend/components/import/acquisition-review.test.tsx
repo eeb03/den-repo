@@ -272,3 +272,62 @@ describe('the surface anchor declaration', () => {
     await waitFor(() => expect(acceptAcquisition).toHaveBeenCalledWith('j1', {}))
   })
 })
+
+describe('the coordinate-encoding declaration', () => {
+  function segy() {
+    const s = job()
+    Object.assign(s.identification as unknown as Record<string, unknown>, {
+      detected_format: 'segy',
+      ambiguous_format: false,
+      ambiguity_note: null,
+    })
+    return s
+  }
+
+  it('is offered for a SEG-Y file and not for other formats', () => {
+    const { container: csv } = render(<AcquisitionReview job={job()} />)
+    expect(csv.querySelector('[data-coordinate-encoding-declaration]')).toBeNull()
+
+    const { container } = render(<AcquisitionReview job={segy()} />)
+    expect(container.querySelector('[data-coordinate-encoding-declaration]')).toBeTruthy()
+  })
+
+  it('defaults to the SEG-Y standard, not a guess', () => {
+    const { container } = render(<AcquisitionReview job={segy()} />)
+    expect((container.querySelector('#coordinate-encoding') as HTMLSelectElement).value).toBe('')
+  })
+
+  it('explains that decoding does not add or validate coordinates', () => {
+    const { container } = render(<AcquisitionReview job={segy()} />)
+    const text = container.querySelector('[data-coordinate-encoding-declaration]')?.textContent ?? ''
+    expect(text).toContain('does not add missing coordinates')
+    expect(text).toContain('does not validate their accuracy')
+  })
+
+  it('sends no coordinate_encoding when left on the default', async () => {
+    acceptAcquisition.mockResolvedValue({ job: job() })
+    const { container } = render(<AcquisitionReview job={segy()} />)
+    fireEvent.click(container.querySelector('[data-action="accept-acquisition"]')!)
+    await waitFor(() => expect(acceptAcquisition).toHaveBeenCalledWith('j1', {}))
+  })
+
+  it('sends the declared encoding only when the operator switches it', async () => {
+    acceptAcquisition.mockResolvedValue({ job: job() })
+    const { container } = render(<AcquisitionReview job={segy()} />)
+    fireEvent.change(container.querySelector('#coordinate-encoding')!, {
+      target: { value: 'ieee_nmea' },
+    })
+    fireEvent.click(container.querySelector('[data-action="accept-acquisition"]')!)
+    await waitFor(() =>
+      expect(acceptAcquisition).toHaveBeenCalledWith('j1', { coordinate_encoding: 'ieee_nmea' }),
+    )
+  })
+
+  it('never sends coordinate_encoding for a non-SEG-Y format even if switched', async () => {
+    acceptAcquisition.mockResolvedValue({ job: job() })
+    const { container } = render(<AcquisitionReview job={job()} />)
+    expect(container.querySelector('#coordinate-encoding')).toBeNull()
+    fireEvent.click(container.querySelector('[data-action="accept-acquisition"]')!)
+    await waitFor(() => expect(acceptAcquisition).toHaveBeenCalledWith('j1', {}))
+  })
+})

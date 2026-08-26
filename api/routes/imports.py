@@ -23,7 +23,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
@@ -206,11 +206,25 @@ class AcceptRequest(BaseModel):
     """
     What the user declares at the review step about how to read this file.
 
-    Currently one thing: whether a raster band is elevation. Validated against
-    what the detected format can actually accept, so an option that would be
+    Two declarations today: whether a raster band is elevation, and how a
+    SEG-Y file's coordinate/elevation header fields are encoded. Both are
+    validated against what the detected format can actually accept
+    (`api.acquisition.validated_ingest_options`), so an option that would be
     silently ignored is refused rather than recorded as though it had an effect.
     """
     band_is_elevation: Optional[bool] = None
+    #: See `converters.segy_converter.COORDINATE_ENCODINGS` for the exact,
+    #: only valid values -- a DECODING choice, never a source of coordinates
+    #: that are actually absent from the file.
+    coordinate_encoding: Optional[str] = None
+
+    @field_validator("coordinate_encoding")
+    @classmethod
+    def _known_coordinate_encoding(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            from converters.segy_converter import validate_coordinate_encoding
+            validate_coordinate_encoding(v)
+        return v
 
 
 @router.post("/jobs/{job_id}/accept", status_code=202)

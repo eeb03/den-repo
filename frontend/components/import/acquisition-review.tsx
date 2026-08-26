@@ -41,16 +41,23 @@ export function AcquisitionReview({
   // A raster band carries numbers and no statement of what they measure.
   // Undeclared by default: the platform must not assume the answer.
   const [bandIsElevation, setBandIsElevation] = useState(false)
+  // '' means "not specified" -- the file's bytes are read as the SEG-Y
+  // standard (int32_scaled) either way, so an empty selection and an
+  // explicit 'int32_scaled' selection are the same real outcome. Only a
+  // conscious switch to the vendor deviation is ever sent.
+  const [coordinateEncoding, setCoordinateEncoding] = useState('')
   const identification = job.identification
 
   async function accept() {
     setBusy(true)
     setError(null)
     try {
-      const { job: queued } = await api.acceptAcquisition(
-        job.id,
-        canDeclareElevation ? { band_is_elevation: bandIsElevation } : {},
-      )
+      const options: { band_is_elevation?: boolean; coordinate_encoding?: string } = {}
+      if (canDeclareElevation) options.band_is_elevation = bandIsElevation
+      if (canChooseCoordinateEncoding && coordinateEncoding) {
+        options.coordinate_encoding = coordinateEncoding
+      }
+      const { job: queued } = await api.acceptAcquisition(job.id, options)
       onAccepted?.(queued)
     } catch (err) {
       setError(
@@ -69,6 +76,7 @@ export function AcquisitionReview({
   // Only formats whose converter can act on it. Offering the choice elsewhere
   // would invite a declaration that changes nothing.
   const canDeclareElevation = identification.detected_format === 'geotiff'
+  const canChooseCoordinateEncoding = identification.detected_format === 'segy'
   const duplicates = identification.duplicates
 
   return (
@@ -215,6 +223,39 @@ export function AcquisitionReview({
           <p className="mt-1.5">
             A surface still needs a declared vertical datum before it can anchor
             anything. The spatial workflow asks for that after import.
+          </p>
+        </div>
+      )}
+
+      {/*
+        COORDINATE ENCODING. SEG-Y's own standard says these header fields
+        are scaled integers, and that stays the safe default -- most SEG-Y
+        files follow it, and this file's bytes cannot say otherwise either
+        way. A minority of GPR vendors instead write IEEE floats holding
+        NMEA coordinates, which the bytes cannot reveal on their own, so it
+        is a conscious declaration, never a guess.
+      */}
+      {!rejected && canChooseCoordinateEncoding && (
+        <div data-coordinate-encoding-declaration className="text-xs leading-relaxed text-muted-foreground">
+          <label className="flex flex-col gap-1">
+            <span>Coordinate encoding</span>
+            <select
+              id="coordinate-encoding"
+              value={coordinateEncoding}
+              onChange={(e) => setCoordinateEncoding(e.target.value)}
+              className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+            >
+              <option value="">SEG-Y standard (default) — scaled integer coordinates</option>
+              <option value="ieee_nmea">
+                Vendor deviation — IEEE float coordinates holding NMEA geographic positions
+              </option>
+            </select>
+          </label>
+          <p className="mt-1.5">
+            Choose how coordinates already stored in this file&apos;s trace headers should be
+            decoded. This does not add missing coordinates, and does not validate their
+            accuracy — it only controls how the existing header bytes are interpreted. Leave
+            this on the default unless you know your instrument uses the vendor deviation.
           </p>
         </div>
       )}

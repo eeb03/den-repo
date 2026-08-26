@@ -288,6 +288,11 @@ def open_session_or_refuse(db, user, session_id: str):
 #: though it had done something.
 INGEST_OPTIONS_BY_FORMAT: dict[str, tuple[str, ...]] = {
     "geotiff": ("band_is_elevation",),
+    # How to decode coordinates/elevation already present in a SEG-Y file's
+    # trace header fields (converters.segy_converter.COORDINATE_ENCODINGS) --
+    # a declaration about DECODING, never a source of coordinates that are
+    # actually absent. See that module's own docstring.
+    "segy": ("coordinate_encoding",),
 }
 
 

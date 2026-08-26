@@ -515,11 +515,12 @@ export const api = {
    */
   acceptAcquisition(
     jobId: string,
-    options: { band_is_elevation?: boolean } = {},
+    options: { band_is_elevation?: boolean; coordinate_encoding?: string } = {},
   ): Promise<{ job: ImportJob }> {
-    // `options` are declarations about HOW to read the file — currently only
-    // whether a raster band is elevation. The backend refuses any the detected
-    // format cannot use, rather than recording a claim that had no effect.
+    // `options` are declarations about HOW to read the file — whether a
+    // raster band is elevation, or how a SEG-Y file's coordinate/elevation
+    // header fields are encoded. The backend refuses any the detected format
+    // cannot use, rather than recording a claim that had no effect.
     return postJson(`/api/imports/jobs/${encodeURIComponent(jobId)}/accept`, options)
   },
 

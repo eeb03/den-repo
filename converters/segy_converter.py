@@ -92,6 +92,23 @@ COORDINATE_ENCODINGS = {
 }
 
 
+def validate_coordinate_encoding(value: str) -> None:
+    """
+    The single check for "is this a real, known coordinate_encoding" --
+    reused by every ingest entrypoint that accepts the option (the
+    synchronous /ingest and /ingest_local_file routes, and the
+    review/accept flow's `AcceptRequest`), so the set of valid values has
+    exactly one place it can be defined: `COORDINATE_ENCODINGS` above.
+    Raises `ValueError`, which each caller turns into its own honest,
+    explicit 4xx -- never a raw TypeError from a converter that received a
+    keyword it does not recognise.
+    """
+    if value not in COORDINATE_ENCODINGS:
+        raise ValueError(
+            f"unknown coordinate_encoding {value!r}; supported: {sorted(COORDINATE_ENCODINGS)}"
+        )
+
+
 def _parse_declared_crs(crs, path):
     """
     Parses a CRS the CALLER declared. Never guesses: an unparseable or

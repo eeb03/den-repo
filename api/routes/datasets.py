@@ -8,7 +8,7 @@ from typing import Callable, Optional
 import numpy as np
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from database.session import get_db
@@ -81,6 +81,35 @@ def default_preprocessing_mode(sensor_type: SensorType) -> str:
         sensor_type, FALLBACK_PREPROCESSING_MODE)
 
 
+def _validate_coordinate_encoding_kwarg(converter, converter_kwargs: Optional[dict]) -> None:
+    """
+    The final gate for `converter_kwargs["coordinate_encoding"]`, run for
+    EVERY ingest entrypoint that reaches `_run_ingest_pipeline` -- the two
+    synchronous routes below, and the async review/accept flow via
+    `jobs/runner.py`. The review/accept flow already validates this itself
+    at accept time (`api.acquisition.validated_ingest_options`, checked
+    against the same `INGEST_OPTIONS_BY_FORMAT`); this is not a second,
+    different check duplicating that logic -- it is the ONLY check for the
+    two synchronous routes, which have no review step of their own, and a
+    harmless no-op re-check for values that already passed it.
+    """
+    if not converter_kwargs or "coordinate_encoding" not in converter_kwargs:
+        return
+    from api.acquisition import INGEST_OPTIONS_BY_FORMAT
+    from converters.segy_converter import validate_coordinate_encoding
+
+    accepted = INGEST_OPTIONS_BY_FORMAT.get(converter.format_name, ())
+    if "coordinate_encoding" not in accepted:
+        raise HTTPException(
+            status_code=422,
+            detail=f"coordinate_encoding cannot be applied to a {converter.format_name} file; "
+                   f"this format accepts {', '.join(accepted) or 'no ingest options'}")
+    try:
+        validate_coordinate_encoding(converter_kwargs["coordinate_encoding"])
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
 def _run_ingest_pipeline(
     raw_path: Path,
     sensor_type: SensorType,
@@ -138,6 +167,8 @@ def _run_ingest_pipeline(
         converter = get_converter(raw_path)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    _validate_coordinate_encoding_kwarg(converter, converter_kwargs)
 
     dataset_id = gen_uuid()
 
@@ -229,6 +260,13 @@ async def ingest_dataset(
     license: Optional[str] = Form(None),
     apply_preprocessing: bool = Form(True),
     preprocessing_mode: Optional[str] = Form(None, description="omit to use the modality default ('gpr_full' for GPR, 'trace' otherwise); 'trace' for multi-sample waveforms, 'spatial_grid' for single-value raster/depth-slice data"),
+    coordinate_encoding: Optional[str] = Form(
+        None,
+        description="SEG-Y only: how to decode coordinates/elevation already present in "
+                    "this file's trace headers -- see converters.segy_converter."
+                    "COORDINATE_ENCODINGS for the valid values. Omit to use the SEG-Y "
+                    "standard (int32_scaled), exactly today's behaviour. Never adds "
+                    "coordinates the file does not contain."),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -256,10 +294,11 @@ async def ingest_dataset(
     except storage.UploadTooLarge as exc:
         raise HTTPException(status_code=413, detail=str(exc))
 
+    converter_kwargs = {"coordinate_encoding": coordinate_encoding} if coordinate_encoding is not None else None
     return _run_ingest_pipeline(
         raw_path, sensor_type, name or file.filename, db,
         source=source, license=license, apply_preprocessing=apply_preprocessing,
-        preprocessing_mode=preprocessing_mode,
+        preprocessing_mode=preprocessing_mode, converter_kwargs=converter_kwargs,
         owner_id=user.id,
     )
 
@@ -607,6 +646,17 @@ class IngestLocalFileRequest(BaseModel):
     apply_preprocessing: bool = True
     preprocessing_mode: Optional[str] = None
     geotiff_stride: Optional[int] = None
+    #: SEG-Y only -- see converters.segy_converter.COORDINATE_ENCODINGS.
+    #: Omit to use the SEG-Y standard, exactly today's behaviour.
+    coordinate_encoding: Optional[str] = None
+
+    @field_validator("coordinate_encoding")
+    @classmethod
+    def _known_coordinate_encoding(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            from converters.segy_converter import validate_coordinate_encoding
+            validate_coordinate_encoding(v)
+        return v
 
 
 @router.post("/ingest_local_file")
@@ -630,6 +680,8 @@ def ingest_local_file(req: IngestLocalFileRequest, db: Session = Depends(get_db)
     converter_kwargs = {}
     if req.geotiff_stride is not None:
         converter_kwargs["stride"] = req.geotiff_stride
+    if req.coordinate_encoding is not None:
+        converter_kwargs["coordinate_encoding"] = req.coordinate_encoding
 
     return _run_ingest_pipeline(
         raw_path, req.sensor_type, req.name or src_path.name, db,
