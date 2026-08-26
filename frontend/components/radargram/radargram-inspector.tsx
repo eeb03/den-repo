@@ -158,12 +158,26 @@ export function RadargramInspector({ datasetId }: { datasetId: string }) {
   // existing accepted/rejected "worth retaining" mechanism above, which
   // answers a different question (see schemas.review's own module
   // docstring). `reviewSummaryQuery` failing is not an error state worth
-  // showing: a dataset with no reviews yet has no summary to report.
-  const reviewSummaryQuery = useSWR<{ summary: ReviewSummary }>(
+  // showing: a dataset with no reviews yet has no summary to report. Fetches
+  // the full review list (not just the summary) so the queue below can mark
+  // already-reviewed candidates (Section 13) from one round trip.
+  const reviewSummaryQuery = useSWR<{ reviews: import('@/types/subterra').CandidateReview[]; summary: ReviewSummary }>(
     ['review-summary', datasetId],
-    () => api.getReviewSummary(datasetId),
+    () => api.getDatasetReviews(datasetId),
     { revalidateOnFocus: false },
   )
+  const reviewByCandidateId = useMemo(() => {
+    const map = new Map<string, import('@/types/subterra').CandidateReview>()
+    for (const r of reviewSummaryQuery.data?.reviews ?? []) {
+      if (r.candidate_id) map.set(r.candidate_id, r)
+    }
+    return map
+  }, [reviewSummaryQuery.data])
+
+  // Section 14: a BASIC queue order, not active learning -- "highest score"
+  // and "position" (the existing, unordered-by-this-code default) are the
+  // two options the milestone brief itself names as sufficient for V1.
+  const [queueOrder, setQueueOrder] = useState<'position' | 'score'>('position')
 
   const grid = gridQuery.data
   const footprints: CandidateFootprint[] = useMemo(
@@ -493,6 +507,9 @@ export function RadargramInspector({ datasetId }: { datasetId: string }) {
             onSelect={setSelectedId}
             loading={candidateQuery.isLoading}
             failed={Boolean(candidateQuery.error)}
+            reviewByCandidateId={reviewByCandidateId}
+            queueOrder={queueOrder}
+            onQueueOrderChange={setQueueOrder}
           />
 
           {unplaceable.length > 0 && (
@@ -554,6 +571,9 @@ function CandidateList({
   onSelect,
   loading,
   failed,
+  reviewByCandidateId,
+  queueOrder,
+  onQueueOrderChange,
 }: {
   footprints: CandidateFootprint[]
   byId: Map<string, InspectableCandidate>
@@ -561,6 +581,9 @@ function CandidateList({
   onSelect: (id: string | null) => void
   loading: boolean
   failed: boolean
+  reviewByCandidateId: Map<string, import('@/types/subterra').CandidateReview>
+  queueOrder: 'position' | 'score'
+  onQueueOrderChange: (order: 'position' | 'score') => void
 }) {
   if (loading) {
     return (
@@ -587,14 +610,42 @@ function CandidateList({
     )
   }
 
+  // Section 14: a basic, explicitly-not-active-learning ordering. Position
+  // (the order the backend returned, unordered by this code) is the default;
+  // 'score' sorts by the SAME candidate_score already shown, highest first.
+  const ordered = [...footprints]
+  if (queueOrder === 'score') {
+    ordered.sort((a, b) => (byId.get(b.candidate_id)?.candidate_score ?? 0) - (byId.get(a.candidate_id)?.candidate_score ?? 0))
+  }
+
   return (
     <div className="space-y-1">
-      <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-        Candidates on this line
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+          Candidates on this line
+        </p>
+        <div className="flex gap-1" data-queue-order-controls>
+          {(['position', 'score'] as const).map((order) => (
+            <button
+              key={order}
+              type="button"
+              data-queue-order-option={order}
+              aria-pressed={queueOrder === order}
+              onClick={() => onQueueOrderChange(order)}
+              className={cn(
+                'rounded px-1.5 py-0.5 text-[10px]',
+                queueOrder === order ? 'bg-primary text-primary-foreground' : 'text-muted-foreground',
+              )}
+            >
+              {order === 'position' ? 'Position' : 'Highest score'}
+            </button>
+          ))}
+        </div>
+      </div>
       <ul className="space-y-1">
-        {footprints.map((f) => {
+        {ordered.map((f) => {
           const candidate = byId.get(f.candidate_id)
+          const review = reviewByCandidateId.get(f.candidate_id)
           return (
             <li key={f.candidate_id}>
               <button
@@ -619,6 +670,9 @@ function CandidateList({
                   <span className="block font-mono text-[10px]">
                     score {candidate.candidate_score.toFixed(2)} ·{' '}
                     {candidate.candidate.interpretation.anomaly_class} · {candidate.status}
+                    {review && review.review_status !== 'unreviewed' && (
+                      <span data-queue-review-status={review.review_status}> · reviewed: {review.review_status}</span>
+                    )}
                   </span>
                 )}
               </button>

@@ -30,6 +30,7 @@ const getTraceGrid = vi.fn()
 const getCandidates = vi.fn()
 const reviewCandidate = vi.fn()
 const getReviewSummary = vi.fn()
+const getDatasetReviews = vi.fn()
 const getCandidateReview = vi.fn()
 const submitCandidateReview = vi.fn()
 const createMissedEvent = vi.fn()
@@ -44,6 +45,7 @@ vi.mock('@/services/api', async () => {
       getCandidates: (id: string) => getCandidates(id),
       reviewCandidate: (d: string, c: string, s: string) => reviewCandidate(d, c, s),
       getReviewSummary: (id: string) => getReviewSummary(id),
+      getDatasetReviews: (id: string) => getDatasetReviews(id),
       getCandidateReview: (d: string, c: string) => getCandidateReview(d, c),
       submitCandidateReview: (d: string, c: string, body: unknown) =>
         submitCandidateReview(d, c, body),
@@ -271,6 +273,7 @@ beforeEach(() => {
   getCandidates.mockReset()
   reviewCandidate.mockReset()
   getReviewSummary.mockReset()
+  getDatasetReviews.mockReset()
   getCandidateReview.mockReset()
   submitCandidateReview.mockReset()
   createMissedEvent.mockReset()
@@ -278,7 +281,8 @@ beforeEach(() => {
   // panels are not left with a network call that never resolves: an
   // absent review is a 404, matching what a real, never-reviewed
   // candidate returns.
-  getReviewSummary.mockResolvedValue({
+  getDatasetReviews.mockResolvedValue({
+    dataset_id: 'd1', reviews: [],
     summary: { total_reviews: 0, by_status: { unreviewed: 0, confirmed: 0, rejected: 0, uncertain: 0 }, missed_events: 0, eligible_for_corpus: 0 },
   })
   getCandidateReview.mockRejectedValue(new ApiError(404, 'this candidate has not been reviewed yet'))
@@ -912,7 +916,8 @@ describe('human-in-the-loop review', () => {
   it('shows the dataset-level review progress', async () => {
     getTraceGrid.mockResolvedValue(grid())
     getCandidates.mockResolvedValue(intelligence())
-    getReviewSummary.mockResolvedValue({
+    getDatasetReviews.mockResolvedValue({
+      dataset_id: 'd1', reviews: [],
       summary: {
         total_reviews: 84, missed_events: 3,
         by_status: { unreviewed: 57, confirmed: 11, rejected: 10, uncertain: 6 },
@@ -974,7 +979,8 @@ describe('human-in-the-loop review', () => {
   it('offers a corpus export link once eligible reviews exist', async () => {
     getTraceGrid.mockResolvedValue(grid())
     getCandidates.mockResolvedValue(intelligence())
-    getReviewSummary.mockResolvedValue({
+    getDatasetReviews.mockResolvedValue({
+      dataset_id: 'd1', reviews: [],
       summary: { total_reviews: 5, missed_events: 1,
                 by_status: { unreviewed: 0, confirmed: 4, rejected: 0, uncertain: 1 },
                 eligible_for_corpus: 5 },
@@ -1139,5 +1145,85 @@ describe('canvas-based review annotation', () => {
         'd1', expect.objectContaining({ trace_range: [1, 1] }),
       ),
     )
+  })
+})
+
+describe('review queue prioritization', () => {
+  function twoCandidateIntelligence() {
+    const base = intelligence()
+    const c1 = base.candidates[0]!
+    const c2 = {
+      ...c1,
+      candidate: { ...c1.candidate, id: 'c2', evidence: { ...c1.candidate.evidence, trace_range: [5, 5] as [number, number] } },
+      candidate_score: 9.0,
+    }
+    return { ...base, candidate_count: 2, candidates: [c1, c2] }
+  }
+
+  function twoFootprintGrid() {
+    return grid({
+      candidate_footprints: [
+        { candidate_id: 'c1', placeable: true, reason: '', first_column: 1, last_column: 1, first_row: 1, last_row: 1, peak_column: 1, peak_row: 1 },
+        { candidate_id: 'c2', placeable: true, reason: '', first_column: 0, last_column: 0, first_row: 0, last_row: 0, peak_column: 0, peak_row: 0 },
+      ],
+    })
+  }
+
+  it('defaults to position order (the order the backend returned)', async () => {
+    getTraceGrid.mockResolvedValue(twoFootprintGrid())
+    getCandidates.mockResolvedValue(twoCandidateIntelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+    await screen.findByText(/Candidates on this line/i)
+
+    const rows = container.querySelectorAll('[data-candidate-row]')
+    expect(rows[0]?.getAttribute('data-candidate-row')).toBe('c1') // score 4.85, listed first (backend order)
+    expect(rows[1]?.getAttribute('data-candidate-row')).toBe('c2') // score 9.0
+  })
+
+  it('"Highest score" reorders without touching "Position"', async () => {
+    getTraceGrid.mockResolvedValue(twoFootprintGrid())
+    getCandidates.mockResolvedValue(twoCandidateIntelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+    await screen.findByText(/Candidates on this line/i)
+
+    fireEvent.click(container.querySelector('[data-queue-order-option="score"]')!)
+    const rows = container.querySelectorAll('[data-candidate-row]')
+    expect(rows[0]?.getAttribute('data-candidate-row')).toBe('c2') // score 9.0, now first
+    expect(rows[1]?.getAttribute('data-candidate-row')).toBe('c1')
+  })
+
+  it('marks a candidate already reviewed in the queue', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    getDatasetReviews.mockResolvedValue({
+      dataset_id: 'd1',
+      reviews: [{
+        id: 'rev1', dataset_id: 'd1', candidate_id: 'c1', site_id: null,
+        source_file: 'Path8.sgy', trace_range: [1, 1], reviewer_id: 'u1',
+        review_status: 'confirmed', operator_label: 'pipe', annotation_geometry: null,
+        notes: null, evidence_grade: 'operator_reviewed', label_source: 'operator_reviewed',
+        ground_truth_status: 'not_independently_validated', detector_snapshot: null,
+        history: [], created_utc: 't', updated_utc: 't',
+      }],
+      summary: { total_reviews: 1, by_status: { unreviewed: 0, confirmed: 1, rejected: 0, uncertain: 0 }, missed_events: 0, eligible_for_corpus: 1 },
+    })
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-queue-review-status="confirmed"]')).toBeTruthy(),
+    )
+  })
+
+  it('an unreviewed candidate carries no reviewed badge', async () => {
+    getTraceGrid.mockResolvedValue(grid())
+    getCandidates.mockResolvedValue(intelligence())
+    const { container } = view()
+    await screen.findByText(/Radargram inspection/i)
+    await screen.findByText(/Candidates on this line/i)
+
+    expect(container.querySelector('[data-queue-review-status]')).toBeNull()
   })
 })

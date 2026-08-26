@@ -679,6 +679,13 @@ export const api = {
     return request(`/api/reviews/${encodeURIComponent(datasetId)}/summary`)
   },
 
+  /** Every review for a dataset plus the same summary -- used to mark already-reviewed candidates in the queue (Section 13) without a second round trip. */
+  getDatasetReviews(
+    datasetId: string,
+  ): Promise<{ dataset_id: string; reviews: CandidateReview[]; summary: ReviewSummary }> {
+    return request(`/api/reviews/${encodeURIComponent(datasetId)}`)
+  },
+
   /** One candidate's review, or a 404 (ApiError) meaning it has not been reviewed yet. */
   getCandidateReview(datasetId: string, candidateId: string): Promise<CandidateReview> {
     return request(
