@@ -893,6 +893,29 @@ def _local_anomaly_step(local_anomaly: Optional[dict]) -> Optional[SignalProcess
         step="local_anomaly", ran=True, parameters=parameters, reason=LOCAL_ANOMALY_BASIS)
 
 
+def _topographic_correction_step(applied: Optional[dict]) -> Optional[SignalProcessingStep]:
+    """
+    Optional, mirroring `_local_anomaly_step`'s own reasoning: unlike
+    `time_zero` (attempted, or at least reported, for every recorded GPR
+    chain), a topographic/air-gap correction
+    (`preprocessing.topographic_correction`) only exists for a dataset that
+    has explicitly run `POST /{id}/apply_topographic_correction` -- most
+    datasets never touch it. This step is OMITTED entirely (not reported as
+    "not run") for those, the same way `_local_anomaly_step` omits itself
+    for a dataset local-anomaly preprocessing never touched, rather than
+    manufacturing a "not run" line for a step that was never even eligible.
+    """
+    if not applied or "topographic_correction_status" not in applied:
+        return None
+    ran = bool(applied.get("topographic_correction"))
+    parameters = {
+        k: v for k, v in applied.items()
+        if k != "topographic_correction" and k.startswith("topographic_correction_")
+        and v is not None
+    }
+    return SignalProcessingStep(step="topographic_correction", ran=ran, parameters=parameters)
+
+
 def build_signal_chain(
     applied: Optional[dict], frames=None, local_anomaly: Optional[dict] = None,
     recorded_modalities: Optional[list[str]] = None,
@@ -939,6 +962,7 @@ def build_signal_chain(
                    "was not recorded for this dataset")
 
     time_zero_step = _time_zero_step(applied, claim, claim_is_declared)
+    topographic_correction_step = _topographic_correction_step(applied)
 
     if not applied:
         # Only whichever of a time-zero claim / a local-anomaly stamp exist;
@@ -975,6 +999,8 @@ def build_signal_chain(
         steps.append(SignalProcessingStep(step=name, ran=ran, parameters=parameters))
     if local_anomaly_step is not None:
         steps.append(local_anomaly_step)
+    if topographic_correction_step is not None:
+        steps.append(topographic_correction_step)
 
     return SignalProcessingChain(
         recorded=True,

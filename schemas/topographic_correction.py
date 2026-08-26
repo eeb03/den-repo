@@ -116,11 +116,13 @@ class TopographicCorrectionResult(BaseModel):
 
     def as_processing_applied(self) -> dict:
         """
-        Namespaced `topographic_*` keys, mirroring
-        `TimeZeroResult.as_processing_applied`'s own contract so a future
-        `schemas.dataset_report` reader can pick these up the same way it
-        already reads `time_zero_*` keys generically -- no change needed
-        to that module for this stamp alone to be visible.
+        Namespaced `topographic_correction_*` keys, mirroring
+        `TimeZeroResult.as_processing_applied`'s own contract. Read by
+        `schemas.dataset_report._topographic_correction_step` -- there is
+        no generic reader for `processing_applied` keys (`time_zero_*` has
+        its own specifically-named `_time_zero_step`, not a generic one
+        either), so that function exists specifically to surface this
+        stamp in the dataset report's signal chain.
         """
         out = {
             "topographic_correction": self.applied,

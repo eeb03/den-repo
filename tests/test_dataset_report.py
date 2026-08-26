@@ -1109,6 +1109,54 @@ def test_no_anomaly_reliable_stamp_does_not_grow_a_local_anomaly_step():
         ["time_zero", "background_removal", "dewow", "gain"]
 
 
+def test_a_derived_topographic_correction_appends_last_ran_true():
+    applied = {**_APPLIED, "topographic_correction": True,
+              "topographic_correction_status": "derived",
+              "topographic_correction_method": "dem_antenna_differential",
+              "topographic_correction_max_abs_ns": 0.48,
+              "topographic_correction_sample_interval_ns": 0.097,
+              "topographic_correction_traces_evaluated": 314,
+              "topographic_correction_traces_valid": 314}
+    chain = build_signal_chain(applied, [frame()], None)
+
+    assert [s.step for s in chain.steps] == \
+        ["time_zero", "background_removal", "dewow", "gain", "topographic_correction"]
+    last = chain.steps[-1]
+    assert last.ran is True
+    assert last.parameters["topographic_correction_status"] == "derived"
+    assert last.parameters["topographic_correction_max_abs_ns"] == 0.48
+    assert "topographic_correction" not in last.parameters  # the boolean flag itself is not duplicated as a parameter
+
+
+def test_a_not_material_topographic_correction_still_appends_but_ran_is_false():
+    """not_material is a complete, honest answer -- the step is reported, but ran=False since no per-trace correction was applied."""
+    applied = {**_APPLIED, "topographic_correction": False,
+              "topographic_correction_status": "not_material",
+              "topographic_correction_method": "dem_antenna_differential"}
+    chain = build_signal_chain(applied, [frame()], None)
+    last = chain.steps[-1]
+    assert last.step == "topographic_correction"
+    assert last.ran is False
+    assert last.parameters["topographic_correction_status"] == "not_material"
+
+
+def test_no_topographic_correction_stamp_does_not_grow_a_step():
+    """The common case: a dataset that never ran /apply_topographic_correction gets no step at all, not a 'not run' one."""
+    chain = build_signal_chain(_APPLIED, [frame()], None)
+    assert [s.step for s in chain.steps] == \
+        ["time_zero", "background_removal", "dewow", "gain"]
+
+
+def test_topographic_correction_appears_after_local_anomaly_when_both_are_present():
+    applied = {**_APPLIED, "topographic_correction": True,
+              "topographic_correction_status": "derived",
+              "topographic_correction_method": "dem_antenna_differential"}
+    local_anomaly = {"anomaly_reliable": True}
+    chain = build_signal_chain(applied, [frame()], local_anomaly)
+    assert [s.step for s in chain.steps] == \
+        ["time_zero", "background_removal", "dewow", "gain", "local_anomaly", "topographic_correction"]
+
+
 def test_anomaly_reliable_alone_makes_recorded_true_with_only_time_zero_and_local_anomaly():
     """process_gpr_traces never ran (no processing_applied), but
     preprocess_trace_local_anomaly did -- gpr_local_anomaly mode."""
