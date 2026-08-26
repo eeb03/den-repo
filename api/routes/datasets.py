@@ -26,6 +26,8 @@ from schemas.spatial import Assumption, AxisKind, has_geographic_coordinates
 from ingestion.downloader import download_file, DownloadError
 from converters.registry import supported_extensions
 from preprocessing.dem_alignment import align_records_with_dem_with_count
+from database.integrity_store import load_integrity, save_integrity
+from security.dataset_integrity import SigningUnavailable, sign_dataset, verify_dataset
 from configs.settings import settings
 from api import dataset_lifecycle as lifecycle
 from jobs import storage
@@ -79,6 +81,16 @@ def default_preprocessing_mode(sensor_type: SensorType) -> str:
     """The mode used when a caller names none. Never overrides an explicit choice."""
     return DEFAULT_PREPROCESSING_MODE_BY_MODALITY.get(
         sensor_type, FALLBACK_PREPROCESSING_MODE)
+
+
+def _records_path(dataset_id: str) -> Path:
+    """Mirrors `database.records_store._path_for` -- kept in sync the same way `api.dataset_lifecycle.ARTIFACT_SUFFIXES` already is (a dedicated test enforces it)."""
+    return settings.processed_dir / f"{dataset_id}.jsonl"
+
+
+def _frames_path(dataset_id: str) -> Path:
+    """Mirrors `database.frames_store._path_for`."""
+    return settings.processed_dir / f"{dataset_id}.frames.json"
 
 
 def _validate_coordinate_encoding_kwarg(converter, converter_kwargs: Optional[dict]) -> None:
@@ -572,6 +584,69 @@ def align_dataset_with_dem(dataset_id: str, dem_filename: str, db: Session = Dep
         "total_records": len(records),
         "records_aligned": n_aligned,
         "dem_source": dem_path.name,
+    }
+
+
+@router.post("/{dataset_id}/sign_integrity")
+def sign_dataset_integrity(dataset_id: str, db: Session = Depends(get_db),
+    _dataset=Depends(require_owned_dataset)):
+    """
+    Seals the dataset's CURRENT stored records/frames with a fresh Ed25519
+    signature (`security.dataset_integrity`) -- an authenticity/tamper-
+    evidence claim, never a physical-truth claim. Explicit and on-demand,
+    like `/align_dem` and `/apply_topographic_correction`: nothing signs a
+    dataset automatically, so a caller always knows exactly which state
+    was sealed and when.
+
+    Re-signing after a real, legitimate change (e.g. `/apply_time_zero`)
+    is expected and correct -- the OLD signature no longer matching is not
+    a bug, it is this feature doing its job. This endpoint always produces
+    a fresh signature over whatever is currently stored; it never
+    preserves or chains to a prior one.
+    """
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    records_path = _records_path(dataset_id)
+    if not records_path.exists():
+        raise HTTPException(status_code=404, detail="No stored records found for this dataset")
+
+    try:
+        signature = sign_dataset(
+            dataset_id, records_path, _frames_path(dataset_id),
+            settings.integrity_signing_private_key,
+        )
+    except SigningUnavailable as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    save_integrity(signature)
+    return signature.to_dict()
+
+
+@router.get("/{dataset_id}/verify_integrity")
+def verify_dataset_integrity(dataset_id: str, _dataset=Depends(require_dataset_access)):
+    """
+    Recomputes the dataset's current digest and checks it against the last
+    signature, if any. `signed: false` (never an error) is the honest
+    answer for a dataset that has never called `/sign_integrity` --
+    absence of a signature is not evidence of tampering.
+    """
+    stored = load_integrity(dataset_id)
+    if stored is None:
+        return {
+            "dataset_id": dataset_id, "signed": False, "verified": None,
+            "reason": "this dataset has never been signed",
+        }
+
+    records_path = _records_path(dataset_id)
+    if not records_path.exists():
+        raise HTTPException(status_code=404, detail="No stored records found for this dataset")
+
+    verified, reason = verify_dataset(records_path, _frames_path(dataset_id), stored)
+    return {
+        "dataset_id": dataset_id, "signed": True, "verified": verified, "reason": reason,
+        "signed_at": stored.signed_at, "algorithm": stored.algorithm,
     }
 
 

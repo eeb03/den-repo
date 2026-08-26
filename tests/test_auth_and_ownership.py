@@ -541,6 +541,7 @@ ID_ROUTES = [
     "/api/reviews/{id}",
     "/api/reviews/{id}/summary",
     "/api/reviews/{id}/corpus_export",
+    "/api/datasets/{id}/verify_integrity",
 ]
 
 
@@ -770,6 +771,10 @@ def test_the_public_surface_is_exactly_what_we_intend():
         "/api/candidates/vocabulary",
         "/api/exports/formats",
         "/api/imports/formats",
+        # a public key is public by definition -- publishing it lets an
+        # independent verifier check a signature without trusting this
+        # server's own "verified: true" response
+        "/api/integrity/public_key",
         "/api/labels/vocabulary",
         "/api/objects/vocabulary",
         "/api/overlays/vocabulary",

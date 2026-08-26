@@ -30,6 +30,12 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       SUBTERRA_EMAIL_FROM: ${SUBTERRA_EMAIL_FROM:-}
       SUBTERRA_EMAIL_REPLY_TO: ${SUBTERRA_EMAIL_REPLY_TO:-}
+      # Dataset integrity signing (security.dataset_integrity). Empty means
+      # signing is unavailable, not a per-restart random key -- see that
+      # module's own docstring for why. Generate one with
+      # security.dataset_integrity.generate_signing_key() and set it in the
+      # root .env (git-ignored).
+      INTEGRITY_SIGNING_PRIVATE_KEY: ${INTEGRITY_SIGNING_PRIVATE_KEY:-}
     ports:
       # 8001 on the host -- Subterra Core's own API already uses 8000
       - "8001:8000"

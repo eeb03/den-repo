@@ -12,7 +12,7 @@ from jobs.runner import mark_orphaned_jobs_failed
 from api.routes import (datasets, fusion, benchmark, sources, training,
                         provenance, labels, overlays, objects, views,
                         exports, imports, auth, spatial, devices, candidates,
-                        scene, reviews)
+                        scene, reviews, integrity)
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -84,6 +84,7 @@ app.include_router(devices.sessions_router, prefix="/api/sessions", tags=["devic
 app.include_router(candidates.router, prefix="/api/candidates", tags=["candidates"])
 app.include_router(scene.router, prefix="/api/scene", tags=["scene"])
 app.include_router(reviews.router, prefix="/api/reviews", tags=["reviews"])
+app.include_router(integrity.router, prefix="/api/integrity", tags=["integrity"])
 
 
 @app.get("/api/health", tags=["system"])

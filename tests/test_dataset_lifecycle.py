@@ -300,10 +300,10 @@ def test_the_artifact_list_covers_every_store_that_writes_per_dataset():
     """
     import inspect
 
-    from database import frames_store, labels_store, objects_store, records_store
+    from database import frames_store, integrity_store, labels_store, objects_store, records_store
 
     suffixes = set()
-    for module in (records_store, frames_store, labels_store, objects_store):
+    for module in (records_store, frames_store, labels_store, objects_store, integrity_store):
         source = inspect.getsource(module)
         for line in source.splitlines():
             if "processed_dir /" in line and "dataset_id" in line:

@@ -36,6 +36,14 @@ class Settings(BaseSettings):
     opentopography_api_key: str = ""  # https://opentopography.org/blog/introducing-api-keys...
     zenodo_access_token: str = ""     # optional; raises anon rate limits (25->100 results/page)
 
+    # Dataset integrity signing (security.dataset_integrity) -- a base64
+    # Ed25519 private-key seed. Empty means signing is UNAVAILABLE, never a
+    # silently-generated per-process key: a key generated fresh on every
+    # restart would produce signatures no later process could verify,
+    # which is worse than not signing at all. Generate one with
+    # security.dataset_integrity.generate_signing_key() and set it once.
+    integrity_signing_private_key: str = ""
+
     @property
     def raw_dir(self) -> Path:
         return self.data_root / "raw"

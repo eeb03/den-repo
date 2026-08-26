@@ -83,6 +83,7 @@ ARTIFACT_SUFFIXES = (
     ".associations.json",     # candidate associations  (objects_store)
     ".objects.json",          # resolved objects        (objects_store)
     ".candidates.json",       # stored candidate set    (candidates_store)
+    ".integrity.json",        # integrity signature     (integrity_store)
 )
 
 
