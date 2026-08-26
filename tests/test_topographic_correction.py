@@ -16,6 +16,7 @@ from ingestion.four_tu_velocity import C_M_PER_NS
 from preprocessing.topographic_correction import (
     MIN_VALID_TRACES,
     apply_topographic_correction,
+    apply_topographic_correction_for_dataset,
     dem_antenna_differential_correction,
     resolve_topographic_correction_for_records,
 )
@@ -23,6 +24,7 @@ from schemas.subterra_record import SensorType, SubterraRecord
 from schemas.topographic_correction import (
     TopographicCorrectionMethod, TopographicCorrectionResult, TopographicCorrectionStatus,
 )
+from tests.test_time_zero import _frame
 
 
 def _record(elevation=None, metadata=None, dataset_id="ds"):
@@ -31,6 +33,34 @@ def _record(elevation=None, metadata=None, dataset_id="ds"):
         depth=None, signal=[0.0], sensor_type=SensorType.GPR, ground_truth="none",
         metadata=metadata or {},
     )
+
+
+def _per_sample_records_with_elevation(
+    ground_elevation_m: dict, pre_dem_elevation_m: dict, n_samples=2,
+    sample_interval_ns=1.0, frame_id="ds:line", dataset_id="ds", source_file="line.sgy",
+):
+    """
+    One record per (trace, sample) -- the shape `_reconstruct_traces_by_index`
+    needs for the sample-interval derivation -- with every sample of one
+    trace sharing that trace's own elevation/pre_dem_elevation_m, exactly
+    as `preprocessing.dem_alignment.align_records_with_dem` leaves them
+    (a per-sample record's elevation is a per-TRACE fact, not a per-sample one).
+    """
+    records = []
+    for trace_index, ground_elev in ground_elevation_m.items():
+        for sample_index in range(n_samples):
+            records.append(SubterraRecord.model_construct(
+                dataset_id=dataset_id, latitude=None, longitude=None, elevation=ground_elev,
+                depth=sample_index * 0.01, signal=[0.0], sensor_type=SensorType.GPR,
+                ground_truth="none", frame_id=frame_id,
+                metadata={
+                    "source_file": source_file, "trace_index": trace_index,
+                    "two_way_time_ns": sample_index * sample_interval_ns,
+                    "corrected_time_ns": sample_index * sample_interval_ns,
+                    "pre_dem_elevation_m": pre_dem_elevation_m[trace_index],
+                },
+            ))
+    return records
 
 
 # --- 1. The core arithmetic -------------------------------------------------
@@ -214,3 +244,77 @@ class TestSerializationAndStamp:
                 status=status, method=TopographicCorrectionMethod.DEM_ANTENNA_DIFFERENTIAL, basis="test",
             )
             assert result.resolved is False
+
+
+# --- 5. Production wiring: apply_topographic_correction_for_dataset --------
+
+class TestProductionWiring:
+    """
+    `apply_topographic_correction_for_dataset` is the first caller that
+    actually runs this framework against records the way a live
+    `POST /{dataset_id}/apply_topographic_correction` request would --
+    derives its own sample interval per frame, resolves, and applies.
+    """
+
+    def test_derives_its_own_sample_interval_and_applies_a_material_correction(self):
+        frame = _frame(frame_id="ds:line")
+        records = _per_sample_records_with_elevation(
+            ground_elevation_m={0: 10.0, 1: 10.0, 2: 10.0},
+            pre_dem_elevation_m={0: 20.0, 1: 20.5, 2: 19.5},  # +-0.5 m deviation
+            sample_interval_ns=1.0,
+        )
+        records, results = apply_topographic_correction_for_dataset(records, [frame])
+        result = results["ds:line"]
+        assert result.status == TopographicCorrectionStatus.DERIVED
+        assert result.applied is True
+        by_trace = {r.metadata["trace_index"]: r for r in records if r.metadata.get("two_way_time_ns") == 0.0}
+        assert by_trace[1].metadata["topographic_corrected_time_ns"] is not None
+        assert by_trace[1].metadata["topographic_corrected_time_ns"] != by_trace[0].metadata["topographic_corrected_time_ns"]
+
+    def test_terrain_following_line_is_not_material_and_leaves_no_topographic_correction(self):
+        frame = _frame(frame_id="ds:line")
+        records = _per_sample_records_with_elevation(
+            ground_elevation_m={0: 10.0, 1: 11.0, 2: 12.0},
+            pre_dem_elevation_m={0: 20.0, 1: 21.0, 2: 22.0},  # constant height-above-ground
+        )
+        records, results = apply_topographic_correction_for_dataset(records, [frame])
+        assert results["ds:line"].status == TopographicCorrectionStatus.NOT_MATERIAL
+        assert all(r.metadata["topographic_corrected_time_ns"] is None for r in records)
+
+    def test_two_frames_are_resolved_independently_not_pooled(self):
+        frame_a = _frame(frame_id="ds:a")
+        frame_b = _frame(frame_id="ds:b")
+        records_a = _per_sample_records_with_elevation(
+            ground_elevation_m={0: 10.0, 1: 10.0, 2: 10.0},
+            pre_dem_elevation_m={0: 20.0, 1: 20.5, 2: 19.5},
+            frame_id="ds:a",
+        )
+        records_b = _per_sample_records_with_elevation(
+            ground_elevation_m={0: 10.0, 1: 11.0, 2: 12.0},
+            pre_dem_elevation_m={0: 20.0, 1: 21.0, 2: 22.0},  # terrain-following
+            frame_id="ds:b",
+        )
+        records, results = apply_topographic_correction_for_dataset(records_a + records_b, [frame_a, frame_b])
+        assert results["ds:a"].status == TopographicCorrectionStatus.DERIVED
+        assert results["ds:b"].status == TopographicCorrectionStatus.NOT_MATERIAL
+
+    def test_a_frame_never_dem_aligned_reports_unavailable(self):
+        frame = _frame(frame_id="ds:line")
+        records = [
+            SubterraRecord.model_construct(
+                dataset_id="ds", latitude=None, longitude=None, elevation=None,
+                depth=si * 0.01, signal=[0.0], sensor_type=SensorType.GPR, ground_truth="none",
+                frame_id="ds:line",
+                metadata={"source_file": "line.sgy", "trace_index": ti, "two_way_time_ns": si * 1.0},
+            )
+            for ti in range(3) for si in range(2)
+        ]
+        records, results = apply_topographic_correction_for_dataset(records, [frame])
+        assert results["ds:line"].status == TopographicCorrectionStatus.UNAVAILABLE
+
+    def test_records_with_no_matching_frame_are_left_untouched(self):
+        records = [_record(metadata={"trace_index": 0})]
+        records[0].frame_id = "ds:unknown"
+        records, results = apply_topographic_correction_for_dataset(records, [])
+        assert results == {}
+        assert "topographic_corrected_time_ns" not in records[0].metadata

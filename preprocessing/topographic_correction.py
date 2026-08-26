@@ -50,6 +50,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from ingestion.four_tu_velocity import C_M_PER_NS
+from preprocessing.trace_processing import _reconstruct_traces_by_index
 from schemas.subterra_record import SubterraRecord
 from schemas.topographic_correction import (
     TopographicCorrectionMethod, TopographicCorrectionResult, TopographicCorrectionStatus,
@@ -194,3 +195,69 @@ def apply_topographic_correction(
         else:
             r.metadata["topographic_corrected_time_ns"] = None
     return records
+
+
+# ---------------------------------------------------------------------------
+# production wiring: per frame, sample interval derived, then applied
+# ---------------------------------------------------------------------------
+
+def _sample_interval_for_frame_records(records: list[SubterraRecord]) -> Optional[float]:
+    """
+    Same derivation `preprocessing.time_zero.resolve_time_zero_for_frame`
+    already uses: the median spacing between the first two samples of each
+    reconstructed whole trace. Returns None if `records` are not in the
+    per-sample-per-record shape `_reconstruct_traces_by_index` expects.
+    """
+    by_trace = _reconstruct_traces_by_index(records)
+    if by_trace is None:
+        return None
+    intervals = []
+    for recs in by_trace.values():
+        times = [r.metadata.get("two_way_time_ns") for r in recs[:2]]
+        if len(times) == 2 and all(t is not None for t in times):
+            intervals.append(times[1] - times[0])
+    return statistics.median(intervals) if intervals else None
+
+
+def apply_topographic_correction_for_dataset(
+    records: list[SubterraRecord], frames: list,
+) -> tuple[list[SubterraRecord], dict[str, TopographicCorrectionResult]]:
+    """
+    Runs `resolve_topographic_correction_for_records` and applies the
+    result, PER FRAME -- mirrors `preprocessing.time_zero.
+    apply_time_zero_for_dataset`'s own per-frame scoping and for the same
+    reason: each frame is a separate acquisition line, and the median
+    height-above-ground this correction differences against is only
+    meaningful within one line, never pooled across several.
+
+    Records with no `frame_id`, or whose `frame_id` matches no frame in
+    `frames`, are left completely untouched -- same as
+    `apply_time_zero_for_dataset`.
+    """
+    frames_by_frame_id = {f.frame_id: f for f in frames}
+    by_frame: dict[Optional[str], list[SubterraRecord]] = {}
+    for r in records:
+        by_frame.setdefault(r.frame_id, []).append(r)
+
+    results: dict[str, TopographicCorrectionResult] = {}
+    for frame_id, frame_records in by_frame.items():
+        if frame_id is None or frame_id not in frames_by_frame_id:
+            continue
+
+        sample_interval_ns = _sample_interval_for_frame_records(frame_records)
+        if not sample_interval_ns or sample_interval_ns <= 0:
+            result = TopographicCorrectionResult(
+                status=TopographicCorrectionStatus.UNAVAILABLE,
+                method=TopographicCorrectionMethod.DEM_ANTENNA_DIFFERENTIAL,
+                basis="no usable sample interval could be established from these records' own "
+                     "two_way_time_ns spacing",
+            )
+        else:
+            result = resolve_topographic_correction_for_records(frame_records, sample_interval_ns)
+
+        if result.resolved:
+            result = result.model_copy(update={"applied": True})
+        apply_topographic_correction(frame_records, result)
+        results[frame_id] = result
+
+    return records, results

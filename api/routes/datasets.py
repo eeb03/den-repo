@@ -19,6 +19,7 @@ from converters.base import MissingDependencyError
 from validators.dataset_validator import validate_dataset
 from preprocessing.pipeline import run_pipeline
 from preprocessing.time_zero import apply_time_zero_for_dataset
+from preprocessing.topographic_correction import apply_topographic_correction_for_dataset
 from database.records_store import save_records, load_records
 from database.frames_store import load_frames, save_frames, synthesize_frames_from_records
 from schemas.spatial import Assumption, AxisKind, has_geographic_coordinates
@@ -525,6 +526,75 @@ def align_dataset_with_dem(dataset_id: str, dem_filename: str, db: Session = Dep
         "total_records": len(records),
         "records_aligned": n_aligned,
         "dem_source": dem_path.name,
+    }
+
+
+@router.post("/{dataset_id}/apply_topographic_correction")
+def apply_topographic_correction_endpoint(
+    dataset_id: str, db: Session = Depends(get_db), _dataset=Depends(require_owned_dataset),
+):
+    """
+    Resolve and apply a per-trace topographic/air-gap correction to this
+    dataset's stored records, PER FRAME -- a REFINEMENT on top of any
+    existing time-zero correction (`corrected_time_ns`), for a real
+    air-gap that VARIES along a line (see
+    `preprocessing.topographic_correction` and the research audit that
+    justified it, `scripts/four_tu_topographic_correction_audit.py`).
+
+    REQUIRES THIS DATASET TO HAVE ALREADY RUN `/align_dem`. This endpoint
+    takes no DEM parameter of its own -- that question is already answered
+    by `/align_dem`, which persists the DEM's ground elevation into
+    `record.elevation` and (since the fix accompanying this endpoint)
+    preserves whatever elevation the record carried before that into
+    `metadata["pre_dem_elevation_m"]`. A dataset that has never run
+    `/align_dem`, or whose sensor never recorded its own elevation to
+    begin with, correctly reports `unavailable` for every frame rather
+    than guessing at a DEM to use.
+
+    NEVER GUESSES. A frame whose antenna height above the DEM's own ground
+    turns out to be effectively constant along the line reports
+    `not_material` -- a complete, honest answer, not a failure -- and
+    applies no per-trace correction (see `TopographicCorrectionStatus`'s
+    own NOT_MATERIAL/UNAVAILABLE distinction). `corrected_time_ns` itself
+    is never touched; only a new `topographic_corrected_time_ns` is added.
+    """
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    # Uncached: this call mutates records and saves them back.
+    records = load_records(dataset_id, use_cache=False)
+    if not records:
+        raise HTTPException(status_code=404, detail="No stored records found for this dataset")
+
+    frames = load_frames(dataset_id) or synthesize_frames_from_records(records)
+
+    records, results = apply_topographic_correction_for_dataset(records, frames)
+    if not results:
+        raise HTTPException(
+            status_code=409,
+            detail="no frame in this dataset could be evaluated -- these records are not in "
+                   "the per-sample GPR shape this correction needs")
+    save_records(dataset_id, records)
+
+    report = validate_dataset(records, dataset_id=dataset_id)
+    dataset.quality_score = report.quality_score
+    dataset.extra_metadata = {
+        **(dataset.extra_metadata or {}),
+        "validation_issues": report.issues,
+    }
+    db.commit()
+
+    return {
+        "dataset_id": dataset_id,
+        "record_count": len(records),
+        "quality_score": report.quality_score,
+        "frames": {
+            frame_id: result.model_dump(mode="json") for frame_id, result in results.items()
+        },
+        "material_frame_count": sum(
+            1 for r in results.values() if r.status.value == "derived"),
+        "frame_count": len(results),
     }
 
 

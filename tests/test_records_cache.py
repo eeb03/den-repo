@@ -225,7 +225,8 @@ def test_the_write_handlers_do_not_use_the_cache():
                 f"{name} both loads and saves records but loads cached: {call}"
 
     assert set(checked) == {"reprocess_dataset", "align_dataset_with_dem",
-                            "_run_depth_slice_pipeline", "apply_time_zero"}, \
+                            "_run_depth_slice_pipeline", "apply_time_zero",
+                            "apply_topographic_correction_endpoint"}, \
         f"the set of record-write paths changed: {sorted(checked)}"
 
 
