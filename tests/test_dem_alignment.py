@@ -157,6 +157,66 @@ def test_align_records_with_dem_leaves_no_prior_elevation_field_absent(tmp_path)
     assert "pre_dem_elevation_m" not in aligned[0].metadata
 
 
+def _write_projected_geotiff(path, epsg, west, north, pixel_size, size, value):
+    """A GeoTIFF in a PROJECTED CRS (metres), unlike _write_tiny_geotiff's EPSG:4326 tiles."""
+    rasterio = pytest.importorskip("rasterio")
+    from rasterio.transform import from_origin
+
+    transform = from_origin(west, north, pixel_size, pixel_size)
+    data = np.full((size, size), value, dtype="float32")
+    with rasterio.open(
+        str(path), "w", driver="GTiff", height=size, width=size, count=1,
+        dtype="float32", crs=f"EPSG:{epsg}", transform=transform,
+    ) as dst:
+        dst.write(data, 1)
+    return path
+
+
+def test_align_records_with_dem_reprojects_a_dem_in_a_projected_crs(tmp_path):
+    """
+    Regression test for a real bug caught live: a DEM in a projected CRS
+    (e.g. AHN's EPSG:28992, Dutch RD New, metres) was being sampled with raw
+    WGS84 degree values, which fall nowhere near a transform whose origin is
+    in the hundreds of thousands of metres -- every real point missed, 0
+    aligned, even though the record's real position is genuinely covered by
+    the tile once reprojected correctly.
+    """
+    pytest.importorskip("rasterio")
+    from rasterio.warp import transform as rio_transform
+
+    from preprocessing.dem_alignment import align_records_with_dem
+
+    lon, lat = 6.851548258463541, 52.23896484375
+    easting, northing = rio_transform("EPSG:4326", "EPSG:28992", [lon], [lat])
+    dem_path = _write_projected_geotiff(
+        tmp_path / "rd_new.tif", epsg=28992,
+        west=easting[0] - 50, north=northing[0] + 50, pixel_size=1.0, size=200, value=12.3,
+    )
+    records = [SubterraRecord(
+        dataset_id="d", sensor_type=SensorType.GPR, latitude=lat, longitude=lon,
+        depth=1.0, signal=[1.0],
+    )]
+
+    aligned = align_records_with_dem(records, dem_path)
+
+    assert aligned[0].elevation == pytest.approx(12.3)
+
+
+def test_align_records_with_dem_still_works_for_an_unprojected_dem(tmp_path):
+    """The common case (EPSG:4326, e.g. OpenTopography output) must be unaffected by the reprojection branch."""
+    from preprocessing.dem_alignment import align_records_with_dem
+
+    dem_path = _write_tiny_geotiff(tmp_path / "wgs84.tif", west=15.0, north=41.0, pixel_size=0.01, size=10, value=250.0)
+    records = [SubterraRecord(
+        dataset_id="d", sensor_type=SensorType.GPR, latitude=41.0 - 0.03, longitude=15.0 + 0.03,
+        depth=1.0, signal=[1.0],
+    )]
+
+    aligned = align_records_with_dem(records, dem_path)
+
+    assert aligned[0].elevation == pytest.approx(250.0)
+
+
 def test_align_records_with_dem_flags_vertical_datum_as_unverified(tmp_path):
     """DEM elevation values (e.g. COP30's EGM2008 geoid heights) are used as-is, with no vertical-datum check or conversion -- must be visible in metadata, distinct from the horizontal CRS check."""
     from preprocessing.dem_alignment import align_records_with_dem

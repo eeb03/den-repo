@@ -105,13 +105,6 @@ def align_records_with_dem(records: list[SubterraRecord], dem_path: str | Path) 
         transform = ds.transform
         dem_crs = ds.crs
 
-    if dem_crs and dem_crs.to_epsg() not in (4326, None):
-        logger.warning(
-            f"DEM CRS is {dem_crs} (not EPSG:4326). align_records_with_dem assumes lat/lon "
-            f"input matches the DEM's coordinate system; reproject the DEM first if this is wrong. "
-            f"(This is a HORIZONTAL check only -- see the vertical-datum note below.)"
-        )
-
     logger.info(
         "DEM alignment: vertical datum is NOT validated or converted -- elevation values are used "
         "as-is from the DEM (e.g. COP30 reports EGM2008 geoid heights, not WGS84 ellipsoidal height). "
@@ -138,7 +131,28 @@ def align_records_with_dem(records: list[SubterraRecord], dem_path: str | Path) 
     records_to_align = positioned
     lats = np.array([r.latitude for r in records_to_align])
     lons = np.array([r.longitude for r in records_to_align])
-    elevations = sample_dem_bilinear(band, transform, lats, lons)
+
+    if dem_crs and dem_crs.to_epsg() not in (4326, None):
+        # The DEM's own grid is in a different (typically projected) CRS --
+        # e.g. AHN's EPSG:28992 (Dutch RD New, metres). `sample_dem_bilinear`
+        # indexes the raster in the DEM's OWN units, so comparing raw WGS84
+        # degree values against it always misses: a record's real (lat, lon)
+        # is a small number of degrees, the DEM's transform origin is in
+        # metres in the hundreds of thousands, so bilinear sampling reads
+        # far outside the raster's bounds on every point and returns NaN for
+        # all of them. Confirmed live against a real AHN tile: 0 of 160,768
+        # real, correctly-decoded record positions matched before this fix,
+        # despite the exact same file/DEM pair matching successfully in
+        # `scripts/four_tu_topographic_correction_audit.py`, which already
+        # reprojects with this SAME rasterio.warp.transform call -- reused
+        # here, not reimplemented.
+        from rasterio.warp import transform as rio_transform
+        eastings, northings = rio_transform("EPSG:4326", dem_crs, lons.tolist(), lats.tolist())
+        sample_lats, sample_lons = np.array(northings), np.array(eastings)
+    else:
+        sample_lats, sample_lons = lats, lons
+
+    elevations = sample_dem_bilinear(band, transform, sample_lats, sample_lons)
 
     n_aligned = 0
     # zip against the FILTERED list: `elevations` was sampled from it, so
