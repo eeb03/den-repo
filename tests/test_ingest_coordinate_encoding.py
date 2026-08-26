@@ -619,3 +619,60 @@ class TestTopographicCorrectionChainReachable:
         assert "topographic_correction" in steps
         assert steps["topographic_correction"]["parameters"]["topographic_correction_status"] \
             == result["status"]
+
+
+# ---------------------------------------------------------------------------
+# 10. Regression: /align_dem's own reporting must not claim success for
+#     records it never actually matched against the DEM
+# ---------------------------------------------------------------------------
+
+class TestAlignDemReportingReflectsRealMatches:
+    """
+    A record ingested with coordinate_encoding=ieee_nmea already carries an
+    antenna elevation BEFORE /align_dem ever runs. The endpoint's own
+    records_aligned count used to be `sum(1 for r in records if r.elevation
+    is not None)` -- true for every one of these records regardless of
+    whether the DEM tile covered them at all, so a DEM that matched nothing
+    still reported full success. Fixed to use the real per-call count
+    `align_records_with_dem_with_count` returns.
+    """
+
+    def test_a_dem_that_covers_nothing_reports_zero_not_the_record_count(self, env, tmp_path):
+        rasterio = pytest.importorskip("rasterio")
+        import numpy as np
+        from rasterio.transform import from_origin
+
+        client = signed_in()
+        segy_path = _ieee_nmea_segy(tmp_path / "unmatched.sgy")
+        resp = client.post(
+            "/api/datasets/ingest",
+            files={"file": ("unmatched.sgy", segy_path.read_bytes(), "application/octet-stream")},
+            data={"sensor_type": "gpr", "coordinate_encoding": "ieee_nmea",
+                  "apply_preprocessing": "false"},
+        )
+        dataset_id = resp.json()["dataset_id"]
+
+        from database.records_store import load_records
+        before = load_records(dataset_id, use_cache=False)
+        assert all(r.elevation is not None for r in before)  # the pre-existing antenna elevation
+
+        # A real DEM tile, real distance away from every real decoded position.
+        dem_path = tmp_path / "far_away.tif"
+        transform = from_origin(-179.0, 89.0, 0.01, 0.01)
+        data = np.full((10, 10), 5.0, dtype="float32")
+        with rasterio.open(
+            str(dem_path), "w", driver="GTiff", height=10, width=10, count=1,
+            dtype="float32", crs="EPSG:4326", transform=transform,
+        ) as dst:
+            dst.write(data, 1)
+
+        align_resp = client.post(
+            f"/api/datasets/{dataset_id}/align_dem", params={"dem_filename": str(dem_path)},
+        )
+        assert align_resp.status_code == 200, align_resp.text
+        assert align_resp.json()["records_aligned"] == 0
+
+        after = load_records(dataset_id, use_cache=False)
+        # untouched -- still the antenna elevation, not silently claimed aligned
+        assert after[0].elevation == pytest.approx(before[0].elevation)
+        assert "pre_dem_elevation_m" not in after[0].metadata

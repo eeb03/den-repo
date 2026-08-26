@@ -25,7 +25,7 @@ from database.frames_store import load_frames, save_frames, synthesize_frames_fr
 from schemas.spatial import Assumption, AxisKind, has_geographic_coordinates
 from ingestion.downloader import download_file, DownloadError
 from converters.registry import supported_extensions
-from preprocessing.dem_alignment import align_records_with_dem
+from preprocessing.dem_alignment import align_records_with_dem_with_count
 from configs.settings import settings
 from api import dataset_lifecycle as lifecycle
 from jobs import storage
@@ -526,6 +526,14 @@ def align_dataset_with_dem(dataset_id: str, dem_filename: str, db: Session = Dep
     record.elevation and, where depth is known, stores the resulting
     absolute elevation (surface - depth) in metadata. `dem_filename` is
     resolved relative to datasets/downloads/.
+
+    `records_aligned` is the real count `align_records_with_dem_with_count`
+    itself computed for THIS call -- never `record.elevation is not None`, which
+    used to be the whole bug: a record can already carry an elevation of
+    its own before this endpoint ever runs (e.g. an antenna's own GNSS
+    reading under `coordinate_encoding="ieee_nmea"`), so that count reported
+    "aligned" for records this call never touched, and even reported success
+    when the DEM tile did not cover the dataset at all.
     """
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     if not dataset:
@@ -541,7 +549,7 @@ def align_dataset_with_dem(dataset_id: str, dem_filename: str, db: Session = Dep
         dem_path = settings.downloads_dir / dem_filename
 
     try:
-        records = align_records_with_dem(records, dem_path)
+        records, n_aligned = align_records_with_dem_with_count(records, dem_path)
     except MissingDependencyError as e:
         raise HTTPException(status_code=501, detail=str(e))
     except FileNotFoundError as e:
@@ -551,7 +559,6 @@ def align_dataset_with_dem(dataset_id: str, dem_filename: str, db: Session = Dep
 
     save_records(dataset_id, records)
 
-    n_aligned = sum(1 for r in records if r.elevation is not None)
     dataset.extra_metadata = {
         **(dataset.extra_metadata or {}),
         "dem_aligned": True,

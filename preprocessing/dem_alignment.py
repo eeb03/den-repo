@@ -67,9 +67,35 @@ def sample_dem_bilinear(band: np.ndarray, transform, lats: np.ndarray, lons: np.
 def align_records_with_dem(records: list[SubterraRecord], dem_path: str | Path) -> list[SubterraRecord]:
     """
     Sets `record.elevation` to the DEM's ground-surface elevation at each
+    record's (lat, lon) -- see `align_records_with_dem_with_count` for the
+    same behaviour plus the real per-call alignment count. This wrapper
+    exists only for the many existing callers that want the records back
+    and nothing else.
+    """
+    records, _n_aligned = align_records_with_dem_with_count(records, dem_path)
+    return records
+
+
+def align_records_with_dem_with_count(
+    records: list[SubterraRecord], dem_path: str | Path,
+) -> tuple[list[SubterraRecord], int]:
+    """
+    Sets `record.elevation` to the DEM's ground-surface elevation at each
     record's (lat, lon), and — when the record has a `depth` — stores the
     resulting absolute elevation of the sensed feature
     (surface elevation - depth) in `record.metadata["absolute_elevation_m"]`.
+
+    Returns `(records, n_aligned)` -- `n_aligned` is how many records THIS
+    call actually matched against the DEM (`dem_vertical_datum_verified` is
+    set only on those). A caller that needs to REPORT alignment success
+    (e.g. `POST /{id}/align_dem`) must use this count, never
+    `record.elevation is not None`: a record can already carry an elevation
+    of its own before this function ever runs (e.g. an antenna's own GNSS
+    reading under `coordinate_encoding="ieee_nmea"`), which made that
+    naive count claim "aligned" for records this call never touched, and
+    even claim success when the DEM tile did not cover the dataset at all
+    -- a real bug, caught live against a real AHN tile matched against 0 of
+    160,768 real records.
 
     Two SEPARATE compatibility concerns, only one of which is checked:
     - HORIZONTAL CRS (checked below): whether the DEM's (lat, lon) grid
@@ -112,7 +138,7 @@ def align_records_with_dem(records: list[SubterraRecord], dem_path: str | Path) 
     )
 
     if not records:
-        return records
+        return records, 0
 
     # A DEM lookup needs a real geographic position. Records without one are
     # skipped rather than sampled at a placeholder coordinate.
@@ -122,7 +148,7 @@ def align_records_with_dem(records: list[SubterraRecord], dem_path: str | Path) 
             f"DEM alignment: none of the {len(records)} record(s) carry a geographic "
             f"position, so no elevation can be looked up. Nothing was changed."
         )
-        return records
+        return records, 0
     if len(positioned) < len(records):
         logger.warning(
             f"DEM alignment: {len(records) - len(positioned)} of {len(records)} record(s) "
@@ -183,4 +209,4 @@ def align_records_with_dem(records: list[SubterraRecord], dem_path: str | Path) 
             "DEM alignment matched 0 records — the DEM tile likely doesn't cover this dataset's "
             "bounding box. Fetch a DEM for the dataset's actual lat/lon extent."
         )
-    return records
+    return records, n_aligned

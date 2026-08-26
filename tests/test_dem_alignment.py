@@ -217,6 +217,63 @@ def test_align_records_with_dem_still_works_for_an_unprojected_dem(tmp_path):
     assert aligned[0].elevation == pytest.approx(250.0)
 
 
+def test_align_records_with_dem_with_count_reports_zero_when_nothing_matched(tmp_path):
+    """
+    Regression test for a real reporting bug: a record that already carries
+    an elevation of its own (e.g. an antenna reading) before alignment ever
+    runs must not make the count claim it was aligned when the DEM tile
+    does not actually cover it.
+    """
+    from preprocessing.dem_alignment import align_records_with_dem_with_count
+
+    dem_path = _write_tiny_geotiff(tmp_path / "elsewhere.tif", west=15.0, north=41.0, pixel_size=0.01, size=10, value=250.0)
+    records = [SubterraRecord(
+        dataset_id="d", sensor_type=SensorType.GPR,
+        latitude=60.0, longitude=30.0,  # nowhere near the tile
+        elevation=99.0, depth=1.0, signal=[1.0],
+    )]
+
+    aligned, n_aligned = align_records_with_dem_with_count(records, dem_path)
+
+    assert n_aligned == 0
+    assert aligned[0].elevation == pytest.approx(99.0)  # untouched, not silently claimed aligned
+    assert "pre_dem_elevation_m" not in aligned[0].metadata
+
+
+def test_align_records_with_dem_with_count_reports_the_real_match_count(tmp_path):
+    from preprocessing.dem_alignment import align_records_with_dem_with_count
+
+    dem_path = _write_tiny_geotiff(tmp_path / "here.tif", west=15.0, north=41.0, pixel_size=0.01, size=10, value=250.0)
+    records = [
+        SubterraRecord(dataset_id="d", sensor_type=SensorType.GPR,
+                       latitude=41.0 - 0.03, longitude=15.0 + 0.03, depth=1.0, signal=[1.0]),
+        SubterraRecord(dataset_id="d", sensor_type=SensorType.GPR,
+                       latitude=60.0, longitude=30.0, depth=1.0, signal=[1.0]),  # outside the tile
+    ]
+
+    aligned, n_aligned = align_records_with_dem_with_count(records, dem_path)
+
+    assert n_aligned == 1
+    assert aligned[0].elevation == pytest.approx(250.0)
+    assert aligned[1].elevation is None
+
+
+def test_align_records_with_dem_wrapper_still_returns_a_plain_list(tmp_path):
+    """Backward compatibility for every existing caller of align_records_with_dem."""
+    from preprocessing.dem_alignment import align_records_with_dem
+
+    dem_path = _write_tiny_geotiff(tmp_path / "plain.tif", west=15.0, north=41.0, pixel_size=0.01, size=10, value=250.0)
+    records = [SubterraRecord(
+        dataset_id="d", sensor_type=SensorType.GPR,
+        latitude=41.0 - 0.03, longitude=15.0 + 0.03, depth=1.0, signal=[1.0],
+    )]
+
+    result = align_records_with_dem(records, dem_path)
+
+    assert isinstance(result, list)
+    assert result[0].elevation == pytest.approx(250.0)
+
+
 def test_align_records_with_dem_flags_vertical_datum_as_unverified(tmp_path):
     """DEM elevation values (e.g. COP30's EGM2008 geoid heights) are used as-is, with no vertical-datum check or conversion -- must be visible in metadata, distinct from the horizontal CRS check."""
     from preprocessing.dem_alignment import align_records_with_dem
