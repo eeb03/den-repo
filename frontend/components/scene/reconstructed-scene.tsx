@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import useSWR from 'swr'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { QueryState } from '@/components/subterra/query-state'
 import { StateBox } from '@/components/subterra/state-box'
 import { useDatasets, useScene } from '@/hooks/use-subterra'
-import type { SceneCandidate, SceneEvidenceSample, ScenePayload } from '@/types/subterra'
+import { ApiError, api } from '@/services/api'
+import type { CandidateReview, ReviewStatus, SceneCandidate, SceneEvidenceSample, ScenePayload } from '@/types/subterra'
 
 /** Which detail panel is open -- a candidate (grouped, classified) or a Stage A evidence sample (one measurement, no grouping, no classification). */
 type Selection =
@@ -99,7 +101,12 @@ export function ReconstructedScene({ datasetId }: { datasetId: string }) {
         errorTitle="Could not load the reconstructed scene"
         skeletonRows={2}
       />
-      {data && (data.resolved ? <ResolvedScene payload={data} /> : <UnresolvedScene payload={data} />)}
+      {data &&
+        (data.resolved ? (
+          <ResolvedScene datasetId={datasetId} payload={data} />
+        ) : (
+          <UnresolvedScene payload={data} />
+        ))}
     </div>
   )
 }
@@ -248,7 +255,7 @@ function applyFit(
   controls.update()
 }
 
-function ResolvedScene({ payload }: { payload: ScenePayload }) {
+function ResolvedScene({ datasetId, payload }: { datasetId: string; payload: ScenePayload }) {
   const mountRef = useRef<HTMLDivElement>(null)
   const fitCameraRef = useRef<(() => void) | null>(null)
   const [selected, setSelected] = useState<Selection | null>(null)
@@ -574,7 +581,11 @@ function ResolvedScene({ payload }: { payload: ScenePayload }) {
         </div>
       )}
       {selected?.kind === 'candidate' && (
-        <CandidateDetail candidate={selected.item} onClose={() => setSelected(null)} />
+        <CandidateDetail
+          datasetId={datasetId}
+          candidate={selected.item}
+          onClose={() => setSelected(null)}
+        />
       )}
       {selected?.kind === 'evidence' && (
         <EvidenceDetail sample={selected.item} onClose={() => setSelected(null)} />
@@ -662,10 +673,58 @@ function ResolvedScene({ payload }: { payload: ScenePayload }) {
   )
 }
 
+/** Mirrors `human-review-panel.tsx`'s own wording exactly -- this is a read-only echo of the same review, not a second vocabulary. */
+const SCENE_REVIEW_STATUS_LABEL: Record<ReviewStatus, string> = {
+  unreviewed: 'Unreviewed',
+  confirmed: 'Confirmed',
+  rejected: 'Rejected',
+  uncertain: 'Uncertain',
+}
+
+/**
+ * Section 19: "if straightforward, show existing review state when selecting
+ * a scene candidate." Read-only by design -- annotating happens on the
+ * radargram, where the evidence is strongest (this component's own "Inspect
+ * this evidence in the radargram" link below), not in this 3D view.
+ */
+function SceneCandidateReview({ datasetId, candidateId }: { datasetId: string; candidateId: string }) {
+  const { data, error, isLoading } = useSWR<CandidateReview | null>(
+    ['candidate-review', datasetId, candidateId],
+    async () => {
+      try {
+        return await api.getCandidateReview(datasetId, candidateId)
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) return null
+        throw err
+      }
+    },
+    { revalidateOnFocus: false },
+  )
+
+  if (isLoading) {
+    return <p className="text-[11px] text-muted-foreground">Loading human review…</p>
+  }
+  if (error) {
+    return <p className="text-[11px] text-muted-foreground">Could not load the human review for this candidate.</p>
+  }
+  if (!data || data.review_status === 'unreviewed') {
+    return <p className="text-[11px] text-muted-foreground">Human review: not yet reviewed</p>
+  }
+  return (
+    <p data-scene-review-status className="text-[11px] text-muted-foreground">
+      Human review: {SCENE_REVIEW_STATUS_LABEL[data.review_status]}
+      {' · '}
+      {data.operator_label ?? 'no identity claimed'}
+    </p>
+  )
+}
+
 function CandidateDetail({
+  datasetId,
   candidate,
   onClose,
 }: {
+  datasetId: string
   candidate: SceneCandidate
   onClose: () => void
 }) {
@@ -684,6 +743,7 @@ function CandidateDetail({
           Close
         </button>
       </div>
+      <SceneCandidateReview datasetId={datasetId} candidateId={candidate.id} />
       <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
         <Field label="Shape class">{candidate.anomaly_class}</Field>
         <Field label="Score">{candidate.score.toFixed(2)}</Field>

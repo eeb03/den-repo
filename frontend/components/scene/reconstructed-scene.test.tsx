@@ -28,7 +28,7 @@
  */
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { SWRConfig } from 'swr'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { ScenePayload, SceneCandidate, SceneEvidenceSample } from '@/types/subterra'
 import { clamp, computeLocalBounds, fitDistance } from './reconstructed-scene'
@@ -47,6 +47,7 @@ vi.mock('three', async () => {
 
 const getScene = vi.fn()
 const listDatasets = vi.fn()
+const getCandidateReview = vi.fn()
 
 vi.mock('@/services/api', async () => {
   const actual = await vi.importActual<typeof import('@/services/api')>('@/services/api')
@@ -56,10 +57,13 @@ vi.mock('@/services/api', async () => {
       ...actual.api,
       getScene: (id: string, surfaceId?: string) => getScene(id, surfaceId),
       listDatasets: () => listDatasets(),
+      getCandidateReview: (datasetId: string, candidateId: string) =>
+        getCandidateReview(datasetId, candidateId),
     },
   }
 })
 
+import { ApiError } from '@/services/api'
 import { ReconstructedScene } from './reconstructed-scene'
 
 function renderScene(datasetId = 'd1') {
@@ -168,6 +172,10 @@ function resolvedPayload(overrides: Partial<ScenePayload> = {}): ScenePayload {
   }
 }
 
+beforeEach(() => {
+  getCandidateReview.mockRejectedValue(new ApiError(404, 'this candidate has not been reviewed yet'))
+})
+
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
@@ -273,6 +281,44 @@ describe('resolved scenes', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(screen.queryByText('Anomaly candidate')).toBeNull()
+  })
+
+  it('shows "not yet reviewed" for a candidate with no human review recorded', async () => {
+    const c = candidate()
+    getScene.mockResolvedValue(resolvedPayload({ candidates: [c] }))
+    listDatasets.mockResolvedValue([])
+    renderScene()
+
+    await waitFor(() => screen.getByText(/Candidates in this scene/))
+    fireEvent.click(screen.getByRole('button', { name: /compact/i }))
+
+    await screen.findByText('Anomaly candidate')
+    await screen.findByText(/Human review: not yet reviewed/)
+    expect(getCandidateReview).toHaveBeenCalledWith('d1', 'cand-1')
+  })
+
+  it('shows the existing human review, read-only, for a reviewed candidate (Section 19)', async () => {
+    const c = candidate()
+    getScene.mockResolvedValue(resolvedPayload({ candidates: [c] }))
+    listDatasets.mockResolvedValue([])
+    getCandidateReview.mockResolvedValue({
+      id: 'rev1', dataset_id: 'd1', candidate_id: 'cand-1', site_id: null,
+      source_file: 'line.SGY', trace_range: [10, 14], reviewer_id: 'stage13',
+      review_status: 'confirmed', operator_label: 'pipe', annotation_geometry: null,
+      notes: null, evidence_grade: 'C_OPERATOR_REVIEWED', label_source: 'operator_reviewed',
+      ground_truth_status: 'not_independently_validated', detector_snapshot: null,
+      history: [], created_utc: '2026-01-01T00:00:00Z', updated_utc: '2026-01-01T00:00:00Z',
+    })
+    renderScene()
+
+    await waitFor(() => screen.getByText(/Candidates in this scene/))
+    fireEvent.click(screen.getByRole('button', { name: /compact/i }))
+
+    await screen.findByText('Anomaly candidate')
+    const status = await screen.findByText(/Human review: Confirmed/)
+    expect(status.textContent).toMatch(/pipe/)
+    // Read-only: no review-editing controls belong in the 3D scene.
+    expect(screen.queryByRole('button', { name: /^Confirmed$/ })).toBeNull()
   })
 
   it('never renders the word "validated" as a claim about this candidate’s own position', async () => {
