@@ -277,6 +277,35 @@ class CandidateReview(BaseModel):
         """A review carries usable evidence only once a human has actually looked -- UNREVIEWED never exports."""
         return self.review_status != ReviewStatus.UNREVIEWED
 
+    @property
+    def distinct_reviewer_ids(self) -> list[str]:
+        """
+        Every reviewer who has ever recorded a judgement on this candidate,
+        current reviewer first -- the audit trail Section 16 asks a future
+        multi-reviewer feature to be able to read. `make_review_id` keys one
+        review per candidate, so a second expert re-reviewing the same
+        candidate does not create a second record; `upsert_review` instead
+        pushes the prior `reviewer_id`/`review_status` into `history` before
+        replacing it (Section 10), which is exactly what this property reads.
+        """
+        ids = [self.reviewer_id]
+        for revision in self.history:
+            if revision.reviewer_id not in ids:
+                ids.append(revision.reviewer_id)
+        return ids
+
+    @property
+    def review_kind(self) -> Literal["single_review", "consensus_review"]:
+        """
+        Section 16's quality-control distinction. Computed, not a stored
+        field or a workflow this module drives -- "do not require multiple
+        reviewers yet" -- but the schema already supports it for free: once
+        `distinct_reviewer_ids` shows more than one expert has looked at this
+        candidate, this becomes `consensus_review` without any new mechanism
+        or any loss of the original reviewer's judgement.
+        """
+        return "consensus_review" if len(self.distinct_reviewer_ids) > 1 else "single_review"
+
 
 class ReviewSet(BaseModel):
     """All reviews for one dataset, as stored -- mirrors `schemas.labels.LabelSet`."""
@@ -290,13 +319,19 @@ class ReviewSet(BaseModel):
         """Section 13's dataset-level progress report, computed rather than hand-maintained."""
         counts = {s.value: 0 for s in ReviewStatus}
         missed_events = 0
+        consensus_reviews = 0
         for r in self.reviews:
             counts[r.review_status.value] += 1
             if r.is_missed_event:
                 missed_events += 1
+            if r.review_kind == "consensus_review":
+                consensus_reviews += 1
         return {
             "total_reviews": len(self.reviews),
             "by_status": counts,
             "missed_events": missed_events,
             "eligible_for_corpus": sum(1 for r in self.reviews if r.eligible_for_corpus),
+            #: Section 16 -- reviewed by more than one distinct reviewer_id, never
+            #: required, always computed from `history` (see `review_kind`).
+            "consensus_reviews": consensus_reviews,
         }

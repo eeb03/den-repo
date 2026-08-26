@@ -179,6 +179,87 @@ def test_dataset_review_summary():
     assert summary["by_status"]["unreviewed"] == 0
 
 
+# ---------------------------------------------------------------------------
+# Section 16: quality-control distinction (single_review vs consensus_review)
+#
+# Ownership today restricts review-writing to one dataset owner (see
+# test_owner_can_annotate_and_foreign_user_cannot below), so a genuine second
+# reviewer cannot yet be produced through the API -- these tests exercise the
+# schema/store layer directly, which is exactly the "design the schema so a
+# future annotation CAN be reviewed by more than one expert" ask: readiness,
+# not a workflow this module drives yet.
+# ---------------------------------------------------------------------------
+
+def test_single_reviewer_is_single_review_even_after_changing_their_own_mind():
+    candidate_id = _seed_candidate(candidate_id="c-single")
+    review = CandidateReview(
+        dataset_id=DATASET, candidate_id=candidate_id, source_file="f.sgy",
+        trace_range=(0, 1), reviewer_id="alice", review_status=ReviewStatus.UNCERTAIN,
+    )
+    upsert_review(DATASET, review)
+    again = CandidateReview(
+        dataset_id=DATASET, candidate_id=candidate_id, source_file="f.sgy",
+        trace_range=(0, 1), reviewer_id="alice", review_status=ReviewStatus.CONFIRMED,
+    )
+    saved = upsert_review(DATASET, again)
+    assert saved.distinct_reviewer_ids == ["alice"]
+    assert saved.review_kind == "single_review"
+
+
+def test_second_distinct_reviewer_makes_it_a_consensus_review():
+    candidate_id = _seed_candidate(candidate_id="c-consensus")
+    first = CandidateReview(
+        dataset_id=DATASET, candidate_id=candidate_id, source_file="f.sgy",
+        trace_range=(0, 1), reviewer_id="alice", review_status=ReviewStatus.CONFIRMED,
+    )
+    upsert_review(DATASET, first)
+    second = CandidateReview(
+        dataset_id=DATASET, candidate_id=candidate_id, source_file="f.sgy",
+        trace_range=(0, 1), reviewer_id="bob", review_status=ReviewStatus.CONFIRMED,
+    )
+    saved = upsert_review(DATASET, second)
+    assert saved.distinct_reviewer_ids == ["bob", "alice"]
+    assert saved.review_kind == "consensus_review"
+    # Alice's original judgement is not destroyed -- it moved to history.
+    assert saved.history[0].reviewer_id == "alice"
+    assert saved.history[0].review_status == ReviewStatus.CONFIRMED
+
+
+def test_a_third_distinct_reviewer_still_lists_every_reviewer_once():
+    candidate_id = _seed_candidate(candidate_id="c-three")
+    for reviewer_id, status in (
+        ("alice", ReviewStatus.UNCERTAIN), ("bob", ReviewStatus.CONFIRMED),
+        ("alice", ReviewStatus.CONFIRMED),
+    ):
+        upsert_review(DATASET, CandidateReview(
+            dataset_id=DATASET, candidate_id=candidate_id, source_file="f.sgy",
+            trace_range=(0, 1), reviewer_id=reviewer_id, review_status=status,
+        ))
+    saved = load_reviews(DATASET).for_candidate(candidate_id)
+    assert saved.distinct_reviewer_ids == ["alice", "bob"]
+    assert saved.review_kind == "consensus_review"
+
+
+def test_dataset_summary_counts_consensus_reviews():
+    single_id = _seed_candidate(candidate_id="c-summary-single")
+    consensus_id = _seed_candidate(candidate_id="c-summary-consensus")
+    upsert_review(DATASET, CandidateReview(
+        dataset_id=DATASET, candidate_id=single_id, source_file="f.sgy",
+        trace_range=(0, 1), reviewer_id="alice", review_status=ReviewStatus.CONFIRMED,
+    ))
+    upsert_review(DATASET, CandidateReview(
+        dataset_id=DATASET, candidate_id=consensus_id, source_file="f.sgy",
+        trace_range=(2, 3), reviewer_id="alice", review_status=ReviewStatus.CONFIRMED,
+    ))
+    upsert_review(DATASET, CandidateReview(
+        dataset_id=DATASET, candidate_id=consensus_id, source_file="f.sgy",
+        trace_range=(2, 3), reviewer_id="bob", review_status=ReviewStatus.REJECTED,
+    ))
+    summary = load_reviews(DATASET).summary()
+    assert summary["total_reviews"] == 2
+    assert summary["consensus_reviews"] == 1
+
+
 @pytest.mark.real_auth
 def test_owner_can_annotate_and_foreign_user_cannot():
     from database.models import Dataset, gen_uuid
