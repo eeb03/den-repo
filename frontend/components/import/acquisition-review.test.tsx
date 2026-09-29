@@ -337,6 +337,33 @@ describe('the coordinate-encoding declaration', () => {
     )
   })
 
+  it('defaults the recording-delay unit to the SEG-Y standard and sends nothing', async () => {
+    acceptAcquisition.mockResolvedValue({ job: job() })
+    const { container } = render(<AcquisitionReview job={segy()} />)
+    expect((container.querySelector('#delay-encoding') as HTMLSelectElement).value).toBe('')
+    fireEvent.click(container.querySelector('[data-action="accept-acquisition"]')!)
+    await waitFor(() => expect(acceptAcquisition).toHaveBeenCalledWith('j1', {}))
+  })
+
+  it('sends the declared recording-delay unit only when the operator switches it', async () => {
+    acceptAcquisition.mockResolvedValue({ job: job() })
+    const { container } = render(<AcquisitionReview job={segy()} />)
+    fireEvent.change(container.querySelector('#delay-encoding')!, {
+      target: { value: 'sample_interval_unit' },
+    })
+    fireEvent.click(container.querySelector('[data-action="accept-acquisition"]')!)
+    await waitFor(() =>
+      expect(acceptAcquisition).toHaveBeenCalledWith('j1', {
+        delay_encoding: 'sample_interval_unit',
+      }),
+    )
+  })
+
+  it('offers no recording-delay choice for a non-SEG-Y format', () => {
+    const { container } = render(<AcquisitionReview job={job()} />)
+    expect(container.querySelector('#delay-encoding')).toBeNull()
+  })
+
   it('never sends coordinate_encoding for a non-SEG-Y format even if switched', async () => {
     acceptAcquisition.mockResolvedValue({ job: job() })
     const { container } = render(<AcquisitionReview job={job()} />)

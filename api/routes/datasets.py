@@ -105,21 +105,26 @@ def _validate_coordinate_encoding_kwarg(converter, converter_kwargs: Optional[di
     two synchronous routes, which have no review step of their own, and a
     harmless no-op re-check for values that already passed it.
     """
-    if not converter_kwargs or "coordinate_encoding" not in converter_kwargs:
-        return
     from api.acquisition import INGEST_OPTIONS_BY_FORMAT
     from converters.segy_converter import validate_coordinate_encoding
+    from converters.segy_time import validate_delay_encoding
 
-    accepted = INGEST_OPTIONS_BY_FORMAT.get(converter.format_name, ())
-    if "coordinate_encoding" not in accepted:
-        raise HTTPException(
-            status_code=422,
-            detail=f"coordinate_encoding cannot be applied to a {converter.format_name} file; "
-                   f"this format accepts {', '.join(accepted) or 'no ingest options'}")
-    try:
-        validate_coordinate_encoding(converter_kwargs["coordinate_encoding"])
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+    # delay_encoding has exactly the same contract: a SEG-Y decoding
+    # declaration, checked here for the synchronous routes.
+    for option, validate in (("coordinate_encoding", validate_coordinate_encoding),
+                             ("delay_encoding", validate_delay_encoding)):
+        if not converter_kwargs or option not in converter_kwargs:
+            continue
+        accepted = INGEST_OPTIONS_BY_FORMAT.get(converter.format_name, ())
+        if option not in accepted:
+            raise HTTPException(
+                status_code=422,
+                detail=f"{option} cannot be applied to a {converter.format_name} file; "
+                       f"this format accepts {', '.join(accepted) or 'no ingest options'}")
+        try:
+            validate(converter_kwargs[option])
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e))
 
 
 def _run_ingest_pipeline(
@@ -279,6 +284,11 @@ async def ingest_dataset(
                     "COORDINATE_ENCODINGS for the valid values. Omit to use the SEG-Y "
                     "standard (int32_scaled), exactly today's behaviour. Never adds "
                     "coordinates the file does not contain."),
+    delay_encoding: Optional[str] = Form(
+        None,
+        description="SEG-Y only: which unit this file's DelayRecordingTime is written in -- "
+                    "see converters.segy_time.DELAY_ENCODINGS. Omit to use the SEG-Y "
+                    "standard (segy_standard), exactly today's behaviour."),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -306,7 +316,9 @@ async def ingest_dataset(
     except storage.UploadTooLarge as exc:
         raise HTTPException(status_code=413, detail=str(exc))
 
-    converter_kwargs = {"coordinate_encoding": coordinate_encoding} if coordinate_encoding is not None else None
+    converter_kwargs = {k: v for k, v in (("coordinate_encoding", coordinate_encoding),
+                                          ("delay_encoding", delay_encoding))
+                        if v is not None} or None
     return _run_ingest_pipeline(
         raw_path, sensor_type, name or file.filename, db,
         source=source, license=license, apply_preprocessing=apply_preprocessing,
@@ -731,6 +743,8 @@ class IngestLocalFileRequest(BaseModel):
     #: SEG-Y only -- see converters.segy_converter.COORDINATE_ENCODINGS.
     #: Omit to use the SEG-Y standard, exactly today's behaviour.
     coordinate_encoding: Optional[str] = None
+    #: SEG-Y only -- see converters.segy_time.DELAY_ENCODINGS.
+    delay_encoding: Optional[str] = None
     #: False (default) reproduces every existing caller's behaviour exactly:
     #: no owner_id is passed to _run_ingest_pipeline, so the result is a
     #: system/public dataset -- correct for a script uploading shared
@@ -748,6 +762,14 @@ class IngestLocalFileRequest(BaseModel):
         if v is not None:
             from converters.segy_converter import validate_coordinate_encoding
             validate_coordinate_encoding(v)
+        return v
+
+    @field_validator("delay_encoding")
+    @classmethod
+    def _known_delay_encoding(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            from converters.segy_time import validate_delay_encoding
+            validate_delay_encoding(v)
         return v
 
 
@@ -778,6 +800,8 @@ def ingest_local_file(req: IngestLocalFileRequest, db: Session = Depends(get_db)
         converter_kwargs["stride"] = req.geotiff_stride
     if req.coordinate_encoding is not None:
         converter_kwargs["coordinate_encoding"] = req.coordinate_encoding
+    if req.delay_encoding is not None:
+        converter_kwargs["delay_encoding"] = req.delay_encoding
 
     return _run_ingest_pipeline(
         raw_path, req.sensor_type, req.name or src_path.name, db,

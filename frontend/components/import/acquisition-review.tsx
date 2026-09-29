@@ -46,16 +46,25 @@ export function AcquisitionReview({
   // explicit 'int32_scaled' selection are the same real outcome. Only a
   // conscious switch to the vendor deviation is ever sent.
   const [coordinateEncoding, setCoordinateEncoding] = useState('')
+  // Same rule: '' is the SEG-Y standard reading of the recording delay.
+  const [delayEncoding, setDelayEncoding] = useState('')
   const identification = job.identification
 
   async function accept() {
     setBusy(true)
     setError(null)
     try {
-      const options: { band_is_elevation?: boolean; coordinate_encoding?: string } = {}
+      const options: {
+        band_is_elevation?: boolean
+        coordinate_encoding?: string
+        delay_encoding?: string
+      } = {}
       if (canDeclareElevation) options.band_is_elevation = bandIsElevation
       if (canChooseCoordinateEncoding && coordinateEncoding) {
         options.coordinate_encoding = coordinateEncoding
+      }
+      if (canChooseCoordinateEncoding && delayEncoding) {
+        options.delay_encoding = delayEncoding
       }
       const { job: queued } = await api.acceptAcquisition(job.id, options)
       onAccepted?.(queued)
@@ -260,6 +269,36 @@ export function AcquisitionReview({
             decoded. This does not add missing coordinates, and does not validate their
             accuracy — it only controls how the existing header bytes are interpreted. Leave
             this on the default unless you know your instrument uses the vendor deviation.
+          </p>
+        </div>
+      )}
+
+      {/*
+        RECORDING DELAY UNIT. The SEG-Y standard writes the start-of-recording
+        delay in a unit 1000 times the sample interval's; some GPR exports write
+        both in the same unit. With a zero time scalar the bytes cannot tell the
+        two apart, so this too is a conscious declaration, never a guess.
+      */}
+      {!rejected && canChooseCoordinateEncoding && (
+        <div data-delay-encoding-declaration className="text-xs leading-relaxed text-muted-foreground">
+          <label className="flex flex-col gap-1">
+            <span>Recording delay unit</span>
+            <select
+              id="delay-encoding"
+              value={delayEncoding}
+              onChange={(e) => setDelayEncoding(e.target.value)}
+              className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+            >
+              <option value="">SEG-Y standard (default) — delay in the standard time unit</option>
+              <option value="sample_interval_unit">
+                Vendor deviation — delay written in the same unit as the sample interval
+              </option>
+            </select>
+          </label>
+          <p className="mt-1.5">
+            Controls only where the first sample of each trace sits in time. Leave this on the
+            default unless your instrument&apos;s documentation says the delay shares the sample
+            interval&apos;s unit.
           </p>
         </div>
       )}

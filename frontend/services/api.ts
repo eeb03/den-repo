@@ -518,7 +518,11 @@ export const api = {
    */
   acceptAcquisition(
     jobId: string,
-    options: { band_is_elevation?: boolean; coordinate_encoding?: string } = {},
+    options: {
+      band_is_elevation?: boolean
+      coordinate_encoding?: string
+      delay_encoding?: string
+    } = {},
   ): Promise<{ job: ImportJob }> {
     // `options` are declarations about HOW to read the file — whether a
     // raster band is elevation, or how a SEG-Y file's coordinate/elevation

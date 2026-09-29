@@ -292,7 +292,7 @@ INGEST_OPTIONS_BY_FORMAT: dict[str, tuple[str, ...]] = {
     # trace header fields (converters.segy_converter.COORDINATE_ENCODINGS) --
     # a declaration about DECODING, never a source of coordinates that are
     # actually absent. See that module's own docstring.
-    "segy": ("coordinate_encoding",),
+    "segy": ("coordinate_encoding", "delay_encoding"),
 }
 
 
