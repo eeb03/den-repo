@@ -29,7 +29,7 @@ _CODE = {2: "i", 3: "h", 5: "f", 8: "b"}
 
 
 def write_segy(path, order=LITTLE, *, n_traces=4, n_samples=8, fmt=3,
-               interval=98, delay=0, delay_scalar=1, coord_scalar=-1000,
+               interval=98, delay=0, delay_scalar=1, coord_scalar=-1000, time_scalar=0,
                source_x=0, source_y=0, trailing=b"", body_override=None):
     """Builds a SEG-Y file byte by byte in the requested order."""
     s = ">" if order == BIG else "<"
@@ -45,13 +45,14 @@ def write_segy(path, order=LITTLE, *, n_traces=4, n_samples=8, fmt=3,
         return path
     for t in range(n_traces):
         th = bytearray(b"\x00" * 240)
-        th[68:70] = struct.pack(s + "h", delay_scalar)
+        th[68:70] = struct.pack(s + "h", delay_scalar)       # ELEVATION scalar (69-70)
         th[70:72] = struct.pack(s + "h", coord_scalar)
         th[72:76] = struct.pack(s + "i", source_x)
         th[76:80] = struct.pack(s + "i", source_y)
         th[80:84] = struct.pack(s + "i", t * 20)          # GroupX, mm
         th[108:110] = struct.pack(s + "h", delay)
         th[114:116] = struct.pack(s + "h", n_samples)
+        th[214:216] = struct.pack(s + "h", time_scalar)       # TIME scalar (215-216)
         out += th
         out += struct.pack(f"{s}{n_samples}{_CODE[fmt]}",
                            *[(t * 10 + i) for i in range(n_samples)])
@@ -194,14 +195,16 @@ def test_sample_axis_matches_segyios_construction(tmp_path):
         assert f.samples == [pytest.approx(i * 0.2) for i in range(5)]
 
 
-def test_delay_is_scaled_like_the_sample_interval(tmp_path):
+def test_delay_is_scaled_by_the_standard_time_scalar(tmp_path):
     """
-    One instrument writes one unit into both time fields. Scaling only the
-    interval put the 4TU corpus's start time a thousandfold too high, which
-    propagated into depths of hundreds of metres.
+    Every 4TU file carries time scalar -1000 at bytes 215-216, which is what
+    turns DelayRecordingTime 2641 into 2.641 ns. The reader used to reach the
+    same number by dividing by a hard-coded 1000 after borrowing the ELEVATION
+    scalar (bytes 69-70, 1 in 4TU); this fixture now carries the real scalar
+    instead of relying on that coincidence (tests/test_segy_time_axis.py).
     """
     p = write_segy(tmp_path / "d.sgy", order=LITTLE, n_samples=4,
-                   interval=100, delay=2641)
+                   interval=100, delay=2641, time_scalar=-1000)
     with LittleEndianSegyFile(p) as f:
         assert f.t0 == pytest.approx(2.641)
         assert f.samples[0] == pytest.approx(2.641)
@@ -210,7 +213,7 @@ def test_delay_is_scaled_like_the_sample_interval(tmp_path):
 
 def test_start_time_beyond_the_window_warns_but_is_reported_as_read(tmp_path, caplog):
     p = write_segy(tmp_path / "far.sgy", order=LITTLE, n_samples=4,
-                   interval=100, delay=30_000)          # int16 max is 32767
+                   interval=100, delay=30_000, time_scalar=-1000)  # int16 max 32767
     with LittleEndianSegyFile(p) as f:
         assert f.samples[0] == pytest.approx(30.0)      # not silently corrected
     assert any("exceeds the" in r.message for r in caplog.records)

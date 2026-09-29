@@ -217,6 +217,9 @@ class AcceptRequest(BaseModel):
     #: only valid values -- a DECODING choice, never a source of coordinates
     #: that are actually absent from the file.
     coordinate_encoding: Optional[str] = None
+    #: See `converters.segy_time.DELAY_ENCODINGS`: which unit a SEG-Y file's
+    #: DelayRecordingTime is written in, where the bytes cannot say.
+    delay_encoding: Optional[str] = None
 
     @field_validator("coordinate_encoding")
     @classmethod
@@ -224,6 +227,14 @@ class AcceptRequest(BaseModel):
         if v is not None:
             from converters.segy_converter import validate_coordinate_encoding
             validate_coordinate_encoding(v)
+        return v
+
+    @field_validator("delay_encoding")
+    @classmethod
+    def _known_delay_encoding(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            from converters.segy_time import validate_delay_encoding
+            validate_delay_encoding(v)
         return v
 
 
