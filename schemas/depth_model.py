@@ -184,7 +184,11 @@ def assess_depth_readiness(axis, time_zero=None, recording_delay_ns: Optional[fl
     established). `recording_delay_ns` is reported alongside so a reader sees
     the delay and the time zero as the two different numbers they are.
     """
-    velocity = velocity_model_of(getattr(axis, "conversion", None))
+    try:
+        velocity = velocity_model_of(getattr(axis, "conversion", None))
+        velocity_problem = None
+    except ValueError as exc:
+        velocity, velocity_problem = None, f"the recorded conversion is unusable: {exc}"
     known, ref_text = _reference_of(axis)
     tz = ({"status": time_zero.status.value, "method": time_zero.method.value,
            "correction_ns": time_zero.correction_ns, "basis": time_zero.basis}
@@ -198,7 +202,8 @@ def assess_depth_readiness(axis, time_zero=None, recording_delay_ns: Optional[fl
                      f"and is not a time zero")
     if velocity is None:
         return DepthReadiness(DepthStatus.UNAVAILABLE,
-                              ["no propagation velocity: the time axis is still a time axis"],
+                              [velocity_problem or
+                               "no propagation velocity: the time axis is still a time axis"],
                               notes, tz, None, known, ref_text, recording_delay_ns)
     reasons = []
     if velocity.basis is VelocityBasis.ASSUMED_DEFAULT:

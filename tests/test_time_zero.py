@@ -522,13 +522,30 @@ class TestProductionWiring:
         frame.vertical_axis = VerticalAxis(
             kind=AxisKind.TWO_WAY_TIME_NS, units="ns", origin="instrument", positive_down=True,
             conversion={"method": "constant_velocity", "velocity_m_per_ns": 0.12,
-                        "velocity_basis": "literature", "basis": "SUPPLIED BY CALLER"})
+                        "velocity_basis": "literature", "basis": "SUPPLIED BY CALLER",
+                        "derived": True})
         records = _per_sample_records(
             [[0.0, 0.0, 0.0]], sample_interval_ns=1.0,
             velocity_m_per_ns=0.1, velocity_source="assumed_default")
         records, _ = apply_time_zero_for_dataset(records, [frame])
         assert records[2].depth == pytest.approx(1.0 * 0.12 / 2)
         assert records[2].metadata["velocity_source"] == "declared:literature"
+
+    def test_a_converters_own_conversion_does_not_relabel_the_records_velocity(self):
+        """IDS/MALA/GSSI stamp user_declared on their own conversion; that is the
+        velocity the records already carry, not a declaration."""
+        from schemas.spatial import AxisKind, VerticalAxis
+        frame = _frame(assumptions=[
+            Assumption(key=DECLARED_TIME_ZERO_KEY, value=1.0, basis="SUPPLIED BY CALLER: x", verified=False)])
+        frame.vertical_axis = VerticalAxis(
+            kind=AxisKind.TWO_WAY_TIME_NS, units="ns", origin="instrument", positive_down=True,
+            conversion={"method": "constant_velocity", "velocity_m_per_ns": 0.1,
+                        "velocity_basis": "user_declared"})
+        records = _per_sample_records(
+            [[0.0, 0.0, 0.0]], sample_interval_ns=1.0,
+            velocity_m_per_ns=0.1, velocity_source="supplied_by_caller")
+        records, _ = apply_time_zero_for_dataset(records, [frame])
+        assert records[2].metadata["velocity_source"] == "supplied_by_caller"
 
     def test_the_applied_result_is_persisted_on_the_frame(self):
         from schemas.time_zero import APPLIED_TIME_ZERO_KEY

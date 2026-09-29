@@ -156,3 +156,10 @@ def test_a_recording_delay_is_not_a_time_zero():
     assert r.as_dict()["time_zero"]["status"] == "unavailable"
     assert r.as_dict()["recording_delay_ns"] == 10.342
     assert any("recording delay" in n for n in r.notes)
+
+
+def test_an_impossible_stored_velocity_is_reported_not_raised():
+    """A legacy frame with a bad conversion must not crash the spatial assessment."""
+    r = assess_depth_readiness(axis(conv(3.0)), time_zero=DECLARED_T0)
+    assert r.status is DepthStatus.UNAVAILABLE
+    assert any("not physically possible" in x for x in r.reasons)

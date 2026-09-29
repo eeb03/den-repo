@@ -452,16 +452,17 @@ def resolve_time_zero_for_frame(
 def _declared_velocity_of(frame):
     """
     The velocity a DEPTH_CONVERSION declaration put on the frame's axis, or None.
-    The platform default (`assumed_default`) is not a declaration: records
-    already carry it from ingest.
+    Only a DECLARATION's conversion counts (`api.spatial` marks it
+    `derived: True`): a converter's own conversion is the velocity the records
+    already carry from ingest, and reusing it here would only relabel it.
     """
-    from schemas.depth_model import VelocityBasis, velocity_model_of
+    from schemas.depth_model import velocity_model_of
 
     axis = getattr(frame, "vertical_axis", None)
-    model = velocity_model_of(getattr(axis, "conversion", None))
-    if model is None or model.basis is VelocityBasis.ASSUMED_DEFAULT:
+    conversion = getattr(axis, "conversion", None)
+    if not conversion or conversion.get("derived") is not True:
         return None
-    return model
+    return velocity_model_of(conversion)
 
 
 def _persist_on_frame(frame, result: TimeZeroResult) -> None:
