@@ -323,6 +323,20 @@ describe('the coordinate-encoding declaration', () => {
     )
   })
 
+  it('offers the power-of-ten scalar declaration and sends it when chosen', async () => {
+    acceptAcquisition.mockResolvedValue({ job: job() })
+    const { container } = render(<AcquisitionReview job={segy()} />)
+    const select = container.querySelector('#coordinate-encoding') as HTMLSelectElement
+    expect([...select.options].map((o) => o.value)).toContain('int32_scalar_exponent')
+    fireEvent.change(select, { target: { value: 'int32_scalar_exponent' } })
+    fireEvent.click(container.querySelector('[data-action="accept-acquisition"]')!)
+    await waitFor(() =>
+      expect(acceptAcquisition).toHaveBeenCalledWith('j1', {
+        coordinate_encoding: 'int32_scalar_exponent',
+      }),
+    )
+  })
+
   it('never sends coordinate_encoding for a non-SEG-Y format even if switched', async () => {
     acceptAcquisition.mockResolvedValue({ job: job() })
     const { container } = render(<AcquisitionReview job={job()} />)

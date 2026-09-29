@@ -232,8 +232,9 @@ export function AcquisitionReview({
         are scaled integers, and that stays the safe default -- most SEG-Y
         files follow it, and this file's bytes cannot say otherwise either
         way. A minority of GPR vendors instead write IEEE floats holding
-        NMEA coordinates, which the bytes cannot reveal on their own, so it
-        is a conscious declaration, never a guess.
+        NMEA coordinates, or write scalars meaning powers of ten, which the
+        bytes cannot reveal on their own, so it is a conscious declaration,
+        never a guess.
       */}
       {!rejected && canChooseCoordinateEncoding && (
         <div data-coordinate-encoding-declaration className="text-xs leading-relaxed text-muted-foreground">
@@ -248,6 +249,9 @@ export function AcquisitionReview({
               <option value="">SEG-Y standard (default) — scaled integer coordinates</option>
               <option value="ieee_nmea">
                 Vendor deviation — IEEE float coordinates holding NMEA geographic positions
+              </option>
+              <option value="int32_scalar_exponent">
+                Vendor deviation — scalars are powers of ten (−2 means ×0.01), elevations read
               </option>
             </select>
           </label>

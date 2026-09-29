@@ -89,6 +89,11 @@ COORDINATE_ENCODINGS = {
         "vendor deviation: IEEE float32 in the integer field, holding NMEA ddmm.mmmm "
         "geographic coordinates. SourceGroupScalar does NOT apply."
     ),
+    "int32_scalar_exponent": (
+        "vendor deviation: 4-byte integers as the standard says, but SourceGroupScalar and "
+        "ElevationScalar are powers of ten (-2 means x10^-2, not /2); the elevation fields "
+        "(bytes 41-48) are read, scaled the same way"
+    ),
 }
 
 
@@ -318,6 +323,13 @@ class SEGYConverter(BaseConverter):
                         else:
                             x = nmea_to_degrees(fx)
                             y = nmea_to_degrees(fy)
+                    elif coordinate_encoding == "int32_scalar_exponent":
+                        # The ADS Roman-cities SEG-Y writes -2 meaning 10^-2;
+                        # read by the standard, the same bytes place the
+                        # survey hundreds of kilometres off.
+                        scale = 10.0 ** int(scalar)
+                        x = float(raw_x) * scale
+                        y = float(raw_y) * scale
                     else:
                         scalar = float(scalar)
 
@@ -339,8 +351,8 @@ class SEGYConverter(BaseConverter):
                     position = _classify_position(x, y)
                 trace_positions.append(position)
 
-                # ACQUISITION ELEVATION. Read only under the ieee_nmea
-                # declaration, because it is the same vendor deviation: bytes
+                # ACQUISITION ELEVATION. Read only under a vendor-deviation
+                # declaration. Under ieee_nmea it is the same deviation: bytes
                 # 41-44 and 45-48 hold IEEE floats where SEG-Y specifies
                 # scaled integers. The default path is untouched -- the INGV
                 # lines DO populate these fields as standard scaled integers
@@ -364,6 +376,23 @@ class SEGYConverter(BaseConverter):
                             elevation_second = float(eh)
                         else:
                             elevation_second = None
+                    else:
+                        elevation_second = None
+                elif coordinate_encoding == "int32_scalar_exponent":
+                    # Standard scaled integers, with ElevationScalar read as a
+                    # power of ten like the coordinate scalar. 0 means "not
+                    # recorded", as above. Still NO DATUM IS CLAIMED: a
+                    # dataset's documentation may state one (ADS says EGM2008),
+                    # but that is declared through the vertical-reference
+                    # workflow, not asserted by this generic reader.
+                    elev_scale = 10.0 ** int(
+                        header.get(segyio.TraceField.ElevationScalar, 0) or 0)
+                    ev = header.get(segyio.TraceField.ReceiverGroupElevation, 0)
+                    if ev:
+                        elevation = float(ev) * elev_scale
+                        any_elevation = True
+                        eh = header.get(segyio.TraceField.SourceSurfaceElevation, 0)
+                        elevation_second = float(eh) * elev_scale if eh else None
                     else:
                         elevation_second = None
                 else:
@@ -634,12 +663,13 @@ class SEGYConverter(BaseConverter):
                     f"SUPPLIED BY CALLER: {COORDINATE_ENCODINGS[coordinate_encoding]}. The file "
                     f"cannot declare this -- the bytes are identical either way -- so it was "
                     f"asserted as ingest configuration for this dataset and generalises to "
-                    f"nothing else. Under 'ieee_nmea' the SEG-Y coordinate scalar is NOT applied."
+                    f"nothing else. Under 'ieee_nmea' the SEG-Y coordinate scalar is NOT applied; "
+                    f"under 'int32_scalar_exponent' it is applied as a power of ten."
                 ),
                 verified=False,
             ))
 
-        if has_elevation:
+        if has_elevation and coordinate_encoding == "ieee_nmea":
             assumptions.append(Assumption(
                 key="acquisition_elevation_datum", value=None,
                 basis=(
@@ -649,6 +679,18 @@ class SEGYConverter(BaseConverter):
                     "43.948 m, which is consistent with an orthometric/ellipsoidal pair for "
                     "the Netherlands -- consistent with, not a declaration of. record.elevation "
                     "therefore carries the number without claiming what it is measured from."
+                ),
+                verified=False,
+            ))
+        elif has_elevation:
+            assumptions.append(Assumption(
+                key="acquisition_elevation_datum", value=None,
+                basis=(
+                    "the trace headers carry a per-trace acquisition elevation, but SEG-Y has "
+                    "no field for its vertical datum and this reader asserts none. A datum "
+                    "stated in the dataset's own documentation must be declared through the "
+                    "vertical-reference workflow. record.elevation therefore carries the "
+                    "number without claiming what it is measured from."
                 ),
                 verified=False,
             ))
