@@ -1,0 +1,87 @@
+{
+ "$comment": [
+  "PROPOSED manifest for the Yesan full-scale test site (Zenodo 21441974). NOT SCORING READY.",
+  "It holds NO targets: the record describes 'documented buried targets' and 'supporting ground-truth",
+  "information used in the accompanying MDPI Sensors publication', but no target list is in the held",
+  "files and the paper has not been found. The frames and open questions below record what the held",
+  "files DO establish, so that a target list, when obtained, lands in a structure that already says",
+  "why exact scoring would be unsafe until the line registration is resolved. No offset is guessed."
+ ],
+ "schema": "subterra.targets.v1",
+ "dataset_id": "yesan-fullscale",
+ "title": "Yesan full-scale bridge-transition test site (Korea Expressway Corporation Research Institute)",
+ "truth_source": {
+  "provenance_class": "not_yet_obtained",
+  "record": "Zenodo 10.5281/zenodo.21441974 (CC-BY-4.0), 'Field Dataset for Complementary Subsurface Sensing Using a Quantum Diamond Magnetometer and Multi-Frequency Ground-Penetrating Radar at a Full-Scale Test Site', Oh, Chang-Geun (project leader)",
+  "held_files": [
+   "Yesan test site GPR Raw data_0629.zip (MD5 6e40b0ea650b86d5802c5d393cc34c46, matches the record)",
+   "9 GPR images.zip (MD5 852c53b6c0d33dae9efff937488b3657, matches the record)"
+  ],
+  "missing": "the target list (class, material, dimensions, burial depth, chainage, reference surface) from the MDPI Sensors paper or the authors"
+ },
+ "exhaustive": {
+  "value": false,
+  "statement": "No target list is held, so nothing can be attested exhaustive."
+ },
+ "frames": [
+  {
+   "frame_id": "yesan:line-A",
+   "kind": "survey_line",
+   "units": "m",
+   "line_id": "A",
+   "origin": "the authors' '0 m reference position', given per file as a trace number in 'summary of GPR data and formula.xlsx' (file 66: trace 65; 72: 96; 69: 107). What physical marker it is, is not documented in the held files.",
+   "origin_status": "unverified",
+   "units_status": "declared",
+   "registration_to_radar": "unresolved",
+   "registration_note": "Two distance scales disagree: the .rad wheel calibration gives 0.008429 m/trace (line A stops at 90.70-91.05 m) while the authors' sheet uses dx = 0.0086649550706 m/trace (93.23-93.59 m), about 2.8% longer and roughly 2.5 m over the line. Which one the target chainages use is unknown. The per-file 0 m trace (65/96/107) is where the authors put 0 m; its relation to the targets' chainage origin is unproven."
+  },
+  {
+   "frame_id": "yesan:line-B",
+   "kind": "survey_line",
+   "units": "m",
+   "line_id": "B",
+   "origin": "the authors' '0 m reference position', given per file as a trace number (file 68: trace 80; 74: 60; 71: 60). Physical marker undocumented.",
+   "origin_status": "unverified",
+   "units_status": "declared",
+   "registration_to_radar": "unresolved",
+   "registration_note": "Same two-scale disagreement as line A: .rad 0.008429 m/trace (89.17-89.97 m) vs sheet dx 0.0086649550706 m/trace (91.66-92.49 m)."
+  }
+ ],
+ "depth_reference_surfaces": [],
+ "open_questions": [
+  {
+   "id": "yesan-target-list",
+   "statement": "The documented buried targets are not in any held file.",
+   "blocks": ["detection_matching", "false_positives", "depth_scoring"],
+   "resolution_route": "the MDPI Sensors paper for this dataset, or the authors (project leader Oh, Chang-Geun)"
+  },
+  {
+   "id": "yesan-line-registration",
+   "statement": "The physical meaning of each file's '0 m reference position' trace, and whether target chainages are measured from it, is not established.",
+   "blocks": ["detection_matching", "localization_error"],
+   "resolution_route": "authors, or a site drawing tying the 0 m marker to the target positions"
+  },
+  {
+   "id": "yesan-distance-scale",
+   "statement": "The instrument's distance interval (0.008429 m) and the authors' (0.0086649550706 m) differ by about 2.8%.",
+   "blocks": ["detection_matching", "localization_error", "false_alarms_per_metre"],
+   "resolution_route": "authors: which distance calibration the published target chainages use"
+  },
+  {
+   "id": "yesan-section-boundary",
+   "statement": "The magnetometer files name the approach slab from 30 m ('30m_approach slab_A.csv'), but the published 'approach slab' GPR image shows its sharpest lateral change at about 44.5 m. Whether the two datasets share one chainage is unproven.",
+   "blocks": ["detection_matching"],
+   "resolution_route": "authors, or the site drawing"
+  },
+  {
+   "id": "yesan-antenna-frequency",
+   "statement": "Every .rad header reads 'ANTENNAS:500 MHz shielded' although the folders are labelled 250, 500 and 800 MHz.",
+   "blocks": [],
+   "resolution_route": "authors; until then a frequency breakdown must cite the folder label, not the header"
+  }
+ ],
+ "targets": [],
+ "notes": [
+  "Do not assign Grade A labels from this dataset until yesan-line-registration and yesan-distance-scale are resolved."
+ ]
+}
