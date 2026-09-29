@@ -64,6 +64,7 @@ from schemas.spatial import (
 from schemas.subterra_record import SubterraRecord, SensorType
 from schemas.survey_frame import SurveyFrame, make_frame_id
 
+from schemas.depth_model import DEFAULT_VELOCITY_M_PER_NS, two_way_time_to_depth
 from converters.segy_time import (
     DEFAULT_DELAY_ENCODING, DELAY_ENCODINGS, describe as describe_time_axis,
     sample_axis, start_time_from_header, validate_delay_encoding,
@@ -73,7 +74,7 @@ from converters.segy_time import (
 # Typical near-surface soil GPR velocity (relative permittivity ~9);
 # override with converter_kwargs={"velocity_m_per_ns": ...} when a
 # site-specific velocity (e.g. from a CMP survey) is known.
-DEFAULT_GPR_VELOCITY_M_PER_NS = 0.1
+DEFAULT_GPR_VELOCITY_M_PER_NS = DEFAULT_VELOCITY_M_PER_NS
 
 _NO_HEADER_POSITION = (
     "SEG-Y trace header SourceX/SourceY are (0, 0); the file carries no trace position"
@@ -494,7 +495,7 @@ class SEGYConverter(BaseConverter):
 
                     sample_time = float(samples[sample_idx])
                     if is_gpr:
-                        depth = (sample_time * velocity_m_per_ns) / 2.0
+                        depth = two_way_time_to_depth(sample_time, velocity_m_per_ns)
                         axis_metadata = {
                             "two_way_time_ns": sample_time,
                             "velocity_m_per_ns": velocity_m_per_ns,
@@ -716,9 +717,9 @@ class SEGYConverter(BaseConverter):
             ))
         if is_gpr and samples and samples[0] != 0.0:
             window = (samples[1] - samples[0]) * len(samples) if len(samples) > 1 else 0.0
-            # A start further from zero than the whole recording window is not
-            # offered as an instrument time-zero: preprocessing.time_zero's
-            # Method A reports `time_axis_origin_offset` as MEASURED. It is
+            # The start is the RECORDING DELAY, reported (never applied) by
+            # preprocessing.time_zero's Method A: a delay is not a time zero.
+            # A start further from zero than the whole recording window is
             # recorded under its own key, with the declaration that would
             # change the reading, and nothing is guessed.
             suspect = window > 0 and abs(samples[0]) > window
@@ -823,6 +824,12 @@ class SEGYConverter(BaseConverter):
                 conversion={
                     "method": "constant_velocity",
                     "velocity_m_per_ns": velocity_m_per_ns,
+                    # The basis travels with the value (schemas/depth_model.py): the
+                    # default is an assumption and never resolves a depth.
+                    "velocity_basis": (
+                        "assumed_default"
+                        if velocity_m_per_ns == DEFAULT_GPR_VELOCITY_M_PER_NS
+                        and velocity_source_quantity is None else "user_declared"),
                     "formula": "depth_m = two_way_time_ns * velocity_m_per_ns / 2",
                     "target_axis": AxisKind.DEPTH_M.value,
                 } if is_gpr else None,

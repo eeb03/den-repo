@@ -26,6 +26,7 @@ measurement.
 """
 from __future__ import annotations
 
+import math
 from datetime import datetime
 from typing import Any, Optional
 
@@ -231,10 +232,49 @@ def _validated_depth_conversion(value: dict) -> dict:
     velocity, reason = validate_velocity(value.get("velocity_m_per_ns"))
     if velocity is None:
         raise DeclarationError(reason or "a propagation velocity is required")
+
+    # WHAT THE VELOCITY RESTS ON (`schemas.depth_model.VelocityBasis`). Optional,
+    # defaulting to `user_declared`, so every existing caller keeps working and
+    # gets the weakest honest reading of "somebody typed a number".
+    from schemas.depth_model import VelocityBasis
+
+    raw_basis = value.get("velocity_basis") or VelocityBasis.USER_DECLARED.value
+    try:
+        velocity_basis = VelocityBasis(raw_basis)
+    except ValueError:
+        raise DeclarationError(
+            f"velocity_basis {raw_basis!r} is not one of "
+            f"{[b.value for b in VelocityBasis if b is not VelocityBasis.ASSUMED_DEFAULT]}")
+    if velocity_basis is VelocityBasis.ASSUMED_DEFAULT:
+        raise DeclarationError(
+            "velocity_basis 'assumed_default' is the platform's own preview assumption; a "
+            "declaration is somebody stating a velocity -- use 'user_declared' or "
+            "'literature' if there is no measurement behind it")
+    method = value.get("velocity_method")
+    method = str(method).strip() if method is not None else None
+    if velocity_basis in (VelocityBasis.ESTIMATED_FROM_SAME_SURVEY,
+                          VelocityBasis.INDEPENDENT_MEASUREMENT) and not method:
+        raise DeclarationError(
+            f"velocity_basis {velocity_basis.value!r} needs a velocity_method (e.g. CMP, "
+            f"WARR, borehole, hyperbola fit, migration focusing): an estimate or a "
+            f"measurement is only as good as how it was made")
+    uncertainty = value.get("velocity_uncertainty_m_per_ns")
+    if uncertainty is not None:
+        try:
+            uncertainty = float(uncertainty)
+        except (TypeError, ValueError):
+            raise DeclarationError(
+                f"velocity_uncertainty_m_per_ns {uncertainty!r} is not a number")
+        if not math.isfinite(uncertainty) or uncertainty < 0:
+            raise DeclarationError(
+                f"velocity_uncertainty_m_per_ns {uncertainty!r} must be a non-negative number")
     return {
         "method": "constant_velocity",
         "velocity_m_per_ns": velocity,
         "basis": str(value.get("basis") or "supplied by a caller; not measured on this site"),
+        "velocity_basis": velocity_basis.value,
+        "velocity_method": method or None,
+        "velocity_uncertainty_m_per_ns": uncertainty,
         # Recorded on the conversion itself so no consumer has to look elsewhere
         # to learn that this depth is an assumption.
         "derived": True,
@@ -568,6 +608,14 @@ def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
         if not eligible:
             raise DeclarationError(
                 "no frame carries a measured time axis, so there is no time-zero to correct")
+        # A NEW declaration makes any earlier applied result stale: the records
+        # still carry the old correction until `/apply_time_zero` runs again,
+        # and the frame must not keep claiming the old one as current.
+        from schemas.time_zero import APPLIED_TIME_ZERO_KEY
+
+        for frame in eligible:
+            frame.assumptions = [a for a in (frame.assumptions or [])
+                                 if a.key != APPLIED_TIME_ZERO_KEY]
         changed = [f.frame_id for f in eligible]
 
     elif kind == DeclarationKind.ANTENNA_OFFSET:

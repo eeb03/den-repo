@@ -75,6 +75,9 @@ class TimingProvenance:
     velocity_m_per_ns: Optional[float] = None
     #: none | converter_default | declared | measured
     velocity_source: str = "none"
+    #: What the velocity rests on (`schemas.depth_model.VelocityBasis`), when
+    #: known. Optional so artifacts written before it existed still load.
+    velocity_basis: Optional[str] = None
     #: The physical surface a radar depth is referenced to, if DECLARED.
     depth_reference_surface: Optional[str] = None
     depth_units: Optional[str] = None

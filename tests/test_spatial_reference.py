@@ -33,10 +33,13 @@ from schemas.spatial import (
     AxisKind,
     CRSKind,
     CRSProvenance,
+    DepthOriginOffset,
     GeographicPosition,
     LocalCartesianPosition,
     NoPosition,
     OdometryPosition,
+    OffsetEvidence,
+    OriginReference,
     ProjectedPosition,
     SpatialRef,
     VerticalAxis,
@@ -71,7 +74,8 @@ TIME_AXIS = VerticalAxis(kind=AxisKind.TWO_WAY_TIME_NS, units="ns",
                          origin="instrument time zero", positive_down=True, n_samples=512)
 DEPTH_DERIVED = VerticalAxis(kind=AxisKind.DEPTH_M, units="m", origin="instrument time zero",
                              positive_down=True,
-                             conversion={"method": "constant_velocity", "v": 0.1})
+                             conversion={"method": "constant_velocity",
+                                         "velocity_m_per_ns": 0.1})
 SURFACE_BARE = VerticalAxis(kind=AxisKind.NONE, units="", origin="unrecorded",
                             positive_down=True)
 SURFACE_GOOD = VerticalAxis(
@@ -667,11 +671,69 @@ def test_a_source_stated_depth_is_declared_not_measured():
 
 
 def test_a_derived_depth_is_never_reported_as_measured():
+    """
+    Was `state == "derived"` (a RESOLVED state). The fixture's depth rests on the
+    platform default velocity, no time zero and no reference, so it is
+    APPROXIMATE -- drawn, not resolved. Its provenance is still "derived".
+    """
     result = assess([frame(axis=DEPTH_DERIVED)], geo_records())
     depth = result.dimension(SpatialDimension.DEPTH_CONVERSION)
-    assert depth.state == "derived"
+    assert depth.state == "approximate"
+    assert not depth.resolved
     assert depth.provenance == "derived"
     assert "assumption about the subsurface" in depth.reason
+    readiness = depth.detail["readiness"][0]
+    assert readiness["status"] == "approximate"
+    assert readiness["validated"] is False
+    assert readiness["velocity"]["basis"] == "assumed_default"
+
+
+def _resolved_axis():
+    return TIME_AXIS.model_copy(update={
+        "conversion": {"method": "constant_velocity", "velocity_m_per_ns": 0.12,
+                       "velocity_basis": "independent_measurement", "velocity_method": "CMP"},
+        "origin_offset": DepthOriginOffset(
+            offset_m=0.0, measured_from=OriginReference.DEPTH_AXIS_ORIGIN,
+            evidence=OffsetEvidence.USER_DECLARATION, supplied_by="field notes")})
+
+
+def test_depth_is_derived_only_when_velocity_time_zero_and_reference_are_all_stated():
+    f = frame(axis=_resolved_axis())
+    depth = assess([f], geo_records()).dimension(SpatialDimension.DEPTH_CONVERSION)
+    assert depth.state == "approximate"            # no time zero yet
+    assert any("time zero" in r for r in depth.detail["readiness"][0]["reasons"])
+    f.assumptions = [Assumption(key="declared_time_zero", value=4.5,
+                                basis="SUPPLIED BY CALLER: first break")]
+    depth = assess([f], geo_records()).dimension(SpatialDimension.DEPTH_CONVERSION)
+    assert depth.state == "derived"
+    assert depth.resolved
+    assert depth.detail["readiness"][0]["time_zero"]["correction_ns"] == 4.5
+
+
+def test_a_recording_delay_on_the_frame_is_reported_and_never_resolves_time_zero():
+    f = frame(axis=_resolved_axis())
+    f.assumptions = [Assumption(key="time_axis_origin_offset", value=10.342,
+                                basis="SEG-Y DelayRecordingTime")]
+    depth = assess([f], geo_records()).dimension(SpatialDimension.DEPTH_CONVERSION)
+    assert depth.state == "approximate"
+    r = depth.detail["readiness"][0]
+    assert r["recording_delay_ns"] == 10.342
+    assert r["time_zero"]["status"] == "unavailable"
+
+
+def test_an_applied_time_zero_result_on_the_frame_is_read_back():
+    from schemas.time_zero import APPLIED_TIME_ZERO_KEY, TimeZeroMethod, TimeZeroResult, \
+        TimeZeroStatus
+    f = frame(axis=_resolved_axis())
+    result = TimeZeroResult(status=TimeZeroStatus.DERIVED,
+                            method=TimeZeroMethod.DIRECT_WAVE_CONSENSUS,
+                            correction_ns=12.6, basis="direct-wave consensus", applied=True)
+    f.assumptions = [Assumption(key=APPLIED_TIME_ZERO_KEY,
+                                value=result.model_dump(mode="json"), basis="applied")]
+    depth = assess([f], geo_records()).dimension(SpatialDimension.DEPTH_CONVERSION)
+    r = depth.detail["readiness"][0]
+    assert r["time_zero"]["method"] == "direct_wave_consensus"
+    assert depth.state == "derived"
 
 
 def test_orientation_is_never_inferred_from_a_track_bearing():
@@ -1326,3 +1388,61 @@ def test_the_migration_creates_the_table_on_a_pre_stage_8_database(tmp_path):
     assert "spatial_declarations" in sa_inspect(engine).get_table_names()
     # idempotent
     run_migrations(engine)
+
+
+def test_an_approximate_depth_points_at_the_declaration_that_closes_it():
+    depth = assess([frame(axis=DEPTH_DERIVED)], geo_records()).dimension(
+        SpatialDimension.DEPTH_CONVERSION)
+    assert depth.action == DeclarationKind.DEPTH_CONVERSION      # default velocity first
+    depth = assess([frame(axis=_resolved_axis())], geo_records()).dimension(
+        SpatialDimension.DEPTH_CONVERSION)
+    assert depth.action == DeclarationKind.TIME_ZERO
+
+
+def test_a_velocity_declaration_defaults_to_user_declared():
+    value = service.validate_declaration(
+        DeclarationKind.DEPTH_CONVERSION, {"velocity_m_per_ns": 0.1})
+    assert value["velocity_basis"] == "user_declared"
+
+
+def test_a_velocity_declaration_carries_its_basis_method_and_uncertainty():
+    value = service.validate_declaration(
+        DeclarationKind.DEPTH_CONVERSION,
+        {"velocity_m_per_ns": 0.0938, "velocity_basis": "estimated_from_same_survey",
+         "velocity_method": "migration focusing", "velocity_uncertainty_m_per_ns": 0.005})
+    assert value["velocity_basis"] == "estimated_from_same_survey"
+    assert value["velocity_method"] == "migration focusing"
+    assert value["velocity_uncertainty_m_per_ns"] == 0.005
+
+
+@pytest.mark.parametrize("extra, match", [
+    ({"velocity_basis": "guessed"}, "velocity_basis"),
+    ({"velocity_basis": "assumed_default"}, "assumed_default"),
+    ({"velocity_uncertainty_m_per_ns": -0.01}, "uncertainty"),
+    ({"velocity_uncertainty_m_per_ns": "big"}, "uncertainty"),
+    ({"velocity_basis": "independent_measurement"}, "velocity_method"),
+])
+def test_a_bad_velocity_basis_is_refused(extra, match):
+    with pytest.raises(service.DeclarationError, match=match):
+        service.validate_declaration(
+            DeclarationKind.DEPTH_CONVERSION, {"velocity_m_per_ns": 0.1, **extra})
+
+
+def test_a_new_time_zero_declaration_makes_an_earlier_applied_result_stale(monkeypatch):
+    from schemas.time_zero import APPLIED_TIME_ZERO_KEY
+    f = frame(axis=_resolved_axis(), assumptions=[
+        Assumption(key=APPLIED_TIME_ZERO_KEY, basis="applied",
+                   value={"status": "declared", "method": "operator_declared",
+                          "correction_ns": 3.0, "basis": "old", "applied": True})])
+    saved = {}
+    monkeypatch.setattr(service, "load_frames", lambda _id: [f])
+    monkeypatch.setattr(service, "load_records", lambda *a, **k: [])
+    monkeypatch.setattr(service, "save_frames", lambda _id, frames: saved.update(frames=frames))
+    value = service.validate_declaration(
+        DeclarationKind.TIME_ZERO,
+        {"correction_ns": 5.0, "source": "first break", "evidence": "picked on line 1"})
+    service.apply_declaration("d", DeclarationKind.TIME_ZERO, value, supplied_by="op")
+    g = saved["frames"][0]
+    assert g.assumption(APPLIED_TIME_ZERO_KEY) is None
+    depth = assess([g], geo_records()).dimension(SpatialDimension.DEPTH_CONVERSION)
+    assert depth.detail["readiness"][0]["time_zero"]["correction_ns"] == 5.0
