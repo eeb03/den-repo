@@ -5,7 +5,8 @@
   "information used in the accompanying MDPI Sensors publication', but no target list is in the held",
   "files and the paper has not been found. The frames and open questions below record what the held",
   "files DO establish, so that a target list, when obtained, lands in a structure that already says",
-  "why exact scoring would be unsafe until the line registration is resolved. No offset is guessed."
+  "why exact scoring would be unsafe until the line registration is resolved. No offset is guessed.",
+  "Investigated 2026-09-29: see docs/yesan-registration-investigation.md. Still no target list; registration unresolved."
  ],
  "schema": "subterra.targets.v1",
  "dataset_id": "yesan-fullscale",
@@ -17,7 +18,10 @@
    "Yesan test site GPR Raw data_0629.zip (MD5 6e40b0ea650b86d5802c5d393cc34c46, matches the record)",
    "9 GPR images.zip (MD5 852c53b6c0d33dae9efff937488b3657, matches the record)"
   ],
-  "missing": "the target list (class, material, dimensions, burial depth, chainage, reference surface) from the MDPI Sensors paper or the authors"
+  "missing": "the target list (class, material, dimensions, burial depth, chainage, reference surface) from the MDPI Sensors paper or the authors",
+  "investigation": "docs/yesan-registration-investigation.md",
+  "gpr_acquisition_date": "2021-04-06 (zip member timestamps 14:42-15:23; inferred, not a header field)",
+  "author_contact": "Chang-Geun Oh, Hanseo University, coh@hanseo.ac.kr (verified: HUCAS faculty page and ORCID 0000-0002-9464-4397)"
  },
  "exhaustive": {
   "value": false,
@@ -52,32 +56,62 @@
   {
    "id": "yesan-target-list",
    "statement": "The documented buried targets are not in any held file.",
-   "blocks": ["detection_matching", "false_positives", "depth_scoring"],
+   "blocks": [
+    "detection_matching",
+    "false_positives",
+    "depth_scoring"
+   ],
    "resolution_route": "the MDPI Sensors paper for this dataset, or the authors (project leader Oh, Chang-Geun)"
   },
   {
    "id": "yesan-line-registration",
    "statement": "The physical meaning of each file's '0 m reference position' trace, and whether target chainages are measured from it, is not established.",
-   "blocks": ["detection_matching", "localization_error"],
+   "blocks": [
+    "detection_matching",
+    "localization_error"
+   ],
    "resolution_route": "authors, or a site drawing tying the 0 m marker to the target positions"
   },
   {
    "id": "yesan-distance-scale",
-   "statement": "The instrument's distance interval (0.008429 m) and the authors' (0.0086649550706 m) differ by about 2.8%.",
-   "blocks": ["detection_matching", "localization_error", "false_alarms_per_metre"],
+   "statement": "The .rad interval 0.008429 m is 3 pulses / 355.9 pulses per metre; the authors' 0.0086649550706 m is 3 / 346.22, an unexplained re-calibration 2.8% longer. The published images use the authors' scale.",
+   "blocks": [
+    "detection_matching",
+    "localization_error",
+    "false_alarms_per_metre"
+   ],
    "resolution_route": "authors: which distance calibration the published target chainages use"
   },
   {
    "id": "yesan-section-boundary",
-   "statement": "The magnetometer files name the approach slab from 30 m ('30m_approach slab_A.csv'), but the published 'approach slab' GPR image shows its sharpest lateral change at about 44.5 m. Whether the two datasets share one chainage is unproven.",
-   "blocks": ["detection_matching"],
+   "statement": "QDM file names put the approach slab at 30-60 m (line A, 2026), but the strongest GPR near-surface change is at 44.0-45.0 m (2021). A shared chainage (with the 44.5 m change inside the approach slab) and a ~14.5 m offset both fit the held evidence. Neither is adopted.",
+   "blocks": [
+    "detection_matching"
+   ],
    "resolution_route": "authors, or the site drawing"
   },
   {
    "id": "yesan-antenna-frequency",
-   "statement": "Every .rad header reads 'ANTENNAS:500 MHz shielded' although the folders are labelled 250, 500 and 800 MHz.",
+   "statement": "Every .rad header reads 'ANTENNAS:500 MHz shielded'. The folders say 250/500/800 MHz, and the evidence supports the folders: SIGNAL POSITION falls into three groups that coincide with the folder labels, and the recorded spectra have centroids of ~270, ~450 and ~715 MHz in the 250/500/800 folders. Inferred, not confirmed.",
    "blocks": [],
    "resolution_route": "authors; until then a frequency breakdown must cite the folder label, not the header"
+  },
+  {
+   "id": "yesan-chainage-conventions",
+   "statement": "QDM repetition files name the same sections at other distances (approach slab_A_11-15 m, reinforced concrete_A_26-30 m, ascon_B_0-5 m), so at least two unstated distance conventions are in use.",
+   "blocks": [
+    "detection_matching"
+   ],
+   "resolution_route": "authors"
+  },
+  {
+   "id": "yesan-survey-direction",
+   "statement": "Both lines probably run the same way (B repeats A's ~74 m change rather than mirroring it), but the physical start and end are not documented.",
+   "blocks": [
+    "detection_matching",
+    "localization_error"
+   ],
+   "resolution_route": "authors or a site drawing"
   }
  ],
  "targets": [],
