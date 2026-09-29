@@ -64,6 +64,11 @@ from schemas.spatial import (
 from schemas.subterra_record import SubterraRecord, SensorType
 from schemas.survey_frame import SurveyFrame, make_frame_id
 
+from converters.segy_time import (
+    DEFAULT_DELAY_ENCODING, DELAY_ENCODINGS, describe as describe_time_axis,
+    sample_axis, start_time_from_header, validate_delay_encoding,
+)
+
 
 # Typical near-surface soil GPR velocity (relative permittivity ~9);
 # override with converter_kwargs={"velocity_m_per_ns": ...} when a
@@ -202,6 +207,7 @@ class SEGYConverter(BaseConverter):
         velocity_source_quantity: str | None = None,
         velocity_source_value: float | None = None,
         velocity_source_basis: str | None = None,
+        delay_encoding: str = DEFAULT_DELAY_ENCODING,
         **kwargs,
     ) -> list[SubterraRecord]:
         """Records only. See `load()` for records plus the file's SurveyFrame."""
@@ -213,6 +219,7 @@ class SEGYConverter(BaseConverter):
             velocity_source_quantity=velocity_source_quantity,
             velocity_source_value=velocity_source_value,
             velocity_source_basis=velocity_source_basis,
+            delay_encoding=delay_encoding,
             **kwargs,
         ).records
 
@@ -228,6 +235,7 @@ class SEGYConverter(BaseConverter):
         velocity_source_quantity: str | None = None,
         velocity_source_value: float | None = None,
         velocity_source_basis: str | None = None,
+        delay_encoding: str = DEFAULT_DELAY_ENCODING,
         **kwargs,
     ) -> ConversionResult:
         """
@@ -270,6 +278,7 @@ class SEGYConverter(BaseConverter):
                 f"Choose one of {sorted(COORDINATE_ENCODINGS)}. Nothing is inferred here, so an "
                 f"unrecognised value is refused rather than defaulted."
             )
+        validate_delay_encoding(delay_encoding)
         byte_order, endian_evidence = detect_endianness(path)
         records = []
         trace_positions = []   # one Position per trace, for frame-level summary
@@ -301,12 +310,42 @@ class SEGYConverter(BaseConverter):
         with opener() as f:
 
             trace_count = f.tracecount
-            samples = list(f.samples)
+
+            # THE TIME AXIS, built here for both byte orders (converters/
+            # segy_time.py) rather than taken from the reader: the delay's
+            # scalar is the standard time scalar at bytes 215-216, and its
+            # unit follows the declared delay_encoding. The interval is read
+            # exactly as segyio reads it, so a zero-delay axis is unchanged.
+            header0 = f.header[0]
+            delay_raw = int(header0.get(segyio.TraceField.DelayRecordingTime, 0) or 0)
+            time_scalar_raw = int(header0.get(segyio.TraceField.ScalarTraceHeader, 0) or 0)
+            if byte_order == BIG:
+                step = segyio.tools.dt(f, fallback_dt=4000.0) / 1000.0
+            else:
+                step = f.interval / 1000.0
+            t0 = start_time_from_header(delay_raw, time_scalar_raw, delay_encoding)
+            samples = sample_axis(len(f.samples), step, t0)
 
             for trace_idx in range(trace_count):
 
                 trace = f.trace[trace_idx]
                 header = f.header[trace_idx]
+
+                # One axis per file is only right if the file has one delay.
+                # Every held file does (2,084 checked); one that does not
+                # would otherwise get trace 0's axis on every trace.
+                if is_gpr and (
+                    int(header.get(segyio.TraceField.DelayRecordingTime, 0) or 0) != delay_raw
+                    or int(header.get(segyio.TraceField.ScalarTraceHeader, 0) or 0)
+                    != time_scalar_raw
+                ):
+                    raise ValueError(
+                        f"{path.name}: DelayRecordingTime varies by trace (trace 0: "
+                        f"{delay_raw} with time scalar {time_scalar_raw}; trace {trace_idx}: "
+                        f"{header.get(segyio.TraceField.DelayRecordingTime, 0)} with "
+                        f"{header.get(segyio.TraceField.ScalarTraceHeader, 0)}). This "
+                        f"converter builds one time axis per file, so it refuses the file "
+                        f"rather than give every trace trace 0's axis.")
 
                 # SEG-Y coordinate scalar.
                 scalar = header.get(
@@ -515,6 +554,8 @@ class SEGYConverter(BaseConverter):
                 byte_order=byte_order, endian_evidence=endian_evidence,
                 coordinate_encoding=coordinate_encoding,
                 has_elevation=any_elevation,
+                delay_raw=delay_raw, time_scalar_raw=time_scalar_raw,
+                delay_encoding=delay_encoding,
                 velocity_basis=velocity_basis,
                 velocity_source_quantity=velocity_source_quantity,
                 velocity_source_value=velocity_source_value,
@@ -531,6 +572,7 @@ class SEGYConverter(BaseConverter):
         has_elevation=False,
         velocity_basis=None, velocity_source_quantity=None,
         velocity_source_value=None, velocity_source_basis=None,
+        delay_raw=0, time_scalar_raw=0, delay_encoding=DEFAULT_DELAY_ENCODING,
     ) -> SurveyFrame:
         """Describes the acquisition line as a whole: CRS, vertical axis, provenance, assumptions."""
         kinds = {p.kind for p in trace_positions}
@@ -672,17 +714,39 @@ class SEGYConverter(BaseConverter):
                 ),
                 verified=True,
             ))
-        if byte_order == LITTLE and samples and samples[0] != 0.0:
+        if is_gpr and samples and samples[0] != 0.0:
+            window = (samples[1] - samples[0]) * len(samples) if len(samples) > 1 else 0.0
+            # A start further from zero than the whole recording window is not
+            # offered as an instrument time-zero: preprocessing.time_zero's
+            # Method A reports `time_axis_origin_offset` as MEASURED. It is
+            # recorded under its own key, with the declaration that would
+            # change the reading, and nothing is guessed.
+            suspect = window > 0 and abs(samples[0]) > window
+            basis = (
+                describe_time_axis(delay_raw, time_scalar_raw, delay_encoding,
+                                   sample_interval, float(samples[0]), "ns")
+                + " The vertical axis origin is INSTRUMENT TIME-ZERO, not the ground "
+                "surface, so every derived depth carries this offset. For an "
+                "air-launched antenna it is largely air path, which this constant "
+                "ground velocity does not model."
+            )
+            if suspect:
+                basis += (
+                    f" This start exceeds the {window:g} ns recording window, which a real "
+                    f"delay rarely does; if the producer wrote the delay in the sample "
+                    f"interval's unit, declare delay_encoding='sample_interval_unit'.")
             assumptions.append(Assumption(
-                key="time_axis_origin_offset", value=float(samples[0]),
+                key="time_axis_start_suspect" if suspect else "time_axis_origin_offset",
+                value=float(samples[0]), basis=basis, verified=False,
+            ))
+        if delay_encoding != DEFAULT_DELAY_ENCODING:
+            assumptions.append(Assumption(
+                key="segy_delay_encoding", value=delay_encoding,
                 basis=(
-                    f"the trace header's DelayRecordingTime places time-zero at "
-                    f"{samples[0]:g} ns rather than 0, read in the SAME pre-scaled-by-1000 "
-                    f"unit as the sample interval because one instrument wrote both fields. "
-                    f"The vertical axis origin is INSTRUMENT TIME-ZERO, not the ground "
-                    f"surface, so every derived depth carries this offset. For an "
-                    f"air-launched antenna it is largely air path, which this constant "
-                    f"ground velocity does not model."
+                    f"SUPPLIED BY CALLER: {DELAY_ENCODINGS[delay_encoding]}. The file cannot "
+                    f"declare this -- with a time scalar of 0 the same delay bytes are a "
+                    f"plausible time under either reading -- so it was asserted as ingest "
+                    f"configuration for this dataset."
                 ),
                 verified=False,
             ))
@@ -770,6 +834,9 @@ class SEGYConverter(BaseConverter):
                 "segy_byte_order": byte_order,
                 "segy_coordinate_encoding": coordinate_encoding,
                 "segy_binary_interval": sample_interval,
+                "segy_delay_recording_time_raw": delay_raw,
+                "segy_time_scalar_raw": time_scalar_raw,
+                "segy_delay_encoding": delay_encoding,
                 "trace_count": trace_count,
                 "sample_count": len(samples),
                 "time_min_ns": float(samples[0]) if samples else None,

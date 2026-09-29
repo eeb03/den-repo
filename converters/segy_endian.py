@@ -35,6 +35,7 @@ from __future__ import annotations
 import struct
 from pathlib import Path
 
+from converters.segy_time import sample_axis, start_time_from_header
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -81,7 +82,11 @@ BIN_INTERVAL, BIN_SAMPLES, BIN_FORMAT = 3217, 3221, 3225
 TF_RECV_ELEVATION, TF_SOURCE_SURFACE_ELEVATION = 41, 45
 TF_SCALAR, TF_SOURCE_X, TF_SOURCE_Y = 71, 73, 77
 TF_GROUP_X, TF_GROUP_Y = 81, 85
-TF_SCALAR_TRACE_HEADER = 69
+#: Bytes 69-70 are the ELEVATION scalar. This constant used to be named
+#: TF_SCALAR_TRACE_HEADER -- segyio's name for the TIME scalar at 215-216 --
+#: and was applied to the delay; see converters/segy_time.py.
+TF_ELEVATION_SCALAR = 69
+TF_TIME_SCALAR = 215
 TF_DELAY = 109
 TF_SAMPLE_COUNT, TF_SAMPLE_INTERVAL = 115, 117
 
@@ -269,41 +274,32 @@ class LittleEndianSegyFile:
                     f"{self.path.name}: {body % self._record} trailing byte(s) after "
                     f"{self.tracecount} complete traces; the remainder is ignored."
                 )
-            # Time axis. segyio computes `arange(ns) * dt/1000 + delrt *
-            # abs(delay_scalar)`, and the /1000 is what makes this converter's
-            # GPR files come out in nanoseconds -- these vendors write the
-            # time fields pre-scaled by 1000 (i.e. in picoseconds).
+            # Time axis, exactly as segyio builds one for a big-endian file:
+            # the interval / 1000 as the step, and DelayRecordingTime scaled
+            # by the STANDARD time scalar at bytes 215-216 as the start. The
+            # converter rebuilds the axis itself from the same raw fields (it
+            # also knows the declared delay_encoding); this keeps the reader a
+            # faithful stand-in for segyio on its own.
             #
-            # THE SAME SCALING MUST APPLY TO THE DELAY. It is one instrument
-            # writing one unit into both time fields, and treating only `dt`
-            # as pre-scaled produces a start time a thousand times too large:
-            # on the 4TU corpus, delrt values of 293-10958 became a 293-10958
-            # ns start against a ~50 ns recording window, which then propagated
-            # into depths of hundreds of metres. Read in the same unit as `dt`
-            # they are 0.3-11 ns -- an instrument time-zero/air-path offset,
-            # which is what an air-launched antenna actually has.
-            #
-            # The axis origin stays "instrument time-zero", NOT the ground
-            # surface, so any depth derived from it carries that offset. That
-            # is recorded on the frame rather than silently removed here.
+            # History: the first version took its scalar from bytes 69-70 (the
+            # ELEVATION scalar) and divided the delay by a hard-coded 1000. On
+            # the 4TU corpus that matched the standard only by coincidence --
+            # elevation scalar 1, time scalar -1000 in all 759 files -- so the
+            # 2.641 ns starts it produced are unchanged here.
             header0 = self.header[0]
-            delay_scalar = header0.get(TF_SCALAR_TRACE_HEADER, 0) or 0
-            if delay_scalar == 0:
-                delay_scalar = 1
-            elif delay_scalar < 0:
-                delay_scalar = 1.0 / delay_scalar
             raw_delay = header0.get(TF_DELAY, 0) or 0
+            self.time_scalar_raw = header0.get(TF_TIME_SCALAR, 0) or 0
             step = self.interval / 1000.0
             self.delay_raw = raw_delay
-            self.t0 = (raw_delay * abs(delay_scalar)) / 1000.0
-            self.samples = [self.t0 + i * step for i in range(self.n_samples)]
+            self.t0 = start_time_from_header(raw_delay, self.time_scalar_raw, "segy_standard")
+            self.samples = sample_axis(self.n_samples, step, self.t0)
             window = step * self.n_samples
             if window > 0 and self.t0 > window:
                 logger.warning(
                     f"{self.path.name}: start time {self.t0:g} exceeds the "
                     f"{window:g}-unit recording window (DelayRecordingTime={raw_delay}, "
-                    f"scalar={delay_scalar}). The delay field is not being used as a delay "
-                    f"in this file; the time axis is reported as read, not corrected."
+                    f"time scalar={self.time_scalar_raw}). The delay field may not be in the "
+                    f"standard's unit in this file; the axis is reported as read, not corrected."
                 )
             self.bin = {
                 BIN_INTERVAL: self.interval,
@@ -338,13 +334,14 @@ class LittleEndianSegyFile:
         return {
             TF_RECV_ELEVATION: i32(40),
             TF_SOURCE_SURFACE_ELEVATION: i32(44),
-            TF_SCALAR_TRACE_HEADER: i16(68),
+            TF_ELEVATION_SCALAR: i16(68),
             TF_SCALAR: i16(70),
             TF_SOURCE_X: i32(72),
             TF_SOURCE_Y: i32(76),
             TF_GROUP_X: i32(80),
             TF_GROUP_Y: i32(84),
             TF_DELAY: i16(108),
+            TF_TIME_SCALAR: i16(214),
             TF_SAMPLE_COUNT: i16(114),
             TF_SAMPLE_INTERVAL: i16(116),
         }
