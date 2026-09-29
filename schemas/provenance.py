@@ -165,6 +165,18 @@ def frame_provenance(frame) -> list[QuantityProvenance]:
                           "vertical axis above and no depth",
                           source="VerticalAxis.conversion"))
 
+    # The datum of the stored acquisition ELEVATION, declared separately from
+    # the axis (api/spatial.py, applies_to="acquisition_elevation"). Reported as
+    # its own quantity so it never reads as a datum for the depth axis.
+    aed = getattr(frame, "acquisition_elevation_datum", None)
+    if aed is not None and aed.datum.code:
+        out.append(_q("acquisition_elevation_datum",
+                      _FROM_CRS.get(aed.datum.provenance, ProvenanceClass.UNAVAILABLE),
+                      f"{aed.datum.name or aed.datum.code} for "
+                      f"{aed.field or 'the acquisition elevation'}; says nothing about "
+                      f"where the depth axis is referenced",
+                      value=aed.datum.code, source="SurveyFrame.acquisition_elevation_datum"))
+
     # Frame assumptions carry their own basis and verified flag already. A
     # verified assumption is a measurement someone checked; an unverified one
     # is exactly what "assumed" means.
@@ -287,18 +299,32 @@ def record_provenance(record, frame=None) -> list[QuantityProvenance]:
     else:
         datum = meta.get("acquisition_elevation_datum")
         undeclared = (datum in (None, "UNDECLARED"))
-        out.append(_q(
-            "elevation",
-            ProvenanceClass.MEASURED if not undeclared else ProvenanceClass.INFERRED,
-            ("acquisition elevation recorded by the instrument, but the source "
-             "declares NO vertical datum, so it cannot be compared with another "
-             "elevation source" if undeclared
-             else f"acquisition elevation on datum {datum}"),
-            value=elev, source=meta.get("acquisition_elevation_source", "converter")))
+        # The file declared none, but a caller may have declared one on the
+        # frame since. The record's own metadata is left as ingested.
+        aed = getattr(frame, "acquisition_elevation_datum", None) if frame is not None else None
+        declared = aed.datum if aed is not None and aed.datum.code else None
+        if undeclared and declared is not None:
+            out.append(_q(
+                "elevation",
+                _FROM_CRS.get(declared.provenance, ProvenanceClass.UNAVAILABLE),
+                (f"acquisition elevation recorded by the instrument; the source declares "
+                 f"no datum, and {declared.code} ({declared.name or declared.code}) was "
+                 f"declared for it through the spatial reference workflow"),
+                value=elev, source=meta.get("acquisition_elevation_source", "converter")))
+        else:
+            out.append(_q(
+                "elevation",
+                ProvenanceClass.MEASURED if not undeclared else ProvenanceClass.INFERRED,
+                ("acquisition elevation recorded by the instrument, but the source "
+                 "declares NO vertical datum, so it cannot be compared with another "
+                 "elevation source" if undeclared
+                 else f"acquisition elevation on datum {datum}"),
+                value=elev, source=meta.get("acquisition_elevation_source", "converter")))
 
     if frame is not None:
         out.extend(p for p in frame_provenance(frame)
-                   if p.quantity in ("horizontal_crs", "vertical_datum"))
+                   if p.quantity in ("horizontal_crs", "vertical_datum",
+                                     "acquisition_elevation_datum"))
     return out
 
 
