@@ -275,8 +275,15 @@ def test_the_default_encoding_adds_no_declaration_assumption(tmp_path):
     assert _assumptions(result)["time_axis_origin_offset"].value == pytest.approx(2.641)
 
 
-def test_time_zero_method_a_receives_the_normalised_start(tmp_path):
+def test_the_normalised_delay_is_reported_to_time_zero_but_never_applied_as_one(tmp_path):
+    """REPLACES a test that pinned the delay as a Method A correction. The
+    delay is where recording starts on the instrument clock -- already in the
+    raw axis -- not a radar time zero (see schemas/depth_model.py)."""
     from preprocessing.time_zero import metadata_instrument_time_zero
+    from schemas.time_zero import TimeZeroStatus
     result = _load(write_segy(tmp_path / "fn.segy", delay=10342, time_scalar=0),
                    delay_encoding="sample_interval_unit")
-    assert metadata_instrument_time_zero(result.frames[0]).correction_ns == pytest.approx(10.342)
+    tz = metadata_instrument_time_zero(result.frames[0])
+    assert tz.status == TimeZeroStatus.UNAVAILABLE
+    assert tz.correction_ns is None
+    assert "10.342" in tz.basis and "not a time zero" in tz.basis

@@ -376,7 +376,16 @@ class TestProductionWiring:
     the orchestration that wires them together.
     """
 
-    def test_method_a_wins_over_a_declaration_and_over_method_c(self):
+    def test_a_recording_delay_is_not_a_time_zero_and_a_declaration_wins(self):
+        """
+        REPLACES a test that pinned the opposite. The SEG-Y DelayRecordingTime
+        says where the recorded window starts on the instrument clock; the
+        raw axis already includes it (samples start AT the delay). Treating it
+        as a MEASURED time-zero correction made corrected time = time since
+        recording began -- as if the pulse left the antenna the moment
+        recording started -- and let that unmeasured claim override a
+        person's declaration. The delay is now reported, not applied.
+        """
         frame = _frame(assumptions=[
             Assumption(key=SEGY_ORIGIN_OFFSET_KEY, value=3.5,
                       basis="SEG-Y DelayRecordingTime header", verified=False),
@@ -385,10 +394,38 @@ class TestProductionWiring:
                       verified=False),
         ])
         records = [_record(metadata={"two_way_time_ns": 10.0})]
+        assert metadata_instrument_time_zero(frame).status == TimeZeroStatus.UNAVAILABLE
+        assert "not a time zero" in metadata_instrument_time_zero(frame).basis
         result = resolve_time_zero_for_frame(frame, records)
-        assert result.status == TimeZeroStatus.MEASURED
-        assert result.method == TimeZeroMethod.METADATA_INSTRUMENT
-        assert result.correction_ns == 3.5
+        assert result.status == TimeZeroStatus.DECLARED
+        assert result.method == TimeZeroMethod.OPERATOR_DECLARED
+        assert result.correction_ns == 99.0
+
+    def test_a_recording_delay_alone_never_corrects_anything(self):
+        frame = _frame(assumptions=[
+            Assumption(key=SEGY_ORIGIN_OFFSET_KEY, value=3.5,
+                      basis="SEG-Y DelayRecordingTime header", verified=False)])
+        records = [_record(metadata={"two_way_time_ns": 10.0})]
+        result = resolve_time_zero_for_frame(frame, records)
+        assert not result.resolved or result.method != TimeZeroMethod.METADATA_INSTRUMENT
+        assert result.correction_ns != 3.5
+
+    def test_method_c_reports_its_pick_on_the_raw_time_axis_when_there_is_a_delay(self):
+        """The onset must be a RAW time (delay + index x dt), because it is
+        subtracted from raw times. Picked as index x dt alone it would be off
+        by exactly the delay."""
+        frame = _frame()
+        traces = [_pulse(onset=60, seed=i) for i in range(20)]
+        records = _per_sample_records(traces, sample_interval_ns=0.5, velocity_m_per_ns=0.1)
+        for r in records:
+            r.metadata["two_way_time_ns"] += 2.641           # a 4TU-sized recording delay
+        result = resolve_time_zero_for_frame(frame, records)
+        assert result.status == TimeZeroStatus.DERIVED
+        assert result.correction_ns == pytest.approx(2.641 + 30.0, abs=1.0)
+        # the pulse onset itself is then at corrected time ~0
+        onset = next(r for r in records if r.metadata["trace_index"] == 0
+                     and r.metadata["two_way_time_ns"] == pytest.approx(2.641 + 30.0))
+        assert onset.metadata["two_way_time_ns"] - result.correction_ns == pytest.approx(0.0, abs=1.0)
 
     def test_a_declaration_wins_over_method_c_when_no_metadata_field_exists(self):
         frame = _frame(assumptions=[
@@ -475,6 +512,45 @@ class TestProductionWiring:
         # corrected time at sample 2 = 1.0ns -> depth 1.0*0.2/2 = 0.1
         assert records[2].depth == pytest.approx(0.1)
         assert records[2].metadata["velocity_source"] == "supplied_by_caller"
+
+    def test_a_frames_declared_velocity_is_used_over_the_records_ingest_default(self):
+        """A DEPTH_CONVERSION declaration on the frame is the velocity depth is recomputed
+        with; the records' ingest default is the preview it replaces."""
+        from schemas.spatial import AxisKind, VerticalAxis
+        frame = _frame(assumptions=[
+            Assumption(key=DECLARED_TIME_ZERO_KEY, value=1.0, basis="SUPPLIED BY CALLER: x", verified=False)])
+        frame.vertical_axis = VerticalAxis(
+            kind=AxisKind.TWO_WAY_TIME_NS, units="ns", origin="instrument", positive_down=True,
+            conversion={"method": "constant_velocity", "velocity_m_per_ns": 0.12,
+                        "velocity_basis": "literature", "basis": "SUPPLIED BY CALLER"})
+        records = _per_sample_records(
+            [[0.0, 0.0, 0.0]], sample_interval_ns=1.0,
+            velocity_m_per_ns=0.1, velocity_source="assumed_default")
+        records, _ = apply_time_zero_for_dataset(records, [frame])
+        assert records[2].depth == pytest.approx(1.0 * 0.12 / 2)
+        assert records[2].metadata["velocity_source"] == "declared:literature"
+
+    def test_the_applied_result_is_persisted_on_the_frame(self):
+        from schemas.time_zero import APPLIED_TIME_ZERO_KEY
+        frame = _frame(assumptions=[
+            Assumption(key=DECLARED_TIME_ZERO_KEY, value=1.5, basis="SUPPLIED BY CALLER: x", verified=False)])
+        records = _per_sample_records([[0.0]], sample_interval_ns=1.0)
+        apply_time_zero_for_dataset(records, [frame])
+        applied = frame.assumption(APPLIED_TIME_ZERO_KEY)
+        assert applied.value["correction_ns"] == 1.5
+        assert applied.value["status"] == "declared"
+        assert applied.value["applied"] is True
+        assert frame.assumption(DECLARED_TIME_ZERO_KEY) is not None   # history kept
+
+    def test_an_unresolved_result_is_persisted_too_and_never_as_a_correction(self):
+        from schemas.time_zero import APPLIED_TIME_ZERO_KEY
+        frame = _frame()
+        records = _per_sample_records([[0.0] * 30 for _ in range(6)], sample_interval_ns=1.0,
+                                      velocity_m_per_ns=0.1)
+        apply_time_zero_for_dataset(records, [frame])
+        applied = frame.assumption(APPLIED_TIME_ZERO_KEY)
+        assert applied.value["correction_ns"] is None
+        assert applied.value["applied"] is False
 
     def test_an_inconclusive_frame_leaves_existing_depth_untouched(self):
         frame = _frame()  # no metadata field, no declaration

@@ -168,6 +168,15 @@ def test_a_real_pulse_resolves_derived_and_is_persisted(env):
     assert late.depth == pytest.approx(
         (75.0 - result["correction_ns"]) * 0.1 / 2.0, abs=1e-6)
 
+    # The frame, not only its records, now says which time zero it rests on:
+    # a same-survey DERIVED pick, so depth stays approximate (default velocity).
+    from database.frames_store import load_frames
+    from schemas.depth_model import frame_depth_readiness
+    from schemas.time_zero import APPLIED_TIME_ZERO_KEY
+    frame = load_frames("d")[0]
+    assert frame.assumption(APPLIED_TIME_ZERO_KEY).value["method"] == "direct_wave_consensus"
+    assert frame_depth_readiness(frame).as_dict()["time_zero"]["status"] == "derived"
+
 
 def test_flat_traces_are_reported_inconclusive_not_a_guessed_number(env):
     Session, root = env

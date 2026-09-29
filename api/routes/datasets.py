@@ -467,10 +467,10 @@ def apply_time_zero(
     """
     Resolve and apply a time-zero correction to this dataset's stored
     records, PER FRAME (per acquisition line/file) -- the method hierarchy
-    from `preprocessing.time_zero.resolve_time_zero_for_frame`: Method A
-    (SEG-Y `DelayRecordingTime`) -> an existing operator
-    `DeclarationKind.TIME_ZERO` declaration -> Method C
-    (`direct_wave_consensus_time_zero`, the one algorithmic method).
+    from `preprocessing.time_zero.resolve_time_zero_for_frame`: an existing
+    operator `DeclarationKind.TIME_ZERO` declaration -> Method C
+    (`direct_wave_consensus_time_zero`, the one algorithmic method). Method A
+    only REPORTS the SEG-Y recording delay: a delay is not a time zero.
 
     THE FIRST LIVE CALLER. Until this endpoint existed, the time-zero
     framework was fully implemented and tested but never invoked by any
@@ -490,8 +490,9 @@ def apply_time_zero(
 
     `velocity_m_per_ns`, if supplied, overrides the velocity used to
     recompute depth for every frame this call resolves a correction for
-    (recorded with source `"supplied_by_caller"`). Without it, each
-    frame's OWN already-recorded ingest velocity is reused -- this
+    (recorded with source `"supplied_by_caller"`). Without it, a frame's
+    DEPTH_CONVERSION declaration is used (source `"declared:<basis>"`), and
+    failing that each frame's OWN already-recorded ingest velocity is reused -- this
     endpoint never estimates a new velocity, only reapplies the existing
     one to the now-corrected time axis.
     """
@@ -519,6 +520,9 @@ def apply_time_zero(
         if velocity_m_per_ns is not None else None)
     records, results = apply_time_zero_for_dataset(records, frames, velocity_overrides=velocity_overrides)
     save_records(dataset_id, records)
+    # The frame carries each result too (`APPLIED_TIME_ZERO_KEY`), so depth
+    # readiness is read from the frame and not re-derived from records.
+    save_frames(dataset_id, frames)
 
     report = validate_dataset(records, dataset_id=dataset_id)
     dataset.quality_score = report.quality_score
