@@ -263,6 +263,52 @@ def test_a_converter_default_velocity_does_not_unlock_depth():
     assert "converter_default" in " ".join(r["gates"]["depth_scoring"]["reasons"])
 
 
+def _declared_timing(**kw):
+    base = dict(time_zero_status="declared", velocity_m_per_ns=0.12, velocity_source="declared",
+                depth_reference_surface="ground", depth_units="m")
+    base.update(kw)
+    return TimingProvenance(**base)
+
+
+def _depth_gate(timing):
+    r = score(artifact([("p1", "A", (12.5,), 0.9)], timing=timing),
+              manifest([tgt("T1", (12.5,))]), RULE)
+    return r["gates"]["depth_scoring"], r["metrics"]["depth_error"]
+
+
+def test_a_derived_time_zero_does_not_unlock_depth():
+    """A same-survey direct-wave pick is an estimate, not a declaration."""
+    gate, err = _depth_gate(_declared_timing(time_zero_status="derived"))
+    assert gate["available"] is False and err is None
+    assert "time-zero" in " ".join(gate["reasons"])
+
+
+@pytest.mark.parametrize("basis", ["assumed_default", "estimated_from_same_survey"])
+def test_a_velocity_that_is_an_assumption_or_a_same_survey_estimate_does_not_unlock_depth(basis):
+    """Even labelled "declared": the basis says what the number rests on. A velocity
+    fitted to the same radar data is not independent of the depths it would be judged on."""
+    gate, err = _depth_gate(_declared_timing(velocity_basis=basis))
+    assert gate["available"] is False and err is None
+    assert basis in " ".join(gate["reasons"])
+
+
+@pytest.mark.parametrize("basis", ["user_declared", "literature", "independent_measurement"])
+def test_a_stated_velocity_basis_with_declared_time_zero_and_reference_unlocks_depth(basis):
+    gate, err = _depth_gate(_declared_timing(velocity_basis=basis))
+    assert gate["available"] is True and err is not None
+
+
+def test_a_missing_reference_keeps_depth_locked_even_with_everything_else():
+    gate, _ = _depth_gate(_declared_timing(depth_reference_surface=None,
+                                           velocity_basis="independent_measurement"))
+    assert gate["available"] is False
+
+
+def test_an_artifact_without_a_velocity_basis_still_loads():
+    """velocity_basis is optional: artifacts written before it existed are unchanged."""
+    assert TimingProvenance().velocity_basis is None
+
+
 def test_depth_error_when_every_declaration_is_present():
     timing = TimingProvenance(time_zero_status="measured", velocity_m_per_ns=0.1,
                               velocity_source="declared", depth_reference_surface="ground",

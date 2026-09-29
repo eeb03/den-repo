@@ -275,8 +275,52 @@ def test_the_default_encoding_adds_no_declaration_assumption(tmp_path):
     assert _assumptions(result)["time_axis_origin_offset"].value == pytest.approx(2.641)
 
 
-def test_time_zero_method_a_receives_the_normalised_start(tmp_path):
+def test_the_normalised_delay_is_reported_to_time_zero_but_never_applied_as_one(tmp_path):
+    """REPLACES a test that pinned the delay as a Method A correction. The
+    delay is where recording starts on the instrument clock -- already in the
+    raw axis -- not a radar time zero (see schemas/depth_model.py)."""
     from preprocessing.time_zero import metadata_instrument_time_zero
+    from schemas.time_zero import TimeZeroStatus
     result = _load(write_segy(tmp_path / "fn.segy", delay=10342, time_scalar=0),
                    delay_encoding="sample_interval_unit")
-    assert metadata_instrument_time_zero(result.frames[0]).correction_ns == pytest.approx(10.342)
+    tz = metadata_instrument_time_zero(result.frames[0])
+    assert tz.status == TimeZeroStatus.UNAVAILABLE
+    assert tz.correction_ns is None
+    assert "10.342" in tz.basis and "not a time zero" in tz.basis
+
+
+# ---------------------------------------------------------------------------
+# a zero sample interval
+# ---------------------------------------------------------------------------
+#
+# segyio falls back to 4000 us when both the binary Interval and the trace
+# header's sample interval are 0, which for GPR (interval read as ps) is a
+# fabricated 4 ns step; the little-endian reader took the 0 and put every
+# sample at the same time. Neither is a time axis.
+
+@pytest.mark.parametrize("order", [BIG, LITTLE])
+def test_a_gpr_file_with_no_sample_interval_is_refused(tmp_path, order):
+    path = write_segy(tmp_path / "zero.sgy", order=order, interval=0, n_samples=5)
+    with pytest.raises(ValueError, match="sample interval"):
+        _load(path)
+
+
+@pytest.mark.parametrize("order", [BIG, LITTLE])
+def test_a_non_gpr_zero_interval_keeps_the_fallback_but_says_so(tmp_path, order):
+    path = write_segy(tmp_path / "zero.sgy", order=order, interval=0, n_samples=5)
+    result = _load(path, sensor_type=SensorType.SEISMIC)
+    times, _ = _axis(result)
+    assert times[:3] == [0.0, 4.0, 8.0]
+    fallback = _assumptions(result)["segy_sample_interval_fallback"]
+    assert fallback.verified is False
+    assert "4000" in fallback.basis
+
+
+@pytest.mark.parametrize("order", [BIG, LITTLE])
+def test_a_trace_header_interval_is_used_when_the_binary_one_is_zero(tmp_path, order):
+    path = write_segy(tmp_path / "trace.sgy", order=order, interval=200, n_samples=5)
+    raw = bytearray(path.read_bytes())
+    raw[3200 + 16:3200 + 18] = b"\x00\x00"            # binary Interval -> 0
+    path.write_bytes(bytes(raw))
+    times, _ = _axis(_load(path))
+    assert times[:3] == pytest.approx([0.0, 0.2, 0.4])

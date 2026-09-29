@@ -64,6 +64,7 @@ from schemas.spatial import (
 from schemas.subterra_record import SubterraRecord, SensorType
 from schemas.survey_frame import SurveyFrame, make_frame_id
 
+from schemas.depth_model import DEFAULT_VELOCITY_M_PER_NS, two_way_time_to_depth
 from converters.segy_time import (
     DEFAULT_DELAY_ENCODING, DELAY_ENCODINGS, describe as describe_time_axis,
     sample_axis, start_time_from_header, validate_delay_encoding,
@@ -73,7 +74,11 @@ from converters.segy_time import (
 # Typical near-surface soil GPR velocity (relative permittivity ~9);
 # override with converter_kwargs={"velocity_m_per_ns": ...} when a
 # site-specific velocity (e.g. from a CMP survey) is known.
-DEFAULT_GPR_VELOCITY_M_PER_NS = 0.1
+DEFAULT_GPR_VELOCITY_M_PER_NS = DEFAULT_VELOCITY_M_PER_NS
+
+#: segyio's own fallback interval (us) when a file states none. Used only for
+#: non-GPR modalities, and always recorded as an assumption when it is.
+SEGYIO_FALLBACK_DT = 4000.0
 
 _NO_HEADER_POSITION = (
     "SEG-Y trace header SourceX/SourceY are (0, 0); the file carries no trace position"
@@ -319,10 +324,28 @@ class SEGYConverter(BaseConverter):
             header0 = f.header[0]
             delay_raw = int(header0.get(segyio.TraceField.DelayRecordingTime, 0) or 0)
             time_scalar_raw = int(header0.get(segyio.TraceField.ScalarTraceHeader, 0) or 0)
+            # THE SAMPLE INTERVAL: the binary header's, else trace 0's (bytes
+            # 117-118), as segyio resolves it. When BOTH are 0 there is no
+            # interval in the file. segyio would silently use 4000 (a
+            # fabricated 4 ns step for GPR) and the little-endian reader used
+            # to take the 0 and stack every sample at one time. A GPR time
+            # axis is refused; other modalities keep segyio's documented
+            # fallback, recorded as an unverified assumption on the frame.
+            bin_interval = int(f.bin.get(segyio.BinField.Interval, 0) or 0)
+            trace_interval = int(header0.get(segyio.TraceField.TRACE_SAMPLE_INTERVAL, 0) or 0)
+            interval_fallback = bin_interval <= 0 and trace_interval <= 0
+            if interval_fallback and is_gpr:
+                raise ValueError(
+                    f"{path.name}: no sample interval -- the binary header Interval (bytes "
+                    f"3217-3218) and trace 0's sample interval (bytes 117-118) are both "
+                    f"{bin_interval}/{trace_interval}. A GPR time axis cannot be built without "
+                    f"one, and segyio's 4000 fallback would fabricate a 4 ns step.")
             if byte_order == BIG:
-                step = segyio.tools.dt(f, fallback_dt=4000.0) / 1000.0
+                step = segyio.tools.dt(f, fallback_dt=SEGYIO_FALLBACK_DT) / 1000.0
             else:
-                step = f.interval / 1000.0
+                interval = (bin_interval if bin_interval > 0 else trace_interval
+                            if trace_interval > 0 else SEGYIO_FALLBACK_DT)
+                step = interval / 1000.0
             t0 = start_time_from_header(delay_raw, time_scalar_raw, delay_encoding)
             samples = sample_axis(len(f.samples), step, t0)
 
@@ -494,7 +517,7 @@ class SEGYConverter(BaseConverter):
 
                     sample_time = float(samples[sample_idx])
                     if is_gpr:
-                        depth = (sample_time * velocity_m_per_ns) / 2.0
+                        depth = two_way_time_to_depth(sample_time, velocity_m_per_ns)
                         axis_metadata = {
                             "two_way_time_ns": sample_time,
                             "velocity_m_per_ns": velocity_m_per_ns,
@@ -556,6 +579,7 @@ class SEGYConverter(BaseConverter):
                 has_elevation=any_elevation,
                 delay_raw=delay_raw, time_scalar_raw=time_scalar_raw,
                 delay_encoding=delay_encoding,
+                interval_fallback=interval_fallback,
                 velocity_basis=velocity_basis,
                 velocity_source_quantity=velocity_source_quantity,
                 velocity_source_value=velocity_source_value,
@@ -573,6 +597,7 @@ class SEGYConverter(BaseConverter):
         velocity_basis=None, velocity_source_quantity=None,
         velocity_source_value=None, velocity_source_basis=None,
         delay_raw=0, time_scalar_raw=0, delay_encoding=DEFAULT_DELAY_ENCODING,
+        interval_fallback=False,
     ) -> SurveyFrame:
         """Describes the acquisition line as a whole: CRS, vertical axis, provenance, assumptions."""
         kinds = {p.kind for p in trace_positions}
@@ -716,9 +741,9 @@ class SEGYConverter(BaseConverter):
             ))
         if is_gpr and samples and samples[0] != 0.0:
             window = (samples[1] - samples[0]) * len(samples) if len(samples) > 1 else 0.0
-            # A start further from zero than the whole recording window is not
-            # offered as an instrument time-zero: preprocessing.time_zero's
-            # Method A reports `time_axis_origin_offset` as MEASURED. It is
+            # The start is the RECORDING DELAY, reported (never applied) by
+            # preprocessing.time_zero's Method A: a delay is not a time zero.
+            # A start further from zero than the whole recording window is
             # recorded under its own key, with the declaration that would
             # change the reading, and nothing is guessed.
             suspect = window > 0 and abs(samples[0]) > window
@@ -738,6 +763,16 @@ class SEGYConverter(BaseConverter):
             assumptions.append(Assumption(
                 key="time_axis_start_suspect" if suspect else "time_axis_origin_offset",
                 value=float(samples[0]), basis=basis, verified=False,
+            ))
+        if interval_fallback:
+            assumptions.append(Assumption(
+                key="segy_sample_interval_fallback", value=SEGYIO_FALLBACK_DT,
+                basis=(
+                    f"ASSUMED: the file states no sample interval (binary Interval and trace "
+                    f"sample interval are both 0), so segyio's fallback of "
+                    f"{SEGYIO_FALLBACK_DT:g} was used. The time axis spacing is not from the "
+                    f"file and must be declared before any timing is interpreted."),
+                verified=False,
             ))
         if delay_encoding != DEFAULT_DELAY_ENCODING:
             assumptions.append(Assumption(
@@ -823,6 +858,12 @@ class SEGYConverter(BaseConverter):
                 conversion={
                     "method": "constant_velocity",
                     "velocity_m_per_ns": velocity_m_per_ns,
+                    # The basis travels with the value (schemas/depth_model.py): the
+                    # default is an assumption and never resolves a depth.
+                    "velocity_basis": (
+                        "assumed_default"
+                        if velocity_m_per_ns == DEFAULT_GPR_VELOCITY_M_PER_NS
+                        and velocity_source_quantity is None else "user_declared"),
                     "formula": "depth_m = two_way_time_ns * velocity_m_per_ns / 2",
                     "target_axis": AxisKind.DEPTH_M.value,
                 } if is_gpr else None,

@@ -302,15 +302,9 @@ def validate_velocity(velocity, bounds_basis: str = _IDS_BOUNDS_BASIS) -> tuple[
     return v, None
 
 
-def two_way_time_to_depth(two_way_time_ns: float, velocity_m_per_ns: float) -> float:
-    """
-    Standard constant-velocity conversion, identical to the one SEGYConverter
-    applies: the pulse travels to the reflector and back, so one-way depth is
-    half the round-trip path.
-
-        depth_m = two_way_time_ns * velocity_m_per_ns / 2
-    """
-    return two_way_time_ns * velocity_m_per_ns / 2.0
+# `two_way_time_to_depth` now lives in schemas.depth_model (the one canonical
+# conversion); re-exported here because MALA and GSSI import it from this module.
+from schemas.depth_model import two_way_time_to_depth  # noqa: E402,F401
 
 
 def _read_code(raw: bytes, offset: int) -> str:
@@ -636,6 +630,9 @@ class IDSDTConverter(BaseConverter):
                 conversion=({
                     "method": "constant_velocity",
                     "velocity_m_per_ns": velocity,
+                    # Converters without a default only convert when a caller passes a
+                    # velocity: a statement, not an assumption the platform made.
+                    "velocity_basis": "user_declared",
                     "velocity_source": "supplied_by_caller",
                     "formula": "depth_m = two_way_time_ns * velocity_m_per_ns / 2",
                     "target_axis": AxisKind.DEPTH_M.value,

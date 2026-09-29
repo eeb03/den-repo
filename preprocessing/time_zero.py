@@ -67,6 +67,7 @@ from typing import Optional
 
 from preprocessing.trace_processing import _reconstruct_traces_by_index
 from schemas.dataset_report import DECLARED_TIME_ZERO_KEY
+from schemas.depth_model import two_way_time_to_depth
 from schemas.subterra_record import SubterraRecord
 from schemas.time_zero import TimeZeroMethod, TimeZeroResult, TimeZeroStatus
 
@@ -95,35 +96,37 @@ def _now() -> datetime:
 
 def metadata_instrument_time_zero(frame) -> TimeZeroResult:
     """
-    Looks for the ONE standard, documented field this module trusts: SEG-Y's
-    `DelayRecordingTime`, already parsed by `converters/segy_converter.py`
-    into the frame's `time_axis_origin_offset` assumption. Any other
-    frame -- including one that carries `time_zero_offset_not_applied`,
-    which by construction means the converter itself judged the field's
-    meaning unestablished -- returns UNAVAILABLE. Nothing here reinterprets
-    a vendor field; it only reads a value a converter already classified.
+    A time zero stated by the acquisition's own metadata -- and today, no
+    format Subterra reads states one.
+
+    THE SEG-Y RECORDING DELAY IS NOT A TIME ZERO. `DelayRecordingTime`
+    (recorded by `converters/segy_converter.py` as the frame's
+    `time_axis_origin_offset` assumption) says where the recorded window
+    starts on the instrument clock, and the raw axis already includes it:
+    sample 0 is AT the delay. This method used to return it as a MEASURED
+    correction, making corrected time = time since recording began -- as if
+    the pulse left the antenna the moment recording started -- and, being
+    ranked first, overriding an operator's declaration. The delay is now
+    reported in the basis and never applied. Vendor fields of unestablished
+    meaning (GSSI `rhf_position`, MALA `SIGNAL POSITION`) stay refused too.
+
+    The method remains in the hierarchy for a future format whose metadata
+    genuinely documents a time zero; it never resolves until one exists.
     """
     claim = frame.assumption(SEGY_ORIGIN_OFFSET_KEY)
     if claim is None:
         return TimeZeroResult(
             status=TimeZeroStatus.UNAVAILABLE, method=TimeZeroMethod.METADATA_INSTRUMENT,
-            basis="no standard, documented time-zero field (SEG-Y DelayRecordingTime) is "
-                 "recorded for this frame; this method does not reinterpret vendor fields "
-                 "of unestablished meaning",
-        )
-    try:
-        correction = float(claim.value)
-    except (TypeError, ValueError):
-        return TimeZeroResult(
-            status=TimeZeroStatus.UNAVAILABLE, method=TimeZeroMethod.METADATA_INSTRUMENT,
-            basis=f"the recorded {SEGY_ORIGIN_OFFSET_KEY!r} value {claim.value!r} is not numeric",
+            basis="no acquisition metadata field documents a radar time zero for this frame; "
+                  "this method does not reinterpret vendor fields of unestablished meaning",
         )
     return TimeZeroResult(
-        status=TimeZeroStatus.MEASURED, method=TimeZeroMethod.METADATA_INSTRUMENT,
-        correction_ns=correction,
-        basis=(f"declared by the acquisition's own SEG-Y DelayRecordingTime header field, "
-              f"read by the converter as {SEGY_ORIGIN_OFFSET_KEY}: {claim.basis}"),
-        source="SEG-Y DelayRecordingTime", generated_utc=_now(),
+        status=TimeZeroStatus.UNAVAILABLE, method=TimeZeroMethod.METADATA_INSTRUMENT,
+        basis=(f"the SEG-Y recording delay ({claim.value} ns, {SEGY_ORIGIN_OFFSET_KEY}) is where "
+               f"the recorded window starts on the instrument clock and is already part of the "
+               f"raw time axis; it is not a time zero. A time zero must be declared or picked "
+               f"(first break / direct wave)."),
+        source="SEG-Y DelayRecordingTime (reported, not applied)",
     )
 
 
@@ -218,6 +221,7 @@ def _pick_onset_ns(trace: list[float], sample_interval_ns: float,
 
 def direct_wave_consensus_time_zero(
     records: list[SubterraRecord], sample_interval_ns: float,
+    start_time_ns: float = 0.0,
 ) -> TimeZeroResult:
     """
     Picks the direct/coupling-wave onset on every trace in `records`
@@ -228,6 +232,11 @@ def direct_wave_consensus_time_zero(
     expects for its "original shape" path. Per-sample records (SEGYConverter's
     other shape) are not supported here; a caller with that shape must
     reconstruct traces first, exactly as `process_gpr_traces` itself does.
+
+    `start_time_ns` is the raw time of each trace's first sample (the
+    normalised recording delay). The consensus onset is reported ON THE RAW
+    AXIS -- start + index x interval -- because it is subtracted from raw
+    times; reported as index x interval alone it would be off by the delay.
     """
     traces = [r.signal for r in records if len(r.signal) > 4]
     n_traces = len(traces)
@@ -270,7 +279,7 @@ def direct_wave_consensus_time_zero(
             outliers_rejected=n_outliers, generated_utc=_now(),
         )
 
-    consensus = statistics.median(kept)
+    consensus = start_time_ns + statistics.median(kept)
     spread = max(kept) - min(kept)
 
     if spread > MAX_CONSENSUS_SPREAD_NS:
@@ -361,7 +370,7 @@ def recompute_depth_with_time_zero(
         if corrected is None or excluded:
             r.depth = None
             continue
-        r.depth = (corrected * velocity_m_per_ns) / 2.0
+        r.depth = two_way_time_to_depth(corrected, velocity_m_per_ns)
         r.metadata["velocity_m_per_ns"] = velocity_m_per_ns
         r.metadata["velocity_source"] = velocity_source
     return records
@@ -418,7 +427,10 @@ def resolve_time_zero_for_frame(
 
     whole_traces: list[SubterraRecord] = []
     intervals: list[float] = []
+    starts: list[float] = []
     for recs in by_trace.values():
+        if recs[0].metadata.get("two_way_time_ns") is not None:
+            starts.append(recs[0].metadata["two_way_time_ns"])
         whole_traces.append(recs[0].model_copy(update={"signal": [r.signal[0] for r in recs]}))
         times = [r.metadata.get("two_way_time_ns") for r in recs[:2]]
         if len(times) == 2 and all(t is not None for t in times):
@@ -433,7 +445,45 @@ def resolve_time_zero_for_frame(
                  "two_way_time_ns spacing",
         )
 
-    return direct_wave_consensus_time_zero(whole_traces, sample_interval_ns)
+    start = statistics.median(starts) if starts else 0.0
+    return direct_wave_consensus_time_zero(whole_traces, sample_interval_ns, start_time_ns=start)
+
+
+def _declared_velocity_of(frame):
+    """
+    The velocity a DEPTH_CONVERSION declaration put on the frame's axis, or None.
+    Only a DECLARATION's conversion counts (`api.spatial` marks it
+    `derived: True`): a converter's own conversion is the velocity the records
+    already carry from ingest, and reusing it here would only relabel it.
+    """
+    from schemas.depth_model import velocity_model_of
+
+    axis = getattr(frame, "vertical_axis", None)
+    conversion = getattr(axis, "conversion", None)
+    if not conversion or conversion.get("derived") is not True:
+        return None
+    return velocity_model_of(conversion)
+
+
+def _persist_on_frame(frame, result: TimeZeroResult) -> None:
+    """
+    Records the result on the FRAME (`APPLIED_TIME_ZERO_KEY`), replacing any
+    earlier one, so the frame -- not only its records -- says which time zero
+    its depth rests on. A declaration that fed it stays under its own key.
+    """
+    from schemas.spatial import Assumption
+    from schemas.time_zero import APPLIED_TIME_ZERO_KEY
+
+    note = Assumption(
+        key=APPLIED_TIME_ZERO_KEY, value=result.model_dump(mode="json"),
+        basis=(f"time zero {result.status.value} by {result.method.value}"
+               + (f": correction {result.correction_ns:g} ns applied to the records' "
+                  f"corrected_time_ns (raw two_way_time_ns kept)"
+                  if result.applied and result.correction_ns is not None
+                  else ": nothing applied") + f". {result.basis}"),
+        verified=False)
+    frame.assumptions = [a for a in (frame.assumptions or [])
+                         if a.key != APPLIED_TIME_ZERO_KEY] + [note]
 
 
 def apply_time_zero_for_dataset(
@@ -478,10 +528,16 @@ def apply_time_zero_for_dataset(
             result = result.model_copy(update={"applied": True})
         apply_time_zero_correction(frame_records, result)
 
+        _persist_on_frame(frame, result)
+
         if result.resolved:
             velocity = velocity_overrides.get(frame_id)
+            declared = _declared_velocity_of(frame)
             if velocity is not None:
                 velocity_source = "supplied_by_caller"
+            elif declared is not None:
+                velocity = declared.value_m_per_ns
+                velocity_source = f"declared:{declared.basis.value}"
             else:
                 velocity, velocity_source = None, None
                 for r in frame_records:

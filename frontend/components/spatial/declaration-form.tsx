@@ -126,13 +126,48 @@ const FIELDS: Record<
     title: 'Declare a propagation velocity',
     explain: 'Turns the measured time axis into a depth axis.',
     consequence:
-      'The resulting depth is DERIVED, not measured: it is an assumption about this ground, recorded as one, and it will be labelled that way everywhere it appears. The value is checked against physically plausible bounds.',
+      'The resulting depth is DERIVED, not measured: it is an assumption about this ground, recorded as one, and it will be labelled that way everywhere it appears. The value is checked against physically plausible bounds. A velocity alone does not resolve depth: a time zero and a depth reference are separate declarations, and none of them validates the depth.',
     inputs: [
       {
         name: 'velocity_m_per_ns',
         label: 'Velocity (m/ns)',
         placeholder: '0.10',
         hint: 'between 0.01 and 0.30 m/ns — note m/ns, not cm/ns',
+      },
+      {
+        name: 'velocity_basis',
+        label: 'What the velocity rests on',
+        optional: true,
+        // NO platform default here: 0.1 m/ns is the platform's own preview
+        // assumption, and a declaration is somebody stating a value.
+        options: [
+          { value: 'user_declared', label: 'Stated, with no measurement behind it' },
+          { value: 'literature', label: 'A typical value for the material, from a reference work' },
+          {
+            value: 'estimated_from_same_survey',
+            label: 'Fitted from this survey’s own radar data (hyperbola, migration)',
+          },
+          {
+            value: 'independent_measurement',
+            label: 'Measured independently (CMP/WARR, borehole, known-depth reflector)',
+          },
+        ],
+        selectPlaceholder: 'choose what this number rests on (default: stated)',
+        hint:
+          'A velocity fitted to this survey is not independent of anything later judged against it, and never unlocks depth scoring.',
+      },
+      {
+        name: 'velocity_method',
+        label: 'How it was obtained',
+        optional: true,
+        placeholder: 'CMP',
+        hint: 'required for a same-survey estimate or an independent measurement',
+      },
+      {
+        name: 'velocity_uncertainty_m_per_ns',
+        label: 'Uncertainty (m/ns)',
+        optional: true,
+        placeholder: '0.005',
       },
     ],
   },

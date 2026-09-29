@@ -158,6 +158,12 @@ def _depth_gate(artifact: PredictionArtifact, manifest: TargetManifest, frame_id
         reasons.append(f"radar time-zero is {t.time_zero_status!r}, not declared or measured")
     if t.velocity_source not in ("declared", "measured") or t.velocity_m_per_ns is None:
         reasons.append(f"propagation velocity is {t.velocity_source!r}, not declared or measured")
+    # A "declared" label is not enough: the basis says what the number rests
+    # on. The platform default is an assumption, and a velocity fitted to the
+    # same radar data is not independent of the depths it would be judged on.
+    if t.velocity_basis in ("assumed_default", "estimated_from_same_survey"):
+        reasons.append(f"propagation velocity basis is {t.velocity_basis!r}; depth scoring "
+                       f"needs a velocity independent of this survey's own reflections")
     if not t.depth_reference_surface:
         reasons.append("no declared relationship between the radar depth axis and a physical "
                        "reference surface")

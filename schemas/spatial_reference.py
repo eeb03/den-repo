@@ -102,7 +102,8 @@ DIMENSION_STATES: dict[SpatialDimension, tuple[str, ...]] = {
     SpatialDimension.VERTICAL_REFERENCE: ("declared", "missing", "unresolved"),
     SpatialDimension.SURFACE_REFERENCE: ("available", "unavailable", "unvalidated"),
     SpatialDimension.ORIENTATION: ("available", "missing", "unresolved"),
-    SpatialDimension.DEPTH_CONVERSION: ("measured", "declared", "derived", "unavailable"),
+    SpatialDimension.DEPTH_CONVERSION: ("measured", "declared", "derived", "approximate",
+                                        "unavailable"),
     SpatialDimension.SURVEY_GEOMETRY: ("available", "partial", "missing"),
 }
 
@@ -613,9 +614,14 @@ def assess_depth(frames) -> DimensionState:
                      this: somebody computed it before the file reached us, by
                      means we cannot see. Calling that "measured" would claim an
                      instrument observed it, which we do not know.
-        derived      a caller supplied a velocity and the platform converted a
-                     measured time with it -- an assumption about the ground,
-                     not an observation of it.
+        derived      the platform converted a measured time with a STATED
+                     velocity, from a STATED time zero, below a STATED
+                     reference (`schemas.depth_model`: RESOLVED). Still an
+                     assumption about the ground, not an observation of it,
+                     and never "validated".
+        approximate  a depth can be drawn, but it rests on the platform default
+                     velocity, an unestablished time zero or no reference.
+                     NOT a resolved state: a preview axis, never a claim.
         unavailable  the time axis is still a time axis.
 
     Rendering `derived` as `measured` is the single most consequential thing
@@ -645,12 +651,40 @@ def assess_depth(frames) -> DimensionState:
                       frames=time_only)
 
     if converted:
+        from schemas.depth_model import DepthStatus, VelocityBasis, frame_depth_readiness
+        from schemas.time_zero import RESOLVED_TIME_ZERO_STATUSES
+
+        _RESOLVED_TIME_ZERO = {s.value for s in RESOLVED_TIME_ZERO_STATUSES}
+
         conversions = [a.conversion for _, a in converted]
+        readiness = [(f, frame_depth_readiness(f)) for f, _ in converted]
+        detail = [{"frame_id": f.frame_id, **r.as_dict()} for f, r in readiness]
+        open_frames = [(f, r) for f, r in readiness if r.status is not DepthStatus.RESOLVED]
+        if open_frames:
+            missing = sorted({reason for _, r in open_frames for reason in r.reasons})
+            # The declaration that closes the first open input, in the order
+            # depth is built: velocity, then time zero, then the reference.
+            if any(r.velocity is None or r.velocity.basis is VelocityBasis.ASSUMED_DEFAULT
+                   for _, r in open_frames):
+                action = DeclarationKind.DEPTH_CONVERSION
+            elif any(r.time_zero["status"] not in _RESOLVED_TIME_ZERO for _, r in open_frames):
+                action = DeclarationKind.TIME_ZERO
+            else:
+                action = DeclarationKind.ANTENNA_OFFSET
+            return _state(D, "approximate",
+                          f"depth was DERIVED from a measured time axis, but for "
+                          f"{len(open_frames)} frame(s) it rests on an assumption or an "
+                          f"unresolved input, so it is APPROXIMATE: a preview axis, not a "
+                          f"resolved depth. It is an assumption about the subsurface, not "
+                          f"a measurement of it",
+                          missing, action=action,
+                          provenance="derived", conversions=conversions, readiness=detail,
+                          frames=[f.frame_id for f, _ in open_frames])
         return _state(D, "derived",
-                      "depth was DERIVED from a measured time axis using a supplied "
-                      "velocity; it is an assumption about the subsurface, not a "
-                      "measurement of it",
-                      provenance="derived", conversions=conversions)
+                      "depth was DERIVED from a measured time axis using a stated "
+                      "velocity, time zero and depth reference; it is an assumption about "
+                      "the subsurface, not a measurement of it, and it is not validated",
+                      provenance="derived", conversions=conversions, readiness=detail)
 
     return _state(D, "declared",
                   f"{len(direct)} frame(s) carry a depth axis the SOURCE stated, with no "

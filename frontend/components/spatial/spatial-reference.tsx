@@ -45,7 +45,10 @@ export const DIMENSION_LABEL: Record<SpatialDimensionName, string> = {
   survey_geometry: 'Survey geometry',
 }
 
-/** States that mean the question is settled. Mirrors the backend's own set. */
+/**
+ * States that mean the question is settled. Mirrors the backend's own set.
+ * `approximate` (a depth drawn on an assumption) is deliberately absent.
+ */
 export const RESOLVED_SPATIAL_STATES = new Set([
   'available', 'declared', 'measured', 'derived',
 ])
@@ -206,6 +209,49 @@ export function SpatialReferenceView({ datasetId }: { datasetId: string }) {
   )
 }
 
+interface FrameDepthReadiness {
+  frame_id: string
+  status: string
+  validated: boolean
+  recording_delay_ns: number | null
+  time_zero: { status: string; method: string; correction_ns: number | null } | null
+  velocity: { value_m_per_ns: number; basis: string; method: string | null } | null
+  reference: { known: boolean; description: string | null } | null
+}
+
+/**
+ * The four depth inputs per frame, each under its own name, printed as the
+ * backend reported them. The recording delay is shown next to the time zero
+ * precisely so the two are never read as one number.
+ */
+function DepthReadinessList({ detail }: { detail: Record<string, unknown> }) {
+  const frames = Array.isArray(detail.readiness) ? (detail.readiness as FrameDepthReadiness[]) : []
+  if (frames.length === 0) return null
+  return (
+    <ul className="mt-2 space-y-1">
+      {frames.map((f) => (
+        <li
+          key={f.frame_id}
+          data-depth-readiness={f.frame_id}
+          className="font-mono text-[11px] leading-relaxed text-muted-foreground"
+        >
+          {f.frame_id}: {f.status} depth{f.validated ? '' : ', not validated'}
+          {' · velocity: '}
+          {f.velocity
+            ? `${f.velocity.value_m_per_ns} m/ns (${f.velocity.basis}${f.velocity.method ? `, ${f.velocity.method}` : ''})`
+            : 'none'}
+          {' · time zero: '}
+          {f.time_zero?.status ?? 'unavailable'}
+          {f.time_zero?.correction_ns != null ? ` (${f.time_zero.correction_ns} ns, ${f.time_zero.method})` : ''}
+          {f.recording_delay_ns ? ` · recording delay ${f.recording_delay_ns} ns (not a time zero)` : ''}
+          {' · reference: '}
+          {f.reference?.known ? f.reference.description : 'undeclared'}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function DimensionRow({
   datasetId,
   dimension,
@@ -235,6 +281,8 @@ function DimensionRow({
       </div>
 
       <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{dimension.reason}</p>
+
+      {dimension.dimension === 'depth_conversion' && <DepthReadinessList detail={dimension.detail} />}
 
       {dimension.missing.length > 0 && (
         <ul className="mt-2 space-y-1">

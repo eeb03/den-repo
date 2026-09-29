@@ -503,6 +503,9 @@ class MALAConverter(BaseConverter):
                 conversion={
                     "method": "constant_velocity",
                     "velocity_m_per_ns": velocity,
+                    # Converters without a default only convert when a caller passes a
+                    # velocity: a statement, not an assumption the platform made.
+                    "velocity_basis": "user_declared",
                     "formula": "depth_m = two_way_time_ns * velocity_m_per_ns / 2",
                     "target_axis": AxisKind.DEPTH_M.value,
                 } if velocity is not None else None,

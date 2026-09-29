@@ -91,6 +91,12 @@ RESOLVED_TIME_ZERO_STATUSES: tuple[TimeZeroStatus, ...] = (
 )
 
 
+#: The frame Assumption key a time-zero result is persisted under once
+#: `apply_time_zero` has run for a frame (value: the result's JSON dump), so the
+#: frame -- not only its records -- says which time zero its depth rests on.
+APPLIED_TIME_ZERO_KEY = "applied_time_zero"
+
+
 class TimeZeroResult(BaseModel):
     """
     One attempt's complete, honest answer -- carried as a value, the same
