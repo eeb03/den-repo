@@ -286,6 +286,29 @@ the AHN subset.
 
 ---
 
+## Deferred · `rupfs-eiffel-3dgpr` — noted, NOT acquired (2026-09-29)
+
+Recorded so it is not re-discovered from scratch. **Not downloaded; not in
+the manifest; nothing below has been ingested.** Header facts were read
+remotely (HTTP range reads into the published ZIP), not from a local copy.
+
+| | |
+|---|---|
+| **Name** | Multi-technique datasets for the evaluation of Removable Urban Pavements with Functionalized Surface (RUP-FS) |
+| **Source** | Recherche Data Gouv · [10.57745/37WIXB](https://doi.org/10.57745/37WIXB) · Andreoli, Schmidt, Sedran (Université Gustave Eiffel, MAST-EMGCU); companion *Data in Brief* article S2352340926004725 (2026) |
+| **License** | Etalab Open Licence 2.0 (read from the Dataverse record) |
+| **Size** | 3.7 GB single ZIP (`Experimental_RUP-FS_Database.zip`); the eight `.sgy` files total ~367 MB |
+| **Instrument** | KONTÜR stepped-frequency 3D GPR, DXG1820 antenna array, 0.2–2.98 GHz, 1 cm step, ground-coupled; windows 25 ns and 35 ns (3 passes each + a merged `.3dp`) |
+| **Formats** | `.sgy` (Kontur Examiner export, added in record v1.1), proprietary `.3dra/.3dp/.3drnav/.3drvol`, UAV/UGV `.jpg` with YOLO `.txt` |
+| **CRS** | **Declared in the SEG-Y textual header: `EPSG:32630`, coordinate scalar 0.01** (bytes 73–80). First trace of `2025-01-17-006.sgy` = 602970.61 E, 5223134.40 N → 47.1537 N, −1.6417 E — the Nantes campus where the fatigue carousel is. Positioning method and accuracy **not stated** (the `.3drnav` files may say). |
+| **Vertical** | **None.** Elevation field is 0; no vertical datum declared. |
+| **Geometry** | 20 in-lines × 1,148 x-lines × 256 samples; big-endian IEEE float (format 5); Δt ≈ 97 ps (header says intervals are in picoseconds) |
+| **Truth** | **No GPR labels.** YOLO labels exist only for UAV/smartphone photos (slabs, stains, spalling, joints). Structure is designed and documented (22 hexagonal slabs, 19 cm hydraulic + 4 cm porous concrete, 8.35 × 2.31 m), aged by 200,000 × 65 kN carousel cycles. **No buried utilities or objects.** |
+| **Why deferred** | Would be the first GPR dataset with a *declared projected CRS* — a real exercise for the spatial-reference workflow and a new-vendor SEG-Y. It does **not** unblock the vertical gate or labelled-target scoring. |
+| **Open question for the authors** | gregory.andreoli@univ-eiffel.fr — were subsurface defect locations logged, and how were the trace positions measured (RTK / total station)? |
+
+---
+
 ## Roadmap coverage
 
 Capability → which datasets can exercise it, given what is on disk today.
