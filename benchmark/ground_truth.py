@@ -77,6 +77,19 @@ class EvidenceBasis(str, Enum):
     PUBLICATION_TRANSCRIPTION = "publication_transcription"
     #: The source published a field and left it blank.
     NOT_RECORDED = "not_recorded"
+    # Added for per-object target truth (benchmark/targets.py). Each is a
+    # different KIND of observation; none is a confidence level.
+    #: An object deliberately buried at a recorded position (a seeded field).
+    SEEDED_PLACEMENT = "seeded_placement"
+    #: An as-built / construction record of what was installed where.
+    CONSTRUCTION_RECORD = "construction_record"
+    #: A physical probe reached the object or interface.
+    PROBING = "probing"
+    #: Positioned by an independent survey instrument (total station, RTK).
+    INDEPENDENT_SURVEY = "independent_survey"
+    #: Somebody read it off a radargram. NOT independent of the radar, and
+    #: never equivalent to any of the above.
+    OPERATOR_RADAR_INTERPRETATION = "operator_radar_interpretation"
 
 
 class DuplicateStatus(str, Enum):

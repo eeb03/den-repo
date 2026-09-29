@@ -1,0 +1,355 @@
+{
+ "$comment": [
+  "Generic target manifest for BAM Pk266, migrated from benchmark/bam_pk266_targets.json",
+  "(the legacy file stays authoritative for benchmark.bam_truth and is not modified). Every number here",
+  "is copied from it; tests/test_bam_target_migration.py checks that field by field. Nothing is added:",
+  "unknowns stay unknown, and every open question is carried with what it blocks."
+ ],
+ "schema": "subterra.targets.v1",
+ "dataset_id": "bam-concrete-gpr:Pk266",
+ "title": "BAM concrete step specimen Pk266",
+ "truth_source": {
+  "provenance_class": "transcribed_from_publication",
+  "transcribed_utc": "2026-08-08T00:20:00+00:00",
+  "legacy_file": "benchmark/bam_pk266_targets.json",
+  "sources": {
+   "data_repository": {
+    "doi": "10.7910/DVN/FCMUJQ",
+    "title": "Ground-Penetrating Radar Data (Pulse-Echo Mode) Acquired with 1.5 GHz and 2.6 GHz Antennas on Concrete Step Specimens Containing Embedded Objects",
+    "authors": [
+     "Grohmann, Maria",
+     "Maack, Stefan",
+     "Niederleithinger, Ernst",
+     "Wöstmann, Jens"
+    ],
+    "publisher": "Harvard Dataverse",
+    "publication_date": "2026-04-22",
+    "licence": "CC0 1.0",
+    "licence_source": "Dataverse dataset record, field latestVersion.license.rightsIdentifier",
+    "contains_target_geometry": false,
+    "note": "Supplies the CENTRE depths and the object descriptions quoted below, in its dsDescription field."
+   },
+   "companion_article": {
+    "doi": "10.1016/j.dib.2026.113103",
+    "title": "Ground-penetrating radar datasets for non-destructive geometry evaluation of concrete step specimens with embedded elements",
+    "journal": "Data in Brief",
+    "published": "2026-08",
+    "relation": "Crossref records doi:10.7910/DVN/FCMUJQ as is-supplemented-by of this article"
+   },
+   "geometry_article": {
+    "doi": "10.1016/j.dib.2023.109312",
+    "pmcid": "PMC10294002",
+    "title": "Low frequency ultrasonic pulse-echo datasets for object detection and thickness measurement in concrete specimens as testing tasks in civil engineering",
+    "note": "SAME physical specimens, different modality (ultrasound). Supplies the X positions and the concrete-cover depths in its Table 4. This is the only located source giving numeric target X.",
+    "licence": "CC BY 4.0"
+   }
+  }
+ },
+ "exhaustive": {
+  "value": true,
+  "statement": "The publications list four embedded tendon ducts in Pk266 and no other embedded object. The step back walls are real reflectors but are specimen geometry, not targets; a detection on them is scored as a false positive, exactly as the legacy scorer does."
+ },
+ "frames": [
+  {
+   "frame_id": "bam:Pk266:specimen_mm",
+   "kind": "local_cartesian",
+   "units": "mm",
+   "origin": "upper (measuring) surface of the specimen; Z = 0 at that surface; X along specimen length (0-2000), Y across width (0-800)",
+   "origin_status": "corroborated",
+   "units_status": "documentation_prose",
+   "registration_to_radar": "corroborated",
+   "registration_note": "X-values.npy in the repository runs 0..2000 mm in uniform 5 mm steps and Y-values.npy runs 0..800 mm in uniform 5 mm steps, i.e. the scanner grid is expressed in the same millimetre specimen frame as the target X below. No transformation is required and none is applied.",
+   "note": "Benchmark-local specimen frame; no CRS exists or is implied. There is no geodetic vertical datum and none is needed: depth is measured from the specimen surface, which is a physical reference, not an elevation. No absolute Z exists or is implied."
+  }
+ ],
+ "depth_reference_surfaces": [
+  {
+   "surface_id": "measuring_surface",
+   "description": "upper (measuring) surface of the specimen; Z = 0 at that surface"
+  }
+ ],
+ "open_questions": [
+  {
+   "id": "absolute-origin",
+   "statement": "No file in either archive contains a drawing, an origin marker, or any statement of where scanner X=0 sits on the specimen. That the scanner origin is the same physical corner as the drawing origin the target X values are measured from is corroborated, not declared.",
+   "blocks": [
+    "localization_error"
+   ],
+   "resolution_route": "BAM appendix drawings, or author contact"
+  },
+  {
+   "id": "depth-reference-surface",
+   "statement": "Published centre depth minus published concrete cover is exactly 30.0 mm (the inner radius) for all four ducts, where a cover measured to the outer surface facing the antenna would give 33.5 mm. The two sources use different reference surfaces; which one Table 4 means is unsettled.",
+   "blocks": [
+    "depth_scoring"
+   ],
+   "resolution_route": "BAM Table 4 reference surface, via author contact"
+  },
+  {
+   "id": "coordinate-units",
+   "statement": "The coordinate .npy arrays carry no unit and no file in either archive declares one. Millimetres come from the Dataverse prose. (Nanoseconds are independently corroborated by the DZT header.)",
+   "blocks": [
+    "localization_error",
+    "false_alarms_per_metre"
+   ],
+   "resolution_route": "a units declaration from the publisher"
+  },
+  {
+   "id": "dzt-to-grid-mapping",
+   "statement": "The DZT holds 152,222 traces; the coordinate-registered grid is 401 x 161 = 64,561. No source documents how DZT traces map onto grid nodes, so the DZT is not used as the scoring amplitude source.",
+   "blocks": [],
+   "resolution_route": "an acquisition-order statement from the publisher"
+  },
+  {
+   "id": "cover-vs-centre-reference",
+   "statement": "For all four ducts, centre_depth_mm minus concrete_cover_mm is exactly 30.0 mm, which is the INNER radius (60/2). If the cover were measured to the duct's outer surface facing the antenna, the difference would be 33.5 mm (the outer radius). The two published sources therefore do not use the same reference surface, and which one Table 4's 'cover' refers to is not settled by anything read so far.",
+   "blocks": [
+    "depth_scoring"
+   ],
+   "resolution_route": "author contact (BAM), or the full text of the companion article, which was not retrievable -- Elsevier returned HTTP 403 and the article is not yet in Europe PMC."
+  },
+  {
+   "id": "target-y-extent",
+   "statement": "The ducts are recorded as spanning the full 800 mm width. This is stated in the geometry article. Whether they terminate exactly at the specimen faces or are recessed is not stated.",
+   "blocks": [],
+   "resolution_route": "Recorded as spans_full_width_y with the statement's source; not treated as a measured endpoint."
+  }
+ ],
+ "targets": [
+  {
+   "target_id": "Pk266-duct-1",
+   "object_class": "tendon duct",
+   "material": "metal duct, circular cross section",
+   "dimensions": {
+    "units": "mm",
+    "shape": "cylinder",
+    "outer_diameter": 67.0,
+    "inner_diameter": 60.0,
+    "note": "length not stated: The ducts are recorded as spanning the full 800 mm width. This is stated in the geometry article. Whether they terminate exactly at the specimen faces or are recessed is not stated."
+   },
+   "locations": [
+    {
+     "frame_id": "bam:Pk266:specimen_mm",
+     "geometry": "segment",
+     "start": [
+      250.0,
+      0.0
+     ],
+     "end": [
+      250.0,
+      800.0
+     ],
+     "note": "axis axis parallel to Y; x from geometry_article Table 4; no positional tolerance is published"
+    }
+   ],
+   "depths": [
+    {
+     "value": 274.5,
+     "units": "mm",
+     "measured_to": "centre",
+     "reference_surface": "measuring_surface",
+     "method": "publication_transcription",
+     "source": "data_repository",
+     "note": "primary: stated by the data publisher (see open question cover-vs-centre-reference)"
+    },
+    {
+     "value": 244.5,
+     "units": "mm",
+     "measured_to": "unresolved",
+     "reference_surface": "measuring_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.5,
+     "source": "geometry_article Table 4",
+     "open_question": "cover-vs-centre-reference",
+     "note": "concrete cover; which point of the duct it is measured to is unsettled"
+    }
+   ],
+   "evidence": {
+    "basis": "publication_transcription",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "geometry_article Table 4; depth data_repository",
+    "established_by": "BAM (Grohmann, Maack, Niederleithinger, Wöstmann)",
+    "notes": "a controlled object placed during fabrication, at a PUBLISHED position that Subterra has not re-surveyed; grade B, not A, for that reason",
+    "verified_by_subterra": false
+   }
+  },
+  {
+   "target_id": "Pk266-duct-2",
+   "object_class": "tendon duct",
+   "material": "metal duct, circular cross section",
+   "dimensions": {
+    "units": "mm",
+    "shape": "cylinder",
+    "outer_diameter": 67.0,
+    "inner_diameter": 60.0,
+    "note": "length not stated: The ducts are recorded as spanning the full 800 mm width. This is stated in the geometry article. Whether they terminate exactly at the specimen faces or are recessed is not stated."
+   },
+   "locations": [
+    {
+     "frame_id": "bam:Pk266:specimen_mm",
+     "geometry": "segment",
+     "start": [
+      750.0,
+      0.0
+     ],
+     "end": [
+      750.0,
+      800.0
+     ],
+     "note": "axis axis parallel to Y; x from geometry_article Table 4; no positional tolerance is published"
+    }
+   ],
+   "depths": [
+    {
+     "value": 214.6,
+     "units": "mm",
+     "measured_to": "centre",
+     "reference_surface": "measuring_surface",
+     "method": "publication_transcription",
+     "source": "data_repository",
+     "note": "primary: stated by the data publisher (see open question cover-vs-centre-reference)"
+    },
+    {
+     "value": 184.6,
+     "units": "mm",
+     "measured_to": "unresolved",
+     "reference_surface": "measuring_surface",
+     "method": "publication_transcription",
+     "uncertainty": 1.6,
+     "source": "geometry_article Table 4",
+     "open_question": "cover-vs-centre-reference",
+     "note": "concrete cover; which point of the duct it is measured to is unsettled"
+    }
+   ],
+   "evidence": {
+    "basis": "publication_transcription",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "geometry_article Table 4; depth data_repository",
+    "established_by": "BAM (Grohmann, Maack, Niederleithinger, Wöstmann)",
+    "notes": "a controlled object placed during fabrication, at a PUBLISHED position that Subterra has not re-surveyed; grade B, not A, for that reason",
+    "verified_by_subterra": false
+   }
+  },
+  {
+   "target_id": "Pk266-duct-3",
+   "object_class": "tendon duct",
+   "material": "metal duct, circular cross section",
+   "dimensions": {
+    "units": "mm",
+    "shape": "cylinder",
+    "outer_diameter": 67.0,
+    "inner_diameter": 60.0,
+    "note": "length not stated: The ducts are recorded as spanning the full 800 mm width. This is stated in the geometry article. Whether they terminate exactly at the specimen faces or are recessed is not stated."
+   },
+   "locations": [
+    {
+     "frame_id": "bam:Pk266:specimen_mm",
+     "geometry": "segment",
+     "start": [
+      1250.0,
+      0.0
+     ],
+     "end": [
+      1250.0,
+      800.0
+     ],
+     "note": "axis axis parallel to Y; x from geometry_article Table 4; no positional tolerance is published"
+    }
+   ],
+   "depths": [
+    {
+     "value": 151.4,
+     "units": "mm",
+     "measured_to": "centre",
+     "reference_surface": "measuring_surface",
+     "method": "publication_transcription",
+     "source": "data_repository",
+     "note": "primary: stated by the data publisher (see open question cover-vs-centre-reference)"
+    },
+    {
+     "value": 121.4,
+     "units": "mm",
+     "measured_to": "unresolved",
+     "reference_surface": "measuring_surface",
+     "method": "publication_transcription",
+     "uncertainty": 1.0,
+     "source": "geometry_article Table 4",
+     "open_question": "cover-vs-centre-reference",
+     "note": "concrete cover; which point of the duct it is measured to is unsettled"
+    }
+   ],
+   "evidence": {
+    "basis": "publication_transcription",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "geometry_article Table 4; depth data_repository",
+    "established_by": "BAM (Grohmann, Maack, Niederleithinger, Wöstmann)",
+    "notes": "a controlled object placed during fabrication, at a PUBLISHED position that Subterra has not re-surveyed; grade B, not A, for that reason",
+    "verified_by_subterra": false
+   }
+  },
+  {
+   "target_id": "Pk266-duct-4",
+   "object_class": "tendon duct",
+   "material": "metal duct, circular cross section",
+   "dimensions": {
+    "units": "mm",
+    "shape": "cylinder",
+    "outer_diameter": 67.0,
+    "inner_diameter": 60.0,
+    "note": "length not stated: The ducts are recorded as spanning the full 800 mm width. This is stated in the geometry article. Whether they terminate exactly at the specimen faces or are recessed is not stated."
+   },
+   "locations": [
+    {
+     "frame_id": "bam:Pk266:specimen_mm",
+     "geometry": "segment",
+     "start": [
+      1750.0,
+      0.0
+     ],
+     "end": [
+      1750.0,
+      800.0
+     ],
+     "note": "axis axis parallel to Y; x from geometry_article Table 4; no positional tolerance is published"
+    }
+   ],
+   "depths": [
+    {
+     "value": 94.4,
+     "units": "mm",
+     "measured_to": "centre",
+     "reference_surface": "measuring_surface",
+     "method": "publication_transcription",
+     "source": "data_repository",
+     "note": "primary: stated by the data publisher (see open question cover-vs-centre-reference)"
+    },
+    {
+     "value": 64.4,
+     "units": "mm",
+     "measured_to": "unresolved",
+     "reference_surface": "measuring_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.75,
+     "source": "geometry_article Table 4",
+     "open_question": "cover-vs-centre-reference",
+     "note": "concrete cover; which point of the duct it is measured to is unsettled"
+    }
+   ],
+   "evidence": {
+    "basis": "publication_transcription",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "geometry_article Table 4; depth data_repository",
+    "established_by": "BAM (Grohmann, Maack, Niederleithinger, Wöstmann)",
+    "notes": "a controlled object placed during fabrication, at a PUBLISHED position that Subterra has not re-surveyed; grade B, not A, for that reason",
+    "verified_by_subterra": false
+   }
+  }
+ ],
+ "notes": [
+  "BAM benchmark results measure performance on controlled concrete NDT specimens. They are not evidence of soil/utility-scale subsurface detection or localisation performance."
+ ]
+}
