@@ -457,6 +457,93 @@ describe('declaring', () => {
   })
 })
 
+describe('depth readiness', () => {
+  const approximate = dimension({
+    dimension: 'depth_conversion',
+    state: 'approximate',
+    reason: 'depth was DERIVED from a measured time axis, but for 1 frame(s) it rests on an assumption',
+    missing: ['velocity 0.1 m/ns is the platform default assumption, not a value stated for this ground'],
+    action: 'depth_conversion',
+    provenance: 'derived',
+    detail: {
+      readiness: [
+        {
+          frame_id: 'd:line1',
+          status: 'approximate',
+          validated: false,
+          recording_delay_ns: 10.342,
+          time_zero: { status: 'unavailable', method: 'none', correction_ns: null, basis: 'none' },
+          velocity: { value_m_per_ns: 0.1, basis: 'assumed_default', method: null },
+          reference: { known: false, description: null },
+        },
+      ],
+    },
+  })
+
+  it('renders an approximate depth as unresolved', async () => {
+    const { container } = await renderView(reference({ dimensions: [approximate] }))
+    const row = container.querySelector('[data-dimension="depth_conversion"]')
+    expect(row?.getAttribute('data-resolved')).toBe('false')
+    expect(row?.getAttribute('data-state')).toBe('approximate')
+  })
+
+  it('names the velocity basis, the time zero and the recording delay separately', async () => {
+    const { container } = await renderView(reference({ dimensions: [approximate] }))
+    const node = container.querySelector('[data-depth-readiness="d:line1"]')
+    const text = node?.textContent ?? ''
+    expect(text).toContain('assumed_default')
+    expect(text).toContain('time zero: unavailable')
+    expect(text).toContain('recording delay 10.342 ns (not a time zero)')
+    expect(text).toContain('not validated')
+  })
+})
+
+describe('the velocity declaration', () => {
+  function renderForm(kind: Parameters<typeof DeclarationForm>[0]['kind']) {
+    return render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <DeclarationForm datasetId="d1" kind={kind} />
+      </SWRConfig>,
+    )
+  }
+
+  it('asks what the velocity rests on, preselects nothing, and never offers the default', () => {
+    const { container } = renderForm('depth_conversion')
+    const select = container.querySelector<HTMLSelectElement>('#depth_conversion-velocity_basis')!
+    expect(select.value).toBe('')
+    const values = Array.from(select.options).map((o) => o.value)
+    expect(values).toContain('independent_measurement')
+    expect(values).toContain('estimated_from_same_survey')
+    expect(values).not.toContain('assumed_default')
+  })
+
+  it('sends the basis, method and uncertainty with the velocity', async () => {
+    declareSpatialReference.mockResolvedValue({})
+    const { container } = renderForm('depth_conversion')
+    const set = (id: string, value: string) =>
+      fireEvent.change(container.querySelector(`#depth_conversion-${id}`)!, { target: { value } })
+    set('velocity_m_per_ns', '0.0938')
+    set('velocity_basis', 'estimated_from_same_survey')
+    set('velocity_method', 'migration focusing')
+    set('velocity_uncertainty_m_per_ns', '0.005')
+    set('supplied-by', 'me')
+    fireEvent.submit(container.querySelector('form')!)
+    await waitFor(() =>
+      expect(declareSpatialReference).toHaveBeenCalledWith(
+        'd1',
+        'depth_conversion',
+        {
+          velocity_m_per_ns: '0.0938',
+          velocity_basis: 'estimated_from_same_survey',
+          velocity_method: 'migration focusing',
+          velocity_uncertainty_m_per_ns: '0.005',
+        },
+        'me',
+      ),
+    )
+  })
+})
+
 describe('the common spatial frame composition', () => {
   it('renders the composition state and reason verbatim, read-only', async () => {
     const { container } = await renderView()
