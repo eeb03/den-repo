@@ -107,6 +107,41 @@ def test_a_positive_scalar_multiplies_by_ten_to_the_scalar(tmp_path):
     assert rec.position.northing == pytest.approx(4686500.0)
 
 
+def test_a_zero_coordinate_scalar_means_ten_to_the_zero(tmp_path):
+    """Under the exponent convention 0 is x10^0 = x1. The standard path's
+    'treat 0 as 1' guard must not leak in and turn it into x10."""
+    rec = _load(write_big_endian_segy(tmp_path / "fn.segy", source_x=281945, source_y=4686506,
+                                      coord_scalar=0),
+                coordinate_encoding="int32_scalar_exponent").records[0]
+
+    assert rec.position.easting == pytest.approx(281945.0)
+    assert rec.position.northing == pytest.approx(4686506.0)
+
+
+@pytest.mark.parametrize("scalar", [-100, -10000, 100, 400])
+def test_a_scalar_that_cannot_be_an_exponent_is_refused_not_decoded(tmp_path, scalar):
+    """-100 is a STANDARD scalar. Read as an exponent it would give x10^-100 --
+    a position indistinguishable from (0, 0) in the Gulf of Guinea -- and 400
+    overflows. Either way the declaration is wrong for this file, so the file is
+    refused loudly instead of producing a plausible-looking position."""
+    path = write_big_endian_segy(tmp_path / "fn.segy", coord_scalar=scalar)
+    with pytest.raises(ValueError, match="int32_scalar_exponent"):
+        _load(path, coordinate_encoding="int32_scalar_exponent")
+
+
+@pytest.mark.parametrize("scalar", [-100, 400])
+def test_an_elevation_scalar_that_cannot_be_an_exponent_is_refused(tmp_path, scalar):
+    path = write_big_endian_segy(tmp_path / "fn.segy", elevation_scalar=scalar)
+    with pytest.raises(ValueError, match="ElevationScalar"):
+        _load(path, coordinate_encoding="int32_scalar_exponent")
+
+
+def test_the_standard_path_still_accepts_a_standard_minus_100(tmp_path):
+    """The bound is specific to the exponent declaration."""
+    rec = _load(write_big_endian_segy(tmp_path / "fn.segy", coord_scalar=-100)).records[0]
+    assert rec.position.easting == pytest.approx(281945.32)
+
+
 # ---------------------------------------------------------------------------
 # acquisition elevation
 # ---------------------------------------------------------------------------
@@ -182,3 +217,47 @@ def test_the_declaration_is_recorded_on_the_frame_as_unverified(tmp_path):
     assert len(declared) == 1
     assert declared[0].value == "int32_scalar_exponent"
     assert declared[0].verified is False
+
+
+# ---------------------------------------------------------------------------
+# through the real upload endpoint: accepted, persisted with provenance, and
+# a wrong declaration refused cleanly (reuses that module's live-HTTP harness)
+# ---------------------------------------------------------------------------
+
+from tests.test_ingest_coordinate_encoding import env, signed_in  # noqa: E402,F401
+
+
+def _upload(client, path, **data):
+    return client.post(
+        "/api/datasets/ingest",
+        files={"file": (path.name, path.read_bytes(), "application/octet-stream")},
+        data={"sensor_type": "gpr", "apply_preprocessing": "false", **data},
+    )
+
+
+def test_the_upload_endpoint_decodes_and_persists_the_declaration(env, tmp_path):
+    client = signed_in("exponent-owner@example.test")
+    resp = _upload(client, write_big_endian_segy(tmp_path / "fn.segy"),
+                   coordinate_encoding="int32_scalar_exponent")
+    assert resp.status_code == 200, resp.text
+    dataset_id = resp.json()["dataset_id"]
+
+    from database.frames_store import load_frames
+    from database.records_store import load_records
+    rec = load_records(dataset_id, use_cache=False)[0]
+    assert rec.position.easting == pytest.approx(281945.32, abs=1e-6)
+    assert rec.elevation == pytest.approx(203.14, abs=1e-9)
+    assert rec.metadata["acquisition_elevation_datum"] == "UNDECLARED"
+
+    frame = load_frames(dataset_id)[0]
+    declared = {a.key: a for a in frame.assumptions}
+    assert declared["segy_coordinate_encoding"].value == "int32_scalar_exponent"
+    assert declared["acquisition_elevation_datum"].value is None
+
+
+def test_a_wrong_declaration_is_a_clean_client_error_not_a_dataset(env, tmp_path):
+    client = signed_in("exponent-refused@example.test")
+    resp = _upload(client, write_big_endian_segy(tmp_path / "std.segy", coord_scalar=-100),
+                   coordinate_encoding="int32_scalar_exponent")
+    assert resp.status_code == 422
+    assert "SourceGroupScalar=-100" in resp.json()["detail"]

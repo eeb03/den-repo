@@ -97,6 +97,28 @@ COORDINATE_ENCODINGS = {
 }
 
 
+#: Largest |exponent| accepted under int32_scalar_exponent. A 4-byte integer
+#: holds at most ~10 significant digits, so a real exponent-coded file needs
+#: nothing wider; anything beyond is a standard scalar (-100, -1000, ...) under
+#: the wrong declaration, whose decoding would be a plausible-looking wrong
+#: position (x10^-100 is indistinguishable from 0, 0) or an overflow.
+_MAX_SCALAR_EXPONENT = 9
+
+
+def _exponent_scale(scalar: int, field: str, path: Path) -> float:
+    """10**scalar for the int32_scalar_exponent declaration, refusing values
+    that cannot be an exponent rather than decoding them."""
+    scalar = int(scalar)
+    if abs(scalar) > _MAX_SCALAR_EXPONENT:
+        raise ValueError(
+            f"{path.name}: {field}={scalar} cannot be a power-of-ten exponent, so "
+            f"coordinate_encoding='int32_scalar_exponent' does not fit this file (a standard "
+            f"SEG-Y scalar such as -100 means /100 under 'int32_scaled'). Refused rather than "
+            f"decoded to a wrong position."
+        )
+    return 10.0 ** scalar
+
+
 def validate_coordinate_encoding(value: str) -> None:
     """
     The single check for "is this a real, known coordinate_encoding" --
@@ -302,6 +324,14 @@ class SEGYConverter(BaseConverter):
                     0,
                 )
 
+                # Outside the try below, whose catch-all would turn a refusal
+                # into a (0, 0) placeholder. Read raw: the standard path's
+                # `or 1` would make an exponent of 0 mean x10.
+                if coordinate_encoding == "int32_scalar_exponent":
+                    exponent_scale = _exponent_scale(
+                        header.get(segyio.TraceField.SourceGroupScalar, 0) or 0,
+                        "SourceGroupScalar", path)
+
                 try:
                     if coordinate_encoding == "ieee_nmea":
                         # The same four bytes, read as an IEEE float instead of
@@ -327,9 +357,8 @@ class SEGYConverter(BaseConverter):
                         # The ADS Roman-cities SEG-Y writes -2 meaning 10^-2;
                         # read by the standard, the same bytes place the
                         # survey hundreds of kilometres off.
-                        scale = 10.0 ** int(scalar)
-                        x = float(raw_x) * scale
-                        y = float(raw_y) * scale
+                        x = float(raw_x) * exponent_scale
+                        y = float(raw_y) * exponent_scale
                     else:
                         scalar = float(scalar)
 
@@ -385,8 +414,9 @@ class SEGYConverter(BaseConverter):
                     # dataset's documentation may state one (ADS says EGM2008),
                     # but that is declared through the vertical-reference
                     # workflow, not asserted by this generic reader.
-                    elev_scale = 10.0 ** int(
-                        header.get(segyio.TraceField.ElevationScalar, 0) or 0)
+                    elev_scale = _exponent_scale(
+                        header.get(segyio.TraceField.ElevationScalar, 0) or 0,
+                        "ElevationScalar", path)
                     ev = header.get(segyio.TraceField.ReceiverGroupElevation, 0)
                     if ev:
                         elevation = float(ev) * elev_scale
