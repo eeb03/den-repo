@@ -25,7 +25,8 @@ field below was confirmed against the real files.
 
     trace records, each len_rec bytes:
        2-byte marker 1 (observed 'R'), 2-byte marker 2,
-       then (len_rec - 4) / 2 little-endian uint16 samples.
+       then (len_rec - 4) / 2 little-endian SIGNED int16 samples (a zero-
+       centred waveform; read unsigned, every zero crossing wraps to ~65535).
 
 TIME AXIS. The acquisition time window IS carried by the file, in the H
 record: 11 little-endian int32s followed by 10 fixed-width "%16.6E" ASCII
@@ -324,7 +325,7 @@ def parse_dt(path: str | Path) -> dict:
 
     Returns a dict with `version`, `len_rec`, `header` (code -> value),
     `data_start`, `n_traces`, `n_samples`, `markers` and `samples`
-    (n_traces x n_samples uint16). Raises IDSDTParseError on anything that
+    (n_traces x n_samples int16). Raises IDSDTParseError on anything that
     is not a readable .dt rather than guessing at a layout.
     """
     path = Path(path)
@@ -373,7 +374,10 @@ def parse_dt(path: str | Path) -> dict:
 
     block = np.frombuffer(body[: n_traces * len_rec], dtype=np.uint8).reshape(n_traces, len_rec)
     markers = block[:, :4].copy().view("<u2")
-    samples = block[:, 4:].copy().view("<u2")
+    # SIGNED. Read as unsigned, a zero-centred waveform crossing zero jumps
+    # between ~0 and ~65535 between adjacent samples: 162,572 such jumps across
+    # the 20 readable held files unsigned, 0 signed (tests/test_ids_dt_converter.py).
+    samples = block[:, 4:].copy().view("<i2")
 
     return {
         "version": version,
