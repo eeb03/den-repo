@@ -714,3 +714,57 @@ def test_a_topographic_time_built_on_an_old_correction_is_invalidated():
                                            basis="SUPPLIED BY CALLER: x", verified=False)])
     apply_time_zero_for_dataset(records, [frame])
     assert all(r.metadata["topographic_corrected_time_ns"] is None for r in records)
+
+
+# --- vendor marker samples ---------------------------------------------------------
+#
+# GSSI .dzt samples 0-1 may carry marker values rather than waveform (the
+# converter records `leading_samples_may_be_markers` = 2, verified, and says to
+# exclude them downstream). Inside Method C's quiet window they inflate the
+# noise estimate by orders of magnitude: held TestUM files showed a quiet-window
+# sigma of 23,992 against 214 in the next window (and 1.55e8 against 22 where
+# sample 1 is -469762048), so real arrivals never clear 5 sigma or clear it
+# deep in the main lobe.
+
+class TestVendorMarkerSamples:
+    def _records(self, marker_value):
+        traces = []
+        for i in range(20):
+            t = [-50000.0 + ((j * 7 + i) % 5) for j in range(200)]
+            t[0], t[1] = 33.0, marker_value           # the two leading marker samples
+            for k in range(60, 75):
+                t[k] += -400000.0 * (1 - abs(k - 67) / 8.0)
+            traces.append(t)
+        return _per_sample_records(traces, sample_interval_ns=0.5)
+
+    def _frame(self, markers):
+        return _frame(assumptions=[Assumption(key="leading_samples_may_be_markers",
+                                              value=markers, basis="MEASURED", verified=True)]
+                      if markers else [])
+
+    def test_declared_marker_samples_are_not_treated_as_waveform(self):
+        records = self._records(-469762048.0)
+        before = resolve_time_zero_for_frame(self._frame(0), records)
+        assert before.status != TimeZeroStatus.DERIVED          # the marker hides everything
+        after = resolve_time_zero_for_frame(self._frame(2), records)
+        assert after.status == TimeZeroStatus.DERIVED
+        assert after.correction_ns == pytest.approx(60 * 0.5, abs=0.5)
+
+    def test_the_pick_stays_on_the_raw_axis_after_skipping_markers(self):
+        after = resolve_time_zero_for_frame(self._frame(2), self._records(0.0))
+        assert after.correction_ns == pytest.approx(30.0, abs=1e-9)  # sample 60 on the raw axis
+
+    def test_a_frame_without_the_assumption_is_unchanged(self):
+        traces = [_pulse(onset=60, seed=i) for i in range(20)]
+        records = _per_sample_records(traces, sample_interval_ns=0.5)
+        a = resolve_time_zero_for_frame(_frame(), records)
+        b = direct_wave_consensus_time_zero(
+            [r for r in records][:0] or _whole(records), sample_interval_ns=0.5)
+        assert a.correction_ns == b.correction_ns
+
+
+def _whole(records):
+    from preprocessing.time_zero import reconstruct_traces_by_time
+    by, _ = reconstruct_traces_by_time(records)
+    return [recs[0].model_copy(update={"signal": [r.signal[0] for r in recs]})
+            for recs in by.values()]
