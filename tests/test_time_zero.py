@@ -768,3 +768,20 @@ def _whole(records):
     by, _ = reconstruct_traces_by_time(records)
     return [recs[0].model_copy(update={"signal": [r.signal[0] for r in recs]})
             for recs in by.values()]
+
+
+def test_method_c_has_no_hidden_randomness():
+    """The algorithm reads no clock and no RNG: shuffled input order, same answer."""
+    import random
+    traces = [_pulse(onset=60, seed=i) for i in range(30)]
+    records = _per_sample_records(traces, sample_interval_ns=0.5)
+    reference = resolve_time_zero_for_frame(_frame(), records)
+    for seed in range(5):
+        shuffled = list(records)
+        random.Random(seed).shuffle(shuffled)
+        r = resolve_time_zero_for_frame(_frame(), shuffled)
+        assert (r.status, r.correction_ns, r.spread_ns, r.successful_picks) == \
+            (reference.status, reference.correction_ns, reference.spread_ns,
+             reference.successful_picks)
+    import inspect, preprocessing.time_zero as m
+    assert "random" not in inspect.getsource(m)
