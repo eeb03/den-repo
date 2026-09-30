@@ -55,7 +55,7 @@ def _frame(assumptions=None, frame_id="ds:line"):
 
 def _per_sample_records(traces, sample_interval_ns, source_file="line.sgy",
                         frame_id="ds:line", dataset_id="ds",
-                        velocity_m_per_ns=None, velocity_source=None):
+                        velocity_m_per_ns=None, velocity_source=None, with_sample_index=True):
     """
     One record per (trace, depth) SAMPLE -- the shape `SEGYConverter` emits
     and `resolve_time_zero_for_frame`/`apply_time_zero_for_dataset` consume
@@ -69,6 +69,8 @@ def _per_sample_records(traces, sample_interval_ns, source_file="line.sgy",
                 "source_file": source_file, "trace_index": trace_index,
                 "two_way_time_ns": two_way_time_ns,
             }
+            if with_sample_index:
+                meta["sample_index"] = sample_index   # every converter records it
             depth = None
             if velocity_m_per_ns is not None:
                 depth = (two_way_time_ns * velocity_m_per_ns) / 2.0
@@ -591,3 +593,107 @@ class TestProductionWiring:
         assert results == {}
         assert "corrected_time_ns" not in r.metadata
         assert r.depth == 0.3
+
+
+
+# --- Method C is independent of depth and velocity ------------------------------
+#
+# Method C used to rebuild traces with `_reconstruct_traces_by_index`, which
+# requires a record depth and orders samples BY depth. A depth exists only when
+# a velocity was applied (for SEG-Y, usually the 0.1 m/ns default), so a time-
+# zero picker -- a question about the temporal waveform -- depended on an
+# assumed velocity. With no velocity (MALA, GSSI, IDS by default) it returned
+# UNAVAILABLE on perfectly good waveforms.
+
+class TestMethodCIsIndependentOfDepth:
+    TRACES = [_pulse(onset=60, seed=i) for i in range(20)]
+
+    def _resolve(self, records):
+        return resolve_time_zero_for_frame(_frame(), records)
+
+    def test_method_c_works_with_every_depth_none_and_no_velocity(self):
+        records = _per_sample_records(self.TRACES, sample_interval_ns=0.5)
+        assert all(r.depth is None for r in records)
+        assert not any("velocity_m_per_ns" in r.metadata for r in records)
+        result = self._resolve(records)
+        assert result.status == TimeZeroStatus.DERIVED
+        assert result.correction_ns == pytest.approx(30.0, abs=1.0)
+
+    def test_clearing_depth_gives_the_identical_pick(self):
+        with_depth = self._resolve(
+            _per_sample_records(self.TRACES, sample_interval_ns=0.5, velocity_m_per_ns=0.1))
+        records = _per_sample_records(self.TRACES, sample_interval_ns=0.5, velocity_m_per_ns=0.1)
+        for r in records:
+            r.depth = None
+        without = self._resolve(records)
+        assert without.correction_ns == with_depth.correction_ns
+        assert without.spread_ns == with_depth.spread_ns
+        assert without.successful_picks == with_depth.successful_picks
+
+    def test_a_different_velocity_does_not_move_the_pick(self):
+        a = self._resolve(_per_sample_records(self.TRACES, 0.5, velocity_m_per_ns=0.1))
+        b = self._resolve(_per_sample_records(self.TRACES, 0.5, velocity_m_per_ns=0.17))
+        assert a.correction_ns == b.correction_ns
+
+    def test_a_depth_that_contradicts_time_order_is_ignored(self):
+        """Proof that depth is not read: scrambled depths change nothing."""
+        import random
+        records = _per_sample_records(self.TRACES, sample_interval_ns=0.5, velocity_m_per_ns=0.1)
+        reference = self._resolve(records).correction_ns
+        rng = random.Random(1)
+        for r in records:
+            r.depth = rng.random()
+        assert self._resolve(records).correction_ns == reference
+
+    def test_records_in_shuffled_order_are_reassembled_by_sample_index(self):
+        import random
+        records = _per_sample_records(self.TRACES, sample_interval_ns=0.5)
+        reference = self._resolve(list(records)).correction_ns
+        random.Random(2).shuffle(records)
+        assert self._resolve(records).correction_ns == reference
+
+    def test_without_sample_index_the_raw_time_orders_the_samples(self):
+        import random
+        records = _per_sample_records(self.TRACES, 0.5, with_sample_index=False)
+        reference = self._resolve(list(records)).correction_ns
+        random.Random(3).shuffle(records)
+        result = self._resolve(records)
+        assert result.status == TimeZeroStatus.DERIVED
+        assert result.correction_ns == reference
+
+    def test_duplicate_raw_times_in_one_trace_are_refused_not_guessed(self):
+        records = _per_sample_records(self.TRACES, 0.5, with_sample_index=False)
+        records[1].metadata["two_way_time_ns"] = records[0].metadata["two_way_time_ns"]
+        result = self._resolve(records)
+        assert result.status == TimeZeroStatus.UNAVAILABLE
+        assert "order" in result.basis
+
+    def test_a_sample_index_that_disagrees_with_raw_time_is_refused(self):
+        records = _per_sample_records(self.TRACES, 0.5)
+        records[0].metadata["sample_index"], records[1].metadata["sample_index"] = 1, 0
+        result = self._resolve(records)
+        assert result.status == TimeZeroStatus.UNAVAILABLE
+
+    def test_method_c_never_touches_the_raw_axis(self):
+        records = _per_sample_records(self.TRACES, 0.5)
+        before = [(r.metadata["two_way_time_ns"], r.signal[0], r.depth) for r in records]
+        self._resolve(records)
+        assert [(r.metadata["two_way_time_ns"], r.signal[0], r.depth) for r in records] == before
+
+    def test_a_re_apply_after_excluded_samples_lost_their_depth_still_picks(self):
+        """apply_time_zero sets depth=None on excluded samples; a second run used to fail."""
+        frame = _frame()
+        records = _per_sample_records(self.TRACES, 0.5, velocity_m_per_ns=0.1)
+        _, first = apply_time_zero_for_dataset(records, [frame])
+        assert any(r.depth is None for r in records)
+        _, second = apply_time_zero_for_dataset(records, [frame])
+        assert second["ds:line"].correction_ns == first["ds:line"].correction_ns
+
+    def test_apply_with_no_velocity_picks_and_leaves_depth_absent(self):
+        """No velocity anywhere: time zero is still established; depth stays absent."""
+        frame = _frame()
+        records = _per_sample_records(self.TRACES, 0.5)
+        _, results = apply_time_zero_for_dataset(records, [frame])
+        assert results["ds:line"].status == TimeZeroStatus.DERIVED
+        assert all(r.depth is None for r in records)
+        assert all(r.metadata.get("corrected_time_ns") is not None for r in records)

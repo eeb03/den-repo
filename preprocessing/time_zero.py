@@ -65,7 +65,6 @@ import statistics
 from datetime import datetime, timezone
 from typing import Optional
 
-from preprocessing.trace_processing import _reconstruct_traces_by_index
 from schemas.dataset_report import DECLARED_TIME_ZERO_KEY
 from schemas.depth_model import two_way_time_to_depth
 from schemas.subterra_record import SubterraRecord
@@ -380,6 +379,61 @@ def recompute_depth_with_time_zero(
 # production wiring: the method hierarchy, per frame, then applied and saved
 # ---------------------------------------------------------------------------
 
+def reconstruct_traces_by_time(
+    records: list[SubterraRecord],
+) -> tuple[Optional[dict], Optional[str]]:
+    """
+    Whole traces for time-zero picking, from quantities that exist WITHOUT a
+    velocity: (source_file, trace_index) -> samples in raw two-way-time order.
+    Returns (traces, None), or (None, reason) when the records cannot be
+    reassembled without guessing.
+
+    DEPTH IS NEVER READ. The shared `trace_processing._reconstruct_traces_by_index`
+    (used by the processing chain the detector consumes, and left unchanged
+    for that reason) requires a record depth and orders by it. A depth exists
+    only once a velocity has been applied -- for SEG-Y usually the 0.1 m/ns
+    default -- so a picker on the temporal waveform depended on an assumed
+    velocity, and returned UNAVAILABLE for MALA/GSSI/IDS lines ingested
+    without one.
+
+    ORDER: `sample_index` (every converter records it) when every sample of
+    the trace carries one, else the raw `two_way_time_ns`. Either way the
+    order must be strictly increasing in raw time with no duplicate index or
+    time; anything else is refused rather than silently re-sorted, because a
+    trace whose samples cannot be ordered has no onset to pick.
+    """
+    if not records:
+        return None, "no records"
+    if any(len(r.signal) != 1 for r in records):
+        return None, ("these records are not in the per-sample GPR shape (already "
+                      "multi-sample-per-record) -- there is nothing to reconstruct whole "
+                      "traces from")
+    if any(r.metadata.get("trace_index") is None or r.metadata.get("two_way_time_ns") is None
+           for r in records):
+        return None, ("these records are not in the per-sample GPR shape (missing trace_index "
+                      "or raw two_way_time_ns) -- there is nothing to reconstruct whole "
+                      "traces from")
+
+    by_trace: dict = {}
+    for r in records:
+        by_trace.setdefault((r.metadata.get("source_file", ""), r.metadata["trace_index"]),
+                            []).append(r)
+    for key, recs in by_trace.items():
+        indices = [r.metadata.get("sample_index") for r in recs]
+        if all(isinstance(i, int) for i in indices):
+            if len(set(indices)) != len(indices):
+                return None, f"trace {key}: duplicate sample_index, so sample order is unknown"
+            recs.sort(key=lambda r: r.metadata["sample_index"])
+        else:
+            recs.sort(key=lambda r: r.metadata["two_way_time_ns"])
+        times = [r.metadata["two_way_time_ns"] for r in recs]
+        if any(b <= a for a, b in zip(times, times[1:])):
+            return None, (f"trace {key}: raw two_way_time_ns is not strictly increasing in "
+                          f"sample order (duplicate or out-of-order times), so the sample "
+                          f"order cannot be established without guessing")
+    return by_trace, None
+
+
 def resolve_time_zero_for_frame(
     frame, records: list[SubterraRecord], sample_interval_ns: Optional[float] = None,
 ) -> TimeZeroResult:
@@ -416,13 +470,11 @@ def resolve_time_zero_for_frame(
                 source="DeclarationKind.TIME_ZERO", generated_utc=_now(),
             )
 
-    by_trace = _reconstruct_traces_by_index(records)
+    by_trace, problem = reconstruct_traces_by_time(records)
     if by_trace is None:
         return TimeZeroResult(
             status=TimeZeroStatus.UNAVAILABLE, method=TimeZeroMethod.DIRECT_WAVE_CONSENSUS,
-            basis="these records are not in the per-sample GPR shape (missing trace_index/"
-                 "depth identity, or already multi-sample-per-record) -- there is nothing "
-                 "to reconstruct whole traces from",
+            basis=problem,
         )
 
     whole_traces: list[SubterraRecord] = []
