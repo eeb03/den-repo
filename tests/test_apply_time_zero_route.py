@@ -175,7 +175,12 @@ def test_a_real_pulse_resolves_derived_and_is_persisted(env):
     from schemas.time_zero import APPLIED_TIME_ZERO_KEY
     frame = load_frames("d")[0]
     assert frame.assumption(APPLIED_TIME_ZERO_KEY).value["method"] == "direct_wave_consensus"
-    assert frame_depth_readiness(frame).as_dict()["time_zero"]["status"] == "derived"
+    readiness = frame_depth_readiness(frame).as_dict()
+    assert readiness["time_zero"]["status"] == "derived"
+    assert readiness["time_zero"]["operationally_available"] is True
+    assert readiness["time_zero"]["scientifically_sufficient"] is False
+    assert not any("superseded" in r or "stamp" in r for r in readiness["reasons"])
+    assert _violations() == []
 
 
 def test_flat_traces_are_reported_inconclusive_not_a_guessed_number(env):

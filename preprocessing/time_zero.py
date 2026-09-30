@@ -342,6 +342,7 @@ def apply_time_zero_correction(
             r.metadata["time_zero_excluded"] = False
         existing = r.metadata.get("processing_applied") or {}
         r.metadata["processing_applied"] = {**existing, **stamp}
+        _invalidate_topographic_time(r)
     return records
 
 
@@ -352,6 +353,11 @@ def recompute_depth_with_time_zero(
     """
     `depth = corrected_time_ns * velocity / 2`, using the CORRECTED axis
     `apply_time_zero_correction` already computed -- never re-deriving it.
+
+    NOT A PRODUCTION PATH. It takes a velocity of its own and stamps no
+    derivation, so it cannot keep stored depth and provenance in step.
+    Production code derives depth with `schemas.depth_model.rederive_depth`,
+    from the frame's active velocity; this remains for the arithmetic tests.
 
     A record with no `corrected_time_ns` (correction unresolved) or one
     excluded for being negative keeps `depth = None` -- explicit absence,
@@ -521,6 +527,24 @@ def revert_time_zero(records: list[SubterraRecord]) -> None:
             r.metadata["processing_applied"] = {
                 k: v for k, v in applied.items()
                 if k != "time_zero" and not k.startswith("time_zero_")}
+        _invalidate_topographic_time(r)
+
+
+def _invalidate_topographic_time(record: SubterraRecord) -> None:
+    """
+    `topographic_corrected_time_ns` is built on `corrected_time_ns`
+    (`preprocessing.topographic_correction`); when the time-zero correction
+    changes it describes a superseded axis. Cleared, with its stamp, until
+    the topographic correction is run again -- never recomputed silently.
+    """
+    if record.metadata.get("topographic_corrected_time_ns") is None:
+        return
+    record.metadata["topographic_corrected_time_ns"] = None
+    applied = record.metadata.get("processing_applied")
+    if applied:
+        record.metadata["processing_applied"] = {
+            k: v for k, v in applied.items()
+            if k != "topographic_correction" and not k.startswith("topographic_correction_")}
 
 
 def _persist_on_frame(frame, result: TimeZeroResult) -> None:

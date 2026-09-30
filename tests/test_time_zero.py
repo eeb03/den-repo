@@ -691,3 +691,26 @@ class TestMethodCIsIndependentOfDepth:
         assert results["ds:line"].status == TimeZeroStatus.DERIVED
         assert all(r.depth is None for r in records)
         assert all(r.metadata.get("corrected_time_ns") is not None for r in records)
+
+
+def test_a_topographic_time_built_on_an_old_correction_is_invalidated():
+    """topographic_corrected_time_ns = corrected_time_ns - per-trace correction; once
+    the time-zero correction changes it describes a superseded axis."""
+    from preprocessing.time_zero import revert_time_zero
+    records = _per_sample_records([[0.0, 0.0, 0.0]], sample_interval_ns=1.0)
+    for r in records:
+        r.metadata["corrected_time_ns"] = r.metadata["two_way_time_ns"] - 0.5
+        r.metadata["topographic_corrected_time_ns"] = r.metadata["corrected_time_ns"] - 0.2
+        r.metadata["processing_applied"] = {"time_zero": True, "topographic_correction": True,
+                                            "topographic_correction_status": "derived"}
+    revert_time_zero(records)
+    assert all(r.metadata["topographic_corrected_time_ns"] is None for r in records)
+    assert all("topographic_correction" not in r.metadata["processing_applied"] for r in records)
+
+    records = _per_sample_records([[0.0, 0.0, 0.0]], sample_interval_ns=1.0)
+    for r in records:
+        r.metadata["topographic_corrected_time_ns"] = 9.9
+    frame = _frame(assumptions=[Assumption(key=DECLARED_TIME_ZERO_KEY, value=0.5,
+                                           basis="SUPPLIED BY CALLER: x", verified=False)])
+    apply_time_zero_for_dataset(records, [frame])
+    assert all(r.metadata["topographic_corrected_time_ns"] is None for r in records)

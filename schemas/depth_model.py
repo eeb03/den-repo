@@ -468,6 +468,12 @@ def rederive_depth(frame, records) -> dict:
             if vel.source_label is not None:
                 r.metadata["velocity_source"] = vel.source_label
         r.metadata[RECORD_DERIVATION_ID_KEY] = derivation["derivation_id"]
+        # `preprocessing.dem_alignment` stored ground elevation - depth; it
+        # follows the depth it was computed from, or goes.
+        if "absolute_elevation_m" in r.metadata:
+            r.metadata["absolute_elevation_m"] = (
+                float(r.elevation) - r.depth
+                if r.elevation is not None and r.depth is not None else None)
     frame.assumptions = [a for a in (frame.assumptions or [])
                          if a.key != DEPTH_DERIVATION_KEY] + [Assumption(
         key=DEPTH_DERIVATION_KEY, value=derivation, verified=False,
@@ -491,6 +497,12 @@ def derivation_is_current(frame, records=()) -> tuple[bool, Optional[str]]:
     current = _derivation_inputs(frame, records)
     stamped = stamp.value or {}
     for part in ("time_zero", "velocity", "reference", "depth_model_version"):
+        if part == "velocity" and not records and current.get("velocity") is None \
+                and (stamped.get("velocity") or {}).get("origin") == "record_ingest":
+            # A legacy frame with no conversion: its velocity lives on the
+            # records, which a frame-only check cannot see. Nothing on the
+            # frame can have changed it (a declaration writes a conversion).
+            continue
         if stamped.get(part) != current.get(part):
             return False, (f"stored depths were derived with a superseded {part.replace('_', ' ')}; "
                            f"they do not describe the active inputs")

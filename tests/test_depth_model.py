@@ -267,3 +267,25 @@ def test_a_depth_names_its_derivation_chain_in_its_provenance():
     records[2].metadata["depth_derivation_id"] = "old"
     depth = next(q for q in record_provenance(records[2], frame) if q.quantity == "depth")
     assert "superseded" in depth.basis
+
+
+def test_a_dem_absolute_elevation_follows_the_rederived_depth():
+    """align_dem stored elevation - depth; a stale one would outlive the velocity."""
+    from schemas.depth_model import rederive_depth
+    frame, records = _frame_and_records(conv(0.12, velocity_basis="literature", derived=True))
+    for r in records:
+        r.elevation = 100.0
+        r.metadata["absolute_elevation_m"] = 100.0 - r.depth      # from the 0.1 ingest depth
+    rederive_depth(frame, records)
+    for r in records:
+        assert r.metadata["absolute_elevation_m"] == 100.0 - r.depth
+
+
+def test_a_legacy_frame_whose_velocity_lives_on_its_records_is_not_called_stale():
+    """No conversion on the axis: the velocity is the records' ingest one. The
+    frame-only readiness check must not read its absence as a superseded input."""
+    from schemas.depth_model import derivation_is_current, rederive_depth
+    frame, records = _frame_and_records(None)
+    rederive_depth(frame, records)
+    assert derivation_is_current(frame, records) == (True, None)
+    assert derivation_is_current(frame) == (True, None)
