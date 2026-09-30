@@ -89,20 +89,36 @@ def test_trace_and_sample_counts(parsed):
 
 
 def test_sample_matrix_shape_and_dtype(parsed):
+    """SIGNED 16-bit. Was pinned as `<u2`, which was the bug (see below)."""
     s = parsed["samples"]
     assert s.shape == (EXPECTED_TRACES, EXPECTED_SAMPLES)
-    assert s.dtype == np.dtype("<u2")
+    assert s.dtype == np.dtype("<i2")
 
 
 def test_samples_carry_real_signal_not_a_flat_line(parsed):
     """
-    The source acquisition uses the full 16-bit range. A parser reading the
-    wrong offset or endianness would produce a near-constant series, which
-    is exactly what a wrong alignment looked like during development.
+    A parser reading the wrong offset or endianness would produce a
+    near-constant series, which is exactly what a wrong alignment looked like
+    during development. The signal swings both sides of zero.
     """
-    s = parsed["samples"]
-    assert int(s.max()) > 40000
+    s = parsed["samples"].astype(np.int64)
     assert float(s.std()) > 1000
+    assert int(s.min()) < 0 < int(s.max())
+
+
+def test_samples_are_signed_the_waveform_never_wraps(parsed):
+    """
+    Read as unsigned, a waveform crossing zero jumps between ~0 and ~65535 from
+    one sample to the next: this fixture has such jumps, and across the 20
+    readable held .dt files there were 162,572 of them unsigned and 0 signed,
+    with signed means within +/-125 of zero (GPR is zero-centred) against
+    unsigned means of 8,000-60,000. A >32768 step between adjacent samples at
+    ~10-40 ps is not a physical signal.
+    """
+    s = parsed["samples"].astype(np.int64)
+    assert int((np.abs(np.diff(s, axis=1)) > 32768).sum()) == 0
+    unsigned = parsed["samples"].view("<u2").astype(np.int64)
+    assert int((np.abs(np.diff(unsigned, axis=1)) > 32768).sum()) > 0
 
 
 def test_header_records_are_decoded(parsed):

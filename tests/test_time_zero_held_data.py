@@ -95,3 +95,13 @@ def test_mala_is_picked_from_the_waveform_with_no_velocity_at_all():
     assert pick.status == TimeZeroStatus.DERIVED
     assert pick.correction_ns == pytest.approx(4.0179, abs=1e-3)
     assert all(r.depth is None for r in result.records)   # nothing invented
+
+
+def test_method_c_is_deterministic_on_held_data():
+    """Same records in, same status, pick, spread and pick counts out -- every run."""
+    _need(FOUR_TU)
+    result = _segy(FOUR_TU)
+    runs = [resolve_time_zero_for_frame(result.frames[0], result.records) for _ in range(3)]
+    keys = ("status", "correction_ns", "spread_ns", "successful_picks", "outliers_rejected",
+            "traces_evaluated")
+    assert len({tuple(getattr(r, k) for k in keys) for r in runs}) == 1

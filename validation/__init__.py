@@ -21,4 +21,9 @@ SCIENTIFIC FRAMING (do not weaken when extending):
   structure of interest destroyed. Exceeding a null is evidence that
   structure exists, NOT evidence of a physical object.
 - No function here returns, produces, or implies ground truth.
+
+`timezero` extends the same discipline to preprocessing: a first-break
+timing corpus (operator-picked, labelled as such) against which automatic
+time-zero estimation is measured. It holds times only -- never target truth,
+depth or velocity.
 """

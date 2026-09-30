@@ -507,7 +507,34 @@ def resolve_time_zero_for_frame(
         )
 
     start = statistics.median(starts) if starts else 0.0
+
+    # VENDOR MARKER SAMPLES ARE NOT WAVEFORM. A converter that knows its
+    # format's leading samples may carry markers says so on the frame (GSSI:
+    # `leading_samples_may_be_markers` = 2). Left in, they sit in the quiet
+    # window and inflate its noise estimate by orders of magnitude, so a real
+    # arrival is picked deep in the main lobe or not at all. They are dropped
+    # from every trace and the start advances by the same number of samples,
+    # so the pick stays on the raw axis. Frames without the assumption: no-op.
+    markers = _declared_marker_samples(frame)
+    if markers:
+        whole_traces = [t.model_copy(update={"signal": t.signal[markers:]}) for t in whole_traces]
+        start += markers * sample_interval_ns
     return direct_wave_consensus_time_zero(whole_traces, sample_interval_ns, start_time_ns=start)
+
+
+#: The converter-recorded count of leading samples that may be vendor markers.
+MARKER_SAMPLES_KEY = "leading_samples_may_be_markers"
+
+
+def _declared_marker_samples(frame) -> int:
+    a = frame.assumption(MARKER_SAMPLES_KEY) if hasattr(frame, "assumption") else None
+    if a is None:
+        return 0
+    try:
+        n = int(a.value)
+    except (TypeError, ValueError):
+        return 0
+    return n if 0 < n < 64 else 0
 
 
 def revert_time_zero(records: list[SubterraRecord]) -> None:
