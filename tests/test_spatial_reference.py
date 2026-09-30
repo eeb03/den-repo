@@ -730,6 +730,12 @@ def test_an_applied_time_zero_result_on_the_frame_is_read_back():
                             correction_ns=12.6, basis="direct-wave consensus", applied=True)
     f.assumptions = [Assumption(key=APPLIED_TIME_ZERO_KEY,
                                 value=result.model_dump(mode="json"), basis="applied")]
+    # An applied time zero with no derivation stamp is refused as stale (what
+    # were the stored depths derived from?); apply_time_zero always stamps one.
+    stale = assess([f], geo_records()).dimension(SpatialDimension.DEPTH_CONVERSION)
+    assert stale.state == "approximate"
+    from schemas.depth_model import rederive_depth
+    rederive_depth(f, [])
     depth = assess([f], geo_records()).dimension(SpatialDimension.DEPTH_CONVERSION)
     r = depth.detail["readiness"][0]
     assert r["time_zero"]["method"] == "direct_wave_consensus"

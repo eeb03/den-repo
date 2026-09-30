@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 from api import spatial as service
 from auth.dependencies import get_current_user, require_dataset_access, require_owned_dataset
 from database.frames_store import load_frames, synthesize_frames_from_records
-from database.models import Dataset, User
+from database.models import Dataset, User, gen_uuid
 from database.records_store import load_records
 from database.session import get_db
 from schemas.spatial_reference import (
@@ -184,16 +184,21 @@ def declare(dataset_id: str, body: DeclarationRequest,
     except service.DeclarationError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
+    # The log id is chosen first so the frames can name the declaration that
+    # set them (a depth's provenance points at it).
+    declaration_id = gen_uuid()
     try:
         applied = service.apply_declaration(
-            dataset_id, body.kind, value, body.supplied_by, frame_id=body.frame_id)
+            dataset_id, body.kind, value, body.supplied_by, frame_id=body.frame_id,
+            declaration_id=declaration_id)
     except service.DeclarationError as exc:
         # 409: the declaration is well-formed but contradicts what is stored.
         raise HTTPException(status_code=409, detail=str(exc))
 
     row = service.record_declaration(
         db, dataset_id, body.kind, value, body.supplied_by,
-        user_id=user.id, frame_id=body.frame_id, note=body.note)
+        user_id=user.id, frame_id=body.frame_id, note=body.note,
+        declaration_id=declaration_id)
 
     return {
         "declaration": row.to_dict(),

@@ -213,8 +213,16 @@ interface FrameDepthReadiness {
   frame_id: string
   status: string
   validated: boolean
+  /** Every input is evidence rather than an assumption or a same-survey estimate. */
+  scientifically_sufficient?: boolean
   recording_delay_ns: number | null
-  time_zero: { status: string; method: string; correction_ns: number | null } | null
+  time_zero: {
+    status: string
+    method: string
+    correction_ns: number | null
+    operationally_available?: boolean
+    scientifically_sufficient?: boolean
+  } | null
   velocity: { value_m_per_ns: number; basis: string; method: string | null } | null
   reference: { known: boolean; description: string | null } | null
 }
@@ -243,9 +251,15 @@ function DepthReadinessList({ detail }: { detail: Record<string, unknown> }) {
           {' · time zero: '}
           {f.time_zero?.status ?? 'unavailable'}
           {f.time_zero?.correction_ns != null ? ` (${f.time_zero.correction_ns} ns, ${f.time_zero.method})` : ''}
+          {f.time_zero?.operationally_available && f.time_zero.scientifically_sufficient === false
+            ? ' — automatic estimate, not independent'
+            : ''}
           {f.recording_delay_ns ? ` · recording delay ${f.recording_delay_ns} ns (not a time zero)` : ''}
           {' · reference: '}
           {f.reference?.known ? f.reference.description : 'undeclared'}
+          {f.status === 'resolved' && f.scientifically_sufficient === false
+            ? ' · not sufficient for depth scoring'
+            : ''}
         </li>
       ))}
     </ul>

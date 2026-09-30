@@ -119,6 +119,9 @@ class TimeZeroResult(BaseModel):
     source: Optional[str] = None
     applied: bool = False
     generated_utc: Optional[datetime] = None
+    #: The log id of the DeclarationKind.TIME_ZERO declaration this result
+    #: came from (OPERATOR_DECLARED only), so a depth can name it.
+    declaration_id: Optional[str] = None
 
     # --- diagnostics DIRECT_WAVE_CONSENSUS actually computes; None elsewhere ---
     traces_evaluated: Optional[int] = None

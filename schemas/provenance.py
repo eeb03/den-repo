@@ -199,6 +199,32 @@ def frame_provenance(frame) -> list[QuantityProvenance]:
     return out
 
 
+def _derivation_clause(meta: dict, frame) -> str:
+    """
+    The chain behind a stored depth, by reference: raw time -> time zero ->
+    velocity declaration -> reference -> model version (the frame's
+    `depth_derivation`, which the record points at). Empty for an ingest
+    depth, which carries no derivation id.
+    """
+    did = meta.get("depth_derivation_id")
+    if not did:
+        return ""
+    stamp = frame.assumption("depth_derivation") if frame is not None else None
+    d = stamp.value if stamp is not None and isinstance(stamp.value, dict) else None
+    if d is None or d.get("derivation_id") != did:
+        return (f" Derivation {did} is not the frame's current one, so this depth may "
+                f"describe superseded inputs.")
+    tz, vel, ref = d.get("time_zero") or {}, d.get("velocity") or {}, d.get("reference") or {}
+    return (f" Derivation {did}: {d.get('raw_time_field')} -> time zero "
+            f"{tz.get('status')} ({tz.get('method')}, {tz.get('correction_ns')} ns"
+            f"{', declaration ' + tz['declaration_id'] if tz.get('declaration_id') else ''})"
+            f" -> {d.get('corrected_time_field')} -> velocity {vel.get('value_m_per_ns')} m/ns "
+            f"({vel.get('basis')}"
+            f"{', declaration ' + vel['declaration_id'] if vel.get('declaration_id') else ''})"
+            f" -> reference {ref.get('description') or 'undeclared'} -> "
+            f"{d.get('depth_model_version')}.")
+
+
 def record_provenance(record, frame=None) -> list[QuantityProvenance]:
     """
     Everything one record can say. `frame` is optional but sharpens the answer
@@ -287,7 +313,7 @@ def record_provenance(record, frame=None) -> list[QuantityProvenance]:
             "depth", ProvenanceClass.DERIVED,
             (f"derived from the measured time axis and a velocity of {v} m/ns "
              f"({src or 'source unrecorded'}); the velocity is an assertion about the "
-             f"subsurface, not a measurement of it.{tz_clause}"),
+             f"subsurface, not a measurement of it.{tz_clause}{_derivation_clause(meta, frame)}"),
             value=record.depth, source="SubterraRecord.depth"))
 
     # --- elevation ---

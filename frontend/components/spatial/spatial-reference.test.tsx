@@ -498,6 +498,43 @@ describe('depth readiness', () => {
   })
 })
 
+describe('time-zero evidence', () => {
+  it('says an automatic time zero is usable but not independent evidence', async () => {
+    const auto = dimension({
+      dimension: 'depth_conversion',
+      state: 'derived',
+      reason: 'depth was DERIVED from a measured time axis using a stated velocity',
+      missing: [],
+      action: null,
+      provenance: 'derived',
+      detail: {
+        readiness: [
+          {
+            frame_id: 'd:line1',
+            status: 'resolved',
+            validated: false,
+            scientifically_sufficient: false,
+            recording_delay_ns: 10.342,
+            time_zero: {
+              status: 'derived',
+              method: 'direct_wave_consensus',
+              correction_ns: 18.342,
+              operationally_available: true,
+              scientifically_sufficient: false,
+            },
+            velocity: { value_m_per_ns: 0.12, basis: 'independent_measurement', method: 'CMP' },
+            reference: { known: true, description: 'ground surface' },
+          },
+        ],
+      },
+    })
+    const { container } = await renderView(reference({ dimensions: [auto] }))
+    const text = container.querySelector('[data-depth-readiness="d:line1"]')?.textContent ?? ''
+    expect(text).toContain('automatic estimate, not independent')
+    expect(text).toContain('not sufficient for depth scoring')
+  })
+})
+
 describe('the velocity declaration', () => {
   function renderForm(kind: Parameters<typeof DeclarationForm>[0]['kind']) {
     return render(

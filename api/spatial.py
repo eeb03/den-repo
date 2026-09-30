@@ -507,7 +507,8 @@ def _assumption_for(kind: DeclarationKind, value: dict, supplied_by: str) -> Ass
 
 
 def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
-                      supplied_by: str, frame_id: Optional[str] = None) -> dict:
+                      supplied_by: str, frame_id: Optional[str] = None,
+                      declaration_id: Optional[str] = None) -> dict:
     """
     Write the declaration into the dataset's frames.
 
@@ -585,8 +586,11 @@ def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
             raise DeclarationError(
                 "no frame carries a measured time axis, so there is no time for a velocity "
                 "to convert. A depth that already exists is not re-derived here.")
+        # The log id travels with the conversion, so every depth derived from
+        # it names the declaration (`schemas.depth_model.active_velocity`).
+        conversion = {**value, "declaration_id": declaration_id}
         for frame in eligible:
-            frame.vertical_axis = frame.vertical_axis.model_copy(update={"conversion": value})
+            frame.vertical_axis = frame.vertical_axis.model_copy(update={"conversion": conversion})
             changed.append(frame.frame_id)
 
     elif kind == DeclarationKind.TIME_ZERO:
@@ -693,11 +697,68 @@ def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
             frame.assumptions = [
                 a for a in (frame.assumptions or []) if a.key != assumption.key
             ] + [assumption]
+            if declaration_id is not None:
+                _note_declaration_id(frame, kind, declaration_id)
+
+    depth_rederived = []
+    if kind in _DEPTH_INPUT_KINDS:
+        depth_rederived = _rederive_stored_depth(
+            dataset_id, [f for f in frames if f.frame_id in set(changed)],
+            revert_time_zero_first=(kind == DeclarationKind.TIME_ZERO))
 
     save_frames(dataset_id, frames)
     return {"frames_changed": changed,
             "vertical_axis_not_changed": axis_untouched,
-            "assumption": assumption.model_dump(mode="json")}
+            "assumption": assumption.model_dump(mode="json"),
+            "depth_rederived": depth_rederived}
+
+
+#: Declarations that are inputs to a stored derived depth. Changing any of them
+#: rederives the depth of the affected frames in the same request, so a stored
+#: number never outlives the input it was computed from.
+_DEPTH_INPUT_KINDS = (DeclarationKind.DEPTH_CONVERSION, DeclarationKind.TIME_ZERO,
+                      DeclarationKind.ANTENNA_OFFSET)
+_TIME_AXIS_KINDS = (AxisKind.TWO_WAY_TIME_NS, AxisKind.TWO_WAY_TIME_MS, AxisKind.TWO_WAY_TIME_S)
+
+
+def _note_declaration_id(frame, kind: DeclarationKind, declaration_id: str) -> None:
+    from schemas.depth_model import DECLARATION_IDS_KEY
+
+    current = frame.assumption(DECLARATION_IDS_KEY)
+    ids = dict(current.value) if current is not None and isinstance(current.value, dict) else {}
+    ids[kind.value] = declaration_id
+    frame.assumptions = [a for a in (frame.assumptions or []) if a.key != DECLARATION_IDS_KEY] + [
+        Assumption(key=DECLARATION_IDS_KEY, value=ids, verified=False,
+                   basis="the spatial declaration log id ACTIVE on this frame, per kind")]
+
+
+def _rederive_stored_depth(dataset_id: str, frames, revert_time_zero_first: bool) -> list[str]:
+    """
+    Rederive the stored depth of `frames` (time-axis frames only) from their
+    now-active inputs, and save the records. A new TIME_ZERO declaration first
+    removes the earlier applied correction: it is no longer what anybody
+    asserts, and the new one is applied only by `/apply_time_zero`.
+    """
+    from preprocessing.time_zero import revert_time_zero
+    from schemas.depth_model import rederive_depth
+
+    targets = {f.frame_id: f for f in frames
+               if f.vertical_axis is not None and f.vertical_axis.kind in _TIME_AXIS_KINDS}
+    if not targets:
+        return []
+    records = load_records(dataset_id, use_cache=False)
+    by_frame: dict = {}
+    for r in records:
+        if r.frame_id in targets:
+            by_frame.setdefault(r.frame_id, []).append(r)
+    for frame_id, frame in targets.items():
+        frame_records = by_frame.get(frame_id, [])
+        if revert_time_zero_first:
+            revert_time_zero(frame_records)
+        rederive_depth(frame, frame_records)
+    if by_frame:
+        save_records(dataset_id, records)
+    return sorted(targets)
 
 
 # ---------------------------------------------------------------------------
@@ -726,7 +787,8 @@ def all_declarations(db, dataset_id: str) -> list[SpatialDeclaration]:
 def record_declaration(db, dataset_id: str, kind: DeclarationKind, value: dict,
                        supplied_by: str, user_id: Optional[str],
                        frame_id: Optional[str] = None,
-                       note: Optional[str] = None) -> SpatialDeclaration:
+                       note: Optional[str] = None,
+                       declaration_id: Optional[str] = None) -> SpatialDeclaration:
     """
     Append the claim, superseding any earlier claim of the same kind and scope.
 
@@ -737,7 +799,8 @@ def record_declaration(db, dataset_id: str, kind: DeclarationKind, value: dict,
     """
     now = datetime.utcnow()
     row = SpatialDeclaration(
-        id=gen_uuid(), dataset_id=dataset_id, frame_id=frame_id, kind=kind.value,
+        id=declaration_id or gen_uuid(), dataset_id=dataset_id, frame_id=frame_id,
+        kind=kind.value,
         value=value, supplied_by=supplied_by, note=note,
         declared_by_user_id=user_id, created_at=now)
 
