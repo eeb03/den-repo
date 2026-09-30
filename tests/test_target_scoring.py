@@ -370,3 +370,23 @@ def test_a_linear_target_is_an_opportunity_on_every_line_it_crosses():
     r = score(art, manifest([seg]), RULE)
     assert r["counts"]["opportunities"] == 3        # lines 0-2 cross it; line 3 does not
     assert r["counts"]["true_positives"] == 1
+
+
+def test_a_depth_free_method_c_pick_still_does_not_unlock_depth_scoring():
+    """Removing Method C's dependence on depth makes the ALGORITHM independent of
+    the velocity; it does not make its estimate external evidence."""
+    from preprocessing.time_zero import direct_wave_consensus_time_zero
+    from schemas.subterra_record import SensorType, SubterraRecord
+
+    pulse = [0.0] * 30 + [5000.0 * (1 - abs(i - 7) / 8.0) for i in range(15)] + [0.0] * 30
+    traces = [SubterraRecord.model_construct(
+        dataset_id="d", latitude=None, longitude=None, elevation=None, depth=None,
+        signal=list(pulse), sensor_type=SensorType.GPR, ground_truth="none", frame_id="f",
+        metadata={}) for _ in range(10)]
+    result = direct_wave_consensus_time_zero(traces, sample_interval_ns=0.5)
+    assert result.resolved
+    gate, err = _depth_gate(_declared_timing(time_zero_status=result.status.value,
+                                             time_zero_correction_ns=result.correction_ns,
+                                             velocity_basis="independent_measurement"))
+    assert result.status.value == "derived"
+    assert gate["available"] is False and err is None

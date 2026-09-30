@@ -155,14 +155,34 @@ class DepthReadiness:
     recording_delay_ns: Optional[float] = None
 
     def as_dict(self) -> dict:
+        tz_ok = bool(self.time_zero) and self.time_zero.get("scientifically_sufficient", False)
+        v_ok = self.velocity is not None and velocity_is_scientifically_sufficient(self.velocity)
         return {"status": self.status.value, "validated": False,
+                # OPERATIONAL (status) vs SCIENTIFIC: every input stated and none an
+                # assumption or a same-survey estimate -- the benchmark depth gate's rule.
+                "scientifically_sufficient": bool(
+                    self.status is DepthStatus.RESOLVED and tz_ok and v_ok and self.reference_known),
                 "reasons": list(self.reasons), "notes": list(self.notes),
                 "recording_delay_ns": self.recording_delay_ns,
                 "time_zero": self.time_zero,
-                "velocity": self.velocity.as_dict() if self.velocity else None,
+                "velocity": ({**self.velocity.as_dict(),
+                              "scientifically_sufficient": v_ok} if self.velocity else None),
                 "reference": {"known": self.reference_known, "description": self.reference},
                 "model": "constant velocity: depth = (raw two-way time - time-zero correction) "
                          "x velocity / 2"}
+
+
+#: Time-zero statuses that are evidence rather than an estimate from the same
+#: data: an operator's declaration or an instrument measurement. A DERIVED
+#: (Method C) pick is operationally usable and scientifically insufficient.
+SCIENTIFIC_TIME_ZERO_STATUSES = ("declared", "measured")
+#: Velocity bases the benchmark depth gate accepts.
+SCIENTIFIC_VELOCITY_BASES = (VelocityBasis.USER_DECLARED, VelocityBasis.LITERATURE,
+                             VelocityBasis.INDEPENDENT_MEASUREMENT)
+
+
+def velocity_is_scientifically_sufficient(velocity: VelocityModel) -> bool:
+    return velocity.basis in SCIENTIFIC_VELOCITY_BASES
 
 
 def _reference_of(axis) -> tuple[bool, Optional[str]]:
@@ -176,7 +196,7 @@ def _reference_of(axis) -> tuple[bool, Optional[str]]:
 
 
 def assess_depth_readiness(axis, time_zero=None, recording_delay_ns: Optional[float] = None,
-                           reference=None) -> DepthReadiness:
+                           reference=None, stale_reason: Optional[str] = None) -> DepthReadiness:
     """
     Whether this axis supports a depth, and how far it can be trusted.
 
@@ -191,11 +211,21 @@ def assess_depth_readiness(axis, time_zero=None, recording_delay_ns: Optional[fl
         velocity, velocity_problem = None, f"the recorded conversion is unusable: {exc}"
     known, ref_text = _reference_of(axis)
     tz = ({"status": time_zero.status.value, "method": time_zero.method.value,
-           "correction_ns": time_zero.correction_ns, "basis": time_zero.basis}
+           "correction_ns": time_zero.correction_ns, "basis": time_zero.basis,
+           "declaration_id": time_zero.declaration_id,
+           "operationally_available": time_zero.resolved,
+           "scientifically_sufficient": time_zero.status.value in SCIENTIFIC_TIME_ZERO_STATUSES}
           if time_zero is not None else
           {"status": "unavailable", "method": "none", "correction_ns": None,
-           "basis": "no time zero has been declared, measured or derived"})
+           "basis": "no time zero has been declared, measured or derived",
+           "declaration_id": None, "operationally_available": False,
+           "scientifically_sufficient": False})
     notes = []
+    if time_zero is not None and time_zero.resolved \
+            and time_zero.status.value not in SCIENTIFIC_TIME_ZERO_STATUSES:
+        notes.append("the time zero is an automatic estimate from this survey's own waveform "
+                     f"({time_zero.method.value}); usable for processing and display, but not "
+                     "independent evidence")
     if recording_delay_ns:
         notes.append(f"the recording delay ({recording_delay_ns:g} ns) is where the recorded "
                      f"window starts on the instrument clock; it is part of the raw time axis "
@@ -214,6 +244,8 @@ def assess_depth_readiness(axis, time_zero=None, recording_delay_ns: Optional[fl
                        "instrument clock, not from a physical event")
     if not known:
         reasons.append("no depth reference is declared: depth below what?")
+    if stale_reason:
+        reasons.append(stale_reason)
     if velocity.basis is VelocityBasis.ESTIMATED_FROM_SAME_SURVEY:
         notes.append("the velocity was estimated from the same survey; it is not independent "
                      "of anything later compared against this depth")
@@ -260,7 +292,8 @@ def frame_time_zero(frame):
             return TimeZeroResult(status=TimeZeroStatus.DECLARED,
                                   method=TimeZeroMethod.OPERATOR_DECLARED,
                                   correction_ns=correction, basis=declared.basis,
-                                  source="DeclarationKind.TIME_ZERO")
+                                  source="DeclarationKind.TIME_ZERO",
+                                  declaration_id=declaration_id_of(frame, "time_zero"))
     return unresolved
 
 
@@ -275,5 +308,225 @@ def frame_recording_delay_ns(frame) -> Optional[float]:
 
 def frame_depth_readiness(frame) -> DepthReadiness:
     """`assess_depth_readiness` for a survey frame, from the frame's own record."""
+    current, stale_reason = derivation_is_current(frame)
     return assess_depth_readiness(frame.vertical_axis, time_zero=frame_time_zero(frame),
-                                  recording_delay_ns=frame_recording_delay_ns(frame))
+                                  recording_delay_ns=frame_recording_delay_ns(frame),
+                                  stale_reason=None if current else stale_reason)
+
+
+# ---------------------------------------------------------------------------
+# stored derived depth: one derivation, one provenance chain, never stale
+# ---------------------------------------------------------------------------
+#
+# THE INVARIANT: a record's stored `depth` always equals
+#     two_way_time_to_depth(t, v)
+# where t is the raw `two_way_time_ns`, or `corrected_time_ns` when the frame's
+# ACTIVE applied time zero produced it, and v is the frame's ACTIVE velocity --
+# and the frame's `depth_derivation` assumption names exactly those inputs.
+# `rederive_depth` is the only writer after ingest; every change to a velocity
+# or time-zero declaration calls it, so a superseded input never survives in a
+# stored number. `verify_stored_depth` checks the invariant record by record.
+#
+# INGEST IS THE ONE EXCEPTION, by design: converters write depth from the raw
+# axis and the frame's own conversion without stamping a derivation (so no
+# ingest checksum moves). No stamp therefore means "ingest derivation": raw
+# time, the frame's conversion, no time zero.
+
+#: Bumped whenever the formula or the meaning of its inputs changes.
+DEPTH_MODEL_VERSION = "constant-velocity-twt/2@1"
+#: Frame assumption holding the inputs the stored depths were derived from.
+DEPTH_DERIVATION_KEY = "depth_derivation"
+#: Frame assumption mapping a declaration kind to the log id of the ACTIVE
+#: declaration that set it on this frame (`api.spatial.apply_declaration`).
+DECLARATION_IDS_KEY = "declaration_ids"
+#: Record metadata key pointing at the frame derivation that produced its depth.
+RECORD_DERIVATION_ID_KEY = "depth_derivation_id"
+
+
+def declaration_id_of(frame, kind: str) -> Optional[str]:
+    a = frame.assumption(DECLARATION_IDS_KEY) if frame is not None else None
+    return (a.value or {}).get(kind) if a is not None and isinstance(a.value, dict) else None
+
+
+@dataclass(frozen=True)
+class ActiveVelocity:
+    model: VelocityModel
+    #: What each record's `velocity_source` says.
+    source_label: Optional[str]
+    declaration_id: Optional[str]
+    #: "declaration" | "converter" | "record_ingest"
+    origin: str
+
+
+def active_velocity(frame, records=()) -> Optional[ActiveVelocity]:
+    """
+    THE velocity a frame's derived depth uses -- one source, in this order:
+
+    1. a DEPTH_CONVERSION declaration on the frame's axis (`derived: True`,
+       with the log id of the declaration that set it);
+    2. the converter's own conversion (the velocity the records were ingested
+       with -- the default is `assumed_default`, and says so);
+    3. a legacy frame with no conversion at all: the velocity its records
+       already carry from ingest.
+
+    There is no fourth channel: `apply_time_zero` no longer takes a velocity of
+    its own (it only accepts one equal to the active declaration).
+    """
+    axis = getattr(frame, "vertical_axis", None)
+    conversion = getattr(axis, "conversion", None)
+    if conversion and conversion.get("velocity_m_per_ns") is not None:
+        model = velocity_model_of(conversion)
+        if conversion.get("derived") is True:
+            did = conversion.get("declaration_id")
+            label = f"declaration:{did}" if did else f"declared:{model.basis.value}"
+            return ActiveVelocity(model, label, did, "declaration")
+        ingest_label = next((r.metadata.get("velocity_source") for r in records
+                             if r.metadata.get("velocity_m_per_ns") is not None), None)
+        return ActiveVelocity(model, ingest_label, None, "converter")
+    for r in records:
+        v = r.metadata.get("velocity_m_per_ns")
+        if v is not None:
+            model = VelocityModel(value_m_per_ns=float(v), basis=(
+                VelocityBasis.ASSUMED_DEFAULT if float(v) == DEFAULT_VELOCITY_M_PER_NS
+                else VelocityBasis.USER_DECLARED), source="records' ingest velocity")
+            return ActiveVelocity(model, r.metadata.get("velocity_source"), None,
+                                  "record_ingest")
+    return None
+
+
+def _applied_time_zero(frame):
+    """The frame's active APPLIED time zero (resolved and applied), or None."""
+    from schemas.time_zero import APPLIED_TIME_ZERO_KEY, TimeZeroResult
+
+    a = frame.assumption(APPLIED_TIME_ZERO_KEY)
+    if a is None or not isinstance(a.value, dict):
+        return None
+    try:
+        result = TimeZeroResult.model_validate(a.value)
+    except ValueError:
+        return None
+    return result if result.resolved and result.applied else None
+
+
+def _derivation_inputs(frame, records) -> dict:
+    import hashlib
+    import json
+
+    tz = _applied_time_zero(frame)
+    vel = active_velocity(frame, records)
+    known, ref_text = _reference_of(getattr(frame, "vertical_axis", None))
+    inputs = {
+        "raw_time_field": "two_way_time_ns",
+        "time_zero": ({"applied": True, "status": tz.status.value, "method": tz.method.value,
+                       "correction_ns": tz.correction_ns,
+                       "declaration_id": tz.declaration_id}
+                      if tz is not None else
+                      {"applied": False, "status": "none", "method": "none",
+                       "correction_ns": None, "declaration_id": None}),
+        "corrected_time_field": "corrected_time_ns" if tz is not None else "two_way_time_ns",
+        "velocity": ({"value_m_per_ns": vel.model.value_m_per_ns,
+                      "basis": vel.model.basis.value, "origin": vel.origin,
+                      "declaration_id": vel.declaration_id}
+                     if vel is not None else None),
+        "reference": {"known": known, "description": ref_text},
+        "depth_model_version": DEPTH_MODEL_VERSION,
+        "formula": "depth_m = t_ns * velocity_m_per_ns / 2, t = corrected_time_field",
+    }
+    digest = hashlib.sha256(json.dumps(inputs, sort_keys=True, default=str).encode())
+    return {"derivation_id": digest.hexdigest()[:16], **inputs}
+
+
+def _time_for_depth(record, time_zero_applied: bool) -> Optional[float]:
+    if time_zero_applied:
+        if record.metadata.get("time_zero_excluded"):
+            return None
+        return record.metadata.get("corrected_time_ns")
+    return record.metadata.get("two_way_time_ns")
+
+
+def rederive_depth(frame, records) -> dict:
+    """
+    Recompute every stored depth of `records` (this frame's own) from the
+    frame's ACTIVE inputs, stamp each record with the derivation id and the
+    frame with the derivation. Returns the derivation. Raw time is never
+    written. Records without a raw time (not per-sample GPR) are untouched.
+    """
+    from schemas.spatial import Assumption
+
+    derivation = _derivation_inputs(frame, records)
+    vel = active_velocity(frame, records)
+    tz_applied = derivation["time_zero"]["applied"]
+    for r in records:
+        if r.metadata.get("two_way_time_ns") is None:
+            continue
+        t = _time_for_depth(r, tz_applied)
+        if vel is None or t is None:
+            r.depth = None
+        else:
+            r.depth = two_way_time_to_depth(t, vel.model.value_m_per_ns)
+            r.metadata["velocity_m_per_ns"] = vel.model.value_m_per_ns
+            if vel.source_label is not None:
+                r.metadata["velocity_source"] = vel.source_label
+        r.metadata[RECORD_DERIVATION_ID_KEY] = derivation["derivation_id"]
+    frame.assumptions = [a for a in (frame.assumptions or [])
+                         if a.key != DEPTH_DERIVATION_KEY] + [Assumption(
+        key=DEPTH_DERIVATION_KEY, value=derivation, verified=False,
+        basis=("the inputs every stored depth of this frame was derived from; "
+               "rederived whenever a velocity or time-zero declaration changes"))]
+    return derivation
+
+
+def derivation_is_current(frame, records=()) -> tuple[bool, Optional[str]]:
+    """
+    Frame-level check, cheap enough for every assessment: do the stamped
+    inputs still equal the frame's active inputs? No stamp = ingest
+    derivation, current unless a time zero has since been applied.
+    """
+    stamp = frame.assumption(DEPTH_DERIVATION_KEY)
+    if stamp is None:
+        if _applied_time_zero(frame) is not None:
+            return False, ("a time zero is applied but the stored depths carry no "
+                           "derivation stamp, so what they were derived from is unknown")
+        return True, None
+    current = _derivation_inputs(frame, records)
+    stamped = stamp.value or {}
+    for part in ("time_zero", "velocity", "reference", "depth_model_version"):
+        if stamped.get(part) != current.get(part):
+            return False, (f"stored depths were derived with a superseded {part.replace('_', ' ')}; "
+                           f"they do not describe the active inputs")
+    return True, None
+
+
+def verify_stored_depth(frame, records, rel_tol: float = 1e-12) -> list[str]:
+    """
+    Every way the stored depths disagree with the active provenance. Empty
+    means the invariant holds. For tests and audits (it reads every record).
+    """
+    problems = []
+    ok, why = derivation_is_current(frame, records)
+    if not ok:
+        problems.append(why)
+    vel = active_velocity(frame, records)
+    tz_applied = _applied_time_zero(frame) is not None
+    stamp = frame.assumption(DEPTH_DERIVATION_KEY)
+    stamp_id = (stamp.value or {}).get("derivation_id") if stamp is not None else None
+    for r in records:
+        if r.metadata.get("two_way_time_ns") is None:
+            continue
+        t = _time_for_depth(r, tz_applied)
+        expected = (two_way_time_to_depth(t, vel.model.value_m_per_ns)
+                    if vel is not None and t is not None else None)
+        if (expected is None) != (r.depth is None) or (
+                expected is not None and not math.isclose(r.depth, expected, rel_tol=rel_tol,
+                                                          abs_tol=1e-15)):
+            problems.append(f"record trace {r.metadata.get('trace_index')} t="
+                            f"{r.metadata.get('two_way_time_ns')}: depth {r.depth} != {expected}")
+            if len(problems) > 20:
+                break
+        if stamp_id is not None and r.depth is not None \
+                and r.metadata.get(RECORD_DERIVATION_ID_KEY) != stamp_id:
+            problems.append(f"record trace {r.metadata.get('trace_index')}: derivation id "
+                            f"{r.metadata.get(RECORD_DERIVATION_ID_KEY)} != {stamp_id}")
+            if len(problems) > 20:
+                break
+    return problems

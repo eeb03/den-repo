@@ -503,17 +503,11 @@ class TestProductionWiring:
         records, results = apply_time_zero_for_dataset(records, [frame])
         assert all(r.depth is None for r in records)
 
-    def test_an_explicit_velocity_override_wins_and_is_labelled_supplied_by_caller(self):
-        frame = _frame(assumptions=[
-            Assumption(key=DECLARED_TIME_ZERO_KEY, value=1.0, basis="SUPPLIED BY CALLER: x", verified=False)])
-        records = _per_sample_records(
-            [[0.0, 0.0, 0.0]], sample_interval_ns=1.0,
-            velocity_m_per_ns=0.1, velocity_source="assumed_default")
-        records, results = apply_time_zero_for_dataset(
-            records, [frame], velocity_overrides={"ds:line": 0.2})
-        # corrected time at sample 2 = 1.0ns -> depth 1.0*0.2/2 = 0.1
-        assert records[2].depth == pytest.approx(0.1)
-        assert records[2].metadata["velocity_source"] == "supplied_by_caller"
+    def test_there_is_no_second_velocity_channel(self):
+        """The per-call velocity override rewrote stored depth with no declaration
+        and no log entry. It is gone: depth follows the frame's active velocity."""
+        import inspect
+        assert "velocity_overrides" not in inspect.signature(apply_time_zero_for_dataset).parameters
 
     def test_a_frames_declared_velocity_is_used_over_the_records_ingest_default(self):
         """A DEPTH_CONVERSION declaration on the frame is the velocity depth is recomputed

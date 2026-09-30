@@ -218,18 +218,136 @@ def test_flat_traces_are_reported_inconclusive_not_a_guessed_number(env):
     assert result["applied"] is False
 
 
-def test_an_explicit_velocity_override_is_honoured(env):
+def _declare(client, kind, value, supplied_by="field notes", **kw):
+    resp = client.post("/api/spatial/d/declarations",
+                       json={"kind": kind, "value": value, "supplied_by": supplied_by, **kw})
+    assert resp.status_code == 201, resp.text
+    return resp.json()["declaration"]
+
+
+def _stored():
+    from database.frames_store import load_frames
+    from database.records_store import load_records
+    return load_frames("d")[0], load_records("d", use_cache=False)
+
+
+def _violations():
+    from schemas.depth_model import verify_stored_depth
+    frame, records = _stored()
+    return verify_stored_depth(frame, records)
+
+
+def test_a_naked_velocity_override_is_refused_with_the_next_action(env):
+    """A bare number on this route used to change stored depth with no declaration
+    and no log entry. The velocity must be declared first."""
     Session, root = env
     client = signed_in()
     own_gpr_dataset(client, Session, root)
+    _, before = _stored()
 
     resp = client.post("/api/datasets/d/apply_time_zero", params={"velocity_m_per_ns": 0.2})
+    assert resp.status_code == 409, resp.text
+    detail = resp.json()["detail"]
+    assert "depth_conversion" in detail and "declarations" in detail
+    _, after = _stored()
+    assert [r.depth for r in after] == [r.depth for r in before]      # nothing written
+
+
+def test_a_velocity_matching_the_active_declaration_is_accepted_and_referenced(env):
+    Session, root = env
+    client = signed_in()
+    own_gpr_dataset(client, Session, root)
+    row = _declare(client, "depth_conversion",
+                   {"velocity_m_per_ns": 0.12, "velocity_basis": "literature"})
+
+    resp = client.post("/api/datasets/d/apply_time_zero", params={"velocity_m_per_ns": 0.12})
     assert resp.status_code == 200, resp.text
-    from database.records_store import load_records
-    records = load_records("d", use_cache=False)
+    frame, records = _stored()
+    derivation = frame.assumption("depth_derivation").value
+    assert derivation["velocity"]["declaration_id"] == row["id"]
+    assert derivation["velocity"]["value_m_per_ns"] == 0.12
+    assert derivation["time_zero"]["method"] == "direct_wave_consensus"
+    assert _violations() == []
+
+
+def test_declaring_a_velocity_rederives_stored_depth_immediately(env):
+    """frame says X while records still say Y is exactly what must never happen."""
+    Session, root = env
+    client = signed_in()
+    own_gpr_dataset(client, Session, root)
+    row = _declare(client, "depth_conversion",
+                   {"velocity_m_per_ns": 0.15, "velocity_basis": "user_declared"})
+    frame, records = _stored()
+    r = next(x for x in records if x.metadata["two_way_time_ns"] == 50.0)
+    assert r.depth == pytest.approx(50.0 * 0.15 / 2)
+    assert r.metadata["velocity_source"] == f"declaration:{row['id']}"
+    assert _violations() == []
+
+
+def test_a_superseded_velocity_is_kept_in_the_log_but_never_used(env):
+    Session, root = env
+    client = signed_in()
+    own_gpr_dataset(client, Session, root)
+    first = _declare(client, "depth_conversion", {"velocity_m_per_ns": 0.12})
+    second = _declare(client, "depth_conversion", {"velocity_m_per_ns": 0.09})
+    log = {d["id"]: d for d in client.get("/api/spatial/d/declarations").json()["declarations"]}
+    assert log[first["id"]]["superseded_by"] == second["id"]
+    frame, records = _stored()
+    assert frame.vertical_axis.conversion["declaration_id"] == second["id"]
+    r = next(x for x in records if x.metadata["two_way_time_ns"] == 50.0)
+    assert r.depth == pytest.approx(50.0 * 0.09 / 2)
+    # and a later apply_time_zero uses the ACTIVE one
+    client.post("/api/datasets/d/apply_time_zero")
+    assert _violations() == []
+    frame, _ = _stored()
+    assert frame.assumption("depth_derivation").value["velocity"]["declaration_id"] == second["id"]
+
+
+def test_a_new_time_zero_declaration_leaves_no_old_correction_in_the_records(env):
+    Session, root = env
+    client = signed_in()
+    own_gpr_dataset(client, Session, root)
+    client.post("/api/datasets/d/apply_time_zero")            # Method C, ~30 ns, applied
+    _, records = _stored()
+    assert any(r.metadata.get("corrected_time_ns") is not None for r in records)
+
+    _declare(client, "time_zero", {"correction_ns": 12.0, "source": "first break",
+                                   "evidence": "picked on the raw section"})
+    frame, records = _stored()
+    # Reverted to the raw axis until the new declaration is applied: no record
+    # keeps a correction nobody currently asserts.
+    assert all(r.metadata.get("corrected_time_ns") is None for r in records)
+    r = next(x for x in records if x.metadata["two_way_time_ns"] == 50.0)
+    assert r.depth == pytest.approx(50.0 * 0.1 / 2)
+    assert frame.assumption("depth_derivation").value["time_zero"]["applied"] is False
+    assert _violations() == []
+
+    client.post("/api/datasets/d/apply_time_zero")
+    frame, records = _stored()
+    d = frame.assumption("depth_derivation").value
+    assert d["time_zero"]["correction_ns"] == 12.0
+    assert d["time_zero"]["declaration_id"]
+    r = next(x for x in records if x.metadata["two_way_time_ns"] == 50.0)
+    assert r.depth == pytest.approx((50.0 - 12.0) * 0.1 / 2)
+    assert _violations() == []
+
+
+def test_every_derived_depth_points_at_one_provenance_chain(env):
+    Session, root = env
+    client = signed_in()
+    own_gpr_dataset(client, Session, root)
+    _declare(client, "depth_conversion", {"velocity_m_per_ns": 0.12,
+                                          "velocity_basis": "independent_measurement",
+                                          "velocity_method": "CMP"})
+    client.post("/api/datasets/d/apply_time_zero")
+    frame, records = _stored()
+    d = frame.assumption("depth_derivation").value
+    for key in ("derivation_id", "raw_time_field", "time_zero", "corrected_time_field",
+                "velocity", "reference", "depth_model_version", "formula"):
+        assert key in d, key
     with_depth = [r for r in records if r.depth is not None]
-    assert with_depth  # the pulse resolved, so at least the post-onset samples got a depth
-    assert all(r.metadata.get("velocity_source") == "supplied_by_caller" for r in with_depth)
+    assert with_depth
+    assert {r.metadata["depth_derivation_id"] for r in with_depth} == {d["derivation_id"]}
 
 
 def test_no_stored_records_is_a_404(env):
@@ -253,3 +371,23 @@ def test_a_dataset_you_do_not_own_is_refused(env):
     client = signed_in()
     resp = client.post("/api/datasets/not-mine/apply_time_zero")
     assert resp.status_code in (403, 404)
+
+
+def test_a_reference_change_updates_the_chain_without_moving_a_number(env):
+    Session, root = env
+    client = signed_in()
+    own_gpr_dataset(client, Session, root)
+    client.post("/api/datasets/d/apply_time_zero")
+    frame, records = _stored()
+    before = [r.depth for r in records]
+    old_id = frame.assumption("depth_derivation").value["derivation_id"]
+
+    _declare(client, "antenna_offset", {"offset_m": 0.0, "measured_from": "depth_axis_origin",
+                                        "measured_to": "ground surface",
+                                        "evidence": "field_measurement"})
+    frame, records = _stored()
+    d = frame.assumption("depth_derivation").value
+    assert d["reference"]["known"] is True
+    assert d["derivation_id"] != old_id
+    assert [r.depth for r in records] == before
+    assert _violations() == []

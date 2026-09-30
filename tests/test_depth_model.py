@@ -163,3 +163,107 @@ def test_an_impossible_stored_velocity_is_reported_not_raised():
     r = assess_depth_readiness(axis(conv(3.0)), time_zero=DECLARED_T0)
     assert r.status is DepthStatus.UNAVAILABLE
     assert any("not physically possible" in x for x in r.reasons)
+
+
+# --- the stored-depth invariant --------------------------------------------------
+
+def _frame_and_records(conversion, n=5, dt=2.0, velocity_on_records=0.1):
+    from schemas.spatial import CRSKind, SpatialRef
+    from schemas.subterra_record import SensorType, SubterraRecord
+    from schemas.survey_frame import SurveyFrame
+    frame = SurveyFrame(
+        frame_id="d:l", dataset_id="d", modality=SensorType.GPR, source_format="segy",
+        source_file="l.sgy", spatial_ref=SpatialRef(kind=CRSKind.UNKNOWN, name="none"),
+        vertical_axis=axis(conversion), n_positions=1, position_index_name="trace_index")
+    records = [SubterraRecord.model_construct(
+        dataset_id="d", latitude=None, longitude=None, elevation=None,
+        depth=two_way_time_to_depth(i * dt, velocity_on_records), signal=[0.0],
+        sensor_type=SensorType.GPR, ground_truth="none", frame_id="d:l",
+        metadata={"trace_index": 0, "sample_index": i, "two_way_time_ns": i * dt,
+                  "velocity_m_per_ns": velocity_on_records}) for i in range(n)]
+    return frame, records
+
+
+def test_an_ingest_derivation_satisfies_the_invariant():
+    from schemas.depth_model import verify_stored_depth
+    frame, records = _frame_and_records(conv(0.1, velocity_basis="assumed_default"))
+    assert verify_stored_depth(frame, records) == []
+
+
+def test_changing_the_velocity_without_rederiving_is_caught_and_never_resolved():
+    """The guard the whole design exists for: frame says X, records say Y."""
+    from schemas.depth_model import frame_depth_readiness, rederive_depth, verify_stored_depth
+    frame, records = _frame_and_records(conv(0.1, velocity_basis="assumed_default"))
+    rederive_depth(frame, records)
+    frame.vertical_axis = frame.vertical_axis.model_copy(update={"conversion": conv(
+        0.12, velocity_basis="independent_measurement", velocity_method="CMP", derived=True,
+        declaration_id="decl-2")})
+    problems = verify_stored_depth(frame, records)
+    assert problems and any("superseded velocity" in p for p in problems)
+    r = frame_depth_readiness(frame)
+    assert r.status is not DepthStatus.RESOLVED
+    assert any("superseded" in x for x in r.reasons)
+
+    rederive_depth(frame, records)
+    assert verify_stored_depth(frame, records) == []
+    assert records[3].depth == two_way_time_to_depth(6.0, 0.12)
+    assert records[3].metadata["velocity_source"] == "declaration:decl-2"
+
+
+def test_rederive_never_writes_raw_time():
+    from schemas.depth_model import rederive_depth
+    frame, records = _frame_and_records(conv(0.1))
+    before = [r.metadata["two_way_time_ns"] for r in records]
+    rederive_depth(frame, records)
+    assert [r.metadata["two_way_time_ns"] for r in records] == before
+
+
+def test_no_velocity_means_no_stored_depth_after_rederive():
+    from schemas.depth_model import rederive_depth, verify_stored_depth
+    frame, records = _frame_and_records(None)
+    for r in records:
+        r.metadata.pop("velocity_m_per_ns")
+    rederive_depth(frame, records)
+    assert all(r.depth is None for r in records)
+    assert verify_stored_depth(frame, records) == []
+
+
+# --- operational vs scientific time zero ------------------------------------------
+
+def test_an_automatic_time_zero_is_usable_but_not_scientifically_sufficient():
+    derived = TimeZeroResult(status=TimeZeroStatus.DERIVED,
+                             method=TimeZeroMethod.DIRECT_WAVE_CONSENSUS, correction_ns=18.342,
+                             basis="median of 2159 direct-wave picks")
+    r = assess_depth_readiness(axis(conv(0.12, velocity_basis="independent_measurement",
+                                         velocity_method="CMP"), offset=ground_offset()),
+                               time_zero=derived).as_dict()
+    assert r["time_zero"]["operationally_available"] is True
+    assert r["time_zero"]["scientifically_sufficient"] is False
+    assert r["scientifically_sufficient"] is False
+    assert any("automatic" in n for n in r["notes"])
+
+
+def test_a_declared_time_zero_and_independent_velocity_are_scientifically_sufficient():
+    r = assess_depth_readiness(axis(conv(0.12, velocity_basis="independent_measurement",
+                                         velocity_method="CMP"), offset=ground_offset()),
+                               time_zero=DECLARED_T0).as_dict()
+    assert r["time_zero"]["scientifically_sufficient"] is True
+    assert r["velocity"]["scientifically_sufficient"] is True
+    assert r["scientifically_sufficient"] is True
+    assert r["validated"] is False
+
+
+def test_a_depth_names_its_derivation_chain_in_its_provenance():
+    from schemas.depth_model import rederive_depth
+    from schemas.provenance import record_provenance
+    frame, records = _frame_and_records(conv(0.12, velocity_basis="literature", derived=True,
+                                             declaration_id="decl-7"))
+    rederive_depth(frame, records)
+    depth = next(q for q in record_provenance(records[2], frame) if q.quantity == "depth")
+    for part in ("two_way_time_ns", "declaration decl-7", "literature",
+                 "constant-velocity-twt/2@1"):
+        assert part in depth.basis, part
+    # an older derivation id on the record is called out, not passed off as current
+    records[2].metadata["depth_derivation_id"] = "old"
+    depth = next(q for q in record_provenance(records[2], frame) if q.quantity == "depth")
+    assert "superseded" in depth.basis

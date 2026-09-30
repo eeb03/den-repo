@@ -488,13 +488,12 @@ def apply_time_zero(
     `original_time_ns` is always preserved, for every frame, regardless of
     outcome.
 
-    `velocity_m_per_ns`, if supplied, overrides the velocity used to
-    recompute depth for every frame this call resolves a correction for
-    (recorded with source `"supplied_by_caller"`). Without it, a frame's
-    DEPTH_CONVERSION declaration is used (source `"declared:<basis>"`), and
-    failing that each frame's OWN already-recorded ingest velocity is reused -- this
-    endpoint never estimates a new velocity, only reapplies the existing
-    one to the now-corrected time axis.
+    VELOCITY: depth is derived from each frame's ONE active velocity
+    (`schemas.depth_model.active_velocity`): its DEPTH_CONVERSION declaration,
+    else the converter's own conversion, else the records' ingest velocity.
+    `velocity_m_per_ns` is kept for compatibility but is only a check: a value
+    that is not every frame's active declared velocity is refused (409) with
+    the declaration to make instead. This endpoint never estimates a velocity.
     """
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     if not dataset:
@@ -515,10 +514,28 @@ def apply_time_zero(
             status_code=409,
             detail="no frame carries a measured time axis, so there is no time-zero to correct")
 
-    velocity_overrides = (
-        {f.frame_id: velocity_m_per_ns for f in eligible}
-        if velocity_m_per_ns is not None else None)
-    records, results = apply_time_zero_for_dataset(records, frames, velocity_overrides=velocity_overrides)
+    # ONE VELOCITY CHANNEL. A velocity here used to rewrite stored depth with
+    # no declaration and no log entry. It is now accepted only as a check that
+    # equals every frame's ACTIVE DEPTH_CONVERSION declaration; the depth is
+    # derived from that declaration, which names itself in the provenance.
+    if velocity_m_per_ns is not None:
+        from schemas.depth_model import active_velocity
+
+        for frame in eligible:
+            active = active_velocity(frame)
+            if (active is None or active.origin != "declaration"
+                    or abs(active.model.value_m_per_ns - velocity_m_per_ns) > 1e-12):
+                current = (f"{active.model.value_m_per_ns:g} m/ns ({active.origin})"
+                           if active is not None else "none")
+                raise HTTPException(
+                    status_code=409,
+                    detail=(f"velocity_m_per_ns={velocity_m_per_ns:g} is not the active "
+                            f"declared velocity of frame {frame.frame_id!r} (active: {current}). "
+                            f"Declare it first -- POST /api/spatial/{dataset_id}/declarations "
+                            f"with kind 'depth_conversion', velocity_m_per_ns and its "
+                            f"velocity_basis -- then call apply_time_zero without a velocity; "
+                            f"depth is always derived from the active declaration."))
+    records, results = apply_time_zero_for_dataset(records, frames)
     save_records(dataset_id, records)
     # The frame carries each result too (`APPLIED_TIME_ZERO_KEY`), so depth
     # readiness is read from the frame and not re-derived from records.
