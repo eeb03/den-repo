@@ -41,7 +41,7 @@ from schemas.segmentation import EvidenceGrade
 SCHEMA = "subterra.targets.v1"
 MANIFEST_DIR = Path(__file__).resolve().parent / "manifests"
 
-UNITS = ("m", "mm")
+UNITS = ("m", "cm", "mm")
 
 
 class ManifestError(ValueError):
@@ -419,6 +419,48 @@ class GroundTruthTarget:
         return next((loc for loc in self.locations if loc.frame_id == frame_id), None)
 
 
+class EmptyKind(str, Enum):
+    """Why a listed location is known to hold no object."""
+    #: Dug, left empty and refilled -- a disturbance without an object.
+    CONTROL_HOLE = "control_hole"
+    #: Documented as having nothing placed, and not dug.
+    UNDISTURBED_EMPTY = "undisturbed_empty"
+
+
+@dataclass(frozen=True)
+class AttestedEmptyLocation:
+    """
+    A location INDEPENDENTLY DOCUMENTED to hold no buried object -- not a
+    target with a class of "nothing", and not merely ground where no target
+    is known. It is never a false negative; a prediction on it is a
+    documented false alarm, reported as a control response.
+    """
+    location_id: str
+    dataset_id: str
+    kind: EmptyKind
+    locations: tuple
+    evidence: Optional[TargetEvidence]
+    hole_depth: Optional[PhysicalDepth] = None
+    notes: str = ""
+
+    def __post_init__(self):
+        object.__setattr__(self, "kind", _enum(EmptyKind, self.kind, "attested-empty kind"))
+        if not self.locations:
+            raise ManifestError(f"attested-empty {self.location_id}: a location is required")
+        if not isinstance(self.evidence, TargetEvidence):
+            raise ManifestError(f"attested-empty {self.location_id}: evidence is required")
+        if not self.evidence.independent_of_gpr:
+            raise ManifestError(
+                f"attested-empty {self.location_id}: emptiness must be documented "
+                f"independently of the radar")
+        if self.kind is EmptyKind.UNDISTURBED_EMPTY and self.hole_depth is not None:
+            raise ManifestError(
+                f"attested-empty {self.location_id}: an undisturbed location has no hole_depth")
+
+    def location_in(self, frame_id: str):
+        return next((loc for loc in self.locations if loc.frame_id == frame_id), None)
+
+
 @dataclass(frozen=True)
 class OpenQuestion:
     """Same shape as `benchmark.gates.OpenQuestion`, plus what it blocks."""
@@ -447,6 +489,7 @@ class TargetManifest:
     targets: tuple
     path: Optional[str] = None
     notes: tuple = ()
+    attested_empty_locations: tuple = ()
 
     def frame(self, frame_id: str) -> Frame:
         for f in self.frames:
@@ -542,7 +585,9 @@ class TargetManifest:
 # ---------------------------------------------------------------------------
 
 _MANIFEST_KEYS = {"schema", "dataset_id", "title", "truth_source", "exhaustive", "frames",
-                  "depth_reference_surfaces", "open_questions", "targets", "notes", "$comment"}
+                  "depth_reference_surfaces", "open_questions", "targets", "notes", "$comment",
+                  "attested_empty_locations"}
+_EMPTY_KEYS = {"location_id", "kind", "locations", "hole_depth", "evidence", "notes"}
 _FRAME_KEYS = {f for f in Frame.__dataclass_fields__}
 _TARGET_KEYS = {"target_id", "object_class", "material", "subtype", "dimensions",
                 "locations", "depths", "absolute_elevation", "evidence", "line_id", "notes"}
@@ -696,11 +741,39 @@ def load_manifest_dict(d: dict, path: Optional[str] = None) -> TargetManifest:
         seen.add(target.target_id)
         targets.append(target)
 
+    empties = []
+    for i, e in enumerate(d.get("attested_empty_locations") or []):
+        where = f"attested_empty_location {e.get('location_id', i)}"
+        _check_keys(e, _EMPTY_KEYS, where)
+        lid = e.get("location_id")
+        if not lid:
+            raise ManifestError(f"{where}: location_id is required")
+        if lid in seen:
+            raise ManifestError(f"{where}: id {lid} is already used by a target or location")
+        seen.add(lid)
+        hole = None
+        if e.get("hole_depth") is not None:
+            _check_keys(e["hole_depth"], _DEPTH_KEYS, f"{where} hole_depth")
+            hole = _build(PhysicalDepth, e["hole_depth"], f"{where} hole_depth")
+            if hole.reference_surface not in surface_ids:
+                raise ManifestError(f"{where}: hole_depth reference_surface "
+                                    f"{hole.reference_surface!r} is not declared")
+        if e.get("evidence") is None:
+            raise ManifestError(f"{where}: evidence is required")
+        _check_keys(e["evidence"], _EVIDENCE_KEYS, f"{where} evidence")
+        empties.append(AttestedEmptyLocation(
+            location_id=lid, dataset_id=dataset_id, kind=e.get("kind"),
+            locations=tuple(_location(x, f"{where} location {j}", frames)
+                            for j, x in enumerate(e.get("locations") or [])),
+            evidence=_build(TargetEvidence, e["evidence"], f"{where} evidence"),
+            hole_depth=hole, notes=e.get("notes", "")))
+
     return TargetManifest(
         dataset_id=dataset_id, title=d.get("title", ""), truth_source=d["truth_source"],
         exhaustive=d["exhaustive"], frames=tuple(frames.values()),
         depth_reference_surfaces=tuple(surfaces), open_questions=tuple(questions),
         targets=tuple(targets), path=path, notes=tuple(d.get("notes") or ()),
+        attested_empty_locations=tuple(empties),
     )
 
 

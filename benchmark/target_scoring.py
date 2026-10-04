@@ -66,6 +66,10 @@ class MatchRule:
     dimension: Optional[str] = None
     extra_tolerance: float = 0.0
     position: str = "the prediction's peak position"
+    #: Radius around an attested-empty location within which an unmatched
+    #: prediction counts as a control response. Declared, never defaulted:
+    #: without it the control analysis is reported as unavailable.
+    control_radius: Optional[float] = None
 
     def radius_for(self, target: GroundTruthTarget) -> float:
         if self.radius_kind == "fixed":
@@ -289,7 +293,8 @@ def score(artifact: PredictionArtifact, manifest: TargetManifest,
     else:
         f1 = 2 * precision * recall / (precision + recall)
     total_length = sum(ln.length for ln in lines)
-    metre = {"m": 1.0, "mm": 0.001}[frame.units]
+    metre = {"m": 1.0, "cm": 0.01, "mm": 0.001}[frame.units]
+    controls = _controls(artifact, manifest, frame, lines, unmatched, rule)
 
     localization = None
     if loc_ok and matches:
@@ -347,6 +352,7 @@ def score(artifact: PredictionArtifact, manifest: TargetManifest,
             "false_negatives": n_opp - tp,
             "false_positives": fp, "duplicate_detections": len(duplicates),
             "matched_detections_incl_duplicates": tp + len(duplicates),
+            "false_positives_at_attested_empty": controls.get("predictions_at_controls"),
         },
         "metrics": {
             "recall": recall, "precision": precision, "f1": f1,
@@ -357,10 +363,50 @@ def score(artifact: PredictionArtifact, manifest: TargetManifest,
             "depth_error": depth,
         },
         "per_target": per_target,
+        "controls": controls,
         "breakdowns": breakdowns,
         "matches": [{k: v for k, v in m.items() if k not in ("prediction", "target")}
                     for m in sorted(matches, key=lambda m: (m["line_id"], m["target_id"]))],
     }
+
+
+def _controls(artifact, manifest, frame, lines, unmatched, rule) -> dict:
+    """
+    Responses at attested-empty locations: unmatched predictions within the
+    rule's `control_radius` of a location the truth documents as holding no
+    object. These are a subset of the false positives, never extra ones, and
+    never false negatives. Reported even when precision itself is gated,
+    because the emptiness of these specific locations IS attested.
+    """
+    empties = sorted((e for e in manifest.attested_empty_locations
+                      if e.location_in(frame.frame_id)), key=lambda e: e.location_id)
+    if rule.control_radius is None:
+        return {"available": False, "locations_in_frame": len(empties),
+                "reason": "the match rule declares no control_radius",
+                "predictions_at_controls": None}
+    r = rule.control_radius
+    by_line: dict[str, list] = {}
+    for p in unmatched:
+        by_line.setdefault(p.line_id, []).append(p)
+    responses, hit_preds, by_kind = [], set(), {}
+    for e in empties:
+        loc = e.location_in(frame.frame_id)
+        on_lines = [ln for ln in lines if frame.kind == FrameKind.SURVEY_LINE
+                    or _line_distance(ln, loc) <= r]
+        preds = sorted(p.prediction_id for ln in on_lines for p in by_line.get(ln.line_id, [])
+                       if loc.distance_to(p.position) <= r)
+        k = by_kind.setdefault(e.kind.value, {"locations": 0, "with_a_response": 0})
+        k["locations"] += 1
+        if preds:
+            k["with_a_response"] += 1
+            hit_preds.update(preds)
+            responses.append({"location_id": e.location_id, "kind": e.kind.value,
+                              "prediction_ids": preds,
+                              "lines_passing": len(on_lines)})
+    return {"available": True, "control_radius": r, "locations_in_frame": len(empties),
+            "locations_with_a_response": len(responses), "by_kind": by_kind,
+            "responses": responses, "predictions_at_controls": len(hit_preds),
+            "note": "a subset of the false positives, never counted twice and never a miss"}
 
 
 def by_frequency(results: list[dict]) -> dict:
