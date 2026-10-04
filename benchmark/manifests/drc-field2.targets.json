@@ -41,6 +41,10 @@
   "cross_check": {
    "against": "Subterra's transcription of Baur et al. 2023 Table 2",
    "mismatches": []
+  },
+  "field_instance_evidence": {
+   "statement": "Zenodo 8323244 'Seeded_Minefield_June15th_Georeferenced.tif' (published 2023-09-07) is byte-identical (MD5 9571543dd528289729e604ab1f1d631e, 60,883,879 B) to Zenodo 19100554 '19-1_Field2_Mavic3E_RGB_0days.tif', and its EPSG:4326 footprint contains 150/150 Field 2 grid cells, 0/150 of Field 1 and 0/150 of Field 3. So Field 2 was laid out and freshly seeded ('0 days') by 15 June 2023, consistent with the JCWD 2023 'reseeded at a permanent location in June 2023'. The web map's date for 19-1 ('June 10', 2024, 'Preburial') contradicts both.",
+   "verified_utc": "2026-10-04"
   }
  },
  "exhaustive": {
@@ -69,7 +73,7 @@
  "open_questions": [
   {
    "id": "drc-gpr-not-public",
-   "statement": "The GPR dataset for Field 2 has no file or link in Zenodo 19100554 and only human AIU interpretations on the web map, although the 2026 paper says all 34 datasets were released.",
+   "statement": "The GPR dataset for Field 2 has no file or link in Zenodo 19100554 and only human AIU interpretations on the web map, although the 2026 paper says all 34 datasets were released. Re-verified 2026-10-04 from the sources themselves: both versions of the concept record (15324498, 19100554; 16 and 27 files) and the record it supplements (8323244, one RGB orthomosaic) hold no GPR file; Zenodo searches (demining, seeded minefield, landmine GPR, Radarteam Cobra, UtilityScan, the authors) and Figshare, OSF, Harvard Dataverse and Mendeley Data find none; the web map's datasets.json (unchanged, same SHA-256) still gives Raster 'No' (7) and '' (13) and references no GPR file. The paper itself could not be re-read (MDPI returns 403 to automated clients).",
    "blocks": [
     "detection_matching",
     "false_positives",
@@ -111,6 +115,15 @@
     "false_positives"
    ],
    "resolution_route": "DRC"
+  },
+  {
+   "id": "drc-13-flight-vs-seeding",
+   "statement": "GPR dataset 13 (Cobra UAV, Field 2) is catalogued 'June 12 - 16', 2023, 'Postburial', and Field 2 is shown freshly seeded on 15 June 2023. It is post-burial only if flown on or after the day the items went in; a flight on 12-14 June would have been over unseeded or partly seeded ground. Its exact flight date is not published.",
+   "blocks": [
+    "detection_matching",
+    "false_positives"
+   ],
+   "resolution_route": "the dataset 13 flight log (Binghamton: de Smet / Nikulin), or the DRC"
   }
  ],
  "targets": [

@@ -78,3 +78,16 @@ def test_precision_is_gated_and_scoring_refused(field):
     with pytest.raises(ScoringBlocked) as exc:
         score(art, m, MatchRule(name="r", radius_kind="fixed", radius=0.3, control_radius=0.3))
     assert "drc-gpr-not-public" in str(exc.value)
+
+
+def test_field2_timing_evidence_and_the_flight_date_question_are_recorded():
+    """Field 2 existed by 15 June 2023 (byte-identical image, footprint 150/150);
+    dataset 13 is post-burial only if flown after seeding -- recorded, and blocking."""
+    m = load_manifest(MANIFEST_DIR / "drc-field2.targets.json")
+    import json
+    raw = json.loads((MANIFEST_DIR / "drc-field2.targets.json").read_text())
+    ev = raw["truth_source"]["field_instance_evidence"]["statement"]
+    assert "9571543dd528289729e604ab1f1d631e" in ev and "150/150" in ev
+    q = next(q for q in m.open_questions if q.id == "drc-13-flight-vs-seeding")
+    assert "detection_matching" in [getattr(b, "value", b) for b in q.blocks]
+    assert m.readiness()["status"] == "not_scoring_ready"

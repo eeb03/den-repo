@@ -43,9 +43,12 @@ downgrades every case tested here. It is **not** production-safe as a *measureme
 independent time-zero reference exists, Method C is experimental, and the new validity
 checks haven't yet been re-scored on the held corpus.
 
-**False blockers: none found.** The DRC blocker (datasets 7 and 13 not public) could not be
-re-verified from this environment, which blocks Zenodo, MDPI and de-mine.com, but nothing
-found contradicts it.
+**False blockers: none found.** The DRC blocker (datasets 7 and 13 not public) was
+re-verified directly from Zenodo, the DRC web map and four other repositories once network
+access was granted; it stands. That pass also found new evidence: Field 2 was seeded by
+15 June 2023 (byte-identical image, footprint 150/150 cells). This supports dataset 13's
+Field 2 label, but means its "post-burial" status depends on an unpublished flight date
+(section 3C).
 
 ## 2. Issues investigated
 
@@ -118,6 +121,17 @@ work, and `main` was not modified.
     files was found.
 - **Grid registration.** The grid-ID → XY mapping is verified per field from DRC
   coordinates. XY → GPR trajectory needs the GPR files.
+- **Re-verification with network access (Verified).** Both versions of the concept
+  record, the supplemented record 8323244, Zenodo searches, Figshare, OSF, Dataverse and
+  Mendeley hold no DRC GPR. The web-map files are byte-identical to the 29 September copies
+  (SHA-256), and 7/13 still carry no raster. The data holders are named by the catalogue and
+  the 2026 author list: dataset 7, Heidi Myers (Maryland); dataset 13, Timothy de Smet and
+  Alex Nikulin (Binghamton).
+- **Field 2 timing (new, Verified).** 8323244 `Seeded_Minefield_June15th` is byte-identical
+  (MD5) to 19100554 `19-1_Field2_Mavic3E_RGB_0days`. Its footprint contains 150/150 Field 2
+  cells and 0 of Field 1 or 3, so Field 2 was seeded by 15 June 2023. Dataset 13 (Field 2,
+  June 12–16 2023) is post-burial only if flown on or after seeding. Recorded as
+  `drc-13-flight-vs-seeding` (blocks matching). Details: `docs/drc-seeded-field-registration.md` §15.
 
 ### D. 4TU
 
@@ -282,8 +296,9 @@ work, and `main` was not modified.
 - The Yesan rational-calibration result proves *how* dx was computed. It doesn't prove the
   measured distance was correct, or which scale any target chainage uses.
 - The 4TU quantum is a lower bound on horizontal error; GNSS accuracy is undocumented.
-- No external source could be re-read from this environment: Zenodo, MDPI, DataCite,
-  EuropePMC and de-mine.com are blocked.
+- Network access was granted late in the session. Zenodo, the DRC web map and other
+  repositories were then re-read directly. MDPI still refuses automated clients, so neither
+  paper's text was re-read here, and the Yesan *Sensors* paper remains unfound.
 
 ## 10. Status table
 
@@ -298,7 +313,8 @@ work, and `main` was not modified.
 | Independent time-zero reference | none | **EXTERNAL DEPENDENCY** | none in holdings | no | needs a documented reference |
 | MALA start-position fallback and spacing provenance | not identified | **SOLVED** | tests | yes | GSSI/IDS spacing still labelled MEASURED (design decision, §12) |
 | DRC: grid registration | verified per field | **unchanged (SOLVED previously)** | prior work | no | coordinate survey method |
-| DRC: GPR data 7/13 | not public | **EXTERNAL DEPENDENCY** (not re-verifiable here) | search finds no host | no | data, trajectories, licence |
+| DRC: GPR data 7/13 | not public | **EXTERNAL DEPENDENCY** (re-verified 2026-10-04) | Zenodo (all versions, supplement, searches), web map, Figshare/OSF/Dataverse/Mendeley | manifest text, test | data, trajectories, licence |
+| DRC: dataset 13 field and timing | assumed Field 2 | **PARTIALLY SOLVED** | Field 2 seeded by 15 June 2023 (MD5-identical image, 150/150 cells) | manifest, test | flight date vs seeding date |
 | 4TU vertical datum | declared (author) | **unchanged; consistency confirmed** | 43.2–44.3 m = NL geoid range | wording fix | −0.83 m offset; bytes 41–44 never confirmed NAP |
 | 4TU absolute horizontal | partial | **PARTIALLY SOLVED** (now quantified) | 0.904 m float32 quantum | yes | GNSS accuracy |
 | 4TU depth origin | blocked | **EXTERNAL DEPENDENCY** | author: no t0 / air-gap correction | no | t0 magnitude, velocity |
@@ -319,9 +335,11 @@ work, and `main` was not modified.
   - direction, and which end is the bridge;
   - antenna labels;
   - whether the list is exhaustive.
-- **DRC** (jbaur@de-mine.org):
+- **DRC** (jbaur@de-mine.org; data holders Heidi Myers, Maryland, for 7, and Timothy de Smet
+  / Alex Nikulin, Binghamton, for 13):
   - raw GPR for datasets 7 (GSSI 400 MHz cart) and 13 (Cobra UAV), with trajectories,
     settings and licence;
+  - the dataset 13 flight date, and the Field 2 seeding date;
   - item-coordinate survey method and tolerance;
   - depth to top or centre;
   - "Empty" cells;
@@ -347,5 +365,7 @@ work, and `main` was not modified.
    choice.
 4. Send the DRC data request; ingest datasets 7/13 only through a supported reader (Cobra
    has none).
-5. Allow `zenodo.org`, `www.mdpi.com` and `de-mine.com` in this environment's network
-   settings so public sources can be re-verified from the cloud session.
+5. Use the 15 June 2023 Field 2 image (~4 mm pixels, 0 days after burial) to check the
+   web-map item coordinates against visible burial disturbance, independently of any radar.
+6. MDPI refuses automated downloads (403) even with full network access. Read the
+   *Remote Sensing* paper's Data Availability Statement and Supplemental Table 1 by hand.
