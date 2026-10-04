@@ -55,6 +55,7 @@ from pathlib import Path
 from converters.base import BaseConverter, ConversionResult, MissingDependencyError
 from converters.segy_endian import (
     BIG, LITTLE, LittleEndianSegyFile, detect_endianness, int32_as_float32,
+    nmea_float32_quantum_m,
     nmea_to_degrees,
 )
 from schemas.spatial import (
@@ -84,6 +85,10 @@ _NO_HEADER_POSITION = (
     "SEG-Y trace header SourceX/SourceY are (0, 0); the file carries no trace position"
 )
 
+_UNDECODABLE_COORDS = (
+    "SEG-Y trace header SourceX/SourceY could not be decoded under the declared "
+    "coordinate_encoding, so no coordinate can be read from this trace"
+)
 _NON_FINITE_COORDS = (
     "SEG-Y trace header SourceX/SourceY do not reinterpret to finite IEEE floats under the "
     "declared coordinate_encoding, so no coordinate can be read from this trace"
@@ -292,6 +297,7 @@ class SEGYConverter(BaseConverter):
         # See _build_frame for what non-GPR modalities get instead.
         is_gpr = sensor_type == SensorType.GPR
         any_elevation = False
+        nmea_quantum_m = 0.0   # largest float32 NMEA position step seen (ieee_nmea only)
         declared_crs = _parse_declared_crs(crs, path) if crs is not None else None
 
         # Recorded on each GPR record's metadata only when the velocity is
@@ -415,6 +421,10 @@ class SEGYConverter(BaseConverter):
                         else:
                             x = nmea_to_degrees(fx)
                             y = nmea_to_degrees(fy)
+                            nmea_quantum_m = max(
+                                nmea_quantum_m,
+                                nmea_float32_quantum_m(fy),
+                                nmea_float32_quantum_m(fx, latitude_deg=y))
                     elif coordinate_encoding == "int32_scalar_exponent":
                         # The ADS Roman-cities SEG-Y writes -2 meaning 10^-2;
                         # read by the standard, the same bytes place the
@@ -433,11 +443,16 @@ class SEGYConverter(BaseConverter):
                         y = float(raw_y) * scale
 
                 except Exception:
-                    x = 0.0
-                    y = 0.0
+                    # NOT (0.0, 0.0): that would be a confident position off the
+                    # coast of Africa. An undecodable header has no position.
+                    x = y = None
+                    undecodable = True
+                else:
+                    undecodable = False
 
                 if x is None:
-                    position = NoPosition(reason=_NON_FINITE_COORDS)
+                    position = NoPosition(
+                        reason=_UNDECODABLE_COORDS if undecodable else _NON_FINITE_COORDS)
                 else:
                     position = _classify_position(x, y)
                 trace_positions.append(position)
@@ -577,6 +592,7 @@ class SEGYConverter(BaseConverter):
                 byte_order=byte_order, endian_evidence=endian_evidence,
                 coordinate_encoding=coordinate_encoding,
                 has_elevation=any_elevation,
+                nmea_quantum_m=nmea_quantum_m,
                 delay_raw=delay_raw, time_scalar_raw=time_scalar_raw,
                 delay_encoding=delay_encoding,
                 interval_fallback=interval_fallback,
@@ -593,7 +609,7 @@ class SEGYConverter(BaseConverter):
         sample_interval, velocity_m_per_ns, trace_count,
         declared_crs=None, declared_crs_input=None,
         byte_order=BIG, endian_evidence=None, coordinate_encoding="int32_scaled",
-        has_elevation=False,
+        has_elevation=False, nmea_quantum_m=0.0,
         velocity_basis=None, velocity_source_quantity=None,
         velocity_source_value=None, velocity_source_basis=None,
         delay_raw=0, time_scalar_raw=0, delay_encoding=DEFAULT_DELAY_ENCODING,
@@ -796,6 +812,18 @@ class SEGYConverter(BaseConverter):
                     f"under 'int32_scalar_exponent' it is applied as a power of ten."
                 ),
                 verified=False,
+            ))
+
+        if coordinate_encoding == "ieee_nmea" and nmea_quantum_m > 0:
+            assumptions.append(Assumption(
+                key="horizontal_coordinate_quantisation_m", value=round(nmea_quantum_m, 4),
+                basis=(
+                    f"derived from the storage format: NMEA ddmm.mmmm held as IEEE float32 can "
+                    f"only represent positions {nmea_quantum_m:.3f} m apart here (24-bit "
+                    f"significand; 1 arc-minute = 1852 m). Every stored position carries this "
+                    f"step on top of the unknown GNSS accuracy; no processing can recover it."
+                ),
+                verified=True,
             ))
 
         if has_elevation and coordinate_encoding == "ieee_nmea":

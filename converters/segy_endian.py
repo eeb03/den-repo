@@ -32,6 +32,8 @@ declaration (`coordinate_encoding`), exactly like `crs`.
 """
 from __future__ import annotations
 
+import math
+
 import struct
 from pathlib import Path
 
@@ -209,6 +211,29 @@ def nmea_to_degrees(value: float) -> float:
     value = abs(value)
     degrees = int(value // 100)
     return sign * (degrees + (value - 100 * degrees) / 60.0)
+
+
+#: Metres per arc-minute of latitude (the nautical mile, by definition 1852 m;
+#: the true meridian arc-minute varies by under 0.6% with latitude).
+METRES_PER_ARC_MINUTE = 1852.0
+
+
+def nmea_float32_quantum_m(value: float, latitude_deg: float | None = None) -> float:
+    """
+    The position step a float32 NMEA `ddmm.mmmm` value can represent, in metres.
+
+    A float32 has a 24-bit significand, so near 5214 minutes (52 deg N) adjacent
+    representable values are 2**-11 minute apart: ~0.90 m of latitude. That is a
+    floor on positional precision set by the STORAGE FORMAT, independent of the
+    GNSS receiver. Pass `latitude_deg` for a longitude (scaled by its cosine).
+    """
+    import numpy as np
+
+    step_minutes = float(np.spacing(np.float32(abs(value))))
+    metres = step_minutes * METRES_PER_ARC_MINUTE
+    if latitude_deg is not None:
+        metres *= math.cos(math.radians(latitude_deg))
+    return metres
 
 
 class _TraceAccessor:

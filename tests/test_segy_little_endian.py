@@ -362,3 +362,46 @@ def test_big_endian_frames_are_untouched_by_the_new_reader(tmp_path):
     assert frame.assumption("segy_coordinate_encoding") is None
     assert frame.assumption("time_axis_origin_offset") is None
     assert frame.source_metadata["segy_byte_order"] == "big"
+
+
+# --- float32 NMEA storage limits positional precision -------------------------
+
+def test_float32_nmea_latitude_step_is_about_0_9_m_in_the_netherlands():
+    from converters.segy_endian import nmea_float32_quantum_m
+    # 52 deg 14 min N: float32 spacing near 5214 minutes is 2**-11 minute
+    assert nmea_float32_quantum_m(5214.34) == pytest.approx(2 ** -11 * 1852.0)
+    assert nmea_float32_quantum_m(5214.34) == pytest.approx(0.904, abs=1e-3)
+    # longitude 6 deg 51 min E at 52.24 N: 2**-14 minute, scaled by cos(lat)
+    assert nmea_float32_quantum_m(651.1, latitude_deg=52.24) == pytest.approx(0.0692, abs=1e-4)
+
+
+def _nmea_float_bits(value):
+    return struct.unpack("<i", struct.pack("<f", value))[0]
+
+
+def test_an_ieee_nmea_frame_records_its_coordinate_quantisation(tmp_path):
+    from converters.segy_converter import SEGYConverter
+    from schemas.subterra_record import SensorType
+    p = write_segy(tmp_path / "n.sgy", source_x=_nmea_float_bits(651.1),
+                   source_y=_nmea_float_bits(5214.34))
+    res = SEGYConverter().load(p, dataset_id="4tu_x", sensor_type=SensorType.GPR,
+                               coordinate_encoding="ieee_nmea")
+    a = res.frames[0].assumption("horizontal_coordinate_quantisation_m")
+    assert a is not None and a.value == pytest.approx(0.904, abs=1e-3)
+    assert "float32" in a.basis
+
+
+def test_an_undecodable_coordinate_is_no_position_never_zero_zero(tmp_path, monkeypatch):
+    import converters.segy_converter as sc
+    from schemas.subterra_record import SensorType
+
+    def boom(*_a, **_k):
+        raise ValueError("corrupt")
+    monkeypatch.setattr(sc, "nmea_to_degrees", boom)
+    p = write_segy(tmp_path / "bad.sgy", source_x=_nmea_float_bits(651.1),
+                   source_y=_nmea_float_bits(5214.34))
+    res = sc.SEGYConverter().load(p, dataset_id="ds", sensor_type=SensorType.GPR,
+                                  coordinate_encoding="ieee_nmea")
+    for r in res.records:
+        assert r.latitude is None and r.longitude is None
+        assert r.position.kind == "none" and "could not be decoded" in r.position.reason
