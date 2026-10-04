@@ -388,15 +388,43 @@ def depth_of(candidate: AnomalyCandidate) -> tuple[DepthCertainty, str]:
     this ground and the number inherits that status. With no velocity there is
     no physical depth at all -- the candidate still has a position on the
     instrument's own axis, which is not a depth and must not be shown as one.
+
+    The basis says WHICH velocity (declared, caller-supplied, the platform
+    default, or of unrecorded provenance -- never "declared" unless it was) and
+    whether depth counts from an applied time zero or from the recording clock.
     """
-    v = candidate.confidence.velocity_m_per_ns
+    from schemas.depth_model import DEFAULT_VELOCITY_M_PER_NS
+
+    c = candidate.confidence
+    if c.velocity_inconsistent:
+        return (DepthCertainty.UNAVAILABLE,
+                "the candidate's supporting cells were converted with different velocities, "
+                "so no single depth applies to it")
+    v = c.velocity_m_per_ns
     if v is None:
         return (DepthCertainty.UNAVAILABLE,
                 "no propagation velocity has been declared for this dataset, so the "
                 "candidate's position on the instrument axis is not a physical depth")
+    src = c.velocity_source
+    if src and src.startswith(("declaration:", "declared:")):
+        what = f"a declared velocity of {v} m/ns"
+    elif src == "supplied_by_caller":
+        what = f"a caller-supplied velocity of {v} m/ns"
+    elif src is None and v == DEFAULT_VELOCITY_M_PER_NS:
+        what = (f"the platform's default velocity of {v} m/ns, which nobody declared "
+                f"for this ground")
+    else:
+        what = f"a velocity of {v} m/ns whose provenance is not recorded"
+    if c.time_zero_applied is True:
+        origin = "It counts from the applied time-zero correction."
+    elif c.time_zero_applied is False:
+        origin = ("It counts from the instrument's recording clock: no time zero was "
+                  "applied, so it includes the air/direct-wave delay.")
+    else:
+        origin = "Whether a time zero was applied is not consistent across its cells."
     return (DepthCertainty.DERIVED,
-            f"converted from the time axis using a declared velocity of {v} m/ns, "
-            "which is an assumption about this ground and not a measurement")
+            f"converted from the time axis using {what}, which is an assumption about "
+            f"this ground and not a measurement. {origin}")
 
 
 class InspectableCandidate(BaseModel):

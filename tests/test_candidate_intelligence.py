@@ -33,7 +33,7 @@ from interpretation.candidate_intelligence import (
 
 def make_candidate(*, lat=None, lon=None, velocity=None, peak=7.5,
                    trace_range=(10, 14), lateral_source=None,
-                   anomaly_class="compact", candidate_id="c1") -> AnomalyCandidate:
+                   anomaly_class="compact", candidate_id="c1", **confidence_kw) -> AnomalyCandidate:
     """A candidate whose fields are set explicitly, so each test states its case."""
     return AnomalyCandidate(
         id=candidate_id,
@@ -50,7 +50,7 @@ def make_candidate(*, lat=None, lon=None, velocity=None, peak=7.5,
             anomaly_class=anomaly_class, note="neutral geometric description"),
         confidence=AnomalyConfidence(
             reliable_fraction=0.9, touches_trace_boundary=False,
-            touches_depth_boundary=False, velocity_m_per_ns=velocity),
+            touches_depth_boundary=False, velocity_m_per_ns=velocity, **confidence_kw),
     )
 
 
@@ -349,3 +349,62 @@ def test_burden_is_none_rather_than_zero_when_traces_are_unknown():
     """Absence is not zero -- a burden of 0.0 would claim nothing to inspect."""
     intelligence = build_intelligence("d", [inspectable(make_candidate())])
     assert intelligence.candidate_burden is None
+
+
+# ---------------------------------------------------------------------------
+# depth basis never relabels a velocity's provenance
+# ---------------------------------------------------------------------------
+
+def test_the_platform_default_velocity_is_not_called_declared():
+    level, basis = depth_of(make_candidate(velocity=0.1))
+    assert level is DepthCertainty.DERIVED
+    assert "declared velocity" not in basis
+    assert "default" in basis and "nobody declared" in basis
+
+
+def test_a_declared_velocity_is_called_declared():
+    _, basis = depth_of(make_candidate(velocity=0.12, velocity_source="declaration:abc"))
+    assert "a declared velocity of 0.12" in basis
+
+
+def test_an_unattributed_non_default_velocity_says_its_provenance_is_unrecorded():
+    _, basis = depth_of(make_candidate(velocity=0.12))
+    assert "not recorded" in basis and "declared velocity" not in basis
+
+
+def test_inconsistent_velocities_are_not_reported_as_no_velocity():
+    level, basis = depth_of(make_candidate(velocity=None, velocity_inconsistent=True))
+    assert level is DepthCertainty.UNAVAILABLE
+    assert "different velocities" in basis
+
+
+@pytest.mark.parametrize("applied,phrase", [(True, "applied time-zero"),
+                                            (False, "recording clock"),
+                                            (None, "not consistent")])
+def test_the_depth_basis_says_where_depth_counts_from(applied, phrase):
+    _, basis = depth_of(make_candidate(velocity=0.1, time_zero_applied=applied))
+    assert phrase in basis
+
+
+def test_candidate_generation_fills_velocity_provenance_from_the_records():
+    """Run the real generator: the default-velocity ingest is not called declared,
+    mixed velocities are reported as mixed, and no time zero means the recording clock."""
+    import numpy as np
+    from interpretation.anomaly_candidates import find_anomaly_candidates
+    from tests.test_anomaly_candidates import _flat_grid, _make_records_from_grid
+
+    grid = _flat_grid()
+    grid[8:11, 8:11] = 5.0
+    depths = [round(i * 0.05, 6) for i in range(20)]
+    records = _make_records_from_grid(grid, depths, list(range(20)))
+    (c,) = find_anomaly_candidates(records, source_file="line.SGY", threshold=3.0, min_cells=3)
+    assert c.confidence.velocity_source is None and c.confidence.time_zero_applied is False
+    level, basis = depth_of(c)
+    assert level is DepthCertainty.DERIVED and "default" in basis and "recording clock" in basis
+
+    for r in records:
+        if r.metadata["trace_index"] == 9:
+            r.metadata["velocity_m_per_ns"] = 0.12
+    (c,) = find_anomaly_candidates(records, source_file="line.SGY", threshold=3.0, min_cells=3)
+    assert c.confidence.velocity_inconsistent is True
+    assert depth_of(c)[0] is DepthCertainty.UNAVAILABLE

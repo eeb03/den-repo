@@ -115,7 +115,16 @@ class AnomalyConfidence(BaseModel):
     touches_depth_boundary: bool
     kmz_direction_verified: Optional[bool] = None      # None if records weren't KMZ-georeferenced at all
     dem_vertical_datum_verified: Optional[bool] = None  # None if the dataset hasn't been DEM-aligned
-    velocity_m_per_ns: Optional[float] = None          # None only if inconsistent across supporting cells
+    velocity_m_per_ns: Optional[float] = None          # None if absent, or inconsistent across supporting cells
+    #: The supporting records' `velocity_source` when they all agree (e.g.
+    #: "declaration:<id>", "declared:relative permittivity", "supplied_by_caller");
+    #: None when absent (the converter default carries none) or mixed.
+    velocity_source: Optional[str] = None
+    #: True when supporting cells carry DIFFERENT velocities -- distinct from "none".
+    velocity_inconsistent: bool = False
+    #: True when every supporting cell has a time-zero-corrected time, False when
+    #: none does, None when mixed or unknown.
+    time_zero_applied: Optional[bool] = None
 
 
 class AnomalyCandidate(BaseModel):
@@ -280,6 +289,7 @@ def _characterize_cluster(
     centroid_lon = float(centroid_source_lon) if centroid_source_lon is not None else None
 
     reliable_flags, kmz_flags, dem_flags, velocities, elevations = [], [], [], set(), []
+    velocity_sources, tz_flags = set(), set()
     for row, col in zip(ys.tolist(), xs.tolist()):
         rec = cell_index.get((trace_ids[col], round(depths[row], 6)))
         if rec is None:
@@ -291,6 +301,8 @@ def _characterize_cluster(
             dem_flags.append(rec.metadata["dem_vertical_datum_verified"])
         if "velocity_m_per_ns" in rec.metadata:
             velocities.add(rec.metadata["velocity_m_per_ns"])
+            velocity_sources.add(rec.metadata.get("velocity_source"))
+        tz_flags.add(rec.metadata.get("corrected_time_ns") is not None)
         if rec.elevation is not None:
             elevations.append(rec.elevation)
 
@@ -298,6 +310,9 @@ def _characterize_cluster(
     kmz_direction_verified = kmz_flags[0] if kmz_flags and len(set(kmz_flags)) == 1 else None
     dem_vertical_datum_verified = dem_flags[0] if dem_flags and len(set(dem_flags)) == 1 else None
     velocity_m_per_ns = sorted(velocities)[0] if len(velocities) == 1 else None
+    velocity_inconsistent = len(velocities) > 1
+    velocity_source = next(iter(velocity_sources)) if len(velocity_sources) == 1 else None
+    time_zero_applied = next(iter(tz_flags)) if len(tz_flags) == 1 else None
     centroid_elevation_m = float(np.mean(elevations)) if elevations else None
 
     touches_trace_boundary = (col_min == 0) or (col_max == n_traces - 1)
@@ -337,6 +352,9 @@ def _characterize_cluster(
             kmz_direction_verified=kmz_direction_verified,
             dem_vertical_datum_verified=dem_vertical_datum_verified,
             velocity_m_per_ns=velocity_m_per_ns,
+            velocity_source=velocity_source,
+            velocity_inconsistent=velocity_inconsistent,
+            time_zero_applied=time_zero_applied,
         ),
     )
 
