@@ -186,11 +186,32 @@ def derive_along_track(header: dict) -> tuple[dict | None, str | None]:
         return None, "DISTANCE INTERVAL is missing or not a number"
     if not spacing > 0:
         return None, f"DISTANCE INTERVAL is {spacing}, so trace spacing is unusable"
+    # START POSITION: absent -> 0 m, said so; present but unreadable -> no axis.
+    # (It used to fall back to 0.0 silently, shifting every trace by an unknown
+    # amount while the frame still claimed the header's start.)
+    raw_start = header.get("START POSITION")
+    if raw_start is None or not str(raw_start).strip():
+        start, start_basis = 0.0, "START POSITION absent from the .rad; 0 m assumed"
+    else:
+        try:
+            start = float(raw_start)
+        except (TypeError, ValueError):
+            return None, (f"START POSITION is {raw_start!r}, not a number, so where the "
+                          f"first trace lies along the line is unknown")
+        if start != start or start in (float("inf"), float("-inf")):
+            return None, f"START POSITION is {raw_start!r}, not a finite number"
+        start_basis = f"START POSITION={start} m from the .rad"
+    # The interval is the wheel calibration the operator had set, recorded so a
+    # reader can see what the spacing rests on (DISTANCE INTERVAL is pulses per
+    # trace / WHEEL CALIBRATION pulses per metre on the held systems).
+    wheel = header.get("WHEEL CALIBRATION")
     try:
-        start = float(header.get("START POSITION", 0.0))
+        wheel_cal = float(wheel) if wheel is not None else None
     except (TypeError, ValueError):
-        start = 0.0
-    return {"trace_spacing_m": spacing, "start_position_m": start}, None
+        wheel_cal = None
+    return {"trace_spacing_m": spacing, "start_position_m": start,
+            "start_position_basis": start_basis,
+            "wheel_calibration_pulses_per_m": wheel_cal}, None
 
 
 def parse_cor(path: str | Path) -> list[tuple[int, float, float]]:
@@ -449,12 +470,17 @@ class MALAConverter(BaseConverter):
             assumptions.append(Assumption(
                 key="along_track_spacing", value=along_track["trace_spacing_m"],
                 basis=(
-                    f"MEASURED: .rad DISTANCE FLAG=1 (distance-triggered) with DISTANCE "
-                    f"INTERVAL={along_track['trace_spacing_m']} m from the wheel encoder, "
-                    f"starting at START POSITION={along_track['start_position_m']} m. This "
-                    f"positions traces along their own line; it does NOT georeference it."
+                    f"declared by the instrument header: DISTANCE FLAG=1 (wheel-triggered) "
+                    f"with DISTANCE INTERVAL={along_track['trace_spacing_m']} m"
+                    + (f" (WHEEL CALIBRATION={along_track['wheel_calibration_pulses_per_m']:g} "
+                       f"pulses/m)" if along_track.get('wheel_calibration_pulses_per_m') else "")
+                    + f"; {along_track['start_position_basis']}. The interval is the wheel "
+                    f"calibration in force at acquisition, not an independently checked "
+                    f"distance: a field re-calibration can differ by percents (Yesan: the "
+                    f"authors' 0.0086650 m vs the header's 0.008429 m, 2.8%). This positions "
+                    f"traces along their own line; it does NOT georeference it."
                 ),
-                verified=True,
+                verified=False,
             ))
         else:
             assumptions.append(Assumption(

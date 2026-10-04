@@ -304,3 +304,34 @@ def test_unsupported_binary_extension_is_refused(tmp_path):
     with pytest.raises(MALAFormatError) as e:
         read_rd3(p.with_suffix(".rd9"), 8)
     assert "unsupported MALA binary extension" in str(e.value)
+
+
+def test_an_unreadable_start_position_refuses_the_axis_instead_of_assuming_zero():
+    """It used to become 0.0 silently, shifting every trace by an unknown amount."""
+    ok, reason = derive_along_track({"DISTANCE FLAG": "1", "DISTANCE INTERVAL": "0.02",
+                                     "START POSITION": "abc"})
+    assert ok is None and "START POSITION" in reason
+    ok, reason = derive_along_track({"DISTANCE FLAG": "1", "DISTANCE INTERVAL": "0.02",
+                                     "START POSITION": "nan"})
+    assert ok is None and "finite" in reason
+
+
+def test_an_absent_start_position_is_zero_and_says_so():
+    ok, _ = derive_along_track({"DISTANCE FLAG": "1", "DISTANCE INTERVAL": "0.02"})
+    assert ok["start_position_m"] == 0.0
+    assert "absent" in ok["start_position_basis"]
+
+
+def test_wheel_spacing_is_declared_by_the_header_not_measured(tmp_path):
+    """The interval is the wheel calibration in force; nothing independent checked it."""
+    from schemas.provenance import ProvenanceClass, frame_provenance
+    rad = RAD.format(samples=8, traces=5, window=66.334988, dint="0.008429", dflag="1",
+                     start="0.000000", antennas="500 MHz shielded=1", site="_")
+    rad += "WHEEL CALIBRATION:355.9\n"
+    p = write_pair(tmp_path, rad_text=rad)
+    frame = MALAConverter().load(p, dataset_id="ds", sensor_type=SensorType.GPR).frames[0]
+    a = frame.assumption("along_track_spacing")
+    assert a.verified is False
+    assert "MEASURED" not in a.basis and "WHEEL CALIBRATION=355.9" in a.basis
+    cls = {q.quantity: q.provenance for q in frame_provenance(frame)}
+    assert cls["assumption:along_track_spacing"] is ProvenanceClass.DECLARED_BY_SOURCE
