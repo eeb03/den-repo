@@ -30,7 +30,14 @@ All seven are fixed and tested, and every fix is in the conservative direction: 
 downgrade the stated provenance. **No stored depth, position or detection value changes**,
 except that Method C may now refuse a line where it used to return a time zero.
 
-**Yesan.** The authors' trace interval is exactly **27/3116 m**, an effective wheel
+**Yesan, update (network access granted).** The *Sensors* paper behind the dataset exists:
+Oh, Choi & Shin 2026, doi:10.3390/s26175439, published 28 August, open in PMC. The earlier
+"no target list in any public source" was a **false blocker**. Its Table 2 (34 targets,
+design truth independent of the radar) is now in the manifest. It is **not line-resolved**,
+**not exhaustive**, and the authors themselves state the radar-to-chainage registration is
+unconfirmed. So Yesan is still not usable for scoring.
+
+**Yesan scale.** The authors' trace interval is exactly **27/3116 m**, an effective wheel
 calibration of **3116/9 pulses/m**. The match holds to 4 × 10⁻¹³, with a chance probability
 ≤ 2.2 × 10⁻⁶. So the 2.8% discrepancy is a deliberate field re-calibration against a whole
 number of metres; it isn't rounding, an offset, slope, projection, resampling or a parser
@@ -43,7 +50,8 @@ downgrades every case tested here. It is **not** production-safe as a *measureme
 independent time-zero reference exists, Method C is experimental, and the new validity
 checks haven't yet been re-scored on the held corpus.
 
-**False blockers: none found.** The DRC blocker (datasets 7 and 13 not public) was
+**False blockers: one.** The Yesan target list was public, in the *Sensors* paper, a month
+before the earlier search declared it missing (section 10). Otherwise: The DRC blocker (datasets 7 and 13 not public) was
 re-verified directly from Zenodo, the DRC web map and four other repositories once network
 access was granted; it stands. That pass also found new evidence: Field 2 was seeded by
 15 June 2023 (byte-identical image, footprint 150/150 cells). This supports dataset 13's
@@ -304,7 +312,8 @@ work, and `main` was not modified.
 
 | Issue | Previous status | New status | Evidence | Code changed? | Remaining uncertainty |
 |---|---|---|---|---|---|
-| Yesan: target list | blocked | **EXTERNAL DEPENDENCY** | no list in held files, record or findable paper | no | everything that needs targets |
+| Yesan: target list | blocked (no list) | **FALSE BLOCKER → PARTIALLY SOLVED** | *Sensors* 26:5439 Table 2: 34 targets, design truth, recorded in manifest | manifest, tests | not line-resolved; not exhaustive; depth surface inferred |
+| Yesan: 44.5 m change / chainage conventions | unresolved | **PARTIALLY SOLVED** | paper ties 44–46 m transition to 44/46 m targets; QDM approach-slab files +30 m | manifest text | common origin unconfirmed (authors) |
 | Yesan: 2.8% scale | unexplained re-calibration | **PARTIALLY SOLVED** | dx = 27/3116 m exactly; p ≤ 2.2 × 10⁻⁶; 9 other hypotheses rejected | script, manifest text | which distance; which scale targets use |
 | Yesan: 0 m origin, direction | unresolved | **EXTERNAL DEPENDENCY** | per-file mark trace; direction inferred only | no | physical mark; bridge end |
 | Yesan: scoring legitimacy | not scoring-ready | **unchanged, gated by test** | readiness test pins refusal | test | — |
@@ -325,10 +334,11 @@ work, and `main` was not modified.
 
 ## 11. Exact external information required
 
-- **Yesan** (Dr Chang-Geun Oh, coh@hanseo.ac.kr; draft in the Yesan doc §11, plus one new
-  question):
-  - the target table (class, material, dimensions, burial depth top or centre, reference
-    surface, line, chainage, how positioned);
+- **Yesan** (Dr Chang-Geun Oh, coh@hanseo.ac.kr; the draft in the Yesan doc §11 needs
+  rewording now that Table 2 is public):
+  - a **per-line** target table (Table 2 has no line column), with lateral position and
+    size, and the objects in Fig. 2 that are not in Table 2;
+  - whether Table 2's depths are below the pavement surface, and as-designed or as-built;
   - the physical 0 m mark;
   - which scale chainages use;
   - **the distance over which dx = 27/3116 m was calibrated, and how it was measured;**
@@ -354,9 +364,14 @@ work, and `main` was not modified.
 
 ## 12. Recommended next steps
 
-1. **Highest value: send the Yesan author letter**, with the added calibration question. One
-   answer unlocks Yesan matching, recall and localisation, if the list exists and is
-   registered.
+1. **Highest value: run a pre-registered Yesan anchor test on the raw files** (now
+   downloadable).
+   - Use the cross drain pipes that span both lines (~5, 65, 85 m) to test whether the
+     per-file 0 m trace is Table 2's origin, and which distance scale holds. The scales
+     differ by about 2.4 m at 85 m.
+   - Hold the anchors out of any later scoring.
+   - Then send the author letter, reworded around the per-line table and the calibration
+     distance.
 2. On a machine holding the raw data, run `python -m scripts.validate_timezero_method_c`
    once, unchanged, and record which references change status under the new checks.
 3. Decide whether GSSI (`rhf_spm`) and IDS wheel spacing should also become "declared by the
