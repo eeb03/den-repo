@@ -26,3 +26,6 @@ __pycache__/
 # run -- so they are ignored rather than committed or repeatedly removed.
 /frontend/AGENTS.md
 /frontend/CLAUDE.md
+
+# Playwright MCP browser-tool output (screenshots, snapshots, logs).
+/.playwright-mcp/
