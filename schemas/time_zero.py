@@ -131,6 +131,10 @@ class TimeZeroResult(BaseModel):
     #: successful per-trace picks that WERE kept, after outlier rejection --
     #: never fabricated for a method that does not compute one.
     spread_ns: Optional[float] = None
+    #: Per-reason counts of traces whose candidate onset was refused (no
+    #: onset, or a failed validity check in `preprocessing.time_zero`).
+    #: None when every trace gave a valid pick or the method never ran.
+    pick_rejections: Optional[dict[str, int]] = None
 
     @property
     def resolved(self) -> bool:
@@ -163,4 +167,6 @@ class TimeZeroResult(BaseModel):
             out["time_zero_outliers_rejected"] = self.outliers_rejected
         if self.spread_ns is not None:
             out["time_zero_spread_ns"] = self.spread_ns
+        if self.pick_rejections:
+            out["time_zero_pick_rejections"] = dict(self.pick_rejections)
         return out
