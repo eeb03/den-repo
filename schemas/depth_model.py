@@ -79,6 +79,10 @@ class VelocityBasis(str, Enum):
     #: Measured independently of the reflection data being interpreted (CMP/WARR,
     #: borehole, a known-depth reflector not used for scoring, probe permittivity).
     INDEPENDENT_MEASUREMENT = "independent_measurement"
+    #: A velocity is on record with NOTHING saying where it came from (a legacy
+    #: conversion or record with no basis and no statement). Not a declaration:
+    #: nobody is on record as having asserted it. Never resolves a depth.
+    UNDOCUMENTED = "undocumented"
 
 
 @dataclass(frozen=True)
@@ -119,18 +123,22 @@ def velocity_model_of(conversion: Optional[dict[str, Any]]) -> Optional[Velocity
     this field existed): a declaration's conversion carries its own `basis`
     sentence, so it is USER_DECLARED; a converter's carries none, and the
     only velocity a converter applies unasked is the platform default, so a
-    value equal to it is ASSUMED_DEFAULT and any other value USER_DECLARED
-    (it was passed explicitly by whoever called the converter).
+    value equal to it is ASSUMED_DEFAULT. Any other value with no basis and
+    no statement is UNDOCUMENTED: someone passed it, but nothing on record
+    says who or why, and promoting it to USER_DECLARED would let an
+    unattributed number pass the scientific depth gate.
     """
     if not conversion or conversion.get("velocity_m_per_ns") is None:
         return None
     v = float(conversion["velocity_m_per_ns"])
     basis = conversion.get("velocity_basis")
     if basis is None:
-        if conversion.get("basis") is not None or v != DEFAULT_VELOCITY_M_PER_NS:
+        if conversion.get("basis") is not None:
             basis = VelocityBasis.USER_DECLARED
-        else:
+        elif v == DEFAULT_VELOCITY_M_PER_NS:
             basis = VelocityBasis.ASSUMED_DEFAULT
+        else:
+            basis = VelocityBasis.UNDOCUMENTED
     return VelocityModel(value_m_per_ns=v, basis=basis,
                          method=conversion.get("velocity_method"),
                          uncertainty_m_per_ns=conversion.get("velocity_uncertainty_m_per_ns"),
@@ -239,6 +247,9 @@ def assess_depth_readiness(axis, time_zero=None, recording_delay_ns: Optional[fl
     if velocity.basis is VelocityBasis.ASSUMED_DEFAULT:
         reasons.append(f"velocity {velocity.value_m_per_ns:g} m/ns is the platform default "
                        f"assumption, not a value stated for this ground")
+    if velocity.basis is VelocityBasis.UNDOCUMENTED:
+        reasons.append(f"velocity {velocity.value_m_per_ns:g} m/ns is on record with no basis: "
+                       f"nothing says who stated it or why")
     if time_zero is None or not time_zero.resolved:
         reasons.append("radar time zero is not established, so depth is measured from the "
                        "instrument clock, not from a physical event")
@@ -388,7 +399,7 @@ def active_velocity(frame, records=()) -> Optional[ActiveVelocity]:
         if v is not None:
             model = VelocityModel(value_m_per_ns=float(v), basis=(
                 VelocityBasis.ASSUMED_DEFAULT if float(v) == DEFAULT_VELOCITY_M_PER_NS
-                else VelocityBasis.USER_DECLARED), source="records' ingest velocity")
+                else VelocityBasis.UNDOCUMENTED), source="records' ingest velocity")
             return ActiveVelocity(model, r.metadata.get("velocity_source"), None,
                                   "record_ingest")
     return None

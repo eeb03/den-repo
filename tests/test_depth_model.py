@@ -10,6 +10,7 @@ APPROXIMATE when a depth can be drawn but rests on an assumption; otherwise
 UNAVAILABLE. "Resolved" never means "validated".
 """
 import pytest
+from types import SimpleNamespace
 
 from schemas.depth_model import (
     DEFAULT_VELOCITY_M_PER_NS, DepthStatus, VelocityBasis, VelocityModel,
@@ -289,3 +290,33 @@ def test_a_legacy_frame_whose_velocity_lives_on_its_records_is_not_called_stale(
     rederive_depth(frame, records)
     assert derivation_is_current(frame, records) == (True, None)
     assert derivation_is_current(frame) == (True, None)
+
+
+# --- velocity with no stated provenance is never promoted --------------------
+
+def test_a_legacy_non_default_velocity_with_no_basis_is_undocumented_not_declared():
+    """Nothing on record says who stated 0.12 m/ns; it must not pass the depth gate."""
+    v = velocity_model_of(conv(0.12))
+    assert v.basis is VelocityBasis.UNDOCUMENTED
+    from schemas.depth_model import velocity_is_scientifically_sufficient
+    assert velocity_is_scientifically_sufficient(v) is False
+
+
+def test_an_undocumented_velocity_keeps_depth_approximate_even_with_everything_else_stated():
+    from schemas.time_zero import TimeZeroMethod, TimeZeroResult, TimeZeroStatus
+    axis = SimpleNamespace(conversion=conv(0.12), origin="ground surface", origin_offset=None)
+    tz = TimeZeroResult(status=TimeZeroStatus.DECLARED, method=TimeZeroMethod.OPERATOR_DECLARED,
+                        correction_ns=2.0, basis="operator first-break pick")
+    r = assess_depth_readiness(axis, time_zero=tz)
+    assert r.status is DepthStatus.APPROXIMATE
+    assert any("no basis" in x for x in r.reasons)
+    assert r.as_dict()["scientifically_sufficient"] is False
+
+
+def test_records_ingest_velocity_without_basis_is_undocumented():
+    from schemas.depth_model import active_velocity
+    frame = SimpleNamespace(vertical_axis=SimpleNamespace(conversion=None))
+    rec = SimpleNamespace(metadata={"velocity_m_per_ns": 0.115})
+    assert active_velocity(frame, [rec]).model.basis is VelocityBasis.UNDOCUMENTED
+    rec_default = SimpleNamespace(metadata={"velocity_m_per_ns": DEFAULT_VELOCITY_M_PER_NS})
+    assert active_velocity(frame, [rec_default]).model.basis is VelocityBasis.ASSUMED_DEFAULT
