@@ -263,6 +263,17 @@ class CandidateReview(BaseModel):
             )
         if self.trace_range[0] > self.trace_range[1]:
             raise ValueError(f"trace_range {self.trace_range} is inverted")
+        # A review is a human reading the radar. It can never be independent of
+        # the radar, so no constructor -- and no stored or edited JSON reloaded
+        # through this model -- may carry a stronger grade or another source.
+        if self.evidence_grade is not EvidenceGrade.C_OPERATOR_REVIEWED:
+            raise ValueError(
+                f"a review's evidence_grade is always {EvidenceGrade.C_OPERATOR_REVIEWED.value!r}"
+                f" (a human reading the radar), not {self.evidence_grade.value!r}")
+        if self.label_source is not SegmentationLabelSource.OPERATOR_REVIEWED:
+            raise ValueError(
+                f"a review's label_source is always "
+                f"{SegmentationLabelSource.OPERATOR_REVIEWED.value!r}, not {self.label_source.value!r}")
         if self.id is None:
             self.id = make_review_id(self.dataset_id, self.candidate_id,
                                      self.source_file, self.trace_range)
