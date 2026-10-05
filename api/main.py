@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse
 from database.session import init_db
 from auth.mailer import configure_from_environment
 from jobs.runner import mark_orphaned_jobs_failed
-from api.routes import volumes
+from api.routes import regions, volumes
 from api.routes import (datasets, fusion, benchmark, sources, training,
                         provenance, labels, overlays, objects, views,
                         exports, imports, auth, spatial, devices, candidates,
@@ -87,6 +87,7 @@ app.include_router(scene.router, prefix="/api/scene", tags=["scene"])
 app.include_router(reviews.router, prefix="/api/reviews", tags=["reviews"])
 app.include_router(integrity.router, prefix="/api/integrity", tags=["integrity"])
 app.include_router(volumes.router, prefix="/api/volumes", tags=["volumes"])
+app.include_router(regions.router, prefix="/api/volumes", tags=["regions"])
 
 
 @app.get("/api/health", tags=["system"])
