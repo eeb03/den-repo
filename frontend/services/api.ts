@@ -67,6 +67,10 @@ import type {
   OpenTopographyDemTypes,
   SourceSearchResult,
 } from '@/types/subterra'
+import type {
+  GroundTruthOverlay, Orientation, FieldName, VolumeConfig, VolumeListItem, VolumePreview,
+  VolumeProduct, VolumeRender3D, VolumeSlice, VoxelInfo,
+} from '@/types/volume'
 
 /**
  * Base URL of the FastAPI backend. The single place this is decided.
@@ -624,6 +628,46 @@ export const api = {
    */
   getCandidates(datasetId: string): Promise<CandidateIntelligence> {
     return request(`/api/candidates/${encodeURIComponent(datasetId)}`)
+  },
+
+  /* ------------------------------- volumes ------------------------------- */
+
+  /** What a volume build would do for this dataset, or exactly why it cannot. */
+  previewVolume(datasetId: string, config: VolumeConfig): Promise<VolumePreview> {
+    return postJson(`/api/volumes/${encodeURIComponent(datasetId)}/preview`, config)
+  },
+
+  /** Build a volume. The backend refuses without explicit confirmation. */
+  createVolume(datasetId: string, config: VolumeConfig): Promise<VolumeProduct> {
+    return postJson(`/api/volumes/${encodeURIComponent(datasetId)}`, { confirm: true, config })
+  },
+
+  listVolumes(datasetId: string): Promise<{ dataset_id: string; volumes: VolumeListItem[] }> {
+    return request(`/api/volumes/${encodeURIComponent(datasetId)}`)
+  },
+
+  getVolume(datasetId: string, volumeId: string): Promise<VolumeProduct> {
+    return request(`/api/volumes/${encodeURIComponent(datasetId)}/${encodeURIComponent(volumeId)}`)
+  },
+
+  getVolumeSlice(datasetId: string, volumeId: string, orientation: Orientation, index: number,
+                 field: FieldName, thickness = 1): Promise<VolumeSlice> {
+    const qs = new URLSearchParams({ orientation, index: String(index), field, thickness: String(thickness) })
+    return request(`/api/volumes/${encodeURIComponent(datasetId)}/${encodeURIComponent(volumeId)}/slice?${qs}`)
+  },
+
+  getVoxel(datasetId: string, volumeId: string, i: number, j: number, k: number): Promise<VoxelInfo> {
+    const qs = new URLSearchParams({ i: String(i), j: String(j), k: String(k) })
+    return request(`/api/volumes/${encodeURIComponent(datasetId)}/${encodeURIComponent(volumeId)}/voxel?${qs}`)
+  },
+
+  getVolumeRender3d(datasetId: string, volumeId: string, field: FieldName, maxDim = 160): Promise<VolumeRender3D> {
+    const qs = new URLSearchParams({ field, max_dim: String(maxDim) })
+    return request(`/api/volumes/${encodeURIComponent(datasetId)}/${encodeURIComponent(volumeId)}/render3d?${qs}`)
+  },
+
+  getVolumeGroundTruth(datasetId: string, volumeId: string): Promise<GroundTruthOverlay> {
+    return request(`/api/volumes/${encodeURIComponent(datasetId)}/${encodeURIComponent(volumeId)}/ground_truth`)
   },
 
   /* -------------------------------- scene -------------------------------- */

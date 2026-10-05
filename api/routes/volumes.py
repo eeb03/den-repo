@@ -55,7 +55,7 @@ def create(dataset_id: str, body: dict = Body(...), user: User = Depends(get_cur
     try:
         return svc.create(dataset_id, config, created_by=user.email)
     except VolumeRefused as exc:
-        raise HTTPException(status_code=409, detail={"refused": exc.reasons})
+        raise HTTPException(status_code=409, detail="refused: " + "; ".join(exc.reasons))
 
 
 @router.get("/{dataset_id}")

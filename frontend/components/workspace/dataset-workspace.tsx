@@ -118,6 +118,12 @@ export function DatasetWorkspace({ datasetId }: { datasetId: string }) {
             >
               View dataset report
             </Link>
+            <Link
+              href={`/datasets/${encodeURIComponent(datasetId)}/volume`}
+              className="ml-3 mt-3 inline-flex text-xs text-primary underline-offset-4 hover:underline"
+            >
+              Open volume viewer
+            </Link>
 
             <SectionLabel count={layers.data?.layer_count}>Layers</SectionLabel>
             <QueryState
