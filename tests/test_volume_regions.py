@@ -147,15 +147,15 @@ def test_connectivity_modes_differ_on_diagonal_contact():
     f, s, d = _base()
     for n in range(12):                          # a voxel-wide diagonal chain
         f[20 + n, 20 + n, 30] = 60.0
-        f[20 + n, 20 + n, 31] = 60.0
-        f[21 + n, 20 + n, 30] = 60.0
+        f[20 + n, 20 + n, 31] = 60.0          # successive pairs touch only along an edge
     kw = dict(min_voxels=5, use_local_contrast=False)
     six = _run(f, s, d, connectivity=6, **kw)["regions"]
+    e18 = _run(f, s, d, connectivity=18, **kw)["regions"]
     t26 = _run(f, s, d, connectivity=26, **kw)["regions"]
-    assert len(t26) == 1
-    # 6-connectivity does not join voxels that only touch along an edge: the
-    # chain falls apart (fewer, smaller or no surviving components)
-    assert len(six) != 1 or six[0].voxel_count < t26[0].voxel_count
+    assert len(t26) == 1 and len(e18) == 1 and t26[0].voxel_count == 24
+    # 6-connectivity does not join voxels that only share an edge: the chain
+    # falls apart into 2-voxel pieces, all below min_voxels
+    assert six == []
     with pytest.raises(ValueError):
         _run(f, s, d, connectivity=7)
 
