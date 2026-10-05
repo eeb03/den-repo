@@ -321,6 +321,62 @@ def _validated_time_zero(value: dict) -> dict:
     }
 
 
+def _validated_depth_calibration(value: dict) -> dict:
+    """
+    Reflectors at independently known depths, with their radar time picks; the
+    fit is run here and a refused fit is a refused declaration -- with the rule
+    that failed -- never an adjusted one. See `schemas.depth_calibration`.
+    """
+    from schemas.depth_calibration import (
+        CalibrationError, CalibrationPoint, fit_depth_calibration,
+    )
+
+    raw_points = _require(value.get("points"), "points")
+    if not isinstance(raw_points, list):
+        raise DeclarationError("points must be a list of calibration points")
+    try:
+        points = [CalibrationPoint.from_dict(p) for p in raw_points]
+        result = fit_depth_calibration(
+            points, pick_convention=_require(value.get("pick_convention"), "pick_convention"),
+            pick_precision_ns=value.get("pick_precision_ns"),
+            fixed_t0_ns=value.get("fixed_t0_ns"),
+            fixed_velocity_m_per_ns=value.get("fixed_velocity_m_per_ns"))
+    except CalibrationError as exc:
+        raise DeclarationError(str(exc))
+    if not result.calibrated:
+        raise DeclarationError("calibration refused: " + "; ".join(result.reasons))
+    reflectors = [p.reflector_id for p in points if p.reflector_id]
+    return {
+        "points": [p.as_dict() for p in points],
+        "fit": result.as_dict(),
+        "basis": str(value.get("basis") or
+                     f"fitted to {len(points)} reflector(s) at depths known from "
+                     f"{', '.join(sorted({p.depth_source.value for p in points}))}"),
+        "calibration_reflector_ids": reflectors,
+    }
+
+
+def _calibration_conversion(value: dict, declaration_id: Optional[str]) -> dict:
+    """The velocity half of a DEPTH_CALIBRATION, as an axis conversion."""
+    fit = value["fit"]
+    return {
+        "method": "constant_velocity",
+        "velocity_m_per_ns": fit["velocity_m_per_ns"],
+        "basis": value["basis"],
+        "velocity_basis": "calibrated_from_known_geometry",
+        "velocity_method": (f"known-geometry calibration: least squares on {fit['n_points']} "
+                            f"reflector(s), {fit['pick_convention']} picks"
+                            + (f", {fit['fixed']} held fixed" if fit.get("fixed") else "")),
+        "velocity_uncertainty_m_per_ns": fit.get("velocity_std_m_per_ns"),
+        "derived": True,
+        "declaration_id": declaration_id,
+        "calibration": {"redundant": fit["redundant"], "t0_ns": fit["t0_ns"],
+                        "rms_residual_ns": fit["rms_residual_ns"],
+                        "reflector_ids": value.get("calibration_reflector_ids") or [],
+                        "time_zero_superseded": False},
+    }
+
+
 def _validated_geo_tie(value: dict) -> dict:
     """Control points, checked by the existing tie builder."""
     from ingestion.geo_tie import build_geo_tie
@@ -425,6 +481,7 @@ _VALIDATORS = {
     DeclarationKind.ANTENNA_OFFSET: _validated_antenna_offset,
     DeclarationKind.DEPTH_CONVERSION: _validated_depth_conversion,
     DeclarationKind.TIME_ZERO: _validated_time_zero,
+    DeclarationKind.DEPTH_CALIBRATION: _validated_depth_calibration,
     DeclarationKind.GEO_TIE: _validated_geo_tie,
     DeclarationKind.AFFINE_TIE: _validated_affine_tie,
     DeclarationKind.SURFACE_REFERENCE: _validated_surface_reference,
@@ -474,6 +531,13 @@ def _assumption_for(kind: DeclarationKind, value: dict, supplied_by: str) -> Ass
         DeclarationKind.TIME_ZERO:
             f"time-zero correction {value.get('correction_ns')} ns from "
             f"{value.get('source')} ({value.get('basis') or 'no basis recorded'})",
+        DeclarationKind.DEPTH_CALIBRATION:
+            (f"time zero {value.get('fit', {}).get('t0_ns')} ns and velocity "
+             f"{value.get('fit', {}).get('velocity_m_per_ns')} m/ns calibrated on "
+             f"{value.get('fit', {}).get('n_points')} reflector(s) at known depths "
+             f"({value.get('basis')}; rms residual "
+             f"{value.get('fit', {}).get('rms_residual_ns')} ns"
+             + ("" if value.get("fit", {}).get("redundant") else "; NOT redundant") + ")"),
         DeclarationKind.GEO_TIE:
             f"{len(value.get('control_points') or [])} control point(s)",
         DeclarationKind.AFFINE_TIE:
@@ -497,6 +561,8 @@ def _assumption_for(kind: DeclarationKind, value: dict, supplied_by: str) -> Ass
         }
     elif kind == DeclarationKind.TIME_ZERO:
         assumption_value = value.get("correction_ns")
+    elif kind == DeclarationKind.DEPTH_CALIBRATION:
+        assumption_value = value.get("fit")
     else:
         assumption_value = (value.get("code") or value.get("velocity_m_per_ns")
                             or value.get("offset_m") or value.get("surface_dataset_id")
@@ -595,6 +661,7 @@ def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
         conversion = {**value, "declaration_id": declaration_id}
         for frame in eligible:
             frame.vertical_axis = frame.vertical_axis.model_copy(update={"conversion": conversion})
+            _unpair_calibrated_time_zero(frame)
             changed.append(frame.frame_id)
 
     elif kind == DeclarationKind.TIME_ZERO:
@@ -624,7 +691,46 @@ def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
         for frame in eligible:
             frame.assumptions = [a for a in (frame.assumptions or [])
                                  if a.key != APPLIED_TIME_ZERO_KEY]
+            _supersede_calibrated_time_zero(frame)
         changed = [f.frame_id for f in eligible]
+
+    elif kind == DeclarationKind.DEPTH_CALIBRATION:
+        # ONE LINE'S PICKS CALIBRATE ONE LINE. Applying another line's time zero
+        # to a frame it was not picked on would be a guess presented as a fit.
+        if frame_id is None:
+            raise DeclarationError(
+                "a depth calibration is fitted to one survey line's picks: name its frame_id")
+        eligible = [f for f in targets if f.vertical_axis.kind in _TIME_AXIS_KINDS]
+        if not eligible:
+            raise DeclarationError(
+                "this frame carries no measured time axis, so there is nothing to calibrate")
+        # BOTH HALVES TOGETHER. t0 and v were fitted as a pair; they are written
+        # as a pair -- the velocity onto the axis conversion, the time zero as the
+        # frame's applied result -- and the records are corrected and rederived
+        # below, so no stored depth ever pairs this velocity with another t0.
+        from schemas.time_zero import (
+            APPLIED_TIME_ZERO_KEY, TimeZeroMethod, TimeZeroResult, TimeZeroStatus,
+        )
+        fit = value["fit"]
+        for frame in eligible:
+            frame.vertical_axis = frame.vertical_axis.model_copy(
+                update={"conversion": _calibration_conversion(value, declaration_id)})
+            result = TimeZeroResult(
+                status=TimeZeroStatus.CALIBRATED,
+                method=TimeZeroMethod.KNOWN_GEOMETRY_CALIBRATION,
+                correction_ns=fit["t0_ns"], applied=True, redundant=fit["redundant"],
+                basis=(f"fitted with the velocity to {fit['n_points']} reflector(s) at "
+                       f"independently known depths ({value['basis']}); rms residual "
+                       f"{fit['rms_residual_ns']} ns, {fit['pick_convention']} picks"),
+                source="DeclarationKind.DEPTH_CALIBRATION", declaration_id=declaration_id)
+            frame.assumptions = [a for a in (frame.assumptions or [])
+                                 if a.key != APPLIED_TIME_ZERO_KEY] + [Assumption(
+                key=APPLIED_TIME_ZERO_KEY, value=result.model_dump(mode="json"),
+                verified=False,
+                basis=(f"time zero calibrated by known-geometry calibration: correction "
+                       f"{fit['t0_ns']:g} ns applied to the records' corrected_time_ns (raw "
+                       f"two_way_time_ns kept). {result.basis}"))]
+            changed.append(frame.frame_id)
 
     elif kind == DeclarationKind.ANTENNA_OFFSET:
         # WRITTEN ONTO THE AXIS, which is what changed in stage 12. Before this
@@ -708,7 +814,8 @@ def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
     if kind in _DEPTH_INPUT_KINDS:
         depth_rederived = _rederive_stored_depth(
             dataset_id, [f for f in frames if f.frame_id in set(changed)],
-            revert_time_zero_first=(kind == DeclarationKind.TIME_ZERO))
+            revert_time_zero_first=(kind == DeclarationKind.TIME_ZERO),
+            apply_frame_time_zero=(kind == DeclarationKind.DEPTH_CALIBRATION))
 
     save_frames(dataset_id, frames)
     return {"frames_changed": changed,
@@ -721,7 +828,45 @@ def apply_declaration(dataset_id: str, kind: DeclarationKind, value: dict,
 #: rederives the depth of the affected frames in the same request, so a stored
 #: number never outlives the input it was computed from.
 _DEPTH_INPUT_KINDS = (DeclarationKind.DEPTH_CONVERSION, DeclarationKind.TIME_ZERO,
-                      DeclarationKind.ANTENNA_OFFSET)
+                      DeclarationKind.DEPTH_CALIBRATION, DeclarationKind.ANTENNA_OFFSET)
+
+
+def _unpair_calibrated_time_zero(frame) -> None:
+    """
+    A new velocity replaces a calibration's velocity. Its time zero was fitted
+    WITH that velocity, so it stays applied but no longer counts as redundant.
+    """
+    from schemas.time_zero import APPLIED_TIME_ZERO_KEY, TimeZeroResult, TimeZeroStatus
+
+    a = frame.assumption(APPLIED_TIME_ZERO_KEY)
+    if a is None or not isinstance(a.value, dict):
+        return
+    try:
+        result = TimeZeroResult.model_validate(a.value)
+    except ValueError:
+        return
+    if result.status is not TimeZeroStatus.CALIBRATED or not result.redundant:
+        return
+    result = result.model_copy(update={
+        "redundant": False,
+        "basis": result.basis + "; its paired velocity has since been replaced by a "
+                                "depth-conversion declaration"})
+    frame.assumptions = [x for x in frame.assumptions if x.key != APPLIED_TIME_ZERO_KEY] + [
+        a.model_copy(update={"value": result.model_dump(mode="json")})]
+
+
+def _supersede_calibrated_time_zero(frame) -> None:
+    """
+    A new TIME_ZERO declaration replaces a calibration's time zero, but not its
+    velocity. That velocity was fitted WITH the old t0, so once they are no
+    longer a pair it stays usable and stops counting as scientifically
+    sufficient. The conversion records which.
+    """
+    axis = getattr(frame, "vertical_axis", None)
+    conv = getattr(axis, "conversion", None) or {}
+    if conv.get("velocity_basis") == "calibrated_from_known_geometry" and conv.get("calibration"):
+        cal = {**conv["calibration"], "time_zero_superseded": True}
+        frame.vertical_axis = axis.model_copy(update={"conversion": {**conv, "calibration": cal}})
 _TIME_AXIS_KINDS = (AxisKind.TWO_WAY_TIME_NS, AxisKind.TWO_WAY_TIME_MS, AxisKind.TWO_WAY_TIME_S)
 
 
@@ -736,7 +881,8 @@ def _note_declaration_id(frame, kind: DeclarationKind, declaration_id: str) -> N
                    basis="the spatial declaration log id ACTIVE on this frame, per kind")]
 
 
-def _rederive_stored_depth(dataset_id: str, frames, revert_time_zero_first: bool) -> list[str]:
+def _rederive_stored_depth(dataset_id: str, frames, revert_time_zero_first: bool,
+                           apply_frame_time_zero: bool = False) -> list[str]:
     """
     Rederive the stored depth of `frames` (time-axis frames only) from their
     now-active inputs, and save the records. A new TIME_ZERO declaration first
@@ -759,6 +905,14 @@ def _rederive_stored_depth(dataset_id: str, frames, revert_time_zero_first: bool
         frame_records = by_frame.get(frame_id, [])
         if revert_time_zero_first:
             revert_time_zero(frame_records)
+        if apply_frame_time_zero:
+            # The frame's applied result was just written (DEPTH_CALIBRATION):
+            # put its correction on the records before deriving depth from it.
+            from preprocessing.time_zero import apply_time_zero_correction
+            from schemas.depth_model import _applied_time_zero
+            tz = _applied_time_zero(frame)
+            if tz is not None:
+                apply_time_zero_correction(frame_records, tz)
         rederive_depth(frame, frame_records)
     if by_frame:
         save_records(dataset_id, records)

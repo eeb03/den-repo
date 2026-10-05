@@ -70,6 +70,9 @@ class DeclarationKind(str, Enum):
     #: it. See `schemas.time_zero` for the full vocabulary this represents;
     #: this declaration is the OPERATOR_DECLARED route into it.
     TIME_ZERO = "time_zero"
+    #: Time zero AND velocity fitted together to reflectors at depths known
+    #: without the radar (`schemas.depth_calibration`). One survey line.
+    DEPTH_CALIBRATION = "depth_calibration"
     #: Control points tying an along-track axis to real coordinates.
     GEO_TIE = "geo_tie"
     #: Control points tying a genuine 2D local coordinate (not an

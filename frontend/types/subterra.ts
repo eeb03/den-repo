@@ -1464,6 +1464,7 @@ export type DeclarationKind =
   | 'surface_reference'
   | 'orientation'
   | 'time_zero'
+  | 'depth_calibration'
 
 export interface DimensionState {
   dimension: SpatialDimensionName

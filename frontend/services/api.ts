@@ -367,6 +367,7 @@ export const api = {
     value: Record<string, unknown>,
     suppliedBy: string,
     note?: string,
+    frameId?: string,
   ): Promise<{
     declaration: SpatialDeclaration
     applied: { frames_changed: string[] }
@@ -377,6 +378,8 @@ export const api = {
       value,
       supplied_by: suppliedBy,
       note,
+      // One survey line only (a depth calibration is fitted to one line's picks).
+      ...(frameId ? { frame_id: frameId } : {}),
     })
   },
 

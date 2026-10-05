@@ -59,6 +59,10 @@ class TimeZeroMethod(str, Enum):
     #: A robust, cross-trace consensus pick of the direct/coupling-wave
     #: onset, algorithmic, from the trace amplitudes themselves.
     DIRECT_WAVE_CONSENSUS = "direct_wave_consensus"
+    #: Fitted together with a velocity to reflectors whose depth is known
+    #: without the radar (`schemas.depth_calibration`), declared through
+    #: `DeclarationKind.DEPTH_CALIBRATION`.
+    KNOWN_GEOMETRY_CALIBRATION = "known_geometry_calibration"
 
 
 class TimeZeroStatus(str, Enum):
@@ -80,6 +84,10 @@ class TimeZeroStatus(str, Enum):
     UNAVAILABLE = "unavailable"
     DECLARED = "declared"
     DERIVED = "derived"
+    #: Fitted to reflectors at independently known depths. Evidence-based, but
+    #: scientifically sufficient only when the fit was redundant (>= 3 points,
+    #: leave-one-out passed) -- see `TimeZeroResult.redundant`.
+    CALIBRATED = "calibrated"
     MEASURED = "measured"
     INCONCLUSIVE = "inconclusive"
     FAILED = "failed"
@@ -87,7 +95,8 @@ class TimeZeroStatus(str, Enum):
 
 #: The statuses that mean a numeric correction actually exists and may be applied.
 RESOLVED_TIME_ZERO_STATUSES: tuple[TimeZeroStatus, ...] = (
-    TimeZeroStatus.DECLARED, TimeZeroStatus.DERIVED, TimeZeroStatus.MEASURED,
+    TimeZeroStatus.DECLARED, TimeZeroStatus.DERIVED, TimeZeroStatus.CALIBRATED,
+    TimeZeroStatus.MEASURED,
 )
 
 
@@ -135,6 +144,10 @@ class TimeZeroResult(BaseModel):
     #: onset, or a failed validity check in `preprocessing.time_zero`).
     #: None when every trace gave a valid pick or the method never ran.
     pick_rejections: Optional[dict[str, int]] = None
+    #: CALIBRATED only: whether the calibration had redundancy (>= 3 points and a
+    #: passed leave-one-out check). A non-redundant calibration is operational
+    #: but not scientifically sufficient.
+    redundant: Optional[bool] = None
 
     @property
     def resolved(self) -> bool:

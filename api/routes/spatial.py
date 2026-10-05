@@ -74,6 +74,12 @@ def vocabulary():
             {"value": DeclarationKind.DEPTH_CONVERSION.value,
              "declares": "a propagation velocity, turning measured time into derived depth",
              "requires": ["velocity_m_per_ns"]},
+            {"value": DeclarationKind.DEPTH_CALIBRATION.value,
+             "declares": "time zero and velocity fitted together on one line to reflectors "
+                         "whose depth is known without the radar (cores, as-built records, "
+                         "a known thickness); refused, not adjusted, when the fit is "
+                         "under-determined, impossible or inconsistent",
+             "requires": ["points", "pick_convention", "frame_id"]},
             {"value": DeclarationKind.GEO_TIE.value,
              "declares": "control points tying an along-track axis to real coordinates",
              "requires": ["control_points"]},
@@ -89,6 +95,8 @@ def vocabulary():
             "declaring a CRS is always supplied_by_caller -- a user cannot assert that the "
             "source declared something",
             "a velocity produces DERIVED depth, never measured depth",
+            "a depth calibration is scientifically sufficient only with >= 3 reflectors and a "
+            "passed leave-one-out check, and only while its time zero and velocity stay paired",
             "a GeoTie writes registered_position and never overwrites the acquisition's own "
             "position",
             "linking a surface model does not make it usable; assess_surface decides that",

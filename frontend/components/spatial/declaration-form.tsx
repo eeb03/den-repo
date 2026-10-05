@@ -198,6 +198,44 @@ const FIELDS: Record<
       },
     ],
   },
+  depth_calibration: {
+    title: 'Calibrate depth on known reflectors',
+    explain:
+      'Time zero and velocity fitted together, on one survey line, to reflectors whose depth is known without the radar — a core, an as-built drawing, a known slab thickness — and the two-way time at which you picked each one.',
+    consequence:
+      'Refused, never adjusted, when the fit is under-determined, physically impossible or inconsistent with your pick precision. Three or more reflectors allow a leave-one-out check; only then is the calibrated depth scientifically sufficient. Two reflectors fit exactly and are never checked. Depth stays DERIVED, never measured, and these reflectors cannot later serve as validation of the same calibration.',
+    inputs: [
+      {
+        name: 'frame_id',
+        label: 'Survey line (frame id)',
+        placeholder: 'd:line1',
+        hint: 'the one line these picks were read on',
+      },
+      {
+        name: 'pick_convention',
+        label: 'How each time was picked',
+        options: [
+          { value: 'onset', label: 'onset of the reflection' },
+          { value: 'peak', label: 'peak of the reflection' },
+          { value: 'zero_crossing', label: 'zero crossing' },
+        ],
+        selectPlaceholder: 'choose the convention you used',
+      },
+      {
+        name: 'pick_precision_ns',
+        label: 'Pick precision (nanoseconds)',
+        placeholder: '0.25',
+        hint: 'how far a pick may honestly be off; residuals beyond 3× this are refused',
+        optional: true,
+      },
+      {
+        name: 'points',
+        label: 'Reflectors',
+        placeholder: '0.10, 3.17, core_or_borehole, core C1\n0.30, 6.50, construction_record, as-built sheet 4',
+        hint: 'one per line: known depth (m), picked two-way time (ns), depth source, evidence[, reflector id] — sources: construction_record, design_specification, core_or_borehole, excavation, survey_instrument, tape_measurement, fabrication_drawing',
+      },
+    ],
+  },
   geo_tie: {
     title: 'Define a spatial tie',
     explain:
@@ -287,6 +325,25 @@ function parseAffineControlPoints(raw: string): unknown {
     })
 }
 
+export function parseCalibrationPoints(raw: string): unknown {
+  return raw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [depth, time, source, evidence, reflectorId] = line
+        .split(',')
+        .map((part) => part.trim())
+      return {
+        depth_m: Number(depth),
+        time_ns: Number(time),
+        depth_source: source,
+        depth_evidence: evidence,
+        ...(reflectorId ? { reflector_id: reflectorId } : {}),
+      }
+    })
+}
+
 export function DeclarationForm({
   datasetId,
   kind,
@@ -311,19 +368,32 @@ export function DeclarationForm({
     setError(null)
     try {
       const payload: Record<string, unknown> = {}
+      let frameId: string | undefined
       for (const input of spec.inputs) {
         const raw = values[input.name] ?? ''
         // An omitted optional field is ABSENT, not empty. Submitting "" would
         // record that somebody named the field and named it nothing.
         if (input.optional && raw.trim() === '') continue
+        if (input.name === 'frame_id') {
+          frameId = raw.trim()
+          continue
+        }
         payload[input.name] =
           input.name === 'control_points'
             ? kind === 'affine_tie'
               ? parseAffineControlPoints(raw)
               : parseControlPoints(raw)
-            : raw
+            : input.name === 'points'
+              ? parseCalibrationPoints(raw)
+              : input.name === 'pick_precision_ns'
+                ? Number(raw)
+                : raw
       }
-      await api.declareSpatialReference(datasetId, kind, payload, suppliedBy)
+      if (frameId) {
+        await api.declareSpatialReference(datasetId, kind, payload, suppliedBy, undefined, frameId)
+      } else {
+        await api.declareSpatialReference(datasetId, kind, payload, suppliedBy)
+      }
       // The reference, the report and the workspace all read the frames.
       await mutate(['spatial-reference', datasetId])
       await mutate(['dataset-report', datasetId])
@@ -385,7 +455,7 @@ export function DeclarationForm({
                 </option>
               ))}
             </select>
-          ) : input.name === 'control_points' ? (
+          ) : input.name === 'control_points' || input.name === 'points' ? (
             <textarea
               id={`${kind}-${input.name}`}
               rows={3}

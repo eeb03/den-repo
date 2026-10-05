@@ -559,6 +559,13 @@ def resolve_time_zero_for_frame(
     if result.resolved:
         return result
 
+    # A KNOWN-GEOMETRY CALIBRATION outranks a bare declaration and Method C: its
+    # time zero was fitted together with the frame's active velocity, and
+    # re-running the hierarchy must not split that pair.
+    calibrated = _active_calibration_time_zero(frame)
+    if calibrated is not None:
+        return calibrated
+
     declared = frame.assumption(DECLARED_TIME_ZERO_KEY)
     if declared is not None:
         try:
@@ -616,6 +623,25 @@ def resolve_time_zero_for_frame(
         whole_traces = [t.model_copy(update={"signal": t.signal[markers:]}) for t in whole_traces]
         start += markers * sample_interval_ns
     return direct_wave_consensus_time_zero(whole_traces, sample_interval_ns, start_time_ns=start)
+
+
+def _active_calibration_time_zero(frame) -> Optional[TimeZeroResult]:
+    """The applied CALIBRATED result, while its paired velocity is still active."""
+    from schemas.time_zero import APPLIED_TIME_ZERO_KEY
+
+    a = frame.assumption(APPLIED_TIME_ZERO_KEY) if hasattr(frame, "assumption") else None
+    if a is None or not isinstance(a.value, dict):
+        return None
+    try:
+        result = TimeZeroResult.model_validate(a.value)
+    except ValueError:
+        return None
+    if result.status is not TimeZeroStatus.CALIBRATED:
+        return None
+    conv = getattr(getattr(frame, "vertical_axis", None), "conversion", None) or {}
+    if conv.get("velocity_basis") != "calibrated_from_known_geometry":
+        return None
+    return result.model_copy(update={"applied": False})
 
 
 #: The converter-recorded count of leading samples that may be vendor markers.

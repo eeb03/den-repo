@@ -352,6 +352,61 @@ describe('declaring', () => {
     )
   })
 
+  it('sends a depth calibration with its line, convention and parsed reflectors', async () => {
+    declareSpatialReference.mockResolvedValue({
+      declaration: {},
+      applied: { frames_changed: [] },
+      spatial_reference: reference(),
+    })
+    const { container } = renderForm('depth_calibration')
+    fireEvent.change(container.querySelector('#depth_calibration-frame_id')!, {
+      target: { value: 'd1:line1' },
+    })
+    fireEvent.change(container.querySelector('#depth_calibration-pick_convention')!, {
+      target: { value: 'peak' },
+    })
+    fireEvent.change(container.querySelector('#depth_calibration-points')!, {
+      target: {
+        value:
+          '0.10, 3.17, core_or_borehole, core C1, c1\n0.30, 6.50, construction_record, sheet 4',
+      },
+    })
+    fireEvent.change(container.querySelector('#depth_calibration-supplied-by')!, {
+      target: { value: 'site engineer' },
+    })
+    fireEvent.submit(container.querySelector('form')!)
+
+    await waitFor(() =>
+      expect(declareSpatialReference).toHaveBeenCalledWith(
+        'd1',
+        'depth_calibration',
+        {
+          pick_convention: 'peak',
+          points: [
+            { depth_m: 0.1, time_ns: 3.17, depth_source: 'core_or_borehole',
+              depth_evidence: 'core C1', reflector_id: 'c1' },
+            { depth_m: 0.3, time_ns: 6.5, depth_source: 'construction_record',
+              depth_evidence: 'sheet 4' },
+          ],
+        },
+        'site engineer',
+        undefined,
+        'd1:line1',
+      ),
+    )
+  })
+
+  it('says a calibration is refused rather than adjusted, and when it is sufficient', () => {
+    const { container } = renderForm('depth_calibration')
+    const text = container.querySelector('[data-consequence]')?.textContent ?? ''
+    expect(text).toContain('Refused, never adjusted')
+    expect(text).toContain('leave-one-out')
+    expect(text).toContain('never measured')
+    for (const input of container.querySelectorAll('input, textarea')) {
+      expect((input as HTMLInputElement).value).toBe('')
+    }
+  })
+
   it('says linking a surface model is not validating it', () => {
     const { container } = renderForm('surface_reference')
     expect(container.querySelector('[data-consequence]')?.textContent).toContain(

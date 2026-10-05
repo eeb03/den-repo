@@ -79,6 +79,10 @@ class VelocityBasis(str, Enum):
     #: Measured independently of the reflection data being interpreted (CMP/WARR,
     #: borehole, a known-depth reflector not used for scoring, probe permittivity).
     INDEPENDENT_MEASUREMENT = "independent_measurement"
+    #: Fitted together with a time zero to reflectors whose depth is known
+    #: without the radar (`schemas.depth_calibration`). Sufficient only when the
+    #: calibration was redundant and its paired time zero is still the active one.
+    CALIBRATED_FROM_KNOWN_GEOMETRY = "calibrated_from_known_geometry"
     #: A velocity is on record with NOTHING saying where it came from (a legacy
     #: conversion or record with no basis and no statement). Not a declaration:
     #: nobody is on record as having asserted it. Never resolves a depth.
@@ -92,6 +96,9 @@ class VelocityModel:
     method: Optional[str] = None
     uncertainty_m_per_ns: Optional[float] = None
     source: Optional[str] = None
+    #: CALIBRATED_FROM_KNOWN_GEOMETRY only: True when the calibration was redundant
+    #: AND its paired time zero has not been superseded by another declaration.
+    calibration_redundant: Optional[bool] = None
 
     def __post_init__(self):
         object.__setattr__(self, "basis", VelocityBasis(self.basis))
@@ -112,7 +119,9 @@ class VelocityModel:
     def as_dict(self) -> dict:
         return {"value_m_per_ns": self.value_m_per_ns, "basis": self.basis.value,
                 "method": self.method, "uncertainty_m_per_ns": self.uncertainty_m_per_ns,
-                "independent_of_survey": self.independent_of_survey, "source": self.source}
+                "independent_of_survey": self.independent_of_survey, "source": self.source,
+                **({"calibration_redundant": self.calibration_redundant}
+                   if self.basis is VelocityBasis.CALIBRATED_FROM_KNOWN_GEOMETRY else {})}
 
 
 def velocity_model_of(conversion: Optional[dict[str, Any]]) -> Optional[VelocityModel]:
@@ -139,10 +148,13 @@ def velocity_model_of(conversion: Optional[dict[str, Any]]) -> Optional[Velocity
             basis = VelocityBasis.ASSUMED_DEFAULT
         else:
             basis = VelocityBasis.UNDOCUMENTED
+    calibration = conversion.get("calibration") or {}
+    redundant = (bool(calibration.get("redundant"))
+                 and not calibration.get("time_zero_superseded")) if calibration else None
     return VelocityModel(value_m_per_ns=v, basis=basis,
                          method=conversion.get("velocity_method"),
                          uncertainty_m_per_ns=conversion.get("velocity_uncertainty_m_per_ns"),
-                         source=conversion.get("basis"))
+                         source=conversion.get("basis"), calibration_redundant=redundant)
 
 
 class DepthStatus(str, Enum):
@@ -184,13 +196,26 @@ class DepthReadiness:
 #: data: an operator's declaration or an instrument measurement. A DERIVED
 #: (Method C) pick is operationally usable and scientifically insufficient.
 SCIENTIFIC_TIME_ZERO_STATUSES = ("declared", "measured")
-#: Velocity bases the benchmark depth gate accepts.
+#: Velocity bases the benchmark depth gate accepts. A known-geometry calibration
+#: counts only when redundant and still paired with its own time zero.
 SCIENTIFIC_VELOCITY_BASES = (VelocityBasis.USER_DECLARED, VelocityBasis.LITERATURE,
-                             VelocityBasis.INDEPENDENT_MEASUREMENT)
+                             VelocityBasis.INDEPENDENT_MEASUREMENT,
+                             VelocityBasis.CALIBRATED_FROM_KNOWN_GEOMETRY)
 
 
 def velocity_is_scientifically_sufficient(velocity: VelocityModel) -> bool:
+    if velocity.basis is VelocityBasis.CALIBRATED_FROM_KNOWN_GEOMETRY:
+        return velocity.calibration_redundant is True
     return velocity.basis in SCIENTIFIC_VELOCITY_BASES
+
+
+def time_zero_is_scientifically_sufficient(time_zero) -> bool:
+    """Declared or measured; or calibrated with redundancy. Never Method C."""
+    if time_zero is None or not time_zero.resolved:
+        return False
+    if time_zero.status.value == "calibrated":
+        return time_zero.redundant is True
+    return time_zero.status.value in SCIENTIFIC_TIME_ZERO_STATUSES
 
 
 def _reference_of(axis) -> tuple[bool, Optional[str]]:
@@ -222,14 +247,21 @@ def assess_depth_readiness(axis, time_zero=None, recording_delay_ns: Optional[fl
            "correction_ns": time_zero.correction_ns, "basis": time_zero.basis,
            "declaration_id": time_zero.declaration_id,
            "operationally_available": time_zero.resolved,
-           "scientifically_sufficient": time_zero.status.value in SCIENTIFIC_TIME_ZERO_STATUSES}
+           "redundant": time_zero.redundant,
+           "scientifically_sufficient": time_zero_is_scientifically_sufficient(time_zero)}
           if time_zero is not None else
           {"status": "unavailable", "method": "none", "correction_ns": None,
            "basis": "no time zero has been declared, measured or derived",
            "declaration_id": None, "operationally_available": False,
            "scientifically_sufficient": False})
     notes = []
-    if time_zero is not None and time_zero.resolved \
+    if time_zero is not None and time_zero.status.value == "calibrated":
+        notes.append("time zero and velocity were calibrated together on reflectors at "
+                     "independently known depths" + (
+                         "" if time_zero.redundant else
+                         "; the calibration has no redundancy (fewer than 3 points or a fixed "
+                         "partner), so it is operational but not scientifically sufficient"))
+    elif time_zero is not None and time_zero.resolved \
             and time_zero.status.value not in SCIENTIFIC_TIME_ZERO_STATUSES:
         notes.append("the time zero is an automatic estimate from this survey's own waveform "
                      f"({time_zero.method.value}); usable for processing and display, but not "
