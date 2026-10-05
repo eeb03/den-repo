@@ -249,3 +249,14 @@ def test_new_bam_artifacts_never_carry_the_ambiguous_field():
     assert '"localization_status"' not in src
     assert "bam_status_report()" in src
     assert "q.status != gates.RESOLVED" in src     # open_questions lists only unresolved ones
+
+
+def test_generic_localisation_output_is_labelled_horizontal_only_and_not_a_capability():
+    """The generic manifest scorer matches horizontally; it must say so wherever it reports."""
+    import inspect
+
+    from benchmark import target_scoring
+    src = inspect.getsource(target_scoring)
+    assert '"depth_checked": False' in src
+    assert "not a capability claim" in src
+    assert "score_localization" in src

@@ -301,7 +301,14 @@ def score(artifact: PredictionArtifact, manifest: TargetManifest,
         dist = [m["distance"] for m in matches]
         localization = {"units": frame.units, "mean_abs": statistics.fmean(dist),
                         "median_abs": statistics.median(dist), "max_abs": max(dist),
-                        "note": "horizontal distance from the prediction to the target geometry"}
+                        "note": "horizontal distance from the prediction to the target geometry",
+                        "depth_checked": False,
+                        "interpretation": (
+                            "measurement on horizontally matched pairs only; a match here may sit "
+                            "at the wrong depth. It is not the pre-registered depth-checked "
+                            "localisation rule (benchmark.scoring.score_localization) and it is "
+                            "not a capability claim: scoreable is not validated (see "
+                            "benchmark.gates.CAPABILITY_STATUS)")}
 
     depth = None
     if depth_ok:
