@@ -165,8 +165,12 @@ describe('benchmark figures are not transformed in transit', () => {
     const viaAdapter = await api.getBenchmarkArtifact(bam.name)
     expect(viaAdapter).toEqual(JSON.parse(raw))
 
-    // and the gate survives
-    expect(viaAdapter.localization_status).toBe('BLOCKED')
+    // and the gate survives -- as a scoring gate, never merged with capability
+    const gate = viaAdapter.localization_scoring_status ?? viaAdapter.localization_status
+    expect(['BLOCKED', 'RESOLVED']).toContain(gate)
+    if (viaAdapter.localization_scoring_status === 'RESOLVED') {
+      expect(viaAdapter.capability_status?.current_detector_localisation).toBe('FAILED')
+    }
     expect(viaAdapter.parameters_changed_for_this_benchmark).toBe('none')
   })
 

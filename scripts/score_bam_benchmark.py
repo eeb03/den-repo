@@ -50,9 +50,10 @@ def main() -> int:
     report: dict = {
         "benchmark": "bam-concrete-gpr",
         "scope": gates.SCOPE_STATEMENT,
-        "localization_status": gates.LOCALIZATION_STATUS,
-        "localization_blocked_reason": gates.LOCALIZATION_BLOCKED_REASON,
-        "open_questions": [q.id for q in gates.OPEN_QUESTIONS],
+        # scoring gates and measured capability, side by side (never one field)
+        **gates.bam_status_report(),
+        "open_questions": [q.id for q in gates.OPEN_QUESTIONS if q.status != gates.RESOLVED],
+        "resolved_questions": [q.id for q in gates.OPEN_QUESTIONS if q.status == gates.RESOLVED],
         "threshold": args.threshold,
         "min_cells": args.min_cells,
         "parameters_changed_for_this_benchmark": "none",
@@ -97,8 +98,9 @@ def main() -> int:
     print(f"  recall={d['recall']} precision={d['precision']} f1={d['f1']}")
     print(f"  control Pk050: {fa['n_detections']} detections, "
           f"per_line={fa['detections_per_line']}, rate={fa['false_alarm_rate']}")
-    print(f"  localisation: {report['localization_status']} "
-          f"({report['localization_blocked_reason']})")
+    print(f"  localisation scoring gate: {report['localization_scoring_status']} (scoreable, not "
+          f"a performance claim); current detector localisation capability: "
+          f"{report['capability_status']['current_detector_localisation']}")
     print(f"  -> {args.out}")
     return 0
 

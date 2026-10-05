@@ -191,6 +191,17 @@ describe('a blocked gate stays blocked', () => {
     expect(container.textContent).not.toMatch(/RESOLVED/)
   })
 
+  it('a RESOLVED gate is rendered as scoreable, never as success', () => {
+    const { container } = render(
+      <BlockedGate label="Localisation scoring gate" status="RESOLVED" reason="drawings" />,
+    )
+    const gate = container.querySelector('[data-gate-status="RESOLVED"]') as HTMLElement
+    expect(gate.textContent).toContain('SCOREABLE')
+    expect(gate.textContent).toContain('This is not a performance result')
+    expect(gate.innerHTML).not.toMatch(/text-success|bg-success|border-success/)
+    expect(gate.textContent).not.toMatch(/validated|passed/i)
+  })
+
   it('a scope statement is rendered verbatim', () => {
     const scope =
       'BAM benchmark results measure performance on controlled concrete NDT specimens. They are not evidence of soil/utility-scale subsurface detection or localisation performance.'

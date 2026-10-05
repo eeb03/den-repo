@@ -252,13 +252,16 @@ describe('candidate is never promoted to detection', () => {
 })
 
 describe('the blocked gates stay blocked', () => {
-  it('renders both gates with BLOCKED intact', () => {
+  it('renders the opened BAM gate as scoreable with its FAILED result, and 4TU still BLOCKED', () => {
     const { container } = render(<StageGates />)
     const gates = container.querySelectorAll('[data-gate-status]')
     expect(gates).toHaveLength(2)
-    for (const gate of Array.from(gates)) {
-      expect(gate.getAttribute('data-gate-status')).toBe('BLOCKED')
-    }
+    const bam = container.querySelector('[data-gate="Concrete-specimen localisation scoring"]')!
+    expect(bam.getAttribute('data-gate-status')).toBe('RESOLVED')
+    expect(bam.textContent).toContain('This is not a performance result')
+    expect(bam.textContent).toContain('FAILED')
+    const fourtu = container.querySelector('[data-gate="Object-level utility scoring"]')!
+    expect(fourtu.getAttribute('data-gate-status')).toBe('BLOCKED')
   })
 
   it('never claims localisation is validated, unlocked or available', () => {
@@ -281,8 +284,10 @@ describe('the blocked gates stay blocked', () => {
     const source = landingSource().toLowerCase()
     expect(source).not.toMatch(/origin (is|has been) (verified|declared|established)/)
     expect(source).not.toMatch(/vertical datum (is|has been) (declared|established|resolved)/)
-    // the honest statements must still be present
-    expect(source).toContain('corroborated but not declared')
+    // the honest statements must still be present: the frame comes from the
+    // publisher's drawings, and the measured failure is stated, not hidden
+    expect(source).toContain("publisher's construction drawings declare the frame")
+    expect(source).toContain('localisation is failed')
     expect(source).toContain('undeclared')
   })
 })

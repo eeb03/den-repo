@@ -215,6 +215,53 @@ describe('a missing metric is stated, not omitted', () => {
 
 /* ------------------------------- gates and scope --------------------------- */
 
+describe('a scoreable gate is not a capability claim', () => {
+  const OPENED: BenchmarkArtifact = {
+    ...BAM,
+    localization_status: undefined,
+    localization_blocked_reason: undefined,
+    localization_scoring_status: 'RESOLVED',
+    localization_scoring_reason: 'frame, units and object coordinates from the appendix drawings. SCOREABLE ONLY',
+    depth_scoring_status: 'RESOLVED',
+    scoring_status_meaning: 'RESOLVED = sufficient independent ground truth to COMPUTE this metric.',
+    capability_status: {
+      current_detector_localisation: 'FAILED',
+      current_detector_detection: 'FAILED',
+      foam_block_depth: 'EXPERIMENTAL',
+      duct_depth_at_known_position_backwall_calibrated: 'PARTIALLY_VALIDATED',
+      method_c_depth_chain_time_zero: 'FAILED',
+    },
+  }
+
+  it('a resolved localisation gate renders as scoreable, beside a FAILED capability', () => {
+    const { container } = renderBam(OPENED)
+    const gate = container.querySelector('[data-gate="Localisation scoring gate"]')!
+    expect(gate.getAttribute('data-gate-status')).toBe('RESOLVED')
+    expect(gate.textContent).toContain('SCOREABLE')
+    expect(gate.textContent).toContain('This is not a performance result')
+    expect(gate.className).not.toMatch(/success/)
+    const loc = container.querySelector('[data-capability="current_detector_localisation"]')!
+    expect(loc.textContent).toContain('FAILED')
+  })
+
+  it('scoreable depth may still be EXPERIMENTAL or FAILED', () => {
+    const { container } = renderBam(OPENED)
+    expect(container.querySelector('[data-capability="foam_block_depth"]')!.textContent).toContain('EXPERIMENTAL')
+    expect(container.querySelector('[data-capability="method_c_depth_chain_time_zero"]')!.textContent).toContain('FAILED')
+  })
+
+  it('nothing on the panel says localisation is validated', () => {
+    const { container } = renderBam(OPENED)
+    expect(container.textContent).not.toMatch(/localis\w*\s*(validated|passed)/i)
+    expect(container.textContent).not.toMatch(/current detector localisation\s*VALIDATED/i)
+  })
+
+  it('a legacy artifact with the old field still renders its gate', () => {
+    const { container } = renderBam(BAM)
+    expect(container.querySelector('[data-gate-status="BLOCKED"]')).toBeTruthy()
+  })
+})
+
 describe('gates and scope are rendered, not softened', () => {
   it('BAM localisation shows BLOCKED with the recorded reason', () => {
     const { container } = renderBam()

@@ -22,7 +22,11 @@ RESOLVED = "RESOLVED"
 #: declared coordinate frame sufficient to COMPUTE the metric. It says nothing
 #: about how well any Subterra method performs -- that is `CAPABILITY_STATUS`
 #: below, which a gate change never edits.
-LOCALIZATION_STATUS = RESOLVED
+LOCALIZATION_SCORING_STATUS = RESOLVED
+#: DEPRECATED alias of LOCALIZATION_SCORING_STATUS, kept for existing callers.
+#: It is a SCORING gate (BLOCKED/RESOLVED), never a capability status. New
+#: code and artifacts must use `localization_scoring_status` / `bam_status_report()`.
+LOCALIZATION_STATUS = LOCALIZATION_SCORING_STATUS
 LOCALIZATION_BLOCKED_REASON = ""
 
 #: Depth scoring against the published geometry: SCOREABLE, under the same
@@ -70,6 +74,18 @@ VALIDATED = "VALIDATED"
 PARTIALLY_VALIDATED = "PARTIALLY_VALIDATED"
 EXPERIMENTAL = "EXPERIMENTAL"
 FAILED = "FAILED"
+
+#: Two vocabularies, never shared in one field:
+#:   scoring / evidence status   -- can the metric be COMPUTED against independent truth?
+#:   capability / performance    -- how well does a Subterra method do on it?
+SCORING_STATUSES = (BLOCKED, RESOLVED)
+CAPABILITY_STATUSES = (VALIDATED, PARTIALLY_VALIDATED, EXPERIMENTAL, FAILED, BLOCKED)
+SCORING_STATUS_MEANING = (
+    "RESOLVED = sufficient independent ground truth and coordinate information to COMPUTE "
+    "this metric. It is not a performance claim; see capability_status.")
+CAPABILITY_STATUS_MEANING = (
+    "measured performance of Subterra methods on this benchmark "
+    "(VALIDATED / PARTIALLY_VALIDATED / EXPERIMENTAL / FAILED / BLOCKED)")
 CAPABILITY_STATUS: dict[str, str] = {
     "dzt_ingestion": VALIDATED,
     "amplitude_preservation": VALIDATED,
@@ -228,10 +244,10 @@ def require_localization_evidence(what: str = "localisation scoring") -> None:
     Detection and false-alarm scoring must never call this -- they are
     independently executable, and a gate that blocked them would be wrong.
     """
-    if LOCALIZATION_STATUS != RESOLVED:
+    if LOCALIZATION_SCORING_STATUS != RESOLVED:
         unresolved = ", ".join(q.id for q in OPEN_QUESTIONS if q.status != RESOLVED)
         raise LocalizationBlocked(
-            f"{what} is {LOCALIZATION_STATUS}: {LOCALIZATION_BLOCKED_REASON}. "
+            f"{what} is {LOCALIZATION_SCORING_STATUS}: {LOCALIZATION_BLOCKED_REASON}. "
             f"Unresolved: {unresolved}. "
             f"Detection and false-alarm scoring remain available and do not "
             f"depend on the absolute origin. See "
@@ -305,3 +321,23 @@ SCOPE_STATEMENT = (
     "specimens. They are not evidence of soil/utility-scale subsurface "
     "detection or localisation performance."
 )
+
+
+def bam_status_report() -> dict:
+    """
+    The one shape reports, artifacts and the UI should consume: scoring gates and
+    measured capability side by side, each with its meaning, so RESOLVED can never
+    be read as "the platform performs this".
+    """
+    assert set(CAPABILITY_STATUS.values()) <= set(CAPABILITY_STATUSES)
+    return {
+        "localization_scoring_status": LOCALIZATION_SCORING_STATUS,
+        "localization_scoring_reason": LOCALIZATION_BLOCKED_REASON or LOCALIZATION_RESOLVED_BY,
+        "depth_scoring_status": DEPTH_SCORING_STATUS,
+        "detection_scoring_status": DETECTION_STATUS,
+        "scoring_status_meaning": SCORING_STATUS_MEANING,
+        "capability_status": dict(CAPABILITY_STATUS),
+        "capability_status_meaning": CAPABILITY_STATUS_MEANING,
+        "reference_frame_source": REFERENCE_FRAME_SOURCE,
+        "reference_frame_conflict": REFERENCE_FRAME_CONFLICT,
+    }

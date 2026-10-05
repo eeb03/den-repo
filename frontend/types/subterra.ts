@@ -640,8 +640,22 @@ export interface TraceGrid {
 
 /* -------------------------------- benchmark ------------------------------- */
 
-/** `benchmark.gates` uses exactly these two values. */
+/**
+ * A SCORING / EVIDENCE gate: can a metric be COMPUTED against independent
+ * ground truth? `RESOLVED` is never a performance claim -- see CapabilityStatus.
+ */
 export type GateStatus = 'BLOCKED' | 'RESOLVED'
+
+/**
+ * Measured CAPABILITY / PERFORMANCE of a Subterra method on a benchmark.
+ * A separate vocabulary from GateStatus; the two never share a field.
+ */
+export type CapabilityStatus =
+  | 'VALIDATED'
+  | 'PARTIALLY_VALIDATED'
+  | 'EXPERIMENTAL'
+  | 'FAILED'
+  | 'BLOCKED'
 
 export interface OpenQuestion {
   id: string
@@ -685,7 +699,17 @@ export interface BenchmarkArtifactsResponse {
 export interface BenchmarkArtifact {
   benchmark?: string
   scope?: string
+  /** Scoring gate (scoreable or not). Not a capability. */
+  localization_scoring_status?: GateStatus
+  localization_scoring_reason?: string
+  depth_scoring_status?: GateStatus
+  scoring_status_meaning?: string
+  /** Measured performance per capability, e.g. current_detector_localisation: FAILED. */
+  capability_status?: Record<string, CapabilityStatus>
+  capability_status_meaning?: string
+  /** @deprecated legacy artifacts only: the same scoring gate under an ambiguous name. */
   localization_status?: GateStatus
+  /** @deprecated legacy artifacts only. */
   localization_blocked_reason?: string
   object_level_status?: GateStatus
   object_level_blocked_reason?: string

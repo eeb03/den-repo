@@ -218,3 +218,34 @@ def test_current_detector_is_still_failed_after_the_gate_opens():
     assert r["recall"] == pytest.approx(res["baseline_detector"]["recall_LXZ"], abs=1e-4)
     assert r["recall"] < 0.05
     assert gates.CAPABILITY_STATUS["current_detector_localisation"] == gates.FAILED
+
+
+# ------------------------------------------------------------- vocabulary separation
+
+def test_scoring_and_capability_vocabularies_are_separate():
+    assert set(gates.SCORING_STATUSES) == {gates.BLOCKED, gates.RESOLVED}
+    assert gates.RESOLVED not in gates.CAPABILITY_STATUSES
+    assert gates.VALIDATED not in gates.SCORING_STATUSES
+    assert set(gates.CAPABILITY_STATUS.values()) <= set(gates.CAPABILITY_STATUSES)
+
+
+def test_the_legacy_name_is_an_alias_of_the_scoring_gate():
+    assert gates.LOCALIZATION_STATUS is gates.LOCALIZATION_SCORING_STATUS
+    assert gates.LOCALIZATION_SCORING_STATUS in gates.SCORING_STATUSES
+
+
+def test_the_status_report_puts_gate_and_capability_side_by_side():
+    r = gates.bam_status_report()
+    assert r["localization_scoring_status"] == gates.RESOLVED
+    assert "not a performance claim" in r["scoring_status_meaning"]
+    assert r["capability_status"]["current_detector_localisation"] == gates.FAILED
+    assert r["capability_status"]["foam_block_depth"] == gates.EXPERIMENTAL
+    assert "localization_status" not in r          # the ambiguous name is never emitted
+    assert r["reference_frame_conflict"] == gates.REFERENCE_FRAME_CONFLICT
+
+
+def test_new_bam_artifacts_never_carry_the_ambiguous_field():
+    src = Path("scripts/score_bam_benchmark.py").read_text()
+    assert '"localization_status"' not in src
+    assert "bam_status_report()" in src
+    assert "q.status != gates.RESOLVED" in src     # open_questions lists only unresolved ones

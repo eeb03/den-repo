@@ -157,7 +157,8 @@ def main() -> int:
         "experiment": "candidate lateral persistence (min_trace_span)",
         "benchmark": "bam-concrete-gpr",
         "scope": gates.SCOPE_STATEMENT,
-        "localization_status": gates.LOCALIZATION_STATUS,
+        "localization_scoring_status": gates.LOCALIZATION_SCORING_STATUS,
+        "capability_status": dict(gates.CAPABILITY_STATUS),
         "hypothesis": (
             "a candidate spanning only one trace column cannot be the response of "
             "an object that occupies space, so requiring lateral persistence "

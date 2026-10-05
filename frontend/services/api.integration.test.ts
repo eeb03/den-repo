@@ -214,12 +214,20 @@ describe('benchmark artifacts', () => {
     if (!bam) return
     const artifact = await api.getBenchmarkArtifact(bam.name)
 
-    // Gate status and reason must arrive intact.
-    expect(artifact.localization_status).toBe('BLOCKED')
-    expect(artifact.localization_blocked_reason).toBeTruthy()
+    // Gate status and reason must arrive intact. Newer artifacts carry the
+    // scoring gate and the measured capability in separate fields; legacy
+    // artifacts carry only the (then BLOCKED) gate.
     expect(artifact.scope).toBeTruthy()
-    expect(Array.isArray(artifact.open_questions)).toBe(true)
-    expect(artifact.open_questions!.length).toBeGreaterThan(0)
+    if (artifact.localization_scoring_status) {
+      expect(['BLOCKED', 'RESOLVED']).toContain(artifact.localization_scoring_status)
+      expect(artifact.localization_scoring_reason).toBeTruthy()
+      expect(artifact.capability_status?.current_detector_localisation).toBe('FAILED')
+      expect(Array.isArray(artifact.open_questions)).toBe(true)
+    } else {
+      expect(artifact.localization_status).toBe('BLOCKED')
+      expect(artifact.localization_blocked_reason).toBeTruthy()
+      expect(artifact.open_questions!.length).toBeGreaterThan(0)
+    }
 
     // The recorded metric is a full-precision float, not a rounded display value.
     const detection = artifact.detection as Record<string, number> | undefined

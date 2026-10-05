@@ -1,14 +1,17 @@
-import { Lock, ShieldCheck } from 'lucide-react'
+import { Lock, Ruler } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { GateStatus, OpenQuestion } from '@/types/subterra'
+import type { CapabilityStatus, GateStatus, OpenQuestion } from '@/types/subterra'
 
 /**
  * An evidence gate, rendered with its status intact.
  *
  * `benchmark/gates.py` exists so that "a claim the evidence does not
- * support cannot be made by accident later". Two gates are currently
- * BLOCKED: BAM localisation ("absolute origin is not verified") and 4TU
- * object-level scoring ("4TU publishes no trench coordinates").
+ * support cannot be made by accident later". A gate is a SCORING gate: it
+ * says whether a metric can be COMPUTED against independent ground truth.
+ * A RESOLVED gate is rendered neutrally as "scoreable" and NEVER as success:
+ * whether a Subterra method performs well is a separate capability status
+ * (see `CapabilityStatusList`), and a resolved gate may sit beside a FAILED
+ * capability -- BAM localisation is exactly that case.
  *
  * This component's whole job is to make that visible and unmissable. A
  * BLOCKED gate is rendered prominently, with the backend's reason verbatim
@@ -29,7 +32,7 @@ export function BlockedGate({
   className?: string
 }) {
   const blocked = status !== 'RESOLVED'
-  const Icon = blocked ? Lock : ShieldCheck
+  const Icon = blocked ? Lock : Ruler
 
   return (
     <div
@@ -39,7 +42,7 @@ export function BlockedGate({
         'rounded-lg border px-3.5 py-3',
         blocked
           ? 'subterra-hatch border-destructive/45 bg-destructive/5'
-          : 'border-success/35 bg-success/5',
+          : 'border-border bg-muted/30',
         className,
       )}
     >
@@ -48,7 +51,7 @@ export function BlockedGate({
           aria-hidden
           className={cn(
             'mt-0.5 size-4 shrink-0',
-            blocked ? 'text-destructive' : 'text-success',
+            blocked ? 'text-destructive' : 'text-muted-foreground',
           )}
         />
         <div className="min-w-0 flex-1">
@@ -59,12 +62,18 @@ export function BlockedGate({
                 'rounded px-1.5 py-px font-mono text-[11px] font-semibold tracking-wider',
                 blocked
                   ? 'bg-destructive/15 text-destructive'
-                  : 'bg-success/15 text-success',
+                  : 'bg-muted text-foreground',
               )}
             >
-              {status}
+              {blocked ? status : `${status} · SCOREABLE`}
             </span>
           </div>
+          {!blocked && (
+            <p data-gate-meaning className="mt-1 text-xs leading-relaxed text-foreground">
+              Scoreable: the ground truth is sufficient to compute this metric.
+              This is not a performance result.
+            </p>
+          )}
           {reason && (
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
               {reason}
@@ -147,5 +156,45 @@ export function ScopeStatement({
       <span className="font-medium text-warning">Scope. </span>
       {scope}
     </p>
+  )
+}
+
+const CAPABILITY_TONE: Record<CapabilityStatus, string> = {
+  VALIDATED: 'bg-success/15 text-success',
+  PARTIALLY_VALIDATED: 'bg-warning/15 text-warning',
+  EXPERIMENTAL: 'bg-muted text-muted-foreground',
+  FAILED: 'bg-destructive/15 text-destructive',
+  BLOCKED: 'bg-destructive/15 text-destructive',
+}
+
+/**
+ * Measured capability on a benchmark, in its own vocabulary. Rendered beside a
+ * gate so a scoreable metric can never be mistaken for a passed one.
+ */
+export function CapabilityStatusList({
+  statuses,
+  className,
+}: {
+  statuses: Record<string, CapabilityStatus | string>
+  className?: string
+}) {
+  const entries = Object.entries(statuses)
+  if (entries.length === 0) return null
+  return (
+    <ul data-capability-status className={cn('space-y-1', className)}>
+      {entries.map(([name, st]) => (
+        <li key={name} data-capability={name} className="flex items-baseline justify-between gap-3 text-xs">
+          <span className="text-muted-foreground">{name.replace(/_/g, ' ')}</span>
+          <span
+            className={cn(
+              'rounded px-1.5 py-px font-mono text-[11px] font-semibold tracking-wider',
+              CAPABILITY_TONE[st as CapabilityStatus] ?? 'bg-muted text-muted-foreground',
+            )}
+          >
+            {st}
+          </span>
+        </li>
+      ))}
+    </ul>
   )
 }

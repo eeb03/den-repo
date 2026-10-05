@@ -32,17 +32,19 @@ export function StageGates() {
         </h2>
         <p className="mt-5 text-pretty text-sm leading-relaxed text-muted-foreground sm:text-base">
           An evidence gate is a control, not a defect. It exists so a claim the
-          evidence does not support cannot be made later by accident. Two are
-          closed today, both for want of evidence from the dataset publishers,
-          and requests for that evidence are outstanding.
+          evidence does not support cannot be made later by accident. A gate
+          only says whether a metric can be computed against independent ground
+          truth; it never says the platform passes. One opened when the
+          publisher&apos;s construction drawings arrived, and opening it measured
+          a failure. The other stays closed for want of publisher evidence.
         </p>
       </div>
 
       <div className="mt-12 grid gap-4 md:grid-cols-2">
         <BlockedGate
-          label="Localisation scoring"
-          status="BLOCKED"
-          reason="The specimen's absolute coordinate origin is corroborated but not declared by any published file, so reported positions would carry an unquantified offset. Detection scoring does not depend on the origin and is unaffected."
+          label="Concrete-specimen localisation scoring"
+          status="RESOLVED"
+          reason="The publisher's construction drawings declare the frame, units and object positions, so localisation can now be scored. Scored against them, the current detector's localisation is FAILED: its depth-checked recall is at most 5%."
         />
         <BlockedGate
           label="Object-level utility scoring"

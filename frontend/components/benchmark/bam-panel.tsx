@@ -5,6 +5,7 @@ import { QueryState } from '@/components/subterra/query-state'
 import { StateBox } from '@/components/subterra/state-box'
 import {
   BlockedGate,
+  CapabilityStatusList,
   OpenQuestions,
   ScopeStatement,
 } from '@/components/subterra/gate-status'
@@ -112,17 +113,24 @@ export function BamPanel({
             {typeof data.scope === 'string' && <ScopeStatement scope={data.scope} />}
 
             <BlockedGate
-              label="Localisation scoring"
-              status={data.localization_status ?? 'BLOCKED'}
-              reason={data.localization_blocked_reason}
+              label="Localisation scoring gate"
+              status={data.localization_scoring_status ?? data.localization_status ?? 'BLOCKED'}
+              reason={data.localization_scoring_reason ?? data.localization_blocked_reason}
             />
+            {data.capability_status && (
+              <div>
+                <h3 className="pb-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                  Measured capability (not the gate)
+                </h3>
+                <CapabilityStatusList statuses={data.capability_status} />
+              </div>
+            )}
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Detection and false-alarm scoring are independently executable and
-              do not depend on the absolute origin — they ask whether a
-              detection falls inside a footprint defined in the same grid the
-              detections are indexed by. A blocked localisation gate does not
-              make the detection numbers below invalid, and they do not make the
-              gate any less blocked.
+              The gate says whether a metric can be computed against independent
+              ground truth; the capability list says how well Subterra performs.
+              A scoreable metric can still be FAILED. Detection and false-alarm
+              scoring are independently executable and do not depend on the
+              absolute origin.
             </p>
 
             {/* ------------------------------ identity ---------------------- */}
