@@ -145,3 +145,13 @@ def test_load_metadata_reads_the_real_column_delimiter(synthetic_corpus):
     metadata = load_metadata(synthetic_corpus)
     assert set(metadata) == {"01.1", "13.1", "02.7", "02.8"}
     assert metadata["01.1"]["Ground relative permittivity"] == "9.00"
+
+
+def test_the_resolution_is_an_estimate_from_the_same_survey_not_a_declaration(synthetic_corpus):
+    """Data paper (PMC10973596) and thesis Sec. 5.3.1: eps_r came from a Reflex-W
+    hyperbola fit on the same radargrams -- so the depth gate must refuse it."""
+    r = resolve_four_tu_velocity("4tu_01.1", corpus=synthetic_corpus)
+    assert r.velocity_basis_kind == "estimated_from_same_survey"
+    assert "hyperbola fit" in r.velocity_method and "Reflex-W" in r.velocity_method
+    assert "not an independent measurement" in r.permittivity_basis
+    assert r.validated is False

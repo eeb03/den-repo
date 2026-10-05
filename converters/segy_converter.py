@@ -198,6 +198,26 @@ def _classify_position(x: float, y: float):
     return ProjectedPosition(easting=x, northing=y)
 
 
+
+def _conversion_velocity_basis(velocity_m_per_ns, velocity_source_quantity,
+                               velocity_basis_kind=None) -> str:
+    """
+    The `VelocityBasis` a GPR frame's conversion records. A caller may state the
+    kind of evidence its velocity is (validated against the enum); it may not
+    claim the platform default, which only this converter applies.
+    """
+    from schemas.depth_model import VelocityBasis
+
+    if velocity_basis_kind is not None:
+        kind = VelocityBasis(velocity_basis_kind)
+        if kind in (VelocityBasis.ASSUMED_DEFAULT, VelocityBasis.UNDOCUMENTED):
+            raise ValueError(f"velocity_basis_kind {kind.value!r} cannot be supplied by a caller")
+        return kind.value
+    if velocity_m_per_ns == DEFAULT_GPR_VELOCITY_M_PER_NS and velocity_source_quantity is None:
+        return "assumed_default"
+    return "user_declared"
+
+
 class SEGYConverter(BaseConverter):
     format_name = "segy"
     supported_extensions = (".sgy", ".segy")
@@ -217,6 +237,8 @@ class SEGYConverter(BaseConverter):
         velocity_source_quantity: str | None = None,
         velocity_source_value: float | None = None,
         velocity_source_basis: str | None = None,
+        velocity_basis_kind: str | None = None,
+        velocity_method: str | None = None,
         delay_encoding: str = DEFAULT_DELAY_ENCODING,
         **kwargs,
     ) -> list[SubterraRecord]:
@@ -229,6 +251,7 @@ class SEGYConverter(BaseConverter):
             velocity_source_quantity=velocity_source_quantity,
             velocity_source_value=velocity_source_value,
             velocity_source_basis=velocity_source_basis,
+            velocity_basis_kind=velocity_basis_kind, velocity_method=velocity_method,
             delay_encoding=delay_encoding,
             **kwargs,
         ).records
@@ -245,6 +268,8 @@ class SEGYConverter(BaseConverter):
         velocity_source_quantity: str | None = None,
         velocity_source_value: float | None = None,
         velocity_source_basis: str | None = None,
+        velocity_basis_kind: str | None = None,
+        velocity_method: str | None = None,
         delay_encoding: str = DEFAULT_DELAY_ENCODING,
         **kwargs,
     ) -> ConversionResult:
@@ -271,6 +296,12 @@ class SEGYConverter(BaseConverter):
         record. This converter stays generic: it does not know what the
         quantity IS, only that the caller is asserting one. All four default
         to None, which reproduces today's exact behaviour.
+
+        `velocity_basis_kind` (a `schemas.depth_model.VelocityBasis` value) and
+        `velocity_method` let that caller also say WHAT KIND of evidence the
+        quantity is -- e.g. `estimated_from_same_survey` with "hyperbola fit".
+        Without them a caller-supplied velocity is recorded as `user_declared`,
+        as before. The platform default can never be claimed this way.
         """
 
         try:
@@ -600,6 +631,7 @@ class SEGYConverter(BaseConverter):
                 velocity_source_quantity=velocity_source_quantity,
                 velocity_source_value=velocity_source_value,
                 velocity_source_basis=velocity_source_basis,
+                velocity_basis_kind=velocity_basis_kind, velocity_method=velocity_method,
             )
 
         return ConversionResult(records=records, frames=[frame])
@@ -612,6 +644,7 @@ class SEGYConverter(BaseConverter):
         has_elevation=False, nmea_quantum_m=0.0,
         velocity_basis=None, velocity_source_quantity=None,
         velocity_source_value=None, velocity_source_basis=None,
+        velocity_basis_kind=None, velocity_method=None,
         delay_raw=0, time_scalar_raw=0, delay_encoding=DEFAULT_DELAY_ENCODING,
         interval_fallback=False,
     ) -> SurveyFrame:
@@ -888,10 +921,9 @@ class SEGYConverter(BaseConverter):
                     "velocity_m_per_ns": velocity_m_per_ns,
                     # The basis travels with the value (schemas/depth_model.py): the
                     # default is an assumption and never resolves a depth.
-                    "velocity_basis": (
-                        "assumed_default"
-                        if velocity_m_per_ns == DEFAULT_GPR_VELOCITY_M_PER_NS
-                        and velocity_source_quantity is None else "user_declared"),
+                    "velocity_basis": _conversion_velocity_basis(
+                        velocity_m_per_ns, velocity_source_quantity, velocity_basis_kind),
+                    **({"velocity_method": velocity_method} if velocity_method else {}),
                     "formula": "depth_m = two_way_time_ns * velocity_m_per_ns / 2",
                     "target_axis": AxisKind.DEPTH_M.value,
                 } if is_gpr else None,

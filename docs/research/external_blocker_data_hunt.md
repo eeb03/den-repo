@@ -381,7 +381,7 @@ protection, server faults or quotas. Opening these pages in a normal browser is 
 | 4TU time zero / air gap | **STILL MISSING**; the thesis is **ACCESS BLOCKED** |
 | Independent time-zero reference | **PROMISING LEAD** (Aletsch CMP) |
 
-**Implementation changes that should follow** (none made in this session):
+**Implementation changes that should follow.** Status after the 2026-10-05 rebase: (1) is superseded by `main`'s KEC testbed transcription; (2) is done on this branch; (3) is still open.
 
 1. `benchmark/manifests/yesan-fullscale.targets.json`:
    - Add `line_id` to T2 targets: ascon and concrete EPS and the drains on A; T2-01 on B;

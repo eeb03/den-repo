@@ -242,6 +242,8 @@ def characterise_file(path: Path, dataset_id: str, velocity: float, resolution=N
             velocity_source_quantity="relative permittivity",
             velocity_source_value=resolution.eps_r,
             velocity_source_basis=resolution.permittivity_basis,
+            velocity_basis_kind=resolution.velocity_basis_kind,
+            velocity_method=resolution.velocity_method,
         )
     result = SEGYConverter().load(path, dataset_id=dataset_id, sensor_type=SensorType.GPR,
                                   coordinate_encoding="ieee_nmea",

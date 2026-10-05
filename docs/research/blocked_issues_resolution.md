@@ -384,3 +384,25 @@ work, and `main` was not modified.
    web-map item coordinates against visible burial disturbance, independently of any radar.
 6. MDPI refuses automated downloads (403) even with full network access. Read the
    *Remote Sensing* paper's Data Availability Statement and Supplemental Table 1 by hand.
+
+---
+
+## Addendum (2026-10-05): rebased onto `main`
+
+This branch was rebased onto `main` @ `8bbbb69`, which had meanwhile merged
+`research/yesan-kec-testbed-ground-truth`. That work transcribed the KEC testbed
+design report (EXTRI-2018-40-534.9607) into per-line testbed frames and targets.
+
+- **Yesan manifest, readiness test and investigation doc:** `main`'s KEC version was kept. The
+  34-target *Sensors* Table 2 commit from this branch was dropped as superseded. Statements
+  above that say Table 2 is "now in the manifest" describe the pre-rebase state. The current
+  Yesan truth is the KEC transcription (`evidence/yesan/`, `yesan:testbed-A/B`). It stays
+  `not_scoring_ready` because the 2021 survey is not registered to the testbed.
+- **Kept from this branch:** the distance-scale script and test (`main`'s manifest already
+  records 27/3116); Method C validity checks; `undocumented` velocity basis; MALA, SEG-Y,
+  candidate-depth and review fixes; DRC re-verification and Field 2 timing.
+- **Added after the rebase:** the 4TU velocity is now recorded as `estimated_from_same_survey`
+  with its method. The published permittivity came from a Reflex-W hyperbola fit on the same
+  radargrams (data paper PMC10973596; thesis Sec. 5.3.1; `evidence.fourtu_author`
+  "thesis-velocity-hyperbola-fit"), so the scientific depth gate now refuses it. Before, it was
+  recorded as `user_declared` and passed.
