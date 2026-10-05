@@ -1,0 +1,222 @@
+[
+ {
+  "specimen": "Pk266",
+  "scan": "1_5_GHz_Rot00",
+  "status": "calibrated",
+  "pre_registered": {
+   "pick_convention": "peak",
+   "pick_precision_ns": 0.1,
+   "line_y_mm": 400.0
+  },
+  "fit": {
+   "status": "calibrated",
+   "reasons": [],
+   "t0_ns": 1.0812,
+   "velocity_m_per_ns": 0.12889,
+   "t0_std_ns": 0.2004,
+   "velocity_std_m_per_ns": 0.00404,
+   "rms_residual_ns": 0.0921,
+   "max_abs_residual_ns": 0.154,
+   "leave_one_out": [
+    {
+     "held_out": 0,
+     "reflector_id": "Pk266-backwall-step0",
+     "known_depth_m": 0.5699,
+     "predicted_depth_m": 0.5511,
+     "error_m": -0.0188,
+     "tolerance_m": 0.1
+    },
+    {
+     "held_out": 1,
+     "reflector_id": "Pk266-backwall-step1",
+     "known_depth_m": 0.4482,
+     "predicted_depth_m": 0.4625,
+     "error_m": 0.0143,
+     "tolerance_m": 0.1
+    },
+    {
+     "held_out": 2,
+     "reflector_id": "Pk266-backwall-step2",
+     "known_depth_m": 0.32980000000000004,
+     "predicted_depth_m": 0.3266,
+     "error_m": -0.0032,
+     "tolerance_m": 0.1
+    },
+    {
+     "held_out": 3,
+     "reflector_id": "Pk266-backwall-step3",
+     "known_depth_m": 0.21030000000000001,
+     "predicted_depth_m": 0.2039,
+     "error_m": -0.0064,
+     "tolerance_m": 0.1
+    }
+   ],
+   "n_points": 4,
+   "redundant": true,
+   "fixed": null,
+   "pick_convention": "peak",
+   "pick_precision_ns": 0.1,
+   "model": "t = t0 + 2 d / v (constant velocity), least squares on known depths"
+  },
+  "frames_changed": [
+   "bam_Pk266:1_5_GHz_Rot00:y400"
+  ],
+  "ducts": [
+   {
+    "target": "Pk266-duct-1",
+    "type": "tendon_duct",
+    "t_pick_ns": 4.9315,
+    "z_top_mm": 241.0,
+    "stored_depth_mm": 248.1,
+    "fit_depth_mm": 248.1,
+    "err_top_mm": 7.1,
+    "stored_record_derivation_id": "806e9683ae5c48db"
+   },
+   {
+    "target": "Pk266-duct-2",
+    "type": "tendon_duct",
+    "t_pick_ns": 3.9335,
+    "z_top_mm": 181.1,
+    "stored_depth_mm": 183.8,
+    "fit_depth_mm": 183.8,
+    "err_top_mm": 2.7,
+    "stored_record_derivation_id": "806e9683ae5c48db"
+   },
+   {
+    "target": "Pk266-duct-3",
+    "type": "tendon_duct",
+    "t_pick_ns": 2.9941,
+    "z_top_mm": 117.9,
+    "stored_depth_mm": 123.3,
+    "fit_depth_mm": 123.3,
+    "err_top_mm": 5.4,
+    "stored_record_derivation_id": "806e9683ae5c48db"
+   },
+   {
+    "target": "Pk266-duct-4",
+    "type": "tendon_duct",
+    "t_pick_ns": 2.1135,
+    "z_top_mm": 60.9,
+    "stored_depth_mm": 66.5,
+    "fit_depth_mm": 66.5,
+    "err_top_mm": 5.6,
+    "stored_record_derivation_id": "806e9683ae5c48db"
+   }
+  ],
+  "duct_error_top_mm": {
+   "n": 4,
+   "mean": 5.2,
+   "max_abs": 7.1
+  }
+ },
+ {
+  "specimen": "Pk266",
+  "scan": "2_6_GHz_Rot00",
+  "status": "calibrated",
+  "pre_registered": {
+   "pick_convention": "peak",
+   "pick_precision_ns": 0.1,
+   "line_y_mm": 400.0
+  },
+  "fit": {
+   "status": "calibrated",
+   "reasons": [],
+   "t0_ns": 0.9633,
+   "velocity_m_per_ns": 0.12888,
+   "t0_std_ns": 0.1274,
+   "velocity_std_m_per_ns": 0.00257,
+   "rms_residual_ns": 0.0585,
+   "max_abs_residual_ns": 0.0952,
+   "leave_one_out": [
+    {
+     "held_out": 0,
+     "reflector_id": "Pk266-backwall-step0",
+     "known_depth_m": 0.5699,
+     "predicted_depth_m": 0.557,
+     "error_m": -0.0129,
+     "tolerance_m": 0.1
+    },
+    {
+     "held_out": 1,
+     "reflector_id": "Pk266-backwall-step1",
+     "known_depth_m": 0.4482,
+     "predicted_depth_m": 0.457,
+     "error_m": 0.0088,
+     "tolerance_m": 0.1
+    },
+    {
+     "held_out": 2,
+     "reflector_id": "Pk266-backwall-step2",
+     "known_depth_m": 0.32980000000000004,
+     "predicted_depth_m": 0.3294,
+     "error_m": -0.0004,
+     "tolerance_m": 0.1
+    },
+    {
+     "held_out": 3,
+     "reflector_id": "Pk266-backwall-step3",
+     "known_depth_m": 0.21030000000000001,
+     "predicted_depth_m": 0.204,
+     "error_m": -0.0063,
+     "tolerance_m": 0.1
+    }
+   ],
+   "n_points": 4,
+   "redundant": true,
+   "fixed": null,
+   "pick_convention": "peak",
+   "pick_precision_ns": 0.1,
+   "model": "t = t0 + 2 d / v (constant velocity), least squares on known depths"
+  },
+  "frames_changed": [
+   "bam_Pk266:2_6_GHz_Rot00:y400"
+  ],
+  "ducts": [
+   {
+    "target": "Pk266-duct-1",
+    "type": "tendon_duct",
+    "t_pick_ns": 4.8434,
+    "z_top_mm": 241.0,
+    "stored_depth_mm": 250.0,
+    "fit_depth_mm": 250.0,
+    "err_top_mm": 9.0,
+    "stored_record_derivation_id": "494335471746e170"
+   },
+   {
+    "target": "Pk266-duct-2",
+    "type": "tendon_duct",
+    "t_pick_ns": 3.8748,
+    "z_top_mm": 181.1,
+    "stored_depth_mm": 187.6,
+    "fit_depth_mm": 187.6,
+    "err_top_mm": 6.5,
+    "stored_record_derivation_id": "494335471746e170"
+   },
+   {
+    "target": "Pk266-duct-3",
+    "type": "tendon_duct",
+    "t_pick_ns": 2.9061,
+    "z_top_mm": 117.9,
+    "stored_depth_mm": 125.2,
+    "fit_depth_mm": 125.2,
+    "err_top_mm": 7.3,
+    "stored_record_derivation_id": "494335471746e170"
+   },
+   {
+    "target": "Pk266-duct-4",
+    "type": "tendon_duct",
+    "t_pick_ns": 1.9374,
+    "z_top_mm": 60.9,
+    "stored_depth_mm": 62.8,
+    "fit_depth_mm": 62.8,
+    "err_top_mm": 1.9,
+    "stored_record_derivation_id": "494335471746e170"
+   }
+  ],
+  "duct_error_top_mm": {
+   "n": 4,
+   "mean": 6.2,
+   "max_abs": 9.0
+  }
+ }
+]
