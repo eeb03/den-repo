@@ -230,12 +230,12 @@ def score_false_alarms(run, control: ControlRegion) -> FalseAlarmScore:
 LOCALIZATION_RADIUS_MM = 100.0
 LOCALIZATION_DEPTH_TOLERANCE_MM = 60.0
 LOCALIZATION_RULE = (
-    "per scan line crossing a target: detections whose peak X is within "
-    f"{LOCALIZATION_RADIUS_MM:g} mm of the drawn target X AND whose depth (under a "
-    "provenance-labelled calibration) is within "
-    f"{LOCALIZATION_DEPTH_TOLERANCE_MM:g} mm of the drawn target top; the highest-|z| "
-    "such detection is the match, others in the window are duplicates; every other "
-    "detection is a false positive")
+    "pre-registered L-XZ: per scan line crossing a target, take the highest-|z| detection "
+    f"whose peak X is within {LOCALIZATION_RADIUS_MM:g} mm of the drawn target X; it is a "
+    "hit only if its depth (under a provenance-labelled calibration) is within "
+    f"{LOCALIZATION_DEPTH_TOLERANCE_MM:g} mm of the drawn target top. Other detections in "
+    "the X window that are also within the depth tolerance are duplicates; every other "
+    "detection -- including X-window detections at the wrong depth -- is a false positive")
 
 
 @dataclass(frozen=True)
@@ -329,14 +329,15 @@ def score_localization(run, grid, targets: list[ScoringTarget],
                  or abs(float(grid.y[j]) - t.y_mm) <= t.y_half_extent_mm]
         matched = 0
         for j in lines:
-            cands = [d for d in by_line.get(j, [])
-                     if abs(d["x"] - t.x_mm) <= LOCALIZATION_RADIUS_MM
-                     and abs(d["depth"] - t.z_top_mm) <= LOCALIZATION_DEPTH_TOLERANCE_MM]
-            if not cands:
+            window = [d for d in by_line.get(j, []) if abs(d["x"] - t.x_mm) <= LOCALIZATION_RADIUS_MM]
+            if not window:
                 continue
-            best = max(cands, key=lambda d: d["z"])
-            used.update(d["id"] for d in cands)
-            dup += len(cands) - 1
+            best = max(window, key=lambda d: d["z"])
+            if abs(best["depth"] - t.z_top_mm) > LOCALIZATION_DEPTH_TOLERANCE_MM:
+                continue                          # X coincidence at the wrong depth: not a hit
+            in_depth = [d for d in window if abs(d["depth"] - t.z_top_mm) <= LOCALIZATION_DEPTH_TOLERANCE_MM]
+            used.update(d["id"] for d in in_depth)
+            dup += len(in_depth) - 1
             dx.append(best["x"] - t.x_mm)
             dz.append(best["depth"] - t.z_top_mm)
             matched += 1
