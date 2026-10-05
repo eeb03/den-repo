@@ -38,7 +38,8 @@ export function SlicePane({
   volume: VolumeProduct
   slice: VolumeSlice | undefined
   cursor: VolumeCursor
-  onCursor: (c: VolumeCursor) => void
+  /** Accepts a value or an updater, so rapid input never steps from a stale cursor. */
+  onCursor: (c: VolumeCursor | ((prev: VolumeCursor) => VolumeCursor)) => void
   display: DisplayWindow
   showSupport: boolean
   showInterpolated: boolean
@@ -51,6 +52,26 @@ export function SlicePane({
   const wrapRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 320, h: 240 })
   const drag = useRef<{ mode: 'cursor' | 'pan'; x: number; y: number; panX: number; panY: number } | null>(null)
+  const latest = useRef({ view, onView, onCursor })
+  useEffect(() => { latest.current = { view, onView, onCursor } })
+
+  // A NATIVE, non-passive wheel listener: React's onWheel is passive, so the
+  // page would scroll away from under the pointer while stepping slices.
+  useEffect(() => {
+    const cv = canvasRef.current
+    if (!cv) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const { view: v, onView: setView, onCursor: setCur } = latest.current
+      if (e.ctrlKey || e.metaKey) {
+        setView({ ...v, zoom: Math.min(20, Math.max(0.5, v.zoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15))) })
+      } else {
+        setCur((prev) => stepSlice(orientation, volume, prev, e.deltaY < 0 ? -1 : 1))
+      }
+    }
+    cv.addEventListener('wheel', onWheel, { passive: false })
+    return () => cv.removeEventListener('wheel', onWheel)
+  }, [orientation, volume])
 
   useEffect(() => {
     const el = wrapRef.current
@@ -84,10 +105,11 @@ export function SlicePane({
         // empty: a checker of two dark greys, so "no data" never reads as "zero"
         const r = Math.floor(p / slice.cols), c = p % slice.cols
         const chk = ((r >> 2) + (c >> 2)) % 2 ? 46 : 30
-        img.data[o] = chk; img.data[o + 1] = chk; img.data[o + 2] = chk + 6; img.data[o + 3] = 255
+        img.data[o] = chk + 40; img.data[o + 1] = chk; img.data[o + 2] = chk + 30; img.data[o + 3] = 255
         continue
       }
-      let R = 255 * (1 - g), G = 255 * (1 - g), B = 255 * (1 - g)
+      // CT convention: strong response bright, weak response dark
+      let R = 255 * g, G = 255 * g, B = 255 * g
       if (showSupport && s === SUPPORT_VALUE.INTERPOLATED) { R = R * 0.6 + 255 * 0.4; G = G * 0.6 + 170 * 0.4; B = B * 0.6 }
       img.data[o] = R; img.data[o + 1] = G; img.data[o + 2] = B; img.data[o + 3] = 255
     }
@@ -162,7 +184,7 @@ export function SlicePane({
   const n = sliceCount(orientation, volume)
   const idx = sliceIndex(orientation, cursor)
   return (
-    <div className="flex min-h-0 flex-col" data-testid={`pane-${orientation}`}>
+    <div className="flex min-h-0 flex-1 flex-col" data-testid={`pane-${orientation}`}>
       <div className="flex items-center justify-between gap-2 px-2 py-1 text-[11px] text-muted-foreground">
         <span className="font-medium text-foreground">{TITLES[orientation]}</span>
         <span data-testid={`pane-${orientation}-index`}>
@@ -195,13 +217,6 @@ export function SlicePane({
           }}
           onMouseUp={() => { drag.current = null }}
           onMouseLeave={() => { drag.current = null }}
-          onWheel={(e) => {
-            if (e.ctrlKey || e.metaKey) {
-              onView({ ...view, zoom: Math.min(20, Math.max(0.5, view.zoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15))) })
-            } else {
-              onCursor(stepSlice(orientation, volume, cursor, e.deltaY < 0 ? -1 : 1))
-            }
-          }}
         />
         {showGroundTruth && groundTruth?.available && (
           <span className="pointer-events-none absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-[#e040fb]">

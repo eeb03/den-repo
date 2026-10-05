@@ -77,6 +77,7 @@ def make_grid(dataset_id="ds1", data=None, missing=(), ny=None):
     save_grid(geom, data)
     save_frames(dataset_id, [SurveyFrame(
         frame_id=fid, dataset_id=dataset_id, modality=SensorType.GPR, source_format="test_grid",
+        source_metadata={"gridded_acquisition": True},
         spatial_ref=SpatialRef(kind=CRSKind.ENGINEERING, name="test grid"),
         vertical_axis=VerticalAxis(kind=AxisKind.TWO_WAY_TIME_NS, units="ns", origin="instrument time zero",
                                    positive_down=True, n_samples=nt, sample_interval=DT))])
@@ -481,3 +482,18 @@ def test_another_user_cannot_reach_my_volumes(tmp_path, monkeypatch):
         assert TestClient(app).get(f"/api/volumes/dsA/{vid}").status_code == 401
     finally:
         app.dependency_overrides.clear()
+
+
+# ------------------------------------------------------------------ spatial UX for gridded datasets
+def test_spatial_page_offers_calibration_and_knows_grid_positions(root):
+    from database.frames_store import load_frames
+    from schemas.spatial_reference import assess_depth, assess_horizontal
+    fid = make_grid()
+    frames = load_frames("ds1")
+    h = assess_horizontal(frames, [])
+    assert h.state == "available" and "grid node" in h.reason
+    d = assess_depth(frames)
+    assert d.action.value == "depth_conversion"
+    alts = {a.value for a in d.alternatives}
+    assert {"depth_calibration", "antenna_offset"} <= alts
+    assert d.detail["frames"] == [fid]

@@ -8,8 +8,8 @@ import { buttonVariants } from '@/components/ui/button'
 import { useSpatialReference } from '@/hooks/use-subterra'
 import { formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import type { DimensionState, SpatialDimensionName } from '@/types/subterra'
-import { DeclarationForm } from './declaration-form'
+import type { DeclarationKind, DimensionState, SpatialDimensionName } from '@/types/subterra'
+import { DECLARATION_TITLE, DeclarationForm } from './declaration-form'
 
 /**
  * The spatial reference workflow.
@@ -278,6 +278,9 @@ function DimensionRow({
   onToggle: () => void
 }) {
   const resolved = RESOLVED_SPATIAL_STATES.has(dimension.state)
+  const [chosen, setChosen] = useState<DeclarationKind | null>(null)
+  const frames = dimension.detail?.frames
+  const onlyFrame = Array.isArray(frames) && frames.length === 1 ? String(frames[0]) : undefined
   return (
     <div
       data-dimension={dimension.dimension}
@@ -317,20 +320,34 @@ function DimensionRow({
 
       {dimension.action && (
         <div className="mt-2.5">
-          <button
-            type="button"
-            data-action={`resolve-${dimension.dimension}`}
-            onClick={onToggle}
-            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
-          >
-            {open ? 'Cancel' : 'Establish this'}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              data-action={`resolve-${dimension.dimension}`}
+              onClick={() => { setChosen(null); onToggle() }}
+              className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+            >
+              {open ? 'Cancel' : 'Establish this'}
+            </button>
+            {!open && (dimension.alternatives ?? []).map((alt) => (
+              <button
+                key={alt}
+                type="button"
+                data-action={`alternative-${alt}`}
+                onClick={() => { setChosen(alt); onToggle() }}
+                className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}
+              >
+                or: {DECLARATION_TITLE(alt)}
+              </button>
+            ))}
+          </div>
           {open && (
             <DeclarationForm
               datasetId={datasetId}
-              kind={dimension.action}
+              kind={chosen ?? dimension.action}
               onDone={onToggle}
               onCancel={onToggle}
+              defaults={onlyFrame ? { frame_id: onlyFrame } : undefined}
             />
           )}
         </div>

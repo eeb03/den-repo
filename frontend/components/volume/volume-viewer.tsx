@@ -76,6 +76,7 @@ export function VolumeViewer({ datasetId }: { datasetId: string }) {
                     <span className="block text-muted-foreground">
                       {v.shape.join('×')} · {v.z_domain === 'depth' ? 'depth' : 'two-way time'} · {v.coordinate_frame.replace('_', ' ')}
                     </span>
+                    <span className="block text-muted-foreground">built {v.created_at.slice(0, 19).replace('T', ' ')} UTC · {v.id}</span>
                     {v.staleness.stale && <span className="block font-medium text-amber-500">STALE — inputs changed</span>}
                   </button>
                 </li>

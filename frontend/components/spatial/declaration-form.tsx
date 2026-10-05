@@ -325,6 +325,8 @@ function parseAffineControlPoints(raw: string): unknown {
     })
 }
 
+export const DECLARATION_TITLE = (kind: DeclarationKind): string => FIELDS[kind].title
+
 export function parseCalibrationPoints(raw: string): unknown {
   return raw
     .split('\n')
@@ -349,15 +351,18 @@ export function DeclarationForm({
   kind,
   onDone,
   onCancel,
+  defaults,
 }: {
   datasetId: string
   kind: DeclarationKind
   onDone?: () => void
   onCancel?: () => void
+  /** Prefilled values the user can still change (e.g. the only frame's id). */
+  defaults?: Record<string, string>
 }) {
   const { mutate } = useSWRConfig()
   const spec = FIELDS[kind]
-  const [values, setValues] = useState<Record<string, string>>({})
+  const [values, setValues] = useState<Record<string, string>>(() => ({ ...(defaults ?? {}) }))
   const [suppliedBy, setSuppliedBy] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)

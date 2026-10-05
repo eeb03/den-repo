@@ -326,7 +326,7 @@ export function Volume3D({
   }, [groundTruth, showGroundTruth, volume, Lx, Ly, Lz, zIsDepth])
 
   return (
-    <div className="flex min-h-0 flex-col" data-testid="pane-3d">
+    <div className="flex min-h-0 flex-1 flex-col" data-testid="pane-3d">
       <div className="flex items-center justify-between gap-2 px-2 py-1 text-[11px] text-muted-foreground">
         <span className="font-medium text-foreground">3D volume</span>
         <span data-testid="pane-3d-fps" data-fps={fps ?? ''}>{fps !== null ? `${fps} fps` : ''}</span>

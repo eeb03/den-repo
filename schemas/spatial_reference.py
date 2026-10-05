@@ -126,6 +126,9 @@ class DimensionState(BaseModel):
     #: The declaration that would resolve this, when one can. None means no
     #: declaration helps -- the evidence has to come from outside Subterra.
     action: Optional[DeclarationKind] = None
+    #: Other declarations that also address this dimension (e.g. a known-geometry
+    #: calibration instead of a bare velocity). Offered, never chosen for the user.
+    alternatives: list[DeclarationKind] = Field(default_factory=list)
     #: Where the current answer came from, in the existing 7-class vocabulary.
     provenance: Optional[str] = None
     #: Free-form supporting facts, for the interface to render.
@@ -299,10 +302,11 @@ _TIME_KINDS = {AxisKind.TWO_WAY_TIME_NS, AxisKind.TWO_WAY_TIME_MS, AxisKind.TWO_
 _EARTH_KINDS = {CRSKind.GEOGRAPHIC, CRSKind.PROJECTED}
 
 
-def _state(dimension, state, reason, missing=None, action=None, provenance=None, **detail):
+def _state(dimension, state, reason, missing=None, action=None, provenance=None,
+           alternatives=None, **detail):
     return DimensionState(
         dimension=dimension, state=state, reason=reason, missing=list(missing or []),
-        action=action, provenance=provenance, detail=detail)
+        action=action, alternatives=list(alternatives or []), provenance=provenance, detail=detail)
 
 
 #: A record's own metadata has no `position_source` key. Bucketed separately
@@ -362,6 +366,15 @@ def assess_horizontal(frames, records) -> DimensionState:
     promote one that is not.
     """
     D = SpatialDimension.HORIZONTAL_POSITION
+    gridded = [f for f in frames if (getattr(f, "source_metadata", None) or {}).get("gridded_acquisition")]
+    if not records and gridded:
+        # A gridded acquisition stores its samples as an array, not as records:
+        # positions are the declared grid nodes in the frame's own (local) frame.
+        return _state(D, "available",
+                      f"{len(gridded)} gridded acquisition(s): every trace sits on a declared grid "
+                      f"node in the frame's own local coordinates (no Earth reference implied)",
+                      provenance="declared_by_source", position_kinds=["grid_node"],
+                      frames=[f.frame_id for f in gridded])
     if not records:
         return _state(D, "unresolved", "no records are stored, so there is nothing to position",
                       ["a successful ingest"])
@@ -651,6 +664,8 @@ def assess_depth(frames) -> DimensionState:
                       ["a propagation velocity, supplied by somebody prepared to state it "
                        "as an assumption about this ground"],
                       action=DeclarationKind.DEPTH_CONVERSION, provenance="unavailable",
+                      alternatives=[DeclarationKind.DEPTH_CALIBRATION, DeclarationKind.TIME_ZERO,
+                                    DeclarationKind.ANTENNA_OFFSET],
                       frames=time_only)
 
     if converted:
@@ -681,6 +696,9 @@ def assess_depth(frames) -> DimensionState:
                           f"resolved depth. It is an assumption about the subsurface, not "
                           f"a measurement of it",
                           missing, action=action,
+                          alternatives=[k for k in (DeclarationKind.DEPTH_CALIBRATION,
+                                                    DeclarationKind.TIME_ZERO,
+                                                    DeclarationKind.ANTENNA_OFFSET) if k != action],
                           provenance="derived", conversions=conversions, readiness=detail,
                           frames=[f.frame_id for f, _ in open_frames])
         return _state(D, "derived",

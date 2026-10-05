@@ -1473,6 +1473,8 @@ export interface DimensionState {
   missing: string[]
   /** The declaration that would resolve this, or null when no declaration can. */
   action: DeclarationKind | null
+  /** Other declarations that also address this dimension; offered, never chosen. */
+  alternatives?: DeclarationKind[]
   provenance: string | null
   detail: Record<string, unknown>
 }
