@@ -1,0 +1,306 @@
+{
+ "protocol": "\nComponent ablation for Candidate V2 (companion to scripts.bam_candidate_v2_experiment).\n\nFor each term of final_score, the term is removed (its weight set to zero), the\noperating threshold is RE-FROZEN on the development scan (L-XZ recall >= 0.80)\nand the frozen threshold is then applied to the test and control scans. The\nhard filters and all other parameters stay at their frozen values. Same split,\nsame matching rule, no tuning on test scans.\n\n    venv/bin/python -m scripts.bam_candidate_v2_components\n",
+ "variants": {
+  "full_score": {
+   "dev_operating_threshold": 0.768,
+   "Pk266_2_6_GHz_Rot00": {
+    "recall": 0.6227,
+    "precision": 0.5181,
+    "false_positives_per_line": 2.3168,
+    "n_detections": 794,
+    "fp_per_line_at_recall_0.8": 7.907,
+    "max_recall": 0.8307
+   },
+   "Pk401_1_5_GHz_Rot00": {
+    "recall": 0.0625,
+    "precision": 0.0373,
+    "false_positives_per_line": 0.9627,
+    "n_detections": 161,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.3542
+   },
+   "Pk401_2_6_GHz_Rot00": {
+    "recall": 0.2188,
+    "precision": 0.6562,
+    "false_positives_per_line": 0.0683,
+    "n_detections": 32,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.6146
+   },
+   "Pk050_1_5_GHz_Rot00": {
+    "recall": null,
+    "precision": 0.0,
+    "false_positives_per_line": 3.0248,
+    "n_detections": 487,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.0
+   },
+   "Pk050_2_6_GHz_Rot00": {
+    "recall": null,
+    "precision": 0.0,
+    "false_positives_per_line": 2.8261,
+    "n_detections": 455,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.0
+   }
+  },
+  "without_signal_strength": {
+   "dev_operating_threshold": 0.5536,
+   "Pk266_2_6_GHz_Rot00": {
+    "recall": 0.6475,
+    "precision": 0.4744,
+    "false_positives_per_line": 2.8696,
+    "n_detections": 886,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.7516
+   },
+   "Pk401_1_5_GHz_Rot00": {
+    "recall": 0.0104,
+    "precision": 0.0103,
+    "false_positives_per_line": 0.5963,
+    "n_detections": 97,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.3646
+   },
+   "Pk401_2_6_GHz_Rot00": {
+    "recall": 0.2292,
+    "precision": 0.4681,
+    "false_positives_per_line": 0.1553,
+    "n_detections": 50,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.6146
+   },
+   "Pk050_1_5_GHz_Rot00": {
+    "recall": null,
+    "precision": 0.0,
+    "false_positives_per_line": 3.1429,
+    "n_detections": 506,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.0
+   },
+   "Pk050_2_6_GHz_Rot00": {
+    "recall": null,
+    "precision": 0.0,
+    "false_positives_per_line": 2.6646,
+    "n_detections": 429,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.0
+   }
+  },
+  "without_background_contrast": {
+   "dev_operating_threshold": 0.5079,
+   "Pk266_2_6_GHz_Rot00": {
+    "recall": 0.6646,
+    "precision": 0.2786,
+    "false_positives_per_line": 6.882,
+    "n_detections": 1545,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.7407
+   },
+   "Pk401_1_5_GHz_Rot00": {
+    "recall": 0.0833,
+    "precision": 0.0172,
+    "false_positives_per_line": 2.8447,
+    "n_detections": 466,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.3542
+   },
+   "Pk401_2_6_GHz_Rot00": {
+    "recall": 0.25,
+    "precision": 0.1529,
+    "false_positives_per_line": 0.8261,
+    "n_detections": 188,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.6146
+   },
+   "Pk050_1_5_GHz_Rot00": {
+    "recall": null,
+    "precision": 0.0,
+    "false_positives_per_line": 4.8509,
+    "n_detections": 781,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.0
+   },
+   "Pk050_2_6_GHz_Rot00": {
+    "recall": null,
+    "precision": 0.0,
+    "false_positives_per_line": 4.913,
+    "n_detections": 791,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.0
+   }
+  },
+  "without_shape_score": {
+   "dev_operating_threshold": 0.608,
+   "Pk266_2_6_GHz_Rot00": {
+    "recall": 0.7686,
+    "precision": 0.6865,
+    "false_positives_per_line": 1.4037,
+    "n_detections": 756,
+    "fp_per_line_at_recall_0.8": 1.957,
+    "max_recall": 0.9565
+   },
+   "Pk401_1_5_GHz_Rot00": {
+    "recall": 0.1562,
+    "precision": 0.0475,
+    "false_positives_per_line": 1.8696,
+    "n_detections": 316,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.4167
+   },
+   "Pk401_2_6_GHz_Rot00": {
+    "recall": 0.1979,
+    "precision": 0.3333,
+    "false_positives_per_line": 0.236,
+    "n_detections": 63,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.6146
+   },
+   "Pk050_1_5_GHz_Rot00": {
+    "recall": null,
+    "precision": 0.0,
+    "false_positives_per_line": 4.118,
+    "n_detections": 663,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.0
+   },
+   "Pk050_2_6_GHz_Rot00": {
+    "recall": null,
+    "precision": 0.0,
+    "false_positives_per_line": 4.0745,
+    "n_detections": 656,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.0
+   }
+  },
+  "without_persistence_score": {
+   "dev_operating_threshold": 0.5434,
+   "Pk266_2_6_GHz_Rot00": {
+    "recall": 0.5916,
+    "precision": 0.4215,
+    "false_positives_per_line": 3.2484,
+    "n_detections": 913,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.7717
+   },
+   "Pk401_1_5_GHz_Rot00": {
+    "recall": 0.0312,
+    "precision": 0.0119,
+    "false_positives_per_line": 1.5528,
+    "n_detections": 253,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.375
+   },
+   "Pk401_2_6_GHz_Rot00": {
+    "recall": 0.2396,
+    "precision": 0.2771,
+    "false_positives_per_line": 0.3727,
+    "n_detections": 101,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.6042
+   },
+   "Pk050_1_5_GHz_Rot00": {
+    "recall": null,
+    "precision": 0.0,
+    "false_positives_per_line": 4.6211,
+    "n_detections": 744,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.0
+   },
+   "Pk050_2_6_GHz_Rot00": {
+    "recall": null,
+    "precision": 0.0,
+    "false_positives_per_line": 4.2174,
+    "n_detections": 679,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.0
+   }
+  },
+  "without_noise_penalty": {
+   "dev_operating_threshold": 0.7643,
+   "Pk266_2_6_GHz_Rot00": {
+    "recall": 0.6724,
+    "precision": 0.4871,
+    "false_positives_per_line": 2.8323,
+    "n_detections": 935,
+    "fp_per_line_at_recall_0.8": 10.36,
+    "max_recall": 0.823
+   },
+   "Pk401_1_5_GHz_Rot00": {
+    "recall": 0.0729,
+    "precision": 0.0318,
+    "false_positives_per_line": 1.323,
+    "n_detections": 220,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.3438
+   },
+   "Pk401_2_6_GHz_Rot00": {
+    "recall": 0.2292,
+    "precision": 0.4231,
+    "false_positives_per_line": 0.1863,
+    "n_detections": 60,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.6042
+   },
+   "Pk050_1_5_GHz_Rot00": {
+    "recall": null,
+    "precision": 0.0,
+    "false_positives_per_line": 4.0373,
+    "n_detections": 650,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.0
+   },
+   "Pk050_2_6_GHz_Rot00": {
+    "recall": null,
+    "precision": 0.0,
+    "false_positives_per_line": 3.4224,
+    "n_detections": 551,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.0
+   }
+  },
+  "without_direct_wave_penalty": {
+   "dev_operating_threshold": 0.7782,
+   "Pk266_2_6_GHz_Rot00": {
+    "recall": 0.6957,
+    "precision": 0.6095,
+    "false_positives_per_line": 1.7826,
+    "n_detections": 775,
+    "fp_per_line_at_recall_0.8": 2.391,
+    "max_recall": 0.9208
+   },
+   "Pk401_1_5_GHz_Rot00": {
+    "recall": 0.0521,
+    "precision": 0.0284,
+    "false_positives_per_line": 1.0621,
+    "n_detections": 176,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.3542
+   },
+   "Pk401_2_6_GHz_Rot00": {
+    "recall": 0.2188,
+    "precision": 0.6774,
+    "false_positives_per_line": 0.0621,
+    "n_detections": 31,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.6146
+   },
+   "Pk050_1_5_GHz_Rot00": {
+    "recall": null,
+    "precision": 0.0,
+    "false_positives_per_line": 2.7081,
+    "n_detections": 436,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.0
+   },
+   "Pk050_2_6_GHz_Rot00": {
+    "recall": null,
+    "precision": 0.0,
+    "false_positives_per_line": 2.5528,
+    "n_detections": 411,
+    "fp_per_line_at_recall_0.8": null,
+    "max_recall": 0.0
+   }
+  }
+ }
+}
