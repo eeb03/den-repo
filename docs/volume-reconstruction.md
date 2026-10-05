@@ -188,3 +188,28 @@ that measured composition. **GPR amplitude alone never yields one.** None is imp
 | Stolt migration | validated on synthetic data and on BAM ducts (`docs/research/…`); EXPERIMENTAL for void-like targets |
 | Georeferenced volumes | horizontal only; absolute elevation not in V1 |
 | BAM registration (`scripts/register_bam_volume_dataset.py`) | benchmark onboarding path, not a general importer |
+
+## What was reused, and what is new
+
+Inspected before building: the scene and viewer, `SurveyFrame`, spatial declarations, the depth
+model, fusion, three.js rendering, and the grid code.
+
+| Reused unchanged | Why it fits |
+|---|---|
+| `SurveyFrame` (one frame per grid, as its docstring already allows for "a magnetometer grid") | declarations, ties and provenance attach exactly as for a line |
+| The spatial declaration workflow (`api.spatial`), including `DEPTH_CALIBRATION` and `ANTENNA_OFFSET` | the volume's depth model is the frame's declared one; nothing new can set a velocity |
+| `schemas.depth_model` (`frame_depth_readiness`, `velocity_model_of`, `frame_time_zero`) | the "scientifically sufficient" gate decides depth vs time |
+| `AffineTie` | the only route to a georeferenced volume |
+| `benchmark.bam_ingest` | the validated BAM grid mapping and amplitude path |
+| Dataset ownership and visibility (`require_dataset_access` / `require_owned_dataset`) | volumes inherit the dataset's access rules |
+| three.js (already a dependency) | the 3D pane; the scene component itself is untouched |
+
+| New | Why it could not be reused |
+|---|---|
+| `GriddedAcquisition` + array store | the record store (JSONL `SubterraRecord`s) cannot hold 33 M samples |
+| `reconstruction/` (pipeline, Stolt migration) | nothing in the repository migrates or grids; `preprocessing/spatial_grid.py` builds a 2D anomaly z-grid per line, not a volume |
+| `VolumeProduct` and its store | the scene payload is a bounded point set that deliberately never fills space |
+| Volume viewer | the scene's single 3D canvas has no slices, no shared cursor and no voxel provenance |
+
+Changed in the spatial UI because browser verification required it: a dimension may now offer
+alternative declarations, and gridded datasets report their grid nodes as positions.
