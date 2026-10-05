@@ -1,0 +1,699 @@
+{
+ "selection_rule": "Development = the six Rot00 scans. For every (proposal config, gate config, final-score threshold theta): macro_recall = mean recall over the four target scans (Pk266 / Pk401 x 1.5 / 2.6 GHz; L-XZ where the scan's calibration is accepted, else L-X); mean_fp = mean false positives per line over all six scans, controls included. Feasible: macro_recall >= 0.75. Choose the feasible point with the lowest mean_fp; ties by higher macro_recall, then fewer detections. If nothing is feasible, choose the highest macro F1. Macro averaging gives each object type and antenna equal weight (pooling would let 644 duct crossings per scan swamp 100 cuboid crossings).",
+ "proposal_grid": {
+  "normalisation": [
+   "line",
+   "row"
+  ],
+  "background_window_traces": [
+   41,
+   81
+  ],
+  "horizon_ratio": [
+   1.5,
+   2.5
+  ]
+ },
+ "gate_grid": {
+  "proposal_threshold": [
+   3.0,
+   4.0,
+   6.0
+  ],
+  "min_lateral_extent_mm": [
+   0.0,
+   15.0,
+   30.0
+  ]
+ },
+ "thetas": [
+  -1.5,
+  1.0,
+  0.01
+ ],
+ "grid": [
+  {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.8108986801242236,
+   "min_mean_fp_at_macro_recall_0.75": 28.38198757763975
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.8142792443064182,
+   "min_mean_fp_at_macro_recall_0.75": 27.08695652173913
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.8210403726708074,
+   "min_mean_fp_at_macro_recall_0.75": 26.372670807453417
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.8105104813664596,
+   "min_mean_fp_at_macro_recall_0.75": 26.872670807453417
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.8138910455486542,
+   "min_mean_fp_at_macro_recall_0.75": 25.50310559006211
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.8206521739130435,
+   "min_mean_fp_at_macro_recall_0.75": 24.675983436853002
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.7762357660455487,
+   "min_mean_fp_at_macro_recall_0.75": 28.211180124223603
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.7803927277432713,
+   "min_mean_fp_at_macro_recall_0.75": 25.718426501035196
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.7871538561076604,
+   "min_mean_fp_at_macro_recall_0.75": 24.76190476190476
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.9380984730848861,
+   "min_mean_fp_at_macro_recall_0.75": 4.045548654244306
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.940039466873706,
+   "min_mean_fp_at_macro_recall_0.75": 4.032091097308489
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.9464123964803313,
+   "min_mean_fp_at_macro_recall_0.75": 4.594202898550724
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.9377102743271222,
+   "min_mean_fp_at_macro_recall_0.75": 4.027950310559006
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.939651268115942,
+   "min_mean_fp_at_macro_recall_0.75": 4.015527950310559
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.9452478002070394,
+   "min_mean_fp_at_macro_recall_0.75": 4.553830227743272
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.9004431935817806,
+   "min_mean_fp_at_macro_recall_0.75": 4.428571428571428
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.9023841873706004,
+   "min_mean_fp_at_macro_recall_0.75": 4.41304347826087
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.9079807194616977,
+   "min_mean_fp_at_macro_recall_0.75": 6.257763975155279
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 81,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.8111574792960663,
+   "min_mean_fp_at_macro_recall_0.75": 27.0351966873706
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 81,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.8119338768115942,
+   "min_mean_fp_at_macro_recall_0.75": 26.113871635610764
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 81,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.8179186076604554,
+   "min_mean_fp_at_macro_recall_0.75": 24.711180124223603
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 81,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.8111574792960663,
+   "min_mean_fp_at_macro_recall_0.75": 25.288819875776397
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 81,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.8119338768115942,
+   "min_mean_fp_at_macro_recall_0.75": 24.350931677018632
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 81,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.8179186076604554,
+   "min_mean_fp_at_macro_recall_0.75": 23.025879917184266
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 81,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.8111574792960663,
+   "min_mean_fp_at_macro_recall_0.75": 21.840579710144926
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 81,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.8115456780538303,
+   "min_mean_fp_at_macro_recall_0.75": 21.168737060041412
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 81,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.8197463768115942,
+   "min_mean_fp_at_macro_recall_0.75": 19.214285714285715
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 81,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.9202413302277433,
+   "min_mean_fp_at_macro_recall_0.75": 7.445134575569358
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 81,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.9198531314699793,
+   "min_mean_fp_at_macro_recall_0.75": 7.402691511387164
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 81,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.9262260610766045,
+   "min_mean_fp_at_macro_recall_0.75": 6.708074534161491
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 81,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.9206295289855073,
+   "min_mean_fp_at_macro_recall_0.75": 7.312629399585923
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 81,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.9202413302277433,
+   "min_mean_fp_at_macro_recall_0.75": 7.271221532091097
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 81,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.9258378623188406,
+   "min_mean_fp_at_macro_recall_0.75": 6.592132505175982
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 81,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.9194649327122153,
+   "min_mean_fp_at_macro_recall_0.75": 5.86231884057971
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 81,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.9190767339544513,
+   "min_mean_fp_at_macro_recall_0.75": 5.838509316770188
+  },
+  {
+   "normalisation": "line",
+   "background_window_traces": 81,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.9246732660455487,
+   "min_mean_fp_at_macro_recall_0.75": 5.9399585921325055
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 41,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.7644604037267081,
+   "min_mean_fp_at_macro_recall_0.75": 50.98964803312629
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 41,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.7674527691511387,
+   "min_mean_fp_at_macro_recall_0.75": 48.07971014492754
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 41,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.7761548913043479,
+   "min_mean_fp_at_macro_recall_0.75": 44.30227743271221
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 41,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.7503720238095238,
+   "min_mean_fp_at_macro_recall_0.75": 60.77536231884057
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 41,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.7425595238095237,
+   "min_mean_fp_at_macro_recall_0.75": null
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 41,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.7482692805383023,
+   "min_mean_fp_at_macro_recall_0.75": null
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 41,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.6961535973084886,
+   "min_mean_fp_at_macro_recall_0.75": null
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 41,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.6961535973084886,
+   "min_mean_fp_at_macro_recall_0.75": null
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 41,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.6988709886128364,
+   "min_mean_fp_at_macro_recall_0.75": null
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.8393989389233955,
+   "min_mean_fp_at_macro_recall_0.75": 10.455486542443063
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.8397871376811594,
+   "min_mean_fp_at_macro_recall_0.75": 10.444099378881987
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.8397871376811594,
+   "min_mean_fp_at_macro_recall_0.75": 12.969979296066251
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.8239842132505176,
+   "min_mean_fp_at_macro_recall_0.75": 9.958592132505176
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.8135675465838509,
+   "min_mean_fp_at_macro_recall_0.75": 9.94824016563147
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.8139557453416149,
+   "min_mean_fp_at_macro_recall_0.75": 13.142857142857144
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.7791310817805382,
+   "min_mean_fp_at_macro_recall_0.75": 35.237060041407865
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.7791310817805382,
+   "min_mean_fp_at_macro_recall_0.75": 34.96894409937888
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.781347049689441,
+   "min_mean_fp_at_macro_recall_0.75": 33.569358178053825
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 81,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.7693775879917184,
+   "min_mean_fp_at_macro_recall_0.75": 43.21014492753623
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 81,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.7697657867494825,
+   "min_mean_fp_at_macro_recall_0.75": 41.49689440993789
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 81,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.773146350931677,
+   "min_mean_fp_at_macro_recall_0.75": 39.39337474120082
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 81,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.7719655797101449,
+   "min_mean_fp_at_macro_recall_0.75": 38.99792960662526
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 81,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.7727419772256728,
+   "min_mean_fp_at_macro_recall_0.75": 37.83747412008282
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 81,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.7705260093167702,
+   "min_mean_fp_at_macro_recall_0.75": 36.43685300207039
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 81,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.7601416925465838,
+   "min_mean_fp_at_macro_recall_0.75": 28.42650103519669
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 81,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.7605298913043478,
+   "min_mean_fp_at_macro_recall_0.75": 27.75258799171843
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 81,
+   "horizon_ratio": 1.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.7605298913043478,
+   "min_mean_fp_at_macro_recall_0.75": 27.076604554865423
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 81,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.864162784679089,
+   "min_mean_fp_at_macro_recall_0.75": 8.67184265010352
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 81,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.864162784679089,
+   "min_mean_fp_at_macro_recall_0.75": 8.665631469979296
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 81,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 3.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.8653273809523809,
+   "min_mean_fp_at_macro_recall_0.75": 8.344720496894409
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 81,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.8529050207039337,
+   "min_mean_fp_at_macro_recall_0.75": 8.213250517598345
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 81,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.8529050207039337,
+   "min_mean_fp_at_macro_recall_0.75": 8.20807453416149
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 81,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.851077251552795,
+   "min_mean_fp_at_macro_recall_0.75": 8.629399585921325
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 81,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 0.0,
+   "max_macro_recall": 0.8403047360248447,
+   "min_mean_fp_at_macro_recall_0.75": 8.230848861283643
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 81,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 15.0,
+   "max_macro_recall": 0.8403047360248447,
+   "min_mean_fp_at_macro_recall_0.75": 8.228778467908901
+  },
+  {
+   "normalisation": "row",
+   "background_window_traces": 81,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 6.0,
+   "min_lateral_extent_mm": 30.0,
+   "max_macro_recall": 0.8403047360248447,
+   "min_mean_fp_at_macro_recall_0.75": 8.513457556935817
+  }
+ ],
+ "chosen": {
+  "params": {
+   "normalisation": "line",
+   "background_window_traces": 41,
+   "horizon_ratio": 2.5,
+   "proposal_threshold": 4.0,
+   "min_lateral_extent_mm": 15.0
+  },
+  "operating_threshold": 0.65,
+  "dev_macro_recall": 0.765625,
+  "dev_mean_fp_per_line": 4.015527950310559,
+  "dev_n": 5771,
+  "dev_macro_f1": 0.48243345500360446,
+  "how": "feasible"
+ }
+}

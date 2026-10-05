@@ -126,17 +126,21 @@ def run_baselines(scans, label):
 
 # ---------------------------------------------------------------- PRE-REGISTERED DEV GRID AND RULE
 # Written and committed BEFORE the grid was run. Only Rot00 scans enter it.
-#: DEV ITERATION 2 (after iteration 1 on Rot00 only): "row" normalisation was
-#: dominated everywhere (mean FP/line 19-61 at macro recall 0.75 vs 4.0-10.5 for
-#: "line"), so it is dropped; the horizon rule now requires a flat run
-#: (benchmark.candidate_v2_calibrated, HORIZON_MIN_RUN_MM). Selection rule unchanged.
-PROPOSAL_GRID = {"normalisation": ["line"], "background_window_traces": [41, 81],
+PROPOSAL_GRID = {"normalisation": ["line", "row"], "background_window_traces": [41, 81],
                  "horizon_ratio": [1.5, 2.5]}
+#: Development iterations, all on Rot00 only, compared by the SAME selection rule.
 DEV_ITERATIONS = [
     {"iteration": 1, "commit": "2d9086e", "chosen": "line W41 h2.5 T4 ext15 theta 0.65",
      "dev_macro_recall": 0.766, "dev_mean_fp_per_line": 4.02,
      "finding": "duct-1 (241 mm) mislabelled as a horizon -> structure / step-edge penalties "
                 "(64 of its missed crossings on Pk266 1.5 GHz)"},
+    {"iteration": 2, "commit": "bd00a81",
+     "change": "horizons must be flat over >= 300 mm; 'row' normalisation dropped from the grid",
+     "chosen": "line W41 h1.5 T4 ext15 theta 0.63", "dev_macro_recall": 0.758,
+     "dev_mean_fp_per_line": 5.78,
+     "finding": "max macro recall rose to 0.95-0.97 but FP/line at macro recall 0.75 rose to 5.8: "
+                "fewer horizons also stopped penalising back-wall residue. REJECTED by the rule; "
+                "the module was reverted to iteration 1, which is frozen."},
 ]
 GATE_GRID = {"proposal_threshold": [3.0, 4.0, 6.0], "min_lateral_extent_mm": [0.0, 15.0, 30.0]}
 THETAS = np.round(np.arange(-1.50, 1.0001, 0.01), 2)

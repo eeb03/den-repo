@@ -1,0 +1,121 @@
+{
+ "frozen": true,
+ "note": "Frozen on Rot00 development scans only. The Rot90 held-out evaluation must load this file unchanged; the commit that last changed it is recorded with every held-out result.",
+ "module": "benchmark.candidate_v2_calibrated",
+ "module_sha256": "d051b68b8a3102d3f9437c8391524c1a64bf9b5b6fc5b5b3ad667de75ee2129e",
+ "params": {
+  "normalisation": "line",
+  "background_window_traces": 41,
+  "horizon_ratio": 2.5,
+  "proposal_threshold": 4.0,
+  "min_lateral_extent_mm": 15.0
+ },
+ "operating_threshold_final_score": 0.65,
+ "selection_rule": "Development = the six Rot00 scans. For every (proposal config, gate config, final-score threshold theta): macro_recall = mean recall over the four target scans (Pk266 / Pk401 x 1.5 / 2.6 GHz; L-XZ where the scan's calibration is accepted, else L-X); mean_fp = mean false positives per line over all six scans, controls included. Feasible: macro_recall >= 0.75. Choose the feasible point with the lowest mean_fp; ties by higher macro_recall, then fewer detections. If nothing is feasible, choose the highest macro F1. Macro averaging gives each object type and antenna equal weight (pooling would let 644 duct crossings per scan swamp 100 cuboid crossings).",
+ "selection_result_on_dev": {
+  "dev_macro_recall": 0.765625,
+  "dev_mean_fp_per_line": 4.015527950310559,
+  "dev_n": 5771,
+  "dev_macro_f1": 0.48243345500360446,
+  "how": "feasible"
+ },
+ "module_constants": {
+  "END_GUARD_NS": 0.5,
+  "DEWOW_NS": 2.0,
+  "PROP_NMS_X_MM": 25.0,
+  "PROP_NMS_T_PERIODS": 0.25,
+  "SHAPE_TOL_PERIODS": 0.2,
+  "ARM_MAX_MM": 200.0,
+  "ARM_MAX_PERIODS": 2.0,
+  "HALF_WIDTHS_MM": [
+   0.0,
+   30.0,
+   60.0
+  ],
+  "V_GRID_M_PER_NS": [
+   0.08,
+   0.1,
+   0.12,
+   0.14,
+   0.16
+  ],
+  "WRONG_V_FACTORS": [
+   0.6,
+   1.6
+  ],
+  "PERSIST_LINES": 6,
+  "PERSIST_DX_MM": 10.0,
+  "PERSIST_DT_PERIODS": 0.15,
+  "NMS_X_MM": 50.0,
+  "NMS_T_PERIODS": 0.75,
+  "CLUSTER_DX_MM": 25.0,
+  "CLUSTER_DT_PERIODS": 0.4,
+  "CLUSTER_LINE_GAP": 2,
+  "STRUCT_WINDOW_MM": 400.0,
+  "STRUCT_LOCAL_PERIODS": 3.0,
+  "RING_DX_MM": 25.0,
+  "RING_MAX_PERIODS": 4.0,
+  "RING_AMP_RATIO": 1.0,
+  "EDGE_LAG_MM": 50.0,
+  "EDGE_SIGMA_MM": 40.0,
+  "EDGE_SIGMA_PERIODS": 1.0,
+  "STRUCT_SIGMA_MM": 10.0,
+  "STRUCT_SIGMA_PERIODS": 0.4,
+  "MIN_COVER_M": 0.015,
+  "BELOW_STRUCTURE_FACTOR": 0.3,
+  "Z_SCALE": 10.0,
+  "FREQ_SIGMA_LN": 0.35,
+  "PENALTY_WEIGHT": 0.25,
+  "EVIDENCE": [
+   "signal_strength",
+   "background_contrast",
+   "persistence",
+   "shape_consistency",
+   "depth_plausibility"
+  ],
+  "PENALTIES": [
+   "direct_wave_penalty",
+   "edge_penalty",
+   "structure_penalty",
+   "ringing_penalty",
+   "noise_penalty"
+  ]
+ },
+ "calibration_input": {
+  "source": "per-scan back-wall picks through schemas.depth_calibration",
+  "pick_convention": "peak",
+  "pick_precision_ns": 0.1,
+  "used_only_if": "status calibrated AND redundant (scientifically sufficient)"
+ },
+ "baselines": {
+  "production": {
+   "threshold": 3.0,
+   "min_cells": 3
+  },
+  "envelope": {
+   "W": 81,
+   "N": "global",
+   "curve_T": 4.0,
+   "operating_T": 10.0
+  },
+  "v2_prev": {
+   "params": {
+    "background_window_traces": 81,
+    "proposal_threshold": 6.0,
+    "min_lateral_extent_mm": 60.0,
+    "shape_min": 0.2,
+    "persistence_min": 0.0
+   },
+   "operating_threshold_final_score": 0.768
+  }
+ },
+ "scoring": "scripts.bam_candidate_v2_experiment.score (L-XZ 100 mm / 60 mm; L-X where calibration refused)",
+ "heldout_scans": [
+  "Pk266_3D_Dataset_1_5_GHz_Rot90",
+  "Pk266_3D_Dataset_2_6_GHz_Rot90",
+  "Pk401_3D_Dataset_1_5_GHz_Rot90",
+  "Pk401_3D_Dataset_2_6_GHz_Rot90",
+  "Pk050_3D_Dataset_1_5_GHz_Rot90",
+  "Pk050_3D_Dataset_2_6_GHz_Rot90"
+ ]
+}
