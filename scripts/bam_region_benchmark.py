@@ -177,6 +177,7 @@ def _v2cal_outputs(sid, dep):
     sys.path.insert(0, str(tmp.parent))
     spec = importlib.util.spec_from_file_location("v2cal_module", tmp)
     m = importlib.util.module_from_spec(spec)
+    sys.modules["v2cal_module"] = m
     spec.loader.exec_module(m)
     res = pickle.loads(Path(hits[0]).read_bytes())
     dets = [d for d in m.select(res, m.V2CalParams(normalisation="line", background_window_traces=41, horizon_ratio=2.5,
