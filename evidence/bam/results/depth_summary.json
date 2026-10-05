@@ -1,0 +1,705 @@
+{
+ "by_method_type": {
+  "D2_subterra_backwall_t0_v|tendon_duct|err_top_mm": {
+   "provenance": "DERIVED_FROM_KNOWN_GEOMETRY (Subterra back-wall calibration, same scan; independent of targets)",
+   "n": 16,
+   "mean_signed": 7.12,
+   "mean_abs": 7.12,
+   "median_abs": 7.45,
+   "rmse": 7.66,
+   "p95_abs": 10.98,
+   "max_abs": 11.5,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 8,
+     "mean_signed": 7.54,
+     "mean_abs": 7.54,
+     "median_abs": 7.35,
+     "rmse": 8.04,
+     "p95_abs": 11.25,
+     "max_abs": 11.5
+    },
+    "2.6GHz": {
+     "n": 8,
+     "mean_signed": 6.71,
+     "mean_abs": 6.71,
+     "median_abs": 7.45,
+     "rmse": 7.25,
+     "p95_abs": 9.84,
+     "max_abs": 10.3
+    }
+   }
+  },
+  "D2_subterra_backwall_t0_v|tendon_duct|err_centre_mm": {
+   "provenance": "DERIVED_FROM_KNOWN_GEOMETRY (Subterra back-wall calibration, same scan; independent of targets)",
+   "n": 16,
+   "mean_signed": -26.38,
+   "mean_abs": 26.38,
+   "median_abs": 26.05,
+   "rmse": 26.52,
+   "p95_abs": 31.0,
+   "max_abs": 31.6,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 8,
+     "mean_signed": -25.96,
+     "mean_abs": 25.96,
+     "median_abs": 26.15,
+     "rmse": 26.11,
+     "p95_abs": 29.86,
+     "max_abs": 30.8
+    },
+    "2.6GHz": {
+     "n": 8,
+     "mean_signed": -26.79,
+     "mean_abs": 26.79,
+     "median_abs": 26.05,
+     "rmse": 26.93,
+     "p95_abs": 31.29,
+     "max_abs": 31.6
+    }
+   }
+  },
+  "D2_subterra_backwall_t0_v|void_analogue_cuboid|err_top_mm": {
+   "provenance": "DERIVED_FROM_KNOWN_GEOMETRY (Subterra back-wall calibration, same scan; independent of targets)",
+   "n": 8,
+   "mean_signed": 27.08,
+   "mean_abs": 27.08,
+   "median_abs": 28.95,
+   "rmse": 27.49,
+   "p95_abs": 32.62,
+   "max_abs": 33.6,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 8,
+     "mean_signed": 27.08,
+     "mean_abs": 27.08,
+     "median_abs": 28.95,
+     "rmse": 27.49,
+     "p95_abs": 32.62,
+     "max_abs": 33.6
+    }
+   }
+  },
+  "D2_subterra_backwall_t0_v|void_analogue_cuboid|err_centre_mm": {
+   "provenance": "DERIVED_FROM_KNOWN_GEOMETRY (Subterra back-wall calibration, same scan; independent of targets)",
+   "n": 8,
+   "mean_signed": -2.92,
+   "mean_abs": 4.03,
+   "median_abs": 2.35,
+   "rmse": 5.6,
+   "p95_abs": 10.35,
+   "max_abs": 11.3,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 8,
+     "mean_signed": -2.92,
+     "mean_abs": 4.03,
+     "median_abs": 2.35,
+     "rmse": 5.6,
+     "p95_abs": 10.35,
+     "max_abs": 11.3
+    }
+   }
+  },
+  "D1_paper_t0_v|tendon_duct|err_top_mm": {
+   "provenance": "CALIBRATED/DOCUMENTED (paper Table 4, back wall; 1.5 GHz Rot00 only)",
+   "n": 4,
+   "mean_signed": 25.32,
+   "mean_abs": 25.32,
+   "median_abs": 25.95,
+   "rmse": 25.38,
+   "p95_abs": 26.85,
+   "max_abs": 27.0,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 4,
+     "mean_signed": 25.32,
+     "mean_abs": 25.32,
+     "median_abs": 25.95,
+     "rmse": 25.38,
+     "p95_abs": 26.85,
+     "max_abs": 27.0
+    }
+   }
+  },
+  "D1_paper_t0_v|tendon_duct|err_centre_mm": {
+   "provenance": "CALIBRATED/DOCUMENTED (paper Table 4, back wall; 1.5 GHz Rot00 only)",
+   "n": 4,
+   "mean_signed": -8.18,
+   "mean_abs": 8.18,
+   "median_abs": 7.55,
+   "rmse": 8.36,
+   "p95_abs": 10.57,
+   "max_abs": 11.1,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 4,
+     "mean_signed": -8.18,
+     "mean_abs": 8.18,
+     "median_abs": 7.55,
+     "rmse": 8.36,
+     "p95_abs": 10.57,
+     "max_abs": 11.1
+    }
+   }
+  },
+  "D1_paper_t0_v|void_analogue_cuboid|err_top_mm": {
+   "provenance": "CALIBRATED/DOCUMENTED (paper Table 4, back wall; 1.5 GHz Rot00 only)",
+   "n": 4,
+   "mean_signed": 30.62,
+   "mean_abs": 30.62,
+   "median_abs": 30.5,
+   "rmse": 30.64,
+   "p95_abs": 31.82,
+   "max_abs": 32.0,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 4,
+     "mean_signed": 30.62,
+     "mean_abs": 30.62,
+     "median_abs": 30.5,
+     "rmse": 30.64,
+     "p95_abs": 31.82,
+     "max_abs": 32.0
+    }
+   }
+  },
+  "D1_paper_t0_v|void_analogue_cuboid|err_centre_mm": {
+   "provenance": "CALIBRATED/DOCUMENTED (paper Table 4, back wall; 1.5 GHz Rot00 only)",
+   "n": 4,
+   "mean_signed": 0.62,
+   "mean_abs": 0.88,
+   "median_abs": 0.65,
+   "rmse": 1.11,
+   "p95_abs": 1.82,
+   "max_abs": 2.0,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 4,
+     "mean_signed": 0.62,
+     "mean_abs": 0.88,
+     "median_abs": 0.65,
+     "rmse": 1.11,
+     "p95_abs": 1.82,
+     "max_abs": 2.0
+    }
+   }
+  },
+  "D3_methodC_t0_backwall_v|tendon_duct|err_top_mm": {
+   "provenance": "EXPERIMENTAL: Method C t0 (direct-wave onset) + back-wall v",
+   "n": 16,
+   "mean_signed": 42.8,
+   "mean_abs": 42.8,
+   "median_abs": 45.1,
+   "rmse": 43.79,
+   "p95_abs": 52.33,
+   "max_abs": 52.7,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 8,
+     "mean_signed": 36.1,
+     "mean_abs": 36.1,
+     "median_abs": 35.7,
+     "rmse": 37.12,
+     "p95_abs": 45.98,
+     "max_abs": 46.5
+    },
+    "2.6GHz": {
+     "n": 8,
+     "mean_signed": 49.5,
+     "mean_abs": 49.5,
+     "median_abs": 50.25,
+     "rmse": 49.57,
+     "p95_abs": 52.53,
+     "max_abs": 52.7
+    }
+   }
+  },
+  "D3_methodC_t0_backwall_v|tendon_duct|err_centre_mm": {
+   "provenance": "EXPERIMENTAL: Method C t0 (direct-wave onset) + back-wall v",
+   "n": 16,
+   "mean_signed": 9.3,
+   "mean_abs": 12.25,
+   "median_abs": 11.6,
+   "rmse": 13.13,
+   "p95_abs": 18.82,
+   "max_abs": 19.2,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 8,
+     "mean_signed": 2.6,
+     "mean_abs": 8.5,
+     "median_abs": 8.4,
+     "rmse": 9.02,
+     "p95_abs": 12.47,
+     "max_abs": 13.0
+    },
+    "2.6GHz": {
+     "n": 8,
+     "mean_signed": 16.0,
+     "mean_abs": 16.0,
+     "median_abs": 16.75,
+     "rmse": 16.23,
+     "p95_abs": 19.02,
+     "max_abs": 19.2
+    }
+   }
+  },
+  "D3_methodC_t0_backwall_v|void_analogue_cuboid|err_top_mm": {
+   "provenance": "EXPERIMENTAL: Method C t0 (direct-wave onset) + back-wall v",
+   "n": 8,
+   "mean_signed": 19.24,
+   "mean_abs": 19.24,
+   "median_abs": 20.45,
+   "rmse": 19.72,
+   "p95_abs": 24.36,
+   "max_abs": 25.2,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 8,
+     "mean_signed": 19.24,
+     "mean_abs": 19.24,
+     "median_abs": 20.45,
+     "rmse": 19.72,
+     "p95_abs": 24.36,
+     "max_abs": 25.2
+    }
+   }
+  },
+  "D3_methodC_t0_backwall_v|void_analogue_cuboid|err_centre_mm": {
+   "provenance": "EXPERIMENTAL: Method C t0 (direct-wave onset) + back-wall v",
+   "n": 8,
+   "mean_signed": -10.76,
+   "mean_abs": 10.76,
+   "median_abs": 9.55,
+   "rmse": 11.61,
+   "p95_abs": 17.55,
+   "max_abs": 18.5,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 8,
+     "mean_signed": -10.76,
+     "mean_abs": 10.76,
+     "median_abs": 9.55,
+     "rmse": 11.61,
+     "p95_abs": 17.55,
+     "max_abs": 18.5
+    }
+   }
+  },
+  "D4_methodC_t0_paper_v|tendon_duct|err_top_mm": {
+   "provenance": "EXPERIMENTAL: Method C t0 + paper v",
+   "n": 4,
+   "mean_signed": 41.9,
+   "mean_abs": 41.9,
+   "median_abs": 42.5,
+   "rmse": 41.94,
+   "p95_abs": 43.44,
+   "max_abs": 43.6,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 4,
+     "mean_signed": 41.9,
+     "mean_abs": 41.9,
+     "median_abs": 42.5,
+     "rmse": 41.94,
+     "p95_abs": 43.44,
+     "max_abs": 43.6
+    }
+   }
+  },
+  "D4_methodC_t0_paper_v|tendon_duct|err_centre_mm": {
+   "provenance": "EXPERIMENTAL: Method C t0 + paper v",
+   "n": 4,
+   "mean_signed": 8.4,
+   "mean_abs": 8.4,
+   "median_abs": 9.0,
+   "rmse": 8.58,
+   "p95_abs": 9.93,
+   "max_abs": 10.1,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 4,
+     "mean_signed": 8.4,
+     "mean_abs": 8.4,
+     "median_abs": 9.0,
+     "rmse": 8.58,
+     "p95_abs": 9.93,
+     "max_abs": 10.1
+    }
+   }
+  },
+  "D4_methodC_t0_paper_v|void_analogue_cuboid|err_top_mm": {
+   "provenance": "EXPERIMENTAL: Method C t0 + paper v",
+   "n": 4,
+   "mean_signed": 26.45,
+   "mean_abs": 26.45,
+   "median_abs": 26.35,
+   "rmse": 26.47,
+   "p95_abs": 27.64,
+   "max_abs": 27.8,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 4,
+     "mean_signed": 26.45,
+     "mean_abs": 26.45,
+     "median_abs": 26.35,
+     "rmse": 26.47,
+     "p95_abs": 27.64,
+     "max_abs": 27.8
+    }
+   }
+  },
+  "D4_methodC_t0_paper_v|void_analogue_cuboid|err_centre_mm": {
+   "provenance": "EXPERIMENTAL: Method C t0 + paper v",
+   "n": 4,
+   "mean_signed": -3.55,
+   "mean_abs": 3.55,
+   "median_abs": 3.65,
+   "rmse": 3.67,
+   "p95_abs": 4.59,
+   "max_abs": 4.7,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 4,
+     "mean_signed": -3.55,
+     "mean_abs": 3.55,
+     "median_abs": 3.65,
+     "rmse": 3.67,
+     "p95_abs": 4.59,
+     "max_abs": 4.7
+    }
+   }
+  },
+  "D5_no_t0_backwall_v|tendon_duct|err_top_mm": {
+   "provenance": "REFERENCE-FAILURE CASE: no t0 correction + back-wall v",
+   "n": 16,
+   "mean_signed": 71.57,
+   "mean_abs": 71.57,
+   "median_abs": 71.95,
+   "rmse": 71.67,
+   "p95_abs": 76.35,
+   "max_abs": 76.8,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 8,
+     "mean_signed": 74.71,
+     "mean_abs": 74.71,
+     "median_abs": 75.2,
+     "rmse": 74.73,
+     "p95_abs": 76.59,
+     "max_abs": 76.8
+    },
+    "2.6GHz": {
+     "n": 8,
+     "mean_signed": 68.42,
+     "mean_abs": 68.42,
+     "median_abs": 69.2,
+     "rmse": 68.48,
+     "p95_abs": 71.42,
+     "max_abs": 71.6
+    }
+   }
+  },
+  "D5_no_t0_backwall_v|tendon_duct|err_centre_mm": {
+   "provenance": "REFERENCE-FAILURE CASE: no t0 correction + back-wall v",
+   "n": 16,
+   "mean_signed": 38.07,
+   "mean_abs": 38.07,
+   "median_abs": 38.45,
+   "rmse": 38.26,
+   "p95_abs": 42.85,
+   "max_abs": 43.3,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 8,
+     "mean_signed": 41.21,
+     "mean_abs": 41.21,
+     "median_abs": 41.7,
+     "rmse": 41.24,
+     "p95_abs": 43.09,
+     "max_abs": 43.3
+    },
+    "2.6GHz": {
+     "n": 8,
+     "mean_signed": 34.92,
+     "mean_abs": 34.92,
+     "median_abs": 35.7,
+     "rmse": 35.03,
+     "p95_abs": 37.93,
+     "max_abs": 38.1
+    }
+   }
+  },
+  "D5_no_t0_backwall_v|void_analogue_cuboid|err_top_mm": {
+   "provenance": "REFERENCE-FAILURE CASE: no t0 correction + back-wall v",
+   "n": 8,
+   "mean_signed": 58.27,
+   "mean_abs": 58.27,
+   "median_abs": 59.35,
+   "rmse": 58.43,
+   "p95_abs": 63.36,
+   "max_abs": 64.1,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 8,
+     "mean_signed": 58.27,
+     "mean_abs": 58.27,
+     "median_abs": 59.35,
+     "rmse": 58.43,
+     "p95_abs": 63.36,
+     "max_abs": 64.1
+    }
+   }
+  },
+  "D5_no_t0_backwall_v|void_analogue_cuboid|err_centre_mm": {
+   "provenance": "REFERENCE-FAILURE CASE: no t0 correction + back-wall v",
+   "n": 8,
+   "mean_signed": 28.27,
+   "mean_abs": 28.27,
+   "median_abs": 29.35,
+   "rmse": 28.6,
+   "p95_abs": 33.37,
+   "max_abs": 34.1,
+   "by_antenna": {
+    "1.5GHz": {
+     "n": 8,
+     "mean_signed": 28.27,
+     "mean_abs": 28.27,
+     "median_abs": 29.35,
+     "rmse": 28.6,
+     "p95_abs": 33.37,
+     "max_abs": 34.1
+    }
+   }
+  }
+ },
+ "per_scan": {},
+ "per_object": {
+  "Pk266-duct-1|1_5_GHz_Rot00": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 7.1,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -26.4,
+   "D1_paper_t0_v:err_top_mm": 26.0,
+   "D1_paper_t0_v:err_centre_mm": -7.5,
+   "D3_methodC_t0_backwall_v:err_top_mm": 46.5,
+   "D3_methodC_t0_backwall_v:err_centre_mm": 13.0,
+   "D4_methodC_t0_paper_v:err_top_mm": 42.5,
+   "D4_methodC_t0_paper_v:err_centre_mm": 9.0,
+   "D5_no_t0_backwall_v:err_top_mm": 76.8,
+   "D5_no_t0_backwall_v:err_centre_mm": 43.3
+  },
+  "Pk266-duct-2|1_5_GHz_Rot00": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 2.7,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -30.8,
+   "D1_paper_t0_v:err_top_mm": 22.4,
+   "D1_paper_t0_v:err_centre_mm": -11.1,
+   "D3_methodC_t0_backwall_v:err_top_mm": 42.1,
+   "D3_methodC_t0_backwall_v:err_centre_mm": 8.6,
+   "D4_methodC_t0_paper_v:err_top_mm": 39.0,
+   "D4_methodC_t0_paper_v:err_centre_mm": 5.5,
+   "D5_no_t0_backwall_v:err_top_mm": 72.4,
+   "D5_no_t0_backwall_v:err_centre_mm": 38.9
+  },
+  "Pk266-duct-3|1_5_GHz_Rot00": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 5.4,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -28.1,
+   "D1_paper_t0_v:err_top_mm": 25.9,
+   "D1_paper_t0_v:err_centre_mm": -7.6,
+   "D3_methodC_t0_backwall_v:err_top_mm": 44.8,
+   "D3_methodC_t0_backwall_v:err_centre_mm": 11.3,
+   "D4_methodC_t0_paper_v:err_top_mm": 42.5,
+   "D4_methodC_t0_paper_v:err_centre_mm": 9.0,
+   "D5_no_t0_backwall_v:err_top_mm": 75.1,
+   "D5_no_t0_backwall_v:err_centre_mm": 41.6
+  },
+  "Pk266-duct-4|1_5_GHz_Rot00": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 5.6,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -27.9,
+   "D1_paper_t0_v:err_top_mm": 27.0,
+   "D1_paper_t0_v:err_centre_mm": -6.5,
+   "D3_methodC_t0_backwall_v:err_top_mm": 45.0,
+   "D3_methodC_t0_backwall_v:err_centre_mm": 11.5,
+   "D4_methodC_t0_paper_v:err_top_mm": 43.6,
+   "D4_methodC_t0_paper_v:err_centre_mm": 10.1,
+   "D5_no_t0_backwall_v:err_top_mm": 75.3,
+   "D5_no_t0_backwall_v:err_centre_mm": 41.8
+  },
+  "Pk266-duct-1|2_6_GHz_Rot00": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 9.0,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -24.5,
+   "D3_methodC_t0_backwall_v:err_top_mm": 52.2,
+   "D3_methodC_t0_backwall_v:err_centre_mm": 18.7,
+   "D5_no_t0_backwall_v:err_top_mm": 71.1,
+   "D5_no_t0_backwall_v:err_centre_mm": 37.6
+  },
+  "Pk266-duct-2|2_6_GHz_Rot00": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 6.5,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -27.0,
+   "D3_methodC_t0_backwall_v:err_top_mm": 49.7,
+   "D3_methodC_t0_backwall_v:err_centre_mm": 16.2,
+   "D5_no_t0_backwall_v:err_top_mm": 68.6,
+   "D5_no_t0_backwall_v:err_centre_mm": 35.1
+  },
+  "Pk266-duct-3|2_6_GHz_Rot00": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 7.3,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -26.2,
+   "D3_methodC_t0_backwall_v:err_top_mm": 50.5,
+   "D3_methodC_t0_backwall_v:err_centre_mm": 17.0,
+   "D5_no_t0_backwall_v:err_top_mm": 69.4,
+   "D5_no_t0_backwall_v:err_centre_mm": 35.9
+  },
+  "Pk266-duct-4|2_6_GHz_Rot00": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 1.9,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -31.6,
+   "D3_methodC_t0_backwall_v:err_top_mm": 45.0,
+   "D3_methodC_t0_backwall_v:err_centre_mm": 11.5,
+   "D5_no_t0_backwall_v:err_top_mm": 63.9,
+   "D5_no_t0_backwall_v:err_centre_mm": 30.4
+  },
+  "Pk266-duct-1|1_5_GHz_Rot90": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 11.5,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -22.0,
+   "D3_methodC_t0_backwall_v:err_top_mm": 29.3,
+   "D3_methodC_t0_backwall_v:err_centre_mm": -4.2,
+   "D5_no_t0_backwall_v:err_top_mm": 76.2,
+   "D5_no_t0_backwall_v:err_centre_mm": 42.7
+  },
+  "Pk266-duct-2|1_5_GHz_Rot90": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 7.6,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -25.9,
+   "D3_methodC_t0_backwall_v:err_top_mm": 25.3,
+   "D3_methodC_t0_backwall_v:err_centre_mm": -8.2,
+   "D5_no_t0_backwall_v:err_top_mm": 72.3,
+   "D5_no_t0_backwall_v:err_centre_mm": 38.8
+  },
+  "Pk266-duct-3|1_5_GHz_Rot90": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 10.8,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -22.7,
+   "D3_methodC_t0_backwall_v:err_top_mm": 28.5,
+   "D3_methodC_t0_backwall_v:err_centre_mm": -5.0,
+   "D5_no_t0_backwall_v:err_top_mm": 75.4,
+   "D5_no_t0_backwall_v:err_centre_mm": 41.9
+  },
+  "Pk266-duct-4|1_5_GHz_Rot90": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 9.6,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -23.9,
+   "D3_methodC_t0_backwall_v:err_top_mm": 27.3,
+   "D3_methodC_t0_backwall_v:err_centre_mm": -6.2,
+   "D5_no_t0_backwall_v:err_top_mm": 74.2,
+   "D5_no_t0_backwall_v:err_centre_mm": 40.7
+  },
+  "Pk266-duct-1|2_6_GHz_Rot90": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 10.3,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -23.2,
+   "D3_methodC_t0_backwall_v:err_top_mm": 52.7,
+   "D3_methodC_t0_backwall_v:err_centre_mm": 19.2,
+   "D5_no_t0_backwall_v:err_top_mm": 71.6,
+   "D5_no_t0_backwall_v:err_centre_mm": 38.1
+  },
+  "Pk266-duct-2|2_6_GHz_Rot90": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 7.6,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -25.9,
+   "D3_methodC_t0_backwall_v:err_top_mm": 50.0,
+   "D3_methodC_t0_backwall_v:err_centre_mm": 16.5,
+   "D5_no_t0_backwall_v:err_top_mm": 69.0,
+   "D5_no_t0_backwall_v:err_centre_mm": 35.5
+  },
+  "Pk266-duct-3|2_6_GHz_Rot90": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 8.3,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -25.2,
+   "D3_methodC_t0_backwall_v:err_top_mm": 50.7,
+   "D3_methodC_t0_backwall_v:err_centre_mm": 17.2,
+   "D5_no_t0_backwall_v:err_top_mm": 69.7,
+   "D5_no_t0_backwall_v:err_centre_mm": 36.2
+  },
+  "Pk266-duct-4|2_6_GHz_Rot90": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 2.8,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -30.7,
+   "D3_methodC_t0_backwall_v:err_top_mm": 45.2,
+   "D3_methodC_t0_backwall_v:err_centre_mm": 11.7,
+   "D5_no_t0_backwall_v:err_top_mm": 64.1,
+   "D5_no_t0_backwall_v:err_centre_mm": 30.6
+  },
+  "Pk401-cuboid-1|1_5_GHz_Rot00": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 18.7,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -11.3,
+   "D1_paper_t0_v:err_top_mm": 30.8,
+   "D1_paper_t0_v:err_centre_mm": 0.8,
+   "D3_methodC_t0_backwall_v:err_top_mm": 11.5,
+   "D3_methodC_t0_backwall_v:err_centre_mm": -18.5,
+   "D4_methodC_t0_paper_v:err_top_mm": 26.7,
+   "D4_methodC_t0_paper_v:err_centre_mm": -3.3,
+   "D5_no_t0_backwall_v:err_top_mm": 50.6,
+   "D5_no_t0_backwall_v:err_centre_mm": 20.6
+  },
+  "Pk401-cuboid-2|1_5_GHz_Rot00": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 21.4,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -8.6,
+   "D1_paper_t0_v:err_top_mm": 30.2,
+   "D1_paper_t0_v:err_centre_mm": 0.2,
+   "D3_methodC_t0_backwall_v:err_top_mm": 14.2,
+   "D3_methodC_t0_backwall_v:err_centre_mm": -15.8,
+   "D4_methodC_t0_paper_v:err_top_mm": 26.0,
+   "D4_methodC_t0_paper_v:err_centre_mm": -4.0,
+   "D5_no_t0_backwall_v:err_top_mm": 53.4,
+   "D5_no_t0_backwall_v:err_centre_mm": 23.4
+  },
+  "Pk401-cuboid-3|1_5_GHz_Rot00": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 24.2,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -5.8,
+   "D1_paper_t0_v:err_top_mm": 29.5,
+   "D1_paper_t0_v:err_centre_mm": -0.5,
+   "D3_methodC_t0_backwall_v:err_top_mm": 17.0,
+   "D3_methodC_t0_backwall_v:err_centre_mm": -13.0,
+   "D4_methodC_t0_paper_v:err_top_mm": 25.3,
+   "D4_methodC_t0_paper_v:err_centre_mm": -4.7,
+   "D5_no_t0_backwall_v:err_top_mm": 56.2,
+   "D5_no_t0_backwall_v:err_centre_mm": 26.2
+  },
+  "Pk401-cuboid-4|1_5_GHz_Rot00": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 30.0,
+   "D2_subterra_backwall_t0_v:err_centre_mm": 0.0,
+   "D1_paper_t0_v:err_top_mm": 32.0,
+   "D1_paper_t0_v:err_centre_mm": 2.0,
+   "D3_methodC_t0_backwall_v:err_top_mm": 22.8,
+   "D3_methodC_t0_backwall_v:err_centre_mm": -7.2,
+   "D4_methodC_t0_paper_v:err_top_mm": 27.8,
+   "D4_methodC_t0_paper_v:err_centre_mm": -2.2,
+   "D5_no_t0_backwall_v:err_top_mm": 62.0,
+   "D5_no_t0_backwall_v:err_centre_mm": 32.0
+  },
+  "Pk401-cuboid-1|1_5_GHz_Rot90": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 28.9,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -1.1,
+   "D3_methodC_t0_backwall_v:err_top_mm": 20.4,
+   "D3_methodC_t0_backwall_v:err_centre_mm": -9.6,
+   "D5_no_t0_backwall_v:err_top_mm": 59.3,
+   "D5_no_t0_backwall_v:err_centre_mm": 29.3
+  },
+  "Pk401-cuboid-2|1_5_GHz_Rot90": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 29.0,
+   "D2_subterra_backwall_t0_v:err_centre_mm": -1.0,
+   "D3_methodC_t0_backwall_v:err_top_mm": 20.5,
+   "D3_methodC_t0_backwall_v:err_centre_mm": -9.5,
+   "D5_no_t0_backwall_v:err_top_mm": 59.4,
+   "D5_no_t0_backwall_v:err_centre_mm": 29.4
+  },
+  "Pk401-cuboid-3|1_5_GHz_Rot90": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 33.6,
+   "D2_subterra_backwall_t0_v:err_centre_mm": 3.6,
+   "D3_methodC_t0_backwall_v:err_top_mm": 25.2,
+   "D3_methodC_t0_backwall_v:err_centre_mm": -4.8,
+   "D5_no_t0_backwall_v:err_top_mm": 64.1,
+   "D5_no_t0_backwall_v:err_centre_mm": 34.1
+  },
+  "Pk401-cuboid-4|1_5_GHz_Rot90": {
+   "D2_subterra_backwall_t0_v:err_top_mm": 30.8,
+   "D2_subterra_backwall_t0_v:err_centre_mm": 0.8,
+   "D3_methodC_t0_backwall_v:err_top_mm": 22.3,
+   "D3_methodC_t0_backwall_v:err_centre_mm": -7.7,
+   "D5_no_t0_backwall_v:err_top_mm": 61.2,
+   "D5_no_t0_backwall_v:err_centre_mm": 31.2
+  }
+ }
+}

@@ -1,0 +1,262 @@
+[
+ {
+  "specimen": "Pk266",
+  "scan": "1_5_GHz_Rot00",
+  "dzt_member": "Pk266_Dataset/Radar_DZT_Data/Pk266_1_5_GHz_Rot00.DZT",
+  "dzt_traces_total": 152222,
+  "expected_from_paper": "181 x 841 + 1 redundant = 152222",
+  "dzt_trace_count_matches_paper": true,
+  "decoded_lines_checked": 16,
+  "decoder": "converters.gssi_converter.read_dzt (unmodified)",
+  "npy_dtype": "float64",
+  "comparison": {
+   "probes": 200,
+   "exact_matches_samples_2_to_511": 200,
+   "samples_0_1_equal_sample_2_in_npy": 200,
+   "unmatched": [],
+   "mapping_examples": [
+    {
+     "grid_x_index": 341,
+     "grid_y_index": 3,
+     "dzt_line": 13,
+     "ascan_in_line_as_stored": 698,
+     "n_identical_ascans": 2
+    },
+    {
+     "grid_x_index": 204,
+     "grid_y_index": 1,
+     "dzt_line": 11,
+     "ascan_in_line_as_stored": 423,
+     "n_identical_ascans": 2
+    },
+    {
+     "grid_x_index": 123,
+     "grid_y_index": 0,
+     "dzt_line": 10,
+     "ascan_in_line_as_stored": 569,
+     "n_identical_ascans": 1
+    },
+    {
+     "grid_x_index": 30,
+     "grid_y_index": 0,
+     "dzt_line": 10,
+     "ascan_in_line_as_stored": 754,
+     "n_identical_ascans": 2
+    },
+    {
+     "grid_x_index": 70,
+     "grid_y_index": 4,
+     "dzt_line": 14,
+     "ascan_in_line_as_stored": 675,
+     "n_identical_ascans": 2
+    },
+    {
+     "grid_x_index": 260,
+     "grid_y_index": 5,
+     "dzt_line": 15,
+     "ascan_in_line_as_stored": 536,
+     "n_identical_ascans": 2
+    },
+    {
+     "grid_x_index": 201,
+     "grid_y_index": 3,
+     "dzt_line": 13,
+     "ascan_in_line_as_stored": 418,
+     "n_identical_ascans": 1
+    },
+    {
+     "grid_x_index": 389,
+     "grid_y_index": 4,
+     "dzt_line": 14,
+     "ascan_in_line_as_stored": 36,
+     "n_identical_ascans": 2
+    },
+    {
+     "grid_x_index": 253,
+     "grid_y_index": 3,
+     "dzt_line": 13,
+     "ascan_in_line_as_stored": 522,
+     "n_identical_ascans": 1
+    },
+    {
+     "grid_x_index": 224,
+     "grid_y_index": 5,
+     "dzt_line": 15,
+     "ascan_in_line_as_stored": 463,
+     "n_identical_ascans": 2
+    },
+    {
+     "grid_x_index": 111,
+     "grid_y_index": 4,
+     "dzt_line": 14,
+     "ascan_in_line_as_stored": 592,
+     "n_identical_ascans": 2
+    },
+    {
+     "grid_x_index": 269,
+     "grid_y_index": 0,
+     "dzt_line": 10,
+     "ascan_in_line_as_stored": 277,
+     "n_identical_ascans": 1
+    }
+   ],
+   "grid_row_to_dzt_line": [
+    [
+     0,
+     10
+    ],
+    [
+     1,
+     11
+    ],
+    [
+     2,
+     12
+    ],
+    [
+     3,
+     13
+    ],
+    [
+     4,
+     14
+    ],
+    [
+     5,
+     15
+    ]
+   ]
+  },
+  "verdict": "EXACT (samples 2-511); samples 0-1 differ only by the authors' readgssi overwrite"
+ },
+ {
+  "specimen": "Pk401",
+  "scan": "2_6_GHz_Rot00",
+  "dzt_member": "Pk401_Dataset/Radar_DZT_Data/Pk401_2_6_GHz_Rot00.DZT",
+  "dzt_traces_total": 152222,
+  "expected_from_paper": "181 x 841 + 1 redundant = 152222",
+  "dzt_trace_count_matches_paper": true,
+  "decoded_lines_checked": 16,
+  "decoder": "converters.gssi_converter.read_dzt (unmodified)",
+  "npy_dtype": "float64",
+  "comparison": {
+   "probes": 200,
+   "exact_matches_samples_2_to_511": 200,
+   "samples_0_1_equal_sample_2_in_npy": 200,
+   "unmatched": [],
+   "mapping_examples": [
+    {
+     "grid_x_index": 341,
+     "grid_y_index": 3,
+     "dzt_line": 13,
+     "ascan_in_line_as_stored": 696,
+     "n_identical_ascans": 2
+    },
+    {
+     "grid_x_index": 204,
+     "grid_y_index": 1,
+     "dzt_line": 11,
+     "ascan_in_line_as_stored": 422,
+     "n_identical_ascans": 2
+    },
+    {
+     "grid_x_index": 123,
+     "grid_y_index": 0,
+     "dzt_line": 10,
+     "ascan_in_line_as_stored": 569,
+     "n_identical_ascans": 1
+    },
+    {
+     "grid_x_index": 30,
+     "grid_y_index": 0,
+     "dzt_line": 10,
+     "ascan_in_line_as_stored": 754,
+     "n_identical_ascans": 3
+    },
+    {
+     "grid_x_index": 70,
+     "grid_y_index": 4,
+     "dzt_line": 14,
+     "ascan_in_line_as_stored": 675,
+     "n_identical_ascans": 2
+    },
+    {
+     "grid_x_index": 260,
+     "grid_y_index": 5,
+     "dzt_line": 15,
+     "ascan_in_line_as_stored": 535,
+     "n_identical_ascans": 2
+    },
+    {
+     "grid_x_index": 201,
+     "grid_y_index": 3,
+     "dzt_line": 13,
+     "ascan_in_line_as_stored": 417,
+     "n_identical_ascans": 1
+    },
+    {
+     "grid_x_index": 389,
+     "grid_y_index": 4,
+     "dzt_line": 14,
+     "ascan_in_line_as_stored": 37,
+     "n_identical_ascans": 1
+    },
+    {
+     "grid_x_index": 253,
+     "grid_y_index": 3,
+     "dzt_line": 13,
+     "ascan_in_line_as_stored": 520,
+     "n_identical_ascans": 2
+    },
+    {
+     "grid_x_index": 224,
+     "grid_y_index": 5,
+     "dzt_line": 15,
+     "ascan_in_line_as_stored": 463,
+     "n_identical_ascans": 2
+    },
+    {
+     "grid_x_index": 111,
+     "grid_y_index": 4,
+     "dzt_line": 14,
+     "ascan_in_line_as_stored": 593,
+     "n_identical_ascans": 2
+    },
+    {
+     "grid_x_index": 269,
+     "grid_y_index": 0,
+     "dzt_line": 10,
+     "ascan_in_line_as_stored": 277,
+     "n_identical_ascans": 2
+    }
+   ],
+   "grid_row_to_dzt_line": [
+    [
+     0,
+     10
+    ],
+    [
+     1,
+     11
+    ],
+    [
+     2,
+     12
+    ],
+    [
+     3,
+     13
+    ],
+    [
+     4,
+     14
+    ],
+    [
+     5,
+     15
+    ]
+   ]
+  },
+  "verdict": "EXACT (samples 2-511); samples 0-1 differ only by the authors' readgssi overwrite"
+ }
+]

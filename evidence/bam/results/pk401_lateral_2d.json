@@ -1,0 +1,125 @@
+{
+ "E1:1_5_GHz_Rot00": {
+  "Pk401-cuboid-1": {
+   "n": 19,
+   "y_est_weighted": 399.9,
+   "y_gt": 398.2,
+   "lat_err": 1.7,
+   "y_range": [
+    355.0,
+    445.0
+   ],
+   "x_err_weighted": 2.3,
+   "err_2d": 2.9
+  },
+  "Pk401-cuboid-2": {
+   "n": 53,
+   "y_est_weighted": 384.4,
+   "y_gt": 398.2,
+   "lat_err": -13.8,
+   "y_range": [
+    100.0,
+    690.0
+   ],
+   "x_err_weighted": 11.1,
+   "err_2d": 17.7
+  },
+  "Pk401-cuboid-3": {
+   "n": 221,
+   "y_est_weighted": 448.7,
+   "y_gt": 498.2,
+   "lat_err": -49.5,
+   "y_range": [
+    100.0,
+    700.0
+   ],
+   "x_err_weighted": 8.4,
+   "err_2d": 50.2
+  },
+  "Pk401-cuboid-4": {
+   "n": 410,
+   "y_est_weighted": 385.7,
+   "y_gt": 398.2,
+   "lat_err": -12.5,
+   "y_range": [
+    100.0,
+    700.0
+   ],
+   "x_err_weighted": 2.6,
+   "err_2d": 12.8
+  }
+ },
+ "baseline:1_5_GHz_Rot00": {
+  "Pk401-cuboid-1": {
+   "n": 1,
+   "y_est_weighted": 555.0,
+   "y_gt": 398.2,
+   "lat_err": 156.8,
+   "y_range": [
+    555.0,
+    555.0
+   ],
+   "x_err_weighted": -15.0,
+   "err_2d": 157.5
+  },
+  "Pk401-cuboid-2": {
+   "n": 0
+  },
+  "Pk401-cuboid-3": {
+   "n": 0
+  },
+  "Pk401-cuboid-4": {
+   "n": 0
+  }
+ },
+ "E1:1_5_GHz_Rot90": {
+  "Pk401-cuboid-1": {
+   "n": 2,
+   "y_est_weighted": 387.5,
+   "y_gt": 398.2,
+   "lat_err": -10.7,
+   "y_range": [
+    385.0,
+    390.0
+   ],
+   "x_err_weighted": 7.5,
+   "err_2d": 13.1
+  },
+  "Pk401-cuboid-2": {
+   "n": 59,
+   "y_est_weighted": 393.3,
+   "y_gt": 398.2,
+   "lat_err": -4.9,
+   "y_range": [
+    255.0,
+    695.0
+   ],
+   "x_err_weighted": 16.1,
+   "err_2d": 16.8
+  },
+  "Pk401-cuboid-3": {
+   "n": 205,
+   "y_est_weighted": 454.6,
+   "y_gt": 498.2,
+   "lat_err": -43.6,
+   "y_range": [
+    100.0,
+    700.0
+   ],
+   "x_err_weighted": 5.2,
+   "err_2d": 43.9
+  },
+  "Pk401-cuboid-4": {
+   "n": 378,
+   "y_est_weighted": 397.1,
+   "y_gt": 398.2,
+   "lat_err": -1.1,
+   "y_range": [
+    100.0,
+    700.0
+   ],
+   "x_err_weighted": 3.6,
+   "err_2d": 3.8
+  }
+ }
+}

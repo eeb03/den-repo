@@ -1,0 +1,287 @@
+{
+ "benchmark": "bam-concrete-gpr",
+ "scope": "BAM benchmark results measure performance on controlled concrete NDT specimens. They are not evidence of soil/utility-scale subsurface detection or localisation performance.",
+ "localization_status": "BLOCKED",
+ "localization_blocked_reason": "absolute origin is not verified",
+ "open_questions": [
+  "absolute-origin",
+  "depth-reference-surface",
+  "coordinate-units",
+  "dzt-to-grid-mapping"
+ ],
+ "threshold": 3.0,
+ "min_cells": 3,
+ "parameters_changed_for_this_benchmark": "none",
+ "grid": {
+  "n_x": 401,
+  "x_first": 0.0,
+  "x_last": 2000.0,
+  "x_step": 5.0,
+  "n_y": 161,
+  "y_first": 0.0,
+  "y_last": 800.0,
+  "y_step": 5.0,
+  "n_z": 512,
+  "z_first": 0.0,
+  "z_last": 15.0,
+  "units_xy": "mm",
+  "units_z": "ns",
+  "units_provenance": "inferred_from_documentation",
+  "crs": null,
+  "crs_provenance": "none",
+  "absolute_origin_verified": false,
+  "frame": "benchmark-local; X along specimen length, Y across width, Z two-way time"
+ },
+ "dzt": {
+  "member": "Pk266_2_6_GHz_Rot00.DZT",
+  "read_by": "converters.gssi_converter.parse_dzt_header",
+  "n_samples": 512,
+  "range_ns": 15.0,
+  "bits": 16,
+  "epsr": 5.5,
+  "antenna_name_in_header": "2.6GHz",
+  "scans_per_metre": 1.0,
+  "dzt_trace_count": 152222,
+  "grid_trace_count": 64561,
+  "dzt_matches_grid": false,
+  "amplitude_source": "3D_Dataset_NPY_Data (NOT this DZT)",
+  "why": "The DZT trace count does not equal the coordinate-registered grid and no source documents the mapping; see benchmark.gates open question 'dzt-to-grid-mapping'.",
+  "header_filename_conflict": null
+ },
+ "provenance": {
+  "doi": "10.7910/DVN/FCMUJQ",
+  "repository": "Harvard Dataverse",
+  "licence": "CC0-1.0",
+  "licence_source": "Dataverse API, data.latestVersion.license.rightsIdentifier = 'CC0-1.0' (SPDX). Applies to the DATA FILES.",
+  "archive": "Pk266_Dataset.zip",
+  "archive_md5": "e43ea0991a1e7b842d4e20d89b0b30f7",
+  "archive_md5_verified": true,
+  "archive_sha256": "9aa8b141f1cd6f71317509f583d1e526ef0648d3b14f4fed04b307f2d7eddc3d",
+  "source_files_unmodified": true
+ },
+ "association": [
+  {
+   "benchmark_id": "bam-concrete-gpr",
+   "scan_id": "Pk266_3D_Dataset_2_6_GHz_Rot00",
+   "specimen_id": "Pk266",
+   "target_id": "Pk266-duct-1",
+   "target_type": "tendon duct",
+   "target_x": 250.0,
+   "target_grid_index": 50,
+   "associated_trace_indices": [
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56
+   ],
+   "footprint_definition": "grid nodes v with |v - 250.0| <= 33.5 (half the published outer diameter 67.0); no tolerance added",
+   "association_method": "exact_grid_node",
+   "association_status": "associated",
+   "provenance": {
+    "target_position": "transcribed_from_publication",
+    "grid": "verified_from_files",
+    "interpolation": "none",
+    "absolute_origin_verified": false,
+    "note": "benchmark-local trace/target association; not localisation, and not an absolute coordinate"
+   }
+  },
+  {
+   "benchmark_id": "bam-concrete-gpr",
+   "scan_id": "Pk266_3D_Dataset_2_6_GHz_Rot00",
+   "specimen_id": "Pk266",
+   "target_id": "Pk266-duct-2",
+   "target_type": "tendon duct",
+   "target_x": 750.0,
+   "target_grid_index": 150,
+   "associated_trace_indices": [
+    144,
+    145,
+    146,
+    147,
+    148,
+    149,
+    150,
+    151,
+    152,
+    153,
+    154,
+    155,
+    156
+   ],
+   "footprint_definition": "grid nodes v with |v - 750.0| <= 33.5 (half the published outer diameter 67.0); no tolerance added",
+   "association_method": "exact_grid_node",
+   "association_status": "associated",
+   "provenance": {
+    "target_position": "transcribed_from_publication",
+    "grid": "verified_from_files",
+    "interpolation": "none",
+    "absolute_origin_verified": false,
+    "note": "benchmark-local trace/target association; not localisation, and not an absolute coordinate"
+   }
+  },
+  {
+   "benchmark_id": "bam-concrete-gpr",
+   "scan_id": "Pk266_3D_Dataset_2_6_GHz_Rot00",
+   "specimen_id": "Pk266",
+   "target_id": "Pk266-duct-3",
+   "target_type": "tendon duct",
+   "target_x": 1250.0,
+   "target_grid_index": 250,
+   "associated_trace_indices": [
+    244,
+    245,
+    246,
+    247,
+    248,
+    249,
+    250,
+    251,
+    252,
+    253,
+    254,
+    255,
+    256
+   ],
+   "footprint_definition": "grid nodes v with |v - 1250.0| <= 33.5 (half the published outer diameter 67.0); no tolerance added",
+   "association_method": "exact_grid_node",
+   "association_status": "associated",
+   "provenance": {
+    "target_position": "transcribed_from_publication",
+    "grid": "verified_from_files",
+    "interpolation": "none",
+    "absolute_origin_verified": false,
+    "note": "benchmark-local trace/target association; not localisation, and not an absolute coordinate"
+   }
+  },
+  {
+   "benchmark_id": "bam-concrete-gpr",
+   "scan_id": "Pk266_3D_Dataset_2_6_GHz_Rot00",
+   "specimen_id": "Pk266",
+   "target_id": "Pk266-duct-4",
+   "target_type": "tendon duct",
+   "target_x": 1750.0,
+   "target_grid_index": 350,
+   "associated_trace_indices": [
+    344,
+    345,
+    346,
+    347,
+    348,
+    349,
+    350,
+    351,
+    352,
+    353,
+    354,
+    355,
+    356
+   ],
+   "footprint_definition": "grid nodes v with |v - 1750.0| <= 33.5 (half the published outer diameter 67.0); no tolerance added",
+   "association_method": "exact_grid_node",
+   "association_status": "associated",
+   "provenance": {
+    "target_position": "transcribed_from_publication",
+    "grid": "verified_from_files",
+    "interpolation": "none",
+    "absolute_origin_verified": false,
+    "note": "benchmark-local trace/target association; not localisation, and not an absolute coordinate"
+   }
+  }
+ ],
+ "detection": {
+  "scan_id": "Pk266_3D_Dataset_2_6_GHz_Rot00",
+  "specimen_id": "Pk266",
+  "lines_processed": 161,
+  "n_targets": 4,
+  "true_positives": 63,
+  "false_negatives": 584,
+  "false_positives": 367,
+  "recall": 0.09316770186335403,
+  "precision": 0.14651162790697675,
+  "f1": 0.11390345326342433,
+  "per_target": {
+   "Pk266-duct-1": {
+    "lines_with_a_match": 10,
+    "lines_processed": 161,
+    "grid_index": 50,
+    "footprint": [
+     44,
+     56
+    ],
+    "target_type": "tendon duct",
+    "position_provenance": "transcribed_from_publication"
+   },
+   "Pk266-duct-2": {
+    "lines_with_a_match": 13,
+    "lines_processed": 161,
+    "grid_index": 150,
+    "footprint": [
+     144,
+     156
+    ],
+    "target_type": "tendon duct",
+    "position_provenance": "transcribed_from_publication"
+   },
+   "Pk266-duct-3": {
+    "lines_with_a_match": 15,
+    "lines_processed": 161,
+    "grid_index": 250,
+    "footprint": [
+     244,
+     256
+    ],
+    "target_type": "tendon duct",
+    "position_provenance": "transcribed_from_publication"
+   },
+   "Pk266-duct-4": {
+    "lines_with_a_match": 22,
+    "lines_processed": 161,
+    "grid_index": 350,
+    "footprint": [
+     344,
+     356
+    ],
+    "target_type": "tendon duct",
+    "position_provenance": "transcribed_from_publication"
+   }
+  },
+  "overlapping_any_node": 64,
+  "match_rule": "a detection matches a target when its peak trace node lies within the target's footprint (grid nodes within one published outer radius of the published target X); no additional tolerance",
+  "detection_unit": "target x line",
+  "threshold": 3.0,
+  "min_cells": 3,
+  "scope": "BAM benchmark results measure performance on controlled concrete NDT specimens. They are not evidence of soil/utility-scale subsurface detection or localisation performance.",
+  "localization_scored": false,
+  "lines_requested": null,
+  "lines_available": 161,
+  "n_detections": 430
+ },
+ "false_alarms": {
+  "scan_id": "Pk050_3D_Dataset_2_6_GHz_Rot00",
+  "specimen_id": "Pk050",
+  "lines_processed": 161,
+  "n_detections": 274,
+  "detections_per_line": 1.7018633540372672,
+  "false_alarm_rate": 1.7018633540372672,
+  "rate_basis": "detections per line on attested-empty ground",
+  "sufficient_for_a_rate": true,
+  "limitation": "",
+  "control_attested": true,
+  "control_caveat": "Pk050 is not featureless. The step back walls are real reflectors at the step thicknesses above, and any detector will respond to them. It is a control for EMBEDDED OBJECTS, not a control for 'no reflector'.",
+  "per_area_rate": null,
+  "per_area_note": "not computed: the archives declare no physical unit for X/Y, so an area cannot be stated without assuming one",
+  "threshold": 3.0,
+  "min_cells": 3,
+  "scope": "BAM benchmark results measure performance on controlled concrete NDT specimens. They are not evidence of soil/utility-scale subsurface detection or localisation performance."
+ },
+ "wall_seconds": 23.8
+}
