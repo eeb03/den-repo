@@ -1,31 +1,46 @@
 {
  "$comment": [
-  "PROPOSED manifest for the Yesan full-scale test site (Zenodo 21441974). NOT SCORING READY.",
-  "It holds NO targets: the record describes 'documented buried targets' and 'supporting ground-truth",
-  "information used in the accompanying MDPI Sensors publication', but no target list is in the held",
-  "files and the paper has not been found. The frames and open questions below record what the held",
-  "files DO establish, so that a target list, when obtained, lands in a structure that already says",
-  "why exact scoring would be unsafe until the line registration is resolved. No offset is guessed.",
-  "Investigated 2026-09-29: see docs/yesan-registration-investigation.md. Still no target list; registration unresolved."
+  "Yesan full-scale test site (Zenodo 21441974). NOT SCORING READY.",
+  "TWO FRAMES PER LINE, deliberately kept apart. 'yesan:testbed-A/B' is the CONSTRUCTED testbed, from the",
+  "Korea Expressway Corporation design report EXTRI-2018-40-534.9607: its targets are authoritative for where",
+  "objects were built (grade B: positions read off the design figures). 'yesan:line-A/B' is the authors' 2021",
+  "radar distance convention. Nothing registers one to the other: the 2021 direction, start alignment and the",
+  "27 m / 3116-interval calibration are unresolved, so every target is in the testbed frame only and the",
+  "scoring gate stays shut. No offset is guessed and no radar feature is used to place a target.",
+  "Targets are generated from evidence/yesan/kec_testbed_targets.csv by scripts/build_yesan_manifest_targets.py.",
+  "Investigation: docs/yesan-registration-investigation.md (2026-09-29; KEC update 2026-10-05)."
  ],
  "schema": "subterra.targets.v1",
  "dataset_id": "yesan-fullscale",
  "title": "Yesan full-scale bridge-transition test site (Korea Expressway Corporation Research Institute)",
  "truth_source": {
-  "provenance_class": "not_yet_obtained",
+  "provenance_class": "construction_design_report",
   "record": "Zenodo 10.5281/zenodo.21441974 (CC-BY-4.0), 'Field Dataset for Complementary Subsurface Sensing Using a Quantum Diamond Magnetometer and Multi-Frequency Ground-Penetrating Radar at a Full-Scale Test Site', Oh, Chang-Geun (project leader)",
   "held_files": [
    "Yesan test site GPR Raw data_0629.zip (MD5 6e40b0ea650b86d5802c5d393cc34c46, matches the record)",
    "9 GPR images.zip (MD5 852c53b6c0d33dae9efff937488b3657, matches the record)"
   ],
-  "missing": "the target list (class, material, dimensions, burial depth, chainage, reference surface) from the MDPI Sensors paper or the authors",
+  "testbed_truth": {
+   "document": "Korea Expressway Corporation Research Institute, '포장하부 상태평가를 위한 비파괴 조사방안 연구', report EXTRI-2018-40-534.9607 (216 pp.)",
+   "url": "https://www.codil.or.kr/filebank/original/RK/OTKCRK190187/OTKCRK190187.pdf",
+   "used": "Tables 4.6-4.8 (PDF pp. 83, 84, 86) and Figs. 4.3, 4.5, 4.7, 4.10 (PDF pp. 82, 83, 85, 87); text PDF pp. 82-86, 98, 113",
+   "held": "datasets/raw/references/kec_extri_2018_40/ (git-ignored; copyrighted, not redistributed)",
+   "transcription": "evidence/yesan/kec_tables_4_6_to_4_8.csv, evidence/yesan/kec_testbed_targets.csv",
+   "classification": "authoritative for the constructed testbed; NOT a registration of the 2021 radar files"
+  },
+  "secondary_source": {
+   "document": "Rhee et al. 2021, Remote Sens. 13:1805, doi 10.3390/rs13091805, Figure 3 (asphalt and concrete sections only)",
+   "use": "comparison only; disagreements with KEC are kept in evidence/yesan/rhee2021_vs_kec_comparison.csv, not resolved"
+  },
+  "supporting_only_for_2021": "the KEC report's 2017-18 MALA processing (time-zero muting of antenna separation / c, 0.075 m/ns migration velocity, antenna separations) is recorded in evidence/yesan_kec.py SUPPORTING_ONLY and is deliberately NOT in this manifest: it was never measured on the 2021 files",
+  "missing": "the 2021 trace-to-testbed registration (direction, start alignment, distance scale), and the dataset's own target table (MDPI Sensors) to confirm the site's state in 2021",
   "investigation": "docs/yesan-registration-investigation.md",
   "gpr_acquisition_date": "2021-04-06 (zip member timestamps 14:42-15:23; inferred, not a header field)",
   "author_contact": "Chang-Geun Oh, Hanseo University, coh@hanseo.ac.kr (verified: HUCAS faculty page and ORCID 0000-0002-9464-4397)"
  },
  "exhaustive": {
   "value": false,
-  "statement": "No target list is held, so nothing can be attested exhaustive."
+  "statement": "Not attested. KEC Tables 4.6 and 4.8 reconcile exactly with the drawn objects (asphalt 40, concrete 42), but the approach-slab section does not (drawn 34, table rows 36, text 38: two steel plates unaccounted for); 5 moisture sensors drawn in the asphalt section are instrumentation outside the tables; and nothing establishes that the 2021 site held exactly these objects."
  },
  "frames": [
   {
@@ -37,7 +52,7 @@
    "origin_status": "unverified",
    "units_status": "declared",
    "registration_to_radar": "unresolved",
-   "registration_note": "Two distance scales disagree: the .rad wheel calibration gives 0.008429 m/trace (line A stops at 90.70-91.05 m) while the authors' sheet uses dx = 0.0086649550706 m/trace (93.23-93.59 m), about 2.8% longer and roughly 2.5 m over the line. Which one the target chainages use is unknown. The per-file 0 m trace (65/96/107) is where the authors put 0 m; its relation to the targets' chainage origin is unproven."
+   "registration_note": "Two distance scales disagree: the .rad wheel calibration gives 0.008429 m/trace (line A stops at 90.70-91.05 m) while the authors' sheet uses dx = 0.0086649550706 m/trace (93.23-93.59 m), about 2.8% longer and roughly 2.5 m over the line. Which one the target chainages use is unknown. The per-file 0 m trace (65/96/107) is where the authors put 0 m; its relation to the targets' chainage origin is unproven. The KEC design (testbed frame yesan:testbed-A) is NOT registered to this frame: the 2021 direction, which trace is above testbed 0 m, and which scale (if either) equals testbed metres are all unresolved."
   },
   {
    "frame_id": "yesan:line-B",
@@ -48,24 +63,54 @@
    "origin_status": "unverified",
    "units_status": "declared",
    "registration_to_radar": "unresolved",
-   "registration_note": "Same two-scale disagreement as line A: .rad 0.008429 m/trace (89.17-89.97 m) vs sheet dx 0.0086649550706 m/trace (91.66-92.49 m)."
+   "registration_note": "Same two-scale disagreement as line A: .rad 0.008429 m/trace (89.17-89.97 m) vs sheet dx 0.0086649550706 m/trace (91.66-92.49 m). The KEC design (testbed frame yesan:testbed-B) is NOT registered to this frame: the 2021 direction, which trace is above testbed 0 m, and which scale (if either) equals testbed metres are all unresolved."
+  },
+  {
+   "frame_id": "yesan:testbed-A",
+   "kind": "survey_line",
+   "units": "m",
+   "line_id": "A",
+   "origin": "testbed chainage 0 m = start of the asphalt section (KEC Fig. 4.3: asphalt 0-30 m, approach slab 30-60 m, concrete 60-90 m). Line A has no marker plate at its start; its 0 m is the section start by design only.",
+   "origin_status": "declared",
+   "units_status": "declared",
+   "registration_to_radar": "unresolved",
+   "registration_note": "Constructed-testbed frame. No 2021 radar trace is registered to it: survey direction is only inferred, the authors' per-file '0 m' trace is not shown to lie over testbed 0 m, and neither the wheel scale (0.008429 m) nor the sheet scale (27/3116 m) is shown to equal testbed metres.",
+   "note": "line A lies 1.5 m left of the road centreline (KEC PDF p. 82). Chainage = section offset (0 / 30 / 60 m) + position within the section; positions are read from the design figures, +-0.1 m."
+  },
+  {
+   "frame_id": "yesan:testbed-B",
+   "kind": "survey_line",
+   "units": "m",
+   "line_id": "B",
+   "origin": "testbed chainage 0 m = start of the asphalt section (KEC Fig. 4.3: asphalt 0-30 m, approach slab 30-60 m, concrete 60-90 m). On line B the start is marked by a buried steel plate at 0.0-0.5 m, 0.27 m deep (KEC Table 4.6, Fig. 4.5, PDF p. 84).",
+   "origin_status": "declared",
+   "units_status": "declared",
+   "registration_to_radar": "unresolved",
+   "registration_note": "Constructed-testbed frame. No 2021 radar trace is registered to it: survey direction is only inferred, the authors' per-file '0 m' trace is not shown to lie over testbed 0 m, and neither the wheel scale (0.008429 m) nor the sheet scale (27/3116 m) is shown to equal testbed metres.",
+   "note": "line B lies 1.5 m right of the road centreline (KEC PDF p. 82). Chainage = section offset (0 / 30 / 60 m) + position within the section; positions are read from the design figures, +-0.1 m."
   }
  ],
- "depth_reference_surfaces": [],
+ "depth_reference_surfaces": [
+  {
+   "surface_id": "pavement_surface",
+   "description": "top of the road pavement along the line. KEC: the shallowest cavity model sits 'directly beneath the pavement' at 0.27 m, the thickness of the asphalt layers (5+7+15 cm); the concrete minimum 0.45 m is the 30 cm slab + 15 cm lean base (PDF pp. 82-86, 113). Rhee et al. 2021 states the EPS depths are to the object's top surface."
+  }
+ ],
  "open_questions": [
   {
    "id": "yesan-target-list",
-   "statement": "The documented buried targets are not in any held file.",
+   "statement": "RESOLVED FOR THE TESTBED (2026-10-05): the constructed objects are listed in KEC report EXTRI-2018-40-534.9607 Tables 4.6-4.8 and placed in Figs. 4.5/4.7/4.10; transcribed in evidence/yesan/. Whether the 2021 site held these objects is yesan-site-identity; which trace is above which object is yesan-testbed-to-2021-registration.",
    "blocks": [
     "detection_matching",
     "false_positives",
     "depth_scoring"
    ],
-   "resolution_route": "the MDPI Sensors paper for this dataset, or the authors (project leader Oh, Chang-Geun)"
+   "resolution_route": "resolved by KEC EXTRI-2018-40-534.9607 (CODIL OTKCRK190187)",
+   "status": "RESOLVED"
   },
   {
    "id": "yesan-line-registration",
-   "statement": "The physical meaning of each file's '0 m reference position' trace, and whether target chainages are measured from it, is not established.",
+   "statement": "The testbed origin is now declared (start of the asphalt section; a buried steel plate on line B, none on line A). Still unproven: that each 2021 file's '0 m reference position' trace (A: 65/96/107; B: 80/60/60) lies over that origin.",
    "blocks": [
     "detection_matching",
     "localization_error"
@@ -74,7 +119,7 @@
   },
   {
    "id": "yesan-distance-scale",
-   "statement": "The .rad interval 0.008429 m is 3 pulses / 355.9 pulses per metre; the authors' 0.0086649550706 m is 3 / 346.22, an unexplained re-calibration 2.8% longer. The published images use the authors' scale.",
+   "statement": "The .rad interval 0.008429 m is 3 pulses / 355.9 pulses per metre; the authors' dx = 0.0086649550706 m equals 27/3116 (to 1e-13), i.e. a 27 m reference spanning 3116 trace intervals, 2.8% longer. The KEC report (90 m site, three 30 m sections) contains no 27 m calibration distance and cannot explain it. Which scale, if either, equals testbed metres is unknown.",
    "blocks": [
     "detection_matching",
     "localization_error",
@@ -84,7 +129,7 @@
   },
   {
    "id": "yesan-section-boundary",
-   "statement": "QDM file names put the approach slab at 30-60 m (line A, 2026), but the strongest GPR near-surface change is at 44.0-45.0 m (2021). A shared chainage (with the 44.5 m change inside the approach slab) and a ~14.5 m offset both fit the held evidence. Neither is adopted.",
+   "statement": "KEC design landmarks: abutment stem 44.7-45.3 m, footing 44.0-46.0 m; approach-slab/concrete boundary 60 m; plain/CRCP boundary 75 m. The 2021 near-surface changes (44.0-45.0, ~60, 72.6-75.6 m) coincide with all three if sheet 0 m ~ testbed 0 m, which now favours the shared-chainage hypothesis over a 14.5 m offset. This is a consistency check, NOT a registration, and is not used to place anything.",
    "blocks": [
     "detection_matching"
    ],
@@ -106,16 +151,4874 @@
   },
   {
    "id": "yesan-survey-direction",
-   "statement": "Both lines probably run the same way (B repeats A's ~74 m change rather than mirroring it), but the physical start and end are not documented.",
+   "statement": "Inferred, not declared: the landmark coincidences hold only if both 2021 lines start at the asphalt end (a reversed run would put the 60 m and 75 m changes at 30 m and 15 m). The authors have not stated the direction.",
    "blocks": [
     "detection_matching",
     "localization_error"
    ],
    "resolution_route": "authors or a site drawing"
+  },
+  {
+   "id": "yesan-site-identity",
+   "statement": "That the Zenodo 21441974 site IS the KEC testbed is inferred (same operator, same 90 m bridge-transition layout, QDM names on KEC chainages, radar changes at KEC landmarks) but not stated by any held source; the report anonymises the site. Objects may also have changed between construction (2017-18) and the 2021 survey.",
+   "blocks": [
+    "detection_matching",
+    "false_positives",
+    "localization_error",
+    "depth_scoring"
+   ],
+   "resolution_route": "authors (Oh, Chang-Geun) or the dataset's MDPI Sensors paper"
+  },
+  {
+   "id": "yesan-testbed-to-2021-registration",
+   "statement": "No defensible transformation maps a 2021 trace to testbed chainage: it needs the survey direction, the trace over testbed 0 m on each line, and the meaning of the 27/3116 calibration. Target positions are known; which trace is above them is not.",
+   "blocks": [
+    "detection_matching",
+    "false_alarms_per_metre",
+    "localization_error"
+   ],
+   "resolution_route": "authors; not to be fitted from radar features"
+  },
+  {
+   "id": "yesan-depth-point",
+   "statement": "KEC gives depths below the pavement surface but does not say to which point of a non-EPS object (top, centre); Rhee 2021 states top for EPS only. The transverse drain's 1.5 m may be its centre (the drawn box top is ~1.05 m).",
+   "blocks": [
+    "depth_scoring"
+   ],
+   "resolution_route": "authors"
+  },
+  {
+   "id": "yesan-kec-rhee-figure-discrepancies",
+   "statement": "KEC and Rhee 2021 figures disagree for 26 of 74 compared objects (|delta| > 0.15 m): concrete line-A depths 0.2-0.4 m apart, concrete drain/hemisphere 4.6 vs 5.0 m, start plate 0.26 vs 0.46 m, end plate 29.74 vs 29.40 m. Kept explicit in evidence/yesan/rhee2021_vs_kec_comparison.csv; KEC is used, not adjusted.",
+   "blocks": [
+    "localization_error",
+    "depth_scoring"
+   ],
+   "resolution_route": "authors, or the as-built GPS coordinates (KEC Table 4.22)"
+  },
+  {
+   "id": "yesan-approach-slab-count",
+   "statement": "Approach-slab section: Fig. 4.7 draws 34 objects (6 steel plates), Table 4.7 rows sum to 36 (8 plates), the text says 38.",
+   "blocks": [
+    "false_positives",
+    "false_alarms_per_metre"
+   ],
+   "resolution_route": "authors"
   }
  ],
- "targets": [],
+ "targets": [
+  {
+   "target_id": "kec-AS-A01",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.5
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      2.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 2.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.35,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27-2.0 m) / Fig. 4.5; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; drawn directly beneath the 0.27 m asphalt layers; report text (PDF p.113) cites a line-A cavity model directly beneath the pavement at 0.27 m without saying which one"
+  },
+  {
+   "target_id": "kec-AS-A02",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.5
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      5.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 5.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.77,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27-2.0 m) / Fig. 4.5; basis kec_text"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_text",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; on top of the transverse drain pipe; depth stated in text (PDF p.113, printed p.91); figure reads 0.80"
+  },
+  {
+   "target_id": "kec-AS-A03",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.5
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      8.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 8.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.0,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27-2.0 m) / Fig. 4.5; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-AS-A04",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.5
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      11.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 11.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.55,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27-2.0 m) / Fig. 4.5; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-AS-A05",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.5
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      14.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 14.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.05,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27-2.0 m) / Fig. 4.5; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; deepest D0.5; table maximum 2.0"
+  },
+  {
+   "target_id": "kec-AS-A06",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      17.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 17.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 3.05,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27-3.0 m) / Fig. 4.5; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; deepest D1.0; table maximum 3.0"
+  },
+  {
+   "target_id": "kec-AS-A07",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      20.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 20.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.7,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27-3.0 m) / Fig. 4.5; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; Rhee 2021 Fig. 3 draws it at ~2.5 m (see comparison)"
+  },
+  {
+   "target_id": "kec-AS-A08",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      23.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 23.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.0,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27-3.0 m) / Fig. 4.5; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-AS-A09",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      26.05
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 26.05 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.55,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27-3.0 m) / Fig. 4.5; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-AS-A10",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      29.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 29.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.4,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27-3.0 m) / Fig. 4.5; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; drawn directly beneath the asphalt layers; table minimum 0.27"
+  },
+  {
+   "target_id": "kec-AS-D01",
+   "object_class": "transverse_drain_pipe",
+   "line_id": null,
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.9
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      5.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 5.00 m + 0 m; read from KEC Fig. 4.5"
+    },
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      5.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 5.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.5,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 1.5 m) / Fig. 4.5; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: crosses_both_lines; transverse pipe under both lines; the drawn box top is ~1.05 m, so 1.5 m may be the pipe centre (unresolved)"
+  },
+  {
+   "target_id": "kec-AS-B01",
+   "object_class": "steel_plate",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "segment",
+     "start": [
+      0.0
+     ],
+     "end": [
+      0.5
+     ],
+     "uncertainty": 0.1,
+     "note": "longitudinal extent read from the KEC figure"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.27,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27 m) / Fig. 4.5; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; installed at the start of the asphalt section 'to mark the survey start point' (PDF p.84, printed p.62); drawn in plan only (0.0-0.5 m)"
+  },
+  {
+   "target_id": "kec-AS-B02",
+   "object_class": "loosened_ground_zone",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 2.0,
+    "width": 1.8,
+    "height": 0.5,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "segment",
+     "start": [
+      1.0
+     ],
+     "end": [
+      3.0
+     ],
+     "uncertainty": 0.1,
+     "note": "longitudinal extent read from the KEC figure"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.27,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27 m) / Fig. 4.5; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: spans_line; Fig. 4.5 labels it 2.0x1.8x1.0; table says 2.0x1.8x0.5; drawn ~0.5 m thick"
+  },
+  {
+   "target_id": "kec-AS-B03",
+   "object_class": "rock",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.6
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      2.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 2.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 2.0 m) / Fig. 4.5; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; beneath AS-B02"
+  },
+  {
+   "target_id": "kec-AS-B04",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.5
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      4.25
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 4.25 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.75,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27-2.0 m) / Fig. 4.5; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; line-B hemisphere beside the drain pipe; Rhee's 'top surface' statement covers line A only"
+  },
+  {
+   "target_id": "kec-AS-B05",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.5
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      5.75
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 5.75 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.1,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27-2.0 m) / Fig. 4.5; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; line-B hemisphere beside the drain pipe"
+  },
+  {
+   "target_id": "kec-AS-B06",
+   "object_class": "earthenware_water",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.4
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      8.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 8.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.35,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 2.0-2.5 m) / Fig. 4.5; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "n_items=2; lateral: on_line; 2 water-filled pots (15 kg)"
+  },
+  {
+   "target_id": "kec-AS-B07",
+   "object_class": "earthenware_air",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.4
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      9.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 9.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.35,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 2.0-2.5 m) / Fig. 4.5; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "n_items=3; lateral: between_centreline_and_line; 3 empty pots drawn in plan ~0.2-1.0 m from the centreline, i.e. not on line B"
+  },
+  {
+   "target_id": "kec-AS-B08",
+   "object_class": "concrete_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.2,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      11.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 11.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.4,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 2.0-2.5 m) / Fig. 4.5; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-AS-B09",
+   "object_class": "asphalt_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 1.0,
+    "height": 0.2,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      12.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 12.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.4,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 2.0-2.5 m) / Fig. 4.5; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: between_centreline_and_line; drawn in plan ~0.1-1.0 m from the centreline"
+  },
+  {
+   "target_id": "kec-AS-B10",
+   "object_class": "loosened_ground_zone",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 6.0,
+    "width": 2.8,
+    "height": 1.0,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "segment",
+     "start": [
+      13.0
+     ],
+     "end": [
+      19.0
+     ],
+     "uncertainty": 0.1,
+     "note": "longitudinal extent read from the KEC figure"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 1.0 m) / Fig. 4.5; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: spans_line; contains AS-B11..AS-B14 and 5 moisture sensors (instrumentation, not in Table 4.6)"
+  },
+  {
+   "target_id": "kec-AS-B11",
+   "object_class": "earthenware_water",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.4
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      14.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 14.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.05,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 2.0-2.5 m) / Fig. 4.5; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "n_items=2; lateral: on_line"
+  },
+  {
+   "target_id": "kec-AS-B12",
+   "object_class": "earthenware_air",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.4
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      15.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 15.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.05,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 2.0-2.5 m) / Fig. 4.5; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "n_items=3; lateral: between_centreline_and_line; drawn in plan ~0.2-1.0 m from the centreline"
+  },
+  {
+   "target_id": "kec-AS-B13",
+   "object_class": "concrete_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.2,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      17.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 17.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 2.0-2.5 m) / Fig. 4.5; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-AS-B14",
+   "object_class": "asphalt_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 1.0,
+    "height": 0.2,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      17.95
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 17.95 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 2.0-2.5 m) / Fig. 4.5; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: between_centreline_and_line; drawn in plan ~0.1-1.0 m from the centreline"
+  },
+  {
+   "target_id": "kec-AS-B15",
+   "object_class": "plastic_container_water",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      20.05
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 20.05 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.1,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27-1.0 m) / Fig. 4.5; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; five 4 L water bottles"
+  },
+  {
+   "target_id": "kec-AS-B16",
+   "object_class": "plastic_container_air",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      21.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 21.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 1.0 m) / Fig. 4.5; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: between_centreline_and_line; nine empty 4 L bottles; drawn in plan ~0.1-1.0 m from the centreline"
+  },
+  {
+   "target_id": "kec-AS-B17",
+   "object_class": "concrete_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      23.05
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 23.05 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27-1.0 m) / Fig. 4.5; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-AS-B18",
+   "object_class": "asphalt_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      24.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 24.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 1.0 m) / Fig. 4.5; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: between_centreline_and_line; drawn in plan ~0.1-1.0 m from the centreline"
+  },
+  {
+   "target_id": "kec-AS-B19",
+   "object_class": "loosened_ground_zone",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 5.0,
+    "width": 1.8,
+    "height": 1.0,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "segment",
+     "start": [
+      25.0
+     ],
+     "end": [
+      30.0
+     ],
+     "uncertainty": 0.1,
+     "note": "longitudinal extent read from the KEC figure"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 2.0 m) / Fig. 4.5; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: spans_line; sand mixed with styrofoam particles"
+  },
+  {
+   "target_id": "kec-AS-B20",
+   "object_class": "plastic_container_water",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      26.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 26.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.4,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27-1.0 m) / Fig. 4.5; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; five 4 L water bottles"
+  },
+  {
+   "target_id": "kec-AS-B21",
+   "object_class": "plastic_container_air",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      27.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 27.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.27,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27 m) / Fig. 4.5; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; five empty 4 L bottles"
+  },
+  {
+   "target_id": "kec-AS-B22",
+   "object_class": "concrete_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      28.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 28.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.35,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27-1.0 m) / Fig. 4.5; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-AS-B23",
+   "object_class": "asphalt_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      29.0
+     ],
+     "uncertainty": 0.1,
+     "note": "asphalt section position 29.00 m + 0 m; read from KEC Fig. 4.5"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.27,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.6 (range 0.27 m) / Fig. 4.5; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.6 (PDF p. 83, printed p. 61) and Fig. 4.5",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-SL-A01",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      31.0
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 1.00 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.7,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 0.27-2.0 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; approach-slab figure readings span only ~0.7-1.7 m against the table's 0.27-2.0 m"
+  },
+  {
+   "target_id": "kec-SL-A02",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      33.0
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 3.00 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.2,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 0.27-2.0 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-SL-A03",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      35.25
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 5.25 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.7,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 0.27-2.0 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; section reads 5.22 m, plan 5.33 m"
+  },
+  {
+   "target_id": "kec-SL-A04",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      38.0
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 8.00 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.2,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 0.27-2.0 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; beneath the asphalt-side approach slab (6-15 m)"
+  },
+  {
+   "target_id": "kec-SL-A05",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      41.0
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 11.00 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.45,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 0.27-2.0 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-SL-V01",
+   "object_class": "void",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "length": 1.0,
+    "width": 1.8,
+    "height": 0.5,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      44.1
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 14.10 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 0.5-1.0 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: spans_line; real void against the abutment, formed by removing square styrofoam after the slab was built (PDF p.85, printed p.63)"
+  },
+  {
+   "target_id": "kec-SL-A06",
+   "object_class": "steel_plate",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      44.1
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 14.10 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.6,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 0.3-1.0 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; locator plate inside void SL-V01; figure depth is outside the table's 0.3-1.0 m"
+  },
+  {
+   "target_id": "kec-SL-V02",
+   "object_class": "void",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "length": 1.0,
+    "width": 1.8,
+    "height": 0.5,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      46.1
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 16.10 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.55,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 0.5-1.0 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: spans_line; real void on the concrete side of the abutment"
+  },
+  {
+   "target_id": "kec-SL-A07",
+   "object_class": "steel_plate",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      46.1
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 16.10 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.15,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 0.3-1.0 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; locator plate inside void SL-V02; figure depth is outside the table's 0.3-1.0 m"
+  },
+  {
+   "target_id": "kec-SL-A08",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      49.05
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 19.05 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.7,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 0.27-2.0 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-SL-A09",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      51.5
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 21.50 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.2,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 0.27-2.0 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-SL-A10",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      54.0
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 24.00 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.7,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 0.27-2.0 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-SL-A11",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      57.0
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 27.00 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.7,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 0.27-2.0 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-SL-A12",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      59.1
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 29.10 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.7,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 0.27-2.0 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-SL-B01",
+   "object_class": "plastic_container_water",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 1.0,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      31.0
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 1.00 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 1.0 m) / Fig. 4.7; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; fifteen 4 L water bottles"
+  },
+  {
+   "target_id": "kec-SL-B02",
+   "object_class": "asphalt_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 1.0,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      32.5
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 2.50 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 1.0 m) / Fig. 4.7; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-SL-B03",
+   "object_class": "rock",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.6
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      32.5
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 2.50 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.05,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 2.0-2.5 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; beneath SL-B02"
+  },
+  {
+   "target_id": "kec-SL-B04",
+   "object_class": "concrete_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 1.0,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      34.0
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 4.00 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 1.0 m) / Fig. 4.7; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-SL-B05",
+   "object_class": "steel_plate",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      36.1
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 6.10 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.05,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 0.3-1.0 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-SL-B06",
+   "object_class": "steel_plate",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      37.0
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 7.00 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.55,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 0.3-1.0 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; directly under the start of the asphalt-side approach slab"
+  },
+  {
+   "target_id": "kec-SL-B07",
+   "object_class": "loosened_ground_zone",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 5.0,
+    "width": 1.8,
+    "height": 1.0,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "segment",
+     "start": [
+      38.0
+     ],
+     "end": [
+      43.0
+     ],
+     "uncertainty": 0.1,
+     "note": "longitudinal extent read from the KEC figure"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.5,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 1.5 m) / Fig. 4.7; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: spans_line; contains SL-B08..SL-B10"
+  },
+  {
+   "target_id": "kec-SL-B08",
+   "object_class": "plastic_container_water",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 1.0,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      39.0
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 9.00 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 1.0 m) / Fig. 4.7; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; fifteen 4 L water bottles; figure reads 1.16"
+  },
+  {
+   "target_id": "kec-SL-B09",
+   "object_class": "asphalt_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 1.0,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      40.6
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 10.60 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 1.0 m) / Fig. 4.7; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; figure reads 1.16"
+  },
+  {
+   "target_id": "kec-SL-B10",
+   "object_class": "concrete_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 1.0,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      42.15
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 12.15 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 1.0 m) / Fig. 4.7; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; figure reads 1.16"
+  },
+  {
+   "target_id": "kec-SL-B11",
+   "object_class": "loosened_ground_zone",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 5.0,
+    "width": 1.8,
+    "height": 1.0,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "segment",
+     "start": [
+      47.0
+     ],
+     "end": [
+      52.0
+     ],
+     "uncertainty": 0.1,
+     "note": "longitudinal extent read from the KEC figure"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.5,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 1.5 m) / Fig. 4.7; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: spans_line; contains SL-B12..SL-B14"
+  },
+  {
+   "target_id": "kec-SL-B12",
+   "object_class": "plastic_container_water",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 1.0,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      48.0
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 18.00 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 1.0 m) / Fig. 4.7; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; figure reads 1.16"
+  },
+  {
+   "target_id": "kec-SL-B13",
+   "object_class": "asphalt_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 1.0,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      49.6
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 19.60 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 1.0 m) / Fig. 4.7; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; figure reads 1.16"
+  },
+  {
+   "target_id": "kec-SL-B14",
+   "object_class": "concrete_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 1.0,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      51.15
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 21.15 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 1.0 m) / Fig. 4.7; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; figure reads 1.16"
+  },
+  {
+   "target_id": "kec-SL-B15",
+   "object_class": "steel_plate",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      53.2
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 23.20 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.55,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 0.3-1.0 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-SL-B16",
+   "object_class": "steel_plate",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      54.85
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 24.85 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.55,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 0.3-1.0 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-SL-B17",
+   "object_class": "plastic_container_water",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 1.0,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      55.9
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 25.90 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 1.0 m) / Fig. 4.7; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-SL-B18",
+   "object_class": "asphalt_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 1.0,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      57.5
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 27.50 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 1.0 m) / Fig. 4.7; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-SL-B19",
+   "object_class": "rock",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.6
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      57.5
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 27.50 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.05,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 2.0-2.5 m) / Fig. 4.7; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; beneath SL-B18"
+  },
+  {
+   "target_id": "kec-SL-B20",
+   "object_class": "concrete_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 1.0,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      59.05
+     ],
+     "uncertainty": 0.1,
+     "note": "approach_slab section position 29.05 m + 30 m; read from KEC Fig. 4.7"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.7 (range 1.0 m) / Fig. 4.7; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.7 (PDF p. 84;85, printed p. 62;63) and Fig. 4.7",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-CO-A01",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      61.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 1.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.2,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-2.5 m) / Fig. 4.10; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; Rhee 2021 Fig. 3 draws ~2.5 m"
+  },
+  {
+   "target_id": "kec-CO-A02",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      62.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 2.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.75,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-2.5 m) / Fig. 4.10; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; Rhee 2021 Fig. 3 draws ~0.35 m"
+  },
+  {
+   "target_id": "kec-CO-A03",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      64.6
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 4.60 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.25,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-2.5 m) / Fig. 4.10; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; on top of drain pipe CO-D01; Rhee 2021 puts it at 5.0 m"
+  },
+  {
+   "target_id": "kec-CO-A04",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.5
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      65.45
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 5.45 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.0,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 2.0 m) / Fig. 4.10; basis kec_table_single_value"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: outside_line; drawn in plan ~0.45 m outside line A (≈1.95 m from the centreline); figure depth 2.15"
+  },
+  {
+   "target_id": "kec-CO-A05",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      68.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 8.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.25,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-2.5 m) / Fig. 4.10; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-CO-A06",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      71.05
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 11.05 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.75,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-2.5 m) / Fig. 4.10; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-CO-A07",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      74.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 14.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.25,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-2.5 m) / Fig. 4.10; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-CO-A08",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      76.05
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 16.05 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.25,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-2.5 m) / Fig. 4.10; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; first object in the CRCP part (15-30 m)"
+  },
+  {
+   "target_id": "kec-CO-A09",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      79.05
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 19.05 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.7,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-2.5 m) / Fig. 4.10; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-CO-A10",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      82.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 22.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.25,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-2.5 m) / Fig. 4.10; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; labelled CP-B10 in Rhee 2021 Fig. 3 although it sits on line A"
+  },
+  {
+   "target_id": "kec-CO-A11",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.5
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      84.35
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 24.35 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.0,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 2.0 m) / Fig. 4.10; basis kec_table_single_value"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: outside_line; drawn in plan ~0.4 m outside line A; figure depth 2.10"
+  },
+  {
+   "target_id": "kec-CO-A12",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      85.05
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 25.05 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.25,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-2.5 m) / Fig. 4.10; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; on top of drain pipe CO-D02"
+  },
+  {
+   "target_id": "kec-CO-A13",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      88.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 28.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.75,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-2.5 m) / Fig. 4.10; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; Rhee 2021 Fig. 3 draws ~0.35 m"
+  },
+  {
+   "target_id": "kec-CO-A14",
+   "object_class": "styrofoam_hemisphere",
+   "line_id": "A",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 1.0
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      89.05
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 29.05 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.75,
+     "units": "m",
+     "measured_to": "top",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-2.5 m) / Fig. 4.10; basis kec_figure_reading"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; figure depth exceeds the table maximum of 2.5 m"
+  },
+  {
+   "target_id": "kec-CO-D01",
+   "object_class": "transverse_drain_pipe",
+   "line_id": null,
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.9
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      64.6
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 4.60 m + 60 m; read from KEC Fig. 4.10"
+    },
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      64.6
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 4.60 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.5,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 1.5 m) / Fig. 4.10; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: crosses_both_lines; Rhee 2021 Fig. 3 puts this pipe at 5.0 m"
+  },
+  {
+   "target_id": "kec-CO-D02",
+   "object_class": "transverse_drain_pipe",
+   "line_id": null,
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.9
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-A",
+     "geometry": "point",
+     "coordinates": [
+      85.05
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 25.05 m + 60 m; read from KEC Fig. 4.10"
+    },
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      85.05
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 25.05 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 1.5,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 1.5 m) / Fig. 4.10; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: crosses_both_lines"
+  },
+  {
+   "target_id": "kec-CO-B01",
+   "object_class": "plastic_container_water",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      61.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 1.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.5,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-1.0 m) / Fig. 4.10; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; five 4 L water bottles"
+  },
+  {
+   "target_id": "kec-CO-B02",
+   "object_class": "plastic_container_air",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      62.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 2.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.5,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-1.0 m) / Fig. 4.10; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: between_centreline_and_line; nine empty 4 L bottles; drawn in plan ~0-1.0 m from the centreline"
+  },
+  {
+   "target_id": "kec-CO-B03",
+   "object_class": "rock",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.6
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      62.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 2.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 2.0 m) / Fig. 4.10; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-CO-B04",
+   "object_class": "asphalt_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      63.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 3.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.5,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-1.0 m) / Fig. 4.10; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-CO-B05",
+   "object_class": "plastic_container_water",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      67.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 7.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.9,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-1.0 m) / Fig. 4.10; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; five 4 L water bottles"
+  },
+  {
+   "target_id": "kec-CO-B06",
+   "object_class": "plastic_container_air",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      68.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 8.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.9,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-1.0 m) / Fig. 4.10; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: between_centreline_and_line; drawn in plan ~0-1.0 m from the centreline"
+  },
+  {
+   "target_id": "kec-CO-B07",
+   "object_class": "asphalt_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      69.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 9.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.9,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-1.0 m) / Fig. 4.10; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-CO-B08",
+   "object_class": "loosened_ground_zone",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 5.0,
+    "width": 2.8,
+    "height": 0.5,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "segment",
+     "start": [
+      70.0
+     ],
+     "end": [
+      75.0
+     ],
+     "uncertainty": 0.1,
+     "note": "longitudinal extent read from the KEC figure"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.45,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45 m) / Fig. 4.10; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: spans_line; Fig. 4.10 labels it 5.0x2.8x1.0 and draws ~1.0 m thick; contains CO-B09..CO-B12"
+  },
+  {
+   "target_id": "kec-CO-B09",
+   "object_class": "earthenware_water",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.4
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      71.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 11.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 2.0 m) / Fig. 4.10; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "n_items=2; lateral: on_line"
+  },
+  {
+   "target_id": "kec-CO-B10",
+   "object_class": "styrofoam_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 1.0,
+    "height": 0.2,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      72.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 12.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 2.0 m) / Fig. 4.10; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: between_centreline_and_line; drawn in plan ~0-1.0 m from the centreline"
+  },
+  {
+   "target_id": "kec-CO-B11",
+   "object_class": "concrete_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.2,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      73.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 13.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 2.0 m) / Fig. 4.10; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-CO-B12",
+   "object_class": "asphalt_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 1.0,
+    "height": 0.2,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      74.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 14.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 2.0 m) / Fig. 4.10; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: between_centreline_and_line; drawn in plan ~0-1.0 m from the centreline"
+  },
+  {
+   "target_id": "kec-CO-B13",
+   "object_class": "loosened_ground_zone",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 5.0,
+    "width": 2.8,
+    "height": 0.5,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "segment",
+     "start": [
+      75.0
+     ],
+     "end": [
+      80.0
+     ],
+     "uncertainty": 0.1,
+     "note": "longitudinal extent read from the KEC figure"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.45,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45 m) / Fig. 4.10; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: spans_line; contains CO-B14..CO-B17"
+  },
+  {
+   "target_id": "kec-CO-B14",
+   "object_class": "earthenware_water",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "outer_diameter": 0.4
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      76.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 16.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 2.0 m) / Fig. 4.10; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "n_items=2; lateral: on_line"
+  },
+  {
+   "target_id": "kec-CO-B15",
+   "object_class": "styrofoam_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 1.0,
+    "height": 0.2,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      77.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 17.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 2.0 m) / Fig. 4.10; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: between_centreline_and_line; drawn in plan ~0-1.0 m from the centreline"
+  },
+  {
+   "target_id": "kec-CO-B16",
+   "object_class": "concrete_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.2,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      78.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 18.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 2.0 m) / Fig. 4.10; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-CO-B17",
+   "object_class": "asphalt_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 1.0,
+    "height": 0.2,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      79.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 19.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 2.0,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 2.0 m) / Fig. 4.10; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: between_centreline_and_line; drawn in plan ~0-1.0 m from the centreline"
+  },
+  {
+   "target_id": "kec-CO-B18",
+   "object_class": "plastic_container_water",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      81.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 21.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.9,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-1.0 m) / Fig. 4.10; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-CO-B19",
+   "object_class": "plastic_container_air",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      82.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 22.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.9,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-1.0 m) / Fig. 4.10; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: between_centreline_and_line; drawn in plan ~0-1.0 m from the centreline"
+  },
+  {
+   "target_id": "kec-CO-B20",
+   "object_class": "asphalt_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      83.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 23.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.9,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-1.0 m) / Fig. 4.10; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line"
+  },
+  {
+   "target_id": "kec-CO-B21",
+   "object_class": "plastic_container_water",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      87.05
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 27.05 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.45,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45 m) / Fig. 4.10; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: spans_line; drawn in plan ~0.9-1.9 m from the centreline, across line B"
+  },
+  {
+   "target_id": "kec-CO-B22",
+   "object_class": "plastic_container_air",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      88.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 28.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.5,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "publication_transcription",
+     "uncertainty": 0.15,
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45-1.0 m) / Fig. 4.10; basis kec_figure_reading",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_figure_reading",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: between_centreline_and_line; drawn in plan ~0-1.0 m from the centreline"
+  },
+  {
+   "target_id": "kec-CO-B23",
+   "object_class": "asphalt_block",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 1.0,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "point",
+     "coordinates": [
+      89.0
+     ],
+     "uncertainty": 0.1,
+     "note": "concrete section position 29.00 m + 60 m; read from KEC Fig. 4.10"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.45,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45 m) / Fig. 4.10; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: spans_line; drawn in plan ~0.9-1.9 m from the centreline, across line B"
+  },
+  {
+   "target_id": "kec-CO-B24",
+   "object_class": "steel_plate",
+   "line_id": "B",
+   "dimensions": {
+    "units": "m",
+    "length": 0.5,
+    "width": 0.5,
+    "height": 0.1,
+    "note": "KEC table size; orientation (which side runs along the line) not stated"
+   },
+   "locations": [
+    {
+     "frame_id": "yesan:testbed-B",
+     "geometry": "segment",
+     "start": [
+      89.5
+     ],
+     "end": [
+      90.0
+     ],
+     "uncertainty": 0.1,
+     "note": "longitudinal extent read from the KEC figure"
+    }
+   ],
+   "depths": [
+    {
+     "value": 0.45,
+     "units": "m",
+     "measured_to": "unresolved",
+     "reference_surface": "pavement_surface",
+     "method": "construction_record",
+     "source": "KEC EXTRI-2018-40-534.9607 Table 4.8 (range 0.45 m) / Fig. 4.10; basis kec_table_single_value",
+     "open_question": "yesan-depth-point"
+    }
+   ],
+   "evidence": {
+    "basis": "construction_record",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "KEC EXTRI-2018-40-534.9607, Table 4.8 (PDF p. 86;87, printed p. 64;65) and Fig. 4.10",
+    "established_by": "Korea Expressway Corporation Research Institute (testbed builder)",
+    "notes": "constructed-testbed truth. Grade B, not A: the position is read off a schematic design figure (the GPS installation coordinates are not published), and the object's state at the 2021 survey is not re-verified. Says nothing about which 2021 trace is above it.",
+    "uncertainty": "position +-0.10 m (figure reading); depth basis kec_table_single_value",
+    "verified_by_subterra": false
+   },
+   "notes": "lateral: on_line; installed at the end of the concrete section to mark the survey point (PDF p.86, printed p.64)"
+  }
+ ],
  "notes": [
-  "Do not assign Grade A labels from this dataset until yesan-line-registration and yesan-distance-scale are resolved."
+  "Do not assign Grade A labels: positions are design-figure readings and the GPS installation coordinates are not published.",
+  "Never move a KEC target to match a radar feature, and never apply the KEC 2017-18 time-zero or migration velocity to the 2021 files.",
+  "The scoring gate is shut by yesan-site-identity and yesan-testbed-to-2021-registration (and the frames' unresolved registration), not by a missing target list."
  ]
 }

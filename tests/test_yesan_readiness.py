@@ -1,10 +1,11 @@
 """
 Yesan is NOT scoring-ready, and the manifest says why.
 
-The proposed manifest holds no targets (none are in the held files). The test
-that matters is the second one: even once a target list is added, exact
-matching stays refused while the line registration is unresolved -- the gate,
-not a reviewer's memory, is what keeps a guessed chainage offset out.
+The manifest now holds the CONSTRUCTED testbed's objects (KEC report
+EXTRI-2018-40-534.9607), in the testbed frames. What stays unresolved is which
+2021 radar trace is above which of them, so exact matching stays refused in
+every frame -- the gate, not a reviewer's memory, is what keeps a guessed
+chainage offset out.
 """
 import copy
 import json
@@ -18,11 +19,17 @@ from benchmark.targets import MANIFEST_DIR, Capability, load_manifest, load_mani
 PATH = MANIFEST_DIR / "yesan-fullscale.targets.json"
 
 
-def test_the_proposed_manifest_loads_and_is_not_scoring_ready():
+def test_the_manifest_loads_with_testbed_targets_and_is_not_scoring_ready():
     m = load_manifest(PATH)
     r = m.readiness()
     assert r["status"] == "not_scoring_ready"
-    assert "the manifest holds no targets" in r["reasons"]
+    assert m.targets, "the KEC testbed targets are in the manifest"
+    assert "detection matching is blocked in every frame" in r["reasons"]
+    for frame in ("yesan:testbed-A", "yesan:testbed-B"):
+        blocked = r["frames"][frame][Capability.DETECTION_MATCHING.value]
+        assert any("yesan-testbed-to-2021-registration" in x for x in blocked)
+        assert any("yesan-site-identity" in x for x in blocked)
+        assert any("not registered" in x for x in blocked)
     blocked = r["frames"]["yesan:line-A"][Capability.DETECTION_MATCHING.value]
     assert any("yesan-line-registration" in x for x in blocked)
     assert any("yesan-distance-scale" in x for x in blocked)

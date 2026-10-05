@@ -1,0 +1,42 @@
+table,section,pdf_page,printed_page,object_type_ko,object_type,size_m,count,depth_stated,depth_min_m,depth_max_m,note
+4.6,asphalt,83,61,강판,steel_plate,0.5x0.5x0.1,1,0.27m,0.27,0.27,
+4.6,asphalt,83,61,플라스틱 통(공기),plastic_container_air,0.5x0.5x0.1,1,0.27m,0.27,0.27,
+4.6,asphalt,83,61,플라스틱 통(공기),plastic_container_air,0.5x1.0x0.1,1,1m,1.0,1.0,
+4.6,asphalt,83,61,플라스틱 통(물),plastic_container_water,0.5x0.5x0.1,2,0.27m~1m,0.27,1.0,
+4.6,asphalt,83,61,스티로폼,styrofoam_hemisphere,D0.5,7,0.27m~2m,0.27,2.0,
+4.6,asphalt,83,61,스티로폼,styrofoam_hemisphere,D1.0,5,0.27m~3m,0.27,3.0,
+4.6,asphalt,83,61,아스콘블럭,asphalt_block,0.5x1.0x0.1,1,1m,1.0,1.0,
+4.6,asphalt,83,61,아스콘블럭,asphalt_block,0.5x1.0x0.2,2,2m~2.5m,2.0,2.5,
+4.6,asphalt,83,61,아스콘블럭,asphalt_block,0.5x0.5x0.1,1,0.27m,0.27,0.27,
+4.6,asphalt,83,61,암석,rock,D0.6,1,2m,2.0,2.0,
+4.6,asphalt,83,61,지반이완대,loosened_ground_zone,2.0x1.8x0.5,1,0.27m,0.27,0.27,Fig. 4.5 labels this zone 2.0x1.8x1.0; the drawn thickness is ~0.5 m
+4.6,asphalt,83,61,지반이완대,loosened_ground_zone,5.0x1.8x1.0,1,2m,2.0,2.0,
+4.6,asphalt,83,61,지반이완대,loosened_ground_zone,6.0x2.8x1.0,1,1m,1.0,1.0,
+4.6,asphalt,83,61,콘크리트블럭,concrete_block,0.5x0.5x0.1,2,0.27m~1m,0.27,1.0,
+4.6,asphalt,83,61,콘크리트블럭,concrete_block,0.5x0.5x0.2,2,2m~2.5m,2.0,2.5,
+4.6,asphalt,83,61,토기(공기),earthenware_air,D0.4,6,2m~2.5m,2.0,2.5,
+4.6,asphalt,83,61,토기(물),earthenware_water,D0.4,4,2m~2.5m,2.0,2.5,
+4.6,asphalt,83,61,횡배수관,transverse_drain_pipe,D0.9,1,1.5m,1.5,1.5,crosses both lines
+4.7,approach_slab,84,62,강판,steel_plate,0.5x0.5x0.1,8,0.3m~1.0m,0.3,1.0,Fig. 4.7 draws 6 plates (2 inside the abutment voids on line A; 4 on line B)
+4.7,approach_slab,84,62,플라스틱 통(물),plastic_container_water,1.0x1.0x0.1,4,1.0m,1.0,1.0,
+4.7,approach_slab,84,62,공동(빈공간),void,1.0x1.8x0.5,2,0.5m~1.0m,0.5,1.0,formed with square styrofoam that was dug out after the approach slab was built (p. 63)
+4.7,approach_slab,84,62,스티로폼,styrofoam_hemisphere,D1.0,10,0.27m~2.0m,0.27,2.0,Fig. 4.7 readings span ~0.7-1.7 m only
+4.7,approach_slab,84,62,아스콘블럭,asphalt_block,1.0x1.0x0.1,4,1.0m,1.0,1.0,
+4.7,approach_slab,84,62,암석,rock,D0.6,2,2.0m~2.5m,2.0,2.5,
+4.7,approach_slab,84,62,지반이완대,loosened_ground_zone,5.0x1.8x1.0,2,1.5m,1.5,1.5,
+4.7,approach_slab,84,62,콘크리트블럭,concrete_block,1.0x1.0x0.1,4,1.0m,1.0,1.0,
+4.8,concrete,86,64,강판,steel_plate,0.5x0.5x0.1,1,0.45m,0.45,0.45,
+4.8,concrete,86,64,플라스틱 통(공기),plastic_container_air,0.5x1.0x0.1,4,0.45m~1.0m,0.45,1.0,
+4.8,concrete,86,64,플라스틱 통(물),plastic_container_water,0.5x0.5x0.1,3,0.45m~1.0m,0.45,1.0,
+4.8,concrete,86,64,플라스틱 통(물),plastic_container_water,0.5x1.0x0.1,1,0.45m,0.45,0.45,
+4.8,concrete,86,64,스티로폼,styrofoam_block,0.5x1.0x0.2,2,2.0m,2.0,2.0,
+4.8,concrete,86,64,스티로폼,styrofoam_hemisphere,D0.5,2,2.0m,2.0,2.0,
+4.8,concrete,86,64,스티로폼,styrofoam_hemisphere,D1.0,12,0.45m~2.5m,0.45,2.5,Fig. 4.10 draws the 29 m hemisphere at ~2.75 m
+4.8,concrete,86,64,아스콘블럭,asphalt_block,0.5x0.5x0.1,3,0.45m~1.0m,0.45,1.0,
+4.8,concrete,86,64,아스콘블럭,asphalt_block,0.5x1.0x0.2,2,2.0m,2.0,2.0,
+4.8,concrete,86,64,아스콘블럭,asphalt_block,0.5x1.0x0.1,1,0.45,0.45,0.45,the table cell has no unit
+4.8,concrete,86,64,암석,rock,D0.6,1,2.0m,2.0,2.0,
+4.8,concrete,86,64,지반이완대,loosened_ground_zone,5.0x2.8x0.5,2,0.45m,0.45,0.45,Fig. 4.10 labels these zones 5.0x2.8x1.0
+4.8,concrete,86,64,콘크리트블럭,concrete_block,0.5x0.5x0.2,2,2.0m,2.0,2.0,
+4.8,concrete,86,64,토기(물),earthenware_water,D0.4,4,2.0m,2.0,2.0,
+4.8,concrete,86,64,횡배수관,transverse_drain_pipe,D0.9,2,1.5m,1.5,1.5,crosses both lines
