@@ -272,6 +272,8 @@ class TestBamFindings:
         from preprocessing.time_zero import _overwritten_lead
         assert _overwritten_lead([5.0, 5.0, 1.0, 2.0]) == 0
         assert _overwritten_lead([5.0, 5.0, 5.0, 2.0]) == 3
+        # a long flat lead is a real baseline (padding, noise-free), not an overwrite
+        assert _overwritten_lead([0.0] * 30 + [1.0]) == 0
 
     def test_method_c_says_it_is_an_onset_and_reports_the_peak_beside_it(self):
         result = direct_wave_consensus_time_zero(_line(_wavelet_trace), DT)

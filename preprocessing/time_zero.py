@@ -220,6 +220,9 @@ MAX_RISE_FRACTION_OF_WINDOW = 0.1
 #: docs/research/bam_quantitative_validation.md section 3), not noise, and is
 #: excluded from the quiet window. Three identical floats in real noise are rare.
 MIN_OVERWRITTEN_RUN = 3
+#: ...and at most this long. A longer flat lead (zero padding, a noise-free
+#: baseline) is genuine pre-signal and stays in the quiet window.
+MAX_OVERWRITTEN_RUN = 4
 
 #: Reasons a single trace's candidate pick is refused (counted per line).
 REJECT_NO_ONSET = "no_onset_above_threshold"
@@ -247,7 +250,7 @@ def _overwritten_lead(trace: list[float]) -> int:
     k = 1
     while k < len(trace) and trace[k] == trace[0]:
         k += 1
-    return k if k >= MIN_OVERWRITTEN_RUN else 0
+    return k if MIN_OVERWRITTEN_RUN <= k <= MAX_OVERWRITTEN_RUN else 0
 
 
 def _first_lobe_peak(trace: list[float], onset_i: int, mean: float) -> int:
