@@ -80,10 +80,21 @@ def find_rad(binary_path: Path) -> Path:
     so both are tried before giving up.
     """
     binary_path = Path(binary_path)
+    # Match REAL directory entries, not probed names: on a case-insensitive
+    # filesystem (macOS APFS) `x.rad` "exists" when the file is `x.RAD`, and
+    # returning the probed spelling would record a filename that is not on disk.
+    try:
+        entries = {e.name: e for e in binary_path.parent.iterdir()}
+    except OSError:
+        entries = {}
     for suffix in (".rad", ".RAD", ".Rad"):
-        candidate = binary_path.with_suffix(suffix)
-        if candidate.exists():
-            return candidate
+        name = binary_path.with_suffix(suffix).name
+        if name in entries:
+            return entries[name]
+    wanted = binary_path.with_suffix(".rad").name.lower()
+    for name, entry in entries.items():
+        if name.lower() == wanted:
+            return entry
     raise MALAFormatError(
         f"{binary_path.name}: no .rad sidecar found beside it. A MALA .rd3 holds samples "
         f"with no header of its own -- sample count, time window and trace spacing all live "
