@@ -1,0 +1,234 @@
+{
+ "builds": [
+  {
+   "shape": [
+    201,
+    81,
+    495
+   ],
+   "voxels": 8059095,
+   "migration": "none",
+   "build_s": 2.03,
+   "save_s": 0.02,
+   "stages": {
+    "load_and_preprocess_s": 0.068,
+    "migration_s": 0.0,
+    "gridding_s": 0.06,
+    "envelope_s": 1.319,
+    "total_s": 2.027,
+    "field_bytes": 32236380,
+    "voxels": 8059095
+   },
+   "peak_rss_mb": 593.0,
+   "stored_volume_mb": 72.6,
+   "input_mb": 33.3
+  },
+  {
+   "shape": [
+    201,
+    81,
+    495
+   ],
+   "voxels": 8059095,
+   "migration": "stolt_fk_3d",
+   "build_s": 5.41,
+   "save_s": 0.02,
+   "stages": {
+    "load_and_preprocess_s": 0.052,
+    "migration_s": 4.68,
+    "gridding_s": 0.023,
+    "envelope_s": 0.175,
+    "total_s": 5.414,
+    "field_bytes": 32236380,
+    "voxels": 8059095
+   },
+   "peak_rss_mb": 940.0,
+   "stored_volume_mb": 72.6,
+   "input_mb": 33.3
+  },
+  {
+   "shape": [
+    401,
+    161,
+    495
+   ],
+   "voxels": 31957695,
+   "migration": "none",
+   "build_s": 6.83,
+   "save_s": 0.06,
+   "stages": {
+    "load_and_preprocess_s": 0.256,
+    "migration_s": 0.0,
+    "gridding_s": 0.19,
+    "envelope_s": 3.726,
+    "total_s": 6.825,
+    "field_bytes": 127830780,
+    "voxels": 31957695
+   },
+   "peak_rss_mb": 1586.0,
+   "stored_volume_mb": 287.9,
+   "input_mb": 132.2
+  },
+  {
+   "shape": [
+    401,
+    161,
+    495
+   ],
+   "voxels": 31957695,
+   "migration": "stolt_fk_3d",
+   "build_s": 15.25,
+   "save_s": 0.18,
+   "stages": {
+    "load_and_preprocess_s": 0.439,
+    "migration_s": 11.194,
+    "gridding_s": 0.121,
+    "envelope_s": 0.998,
+    "total_s": 15.244,
+    "field_bytes": 127830780,
+    "voxels": 31957695
+   },
+   "peak_rss_mb": 2070.0,
+   "stored_volume_mb": 287.9,
+   "input_mb": 132.2
+  },
+  {
+   "shape": [
+    601,
+    241,
+    495
+   ],
+   "voxels": 71696295,
+   "migration": "none",
+   "build_s": 17.31,
+   "save_s": 0.17,
+   "stages": {
+    "load_and_preprocess_s": 0.754,
+    "migration_s": 0.0,
+    "gridding_s": 0.494,
+    "envelope_s": 9.982,
+    "total_s": 17.313,
+    "field_bytes": 286785180,
+    "voxels": 71696295
+   },
+   "peak_rss_mb": 3303.0,
+   "stored_volume_mb": 646.0,
+   "input_mb": 296.6
+  },
+  {
+   "shape": [
+    601,
+    241,
+    495
+   ],
+   "voxels": 71696295,
+   "migration": "stolt_fk_3d",
+   "build_s": 30.95,
+   "save_s": 0.26,
+   "stages": {
+    "load_and_preprocess_s": 0.535,
+    "migration_s": 23.088,
+    "gridding_s": 0.278,
+    "envelope_s": 2.162,
+    "total_s": 30.947,
+    "field_bytes": 286785180,
+    "voxels": 71696295
+   },
+   "peak_rss_mb": 3935.0,
+   "stored_volume_mb": 646.0,
+   "input_mb": 296.6
+  },
+  {
+   "shape": [
+    801,
+    321,
+    495
+   ],
+   "voxels": 127274895,
+   "migration": "none",
+   "build_s": 29.46,
+   "save_s": 0.28,
+   "stages": {
+    "load_and_preprocess_s": 2.253,
+    "migration_s": 0.0,
+    "gridding_s": 0.985,
+    "envelope_s": 14.645,
+    "total_s": 29.463,
+    "field_bytes": 509099580,
+    "voxels": 127274895
+   },
+   "peak_rss_mb": 5703.0,
+   "stored_volume_mb": 1146.8,
+   "input_mb": 526.6
+  },
+  {
+   "shape": [
+    801,
+    321,
+    495
+   ],
+   "voxels": 127274895,
+   "migration": "stolt_fk_3d",
+   "build_s": 55.58,
+   "save_s": 0.31,
+   "stages": {
+    "load_and_preprocess_s": 2.115,
+    "migration_s": 30.756,
+    "gridding_s": 0.576,
+    "envelope_s": 10.743,
+    "total_s": 55.581,
+    "field_bytes": 509099580,
+    "voxels": 127274895
+   },
+   "peak_rss_mb": 6440.0,
+   "stored_volume_mb": 1146.8,
+   "input_mb": 526.6
+  }
+ ],
+ "http": {
+  "slice_xy": {
+   "payload_kb": 420.8,
+   "median_ms": 13.2,
+   "p90_ms": 14.2
+  },
+  "slice_xz": {
+   "payload_kb": 1240.5,
+   "median_ms": 20.2,
+   "p90_ms": 22.7
+  },
+  "slice_yz": {
+   "payload_kb": 498.3,
+   "median_ms": 13.1,
+   "p90_ms": 14.7
+  },
+  "render3d_max_dim_96": {
+   "payload_kb": 1623.5,
+   "ms": 722.6,
+   "texture_shape": [
+    81,
+    81,
+    95
+   ]
+  },
+  "render3d_max_dim_160": {
+   "payload_kb": 4494.6,
+   "ms": 813.8,
+   "texture_shape": [
+    134,
+    81,
+    159
+   ]
+  },
+  "render3d_max_dim_256": {
+   "payload_kb": 20057.4,
+   "ms": 1256.7,
+   "texture_shape": [
+    201,
+    161,
+    238
+   ]
+  },
+  "voxel_ms": 9.3,
+  "metadata_kb": 10.4
+ }
+}

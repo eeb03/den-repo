@@ -1,0 +1,25 @@
+{
+ "log": [
+  "1. opened the BAM dataset workspace; 'Open volume viewer' link present",
+  "2. declared the known-geometry calibration (4 back-wall steps) and the antenna offset in the UI; depth dimension state = derived",
+  "3. preview: Reconstruction is possible |  | Z: depth (m) \u00b7 v 0.1289 m/ns \u00b7 t0 1.081 ns |  | Shape 401\u00d7161\u00d7475 \u00b7 voxel 0.00500 m \u00d7 0.00500 m \u00d7 0.00189 m |  | \u2248 276 MB on the server |  | Interpolation required: no",
+  "4. created the volume (UI round trip 6.2s)",
+  "5. viewer open: Crosshair X = 1.005 m Y = 0.405 m Depth = 225.1 mm depth voxel (201, 81, 119) Go to coordinate Fit volume Reset view",
+  "6. wheel over XY dragged depth: 'Depth = 225.1 mm depth' -> 'Depth = 227.0 mm depth' (XY slice 121/475)",
+  "7. clicked in XY: XZ slice 82/161 -> slice 59/161; YZ slice 202/401 -> slice 141/401; X = 0.700 m, Y = 0.290 m",
+  "8. clicked in XZ: XY now slice 43/475; Depth = 79.5 mm depth",
+  "9. voxel: X | 0.210 m | Y | 0.290 m | Depth | 79.5 mm depth | radar_response | 732.18 | response_envelope | 796.07 | Support | RECONSTRUCTED \u2014 at a measured trace position; value computed from many traces by migration | Support count | 9 (measured traces within one native spacing of this voxel's (x, y) column) | Nearest measurement | 0.0 mm | Interpolation distance | not interpolated | Method | Stolt F-K 3D migration, nearest_no_fill gridding, depth domain | Depth calibration | v 0.1289 m/ns (calibrated_from_known_geometry); t0 1.081 ns (calibrated); declaration 6c9dcdb0 | Source frame(s) | 27f15bbb-3cfd-4917-8791-a582e8110c1e:Pk266_3D_Dataset_1_5_GHz_Rot00 | Frame | local volume",
+  "10. support overlay toggled; legend: Voxel support |  | measured | 0.0% |  | reconstructed | 100.0% |  | interpolated | 0.0% |  | unsupported | 0.0% |  | Unsupported voxels are empty (checkerboard), never filled.",
+  "11. ground-truth overlay on: label shown in 4 pane(s)",
+  "12. slice values identical with and without the overlay: True; overlay comes from a separate endpoint and is drawn in its own layer",
+  "13. 3D pane fps (headless, software WebGL / SwiftShader): 10; DISPLAY-ONLY texture 134\u00d781\u00d7159 (block 3\u00d72\u00d73) of the 401\u00d7161\u00d7475 scientific volume, |response_envelope|. Drag to orbit, double-click a plane to move the cursor.",
+  "14. zoom, fit volume and reset view exercised"
+ ],
+ "console_errors": [
+  "Failed to load resource: the server responded with a status of 404 (Not Found)",
+  "Failed to load resource: the server responded with a status of 404 (Not Found)",
+  "Failed to load resource: the server responded with a status of 404 (Not Found)",
+  "Failed to load resource: the server responded with a status of 404 (Not Found)",
+  "Failed to load resource: the server responded with a status of 404 (Not Found)"
+ ]
+}

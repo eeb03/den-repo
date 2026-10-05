@@ -80,12 +80,22 @@ describe('the workspace adds no heavier 3D framework than the one real scene nee
     }
   })
 
-  it('only reconstructed-scene.tsx imports three', () => {
+  // The SECOND three.js user, added deliberately with Subterra Volume V1:
+  // `components/volume/volume-3d.tsx` ray-marches the backend's
+  // DISPLAY-ONLY texture of a reconstructed volume (`/api/volumes/.../render3d`)
+  // and draws the cursor planes and the separately labelled ground-truth
+  // layer from backend payloads. It generates no geometry of its own; the
+  // no-Math.random / no-client-side-depth rules below still apply to it.
+  const THREE_USERS = [
+    'components/scene/reconstructed-scene.tsx',
+    'components/volume/volume-3d.tsx',
+  ]
+  it('only the reconstructed scene and the volume 3D pane import three', () => {
     for (const file of FILES) {
       const imports = importsOf(readFileSync(file, 'utf8'))
       const importsThree = imports.some((i) => i === 'three' || i.startsWith('three/'))
       if (importsThree) {
-        expect(relative(ROOT, file)).toBe('components/scene/reconstructed-scene.tsx')
+        expect(THREE_USERS).toContain(relative(ROOT, file))
       }
     }
   })
