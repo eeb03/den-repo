@@ -61,6 +61,8 @@ class EvidenceKind(str, Enum):
     and are visibly not the same thing.
     """
     AUTHOR_STATED = "author_stated"
+    #: In something the author published (thesis, paper), not said to Subterra.
+    AUTHOR_PUBLISHED = "author_published"
     MEASURED_IN_FILE = "measured_in_file"
     DERIVED_BY_SUBTERRA = "derived_by_subterra"
     USER_DECLARED = "user_declared"
@@ -139,6 +141,99 @@ CLAIMS: tuple[AuthorClaim, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# the author's PUBLISHED work -- a different channel from the reply above
+# ---------------------------------------------------------------------------
+
+#: ter Huurne's PhD thesis. Read in full on 2026-10-05 from the University of
+#: Twente repository; the PDF is held git-ignored at
+#: datasets/raw/references/terHuurne2024_NavigatingTheUnderground.pdf and is not
+#: redistributed. Page numbers are PDF pages, with the printed chapter page.
+THESIS = {
+    "citation": ("ter Huurne, R.B.A. (2024). Navigating the Underground: Exploring and "
+                 "supporting ground penetrating radar-enhanced utility surveying. PhD "
+                 "thesis, University of Twente, Enschede"),
+    "doi": "10.3990/1.9789036561952",
+    "isbn": "978-90-365-6195-2",
+    "url": "https://research.utwente.nl/files/454962951/TerHuurne_NavigatingTheUnderground.pdf",
+    "published": "2024-09-13",
+}
+
+
+@dataclass(frozen=True)
+class PublishedStatement:
+    """Something the author published about the acquisition. Not a reply to Subterra."""
+    id: str
+    statement: str
+    where: str
+    classification: str
+    kind: EvidenceKind = EvidenceKind.AUTHOR_PUBLISHED
+    verified_by_subterra: bool = False
+    #: No published statement here carries a number for the GPR air gap / time zero.
+    numeric_value: None = None
+    does_not_establish: tuple[str, ...] = ()
+
+    def as_dict(self) -> dict:
+        return {"id": self.id, "statement": self.statement, "where": self.where,
+                "classification": self.classification, "kind": self.kind.value,
+                "verified_by_subterra": self.verified_by_subterra,
+                "numeric_value": self.numeric_value,
+                "does_not_establish": list(self.does_not_establish)}
+
+
+PUBLISHED_STATEMENTS: tuple[PublishedStatement, ...] = (
+    PublishedStatement(
+        id="thesis-velocity-hyperbola-fit",
+        statement=("The velocity of GPR waves through the soil was determined using the "
+                   "Reflex-W software's (version 9.1.3) hyperbola fit function, and the "
+                   "ground relative permittivity was calculated from it as (c/v)^2."),
+        where="Chapter 5, §5.3.1, PDF p. 111 (printed p. 85); repeated in the data "
+              "description, PDF p. 115",
+        classification=("velocity provenance: ESTIMATED FROM THE SAME SURVEY (hyperbola "
+                        "fit on these radargrams) -- not an independent measurement"),
+        does_not_establish=(
+            "an independent velocity: a hyperbola fit on the same data is not a "
+            "measurement made without the radar",
+            "per-line or per-depth velocity -- one permittivity per activity is published",
+            "anything about time zero",
+        ),
+    ),
+    PublishedStatement(
+        id="thesis-air-gap-few-cm",
+        statement=("The air-launched design of the GPR resulted in the antenna being "
+                   "positioned just a few centimeters above the surface."),
+        where="Chapter 5, §5.3.2, PDF p. 112 (printed p. 86)",
+        classification="qualitative acquisition geometry; no number",
+        does_not_establish=(
+            "a numerical antenna height or air gap",
+            "a time-zero offset in ns",
+            "that the air gap was constant (Subterra measured 5-16 cm of within-line "
+            "variation in the per-trace geometry; scripts/four_tu_topographic_correction_audit.py)",
+        ),
+    ),
+    PublishedStatement(
+        id="thesis-air-gap-visible",
+        statement=("This characteristic is visually evident within the radargrams, where "
+                   "the 'airgap' effect is discernible."),
+        where="Chapter 5, §5.3.2, PDF p. 112 (printed p. 86)",
+        classification="qualitative: the air path is present in the published data",
+        does_not_establish=(
+            "where in each trace the ground-surface reflection is",
+            "a time-zero correction -- it corroborates the author's reply that none "
+            "was applied, and gives no magnitude",
+        ),
+    ),
+    PublishedStatement(
+        id="thesis-acquisition-settings",
+        statement=("Trace spacing 0.02 m; 512 samples per trace over a 50 ns time range; "
+                   "500 MHz air-launched antenna with an SP80 GNSS RTK receiver (thesis: \"Spectre's SP80\") and a "
+                   "measuring-wheel encoder; the SEG-Y files are unprocessed and raw."),
+        where="Chapter 5, §5.3.2, PDF pp. 112-113 (printed pp. 86-87)",
+        classification="acquisition description, consistent with the file headers",
+    ),
+)
+
+
 @dataclass(frozen=True)
 class OpenQuestionForAuthor:
     """
@@ -155,6 +250,10 @@ class OpenQuestionForAuthor:
     status: str = "OUTSTANDING -- not asked"
     #: Set where Subterra has measured something that narrows the question.
     subterra_evidence: str = ""
+    #: Set where the author's own PUBLISHED work bears on the question. Kept apart
+    #: from `subterra_evidence` (Subterra's measurements) and from `status` (whether
+    #: the emailed question has been answered): a thesis is not a reply.
+    published_evidence: str = ""
 
 
 OPEN_QUESTIONS: tuple[OpenQuestionForAuthor, ...] = (
@@ -192,6 +291,12 @@ OPEN_QUESTIONS: tuple[OpenQuestionForAuthor, ...] = (
                         "dataset can be referred to the ground"),
         status=("OUTSTANDING -- sent by email on 2026-08-15 (operator-stated); "
                 "awaiting reply; letter body at docs/4tu-author-letter-draft.md"),
+        published_evidence=(
+            "QUALITATIVE ONLY (thesis-air-gap-few-cm, thesis-air-gap-visible): the PhD "
+            "thesis says the air-launched antenna sat 'just a few centimeters above the "
+            "surface' and that the air-gap effect is discernible in the radargrams. It "
+            "gives no number. Nothing here is a time-zero offset or an antenna height, "
+            "and none may be derived from it."),
         subterra_evidence=(
             "NARROWED, NOT ANSWERED, by Subterra's own measurement and derivation -- "
             "the question stays OUTSTANDING because none of this is the author's "
@@ -224,6 +329,14 @@ OPEN_QUESTIONS: tuple[OpenQuestionForAuthor, ...] = (
                         "ground"),
         status=("OUTSTANDING -- sent by email on 2026-08-15 (operator-stated); "
                 "awaiting reply; letter body at docs/4tu-author-letter-draft.md"),
+        published_evidence=(
+            "METHOD ANSWERED IN PUBLISHED WORK, not by reply (thesis-velocity-hyperbola-"
+            "fit): the thesis and the data paper state that the per-activity relative "
+            "permittivity in Metadata.csv was computed from a velocity found with "
+            "Reflex-W 9.1.3's hyperbola fit on the survey radargrams. So the declared "
+            "permittivity is an estimate from the SAME survey data, not an independent "
+            "measurement. The status stays OUTSTANDING because the emailed question "
+            "has no reply."),
     ),
 )
 
@@ -343,8 +456,11 @@ def as_dict() -> dict:
         "open_questions": [
             {"id": q.id, "question": q.question, "blocks": q.blocks,
              "why_it_matters": q.why_it_matters, "status": q.status,
-             "subterra_evidence": q.subterra_evidence}
+             "subterra_evidence": q.subterra_evidence,
+             "published_evidence": q.published_evidence}
             for q in OPEN_QUESTIONS
         ],
         "reassessment": [d.as_dict() for d in REASSESSMENT],
+        "published_source": THESIS,
+        "published_statements": [p.as_dict() for p in PUBLISHED_STATEMENTS],
     }

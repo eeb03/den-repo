@@ -169,3 +169,44 @@ Had a declaration been made, the architecture supports it correctly:
 `SpatialDeclaration.supplied_by` names the **authority** and is explicitly
 distinct from `declared_by_user_id`, the signed-in account — so "Dr. ter Huurne,
 direct correspondence" is representable without pretending Subterra measured it.
+
+## 8. The author's published thesis (added 2026-10-05)
+
+A separate channel from the reply above: what Dr. ter Huurne **published**, not
+what they told Subterra. Recorded in `evidence/fourtu_author.py` as `THESIS` and
+`PUBLISHED_STATEMENTS` (kind `author_published`, `verified_by_subterra = False`,
+`numeric_value = None` on every entry). The reply's `CLAIMS` and `REASSESSMENT`
+are unchanged.
+
+**Source:** ter Huurne, R.B.A. (2024), *Navigating the Underground: Exploring and
+supporting ground penetrating radar-enhanced utility surveying*, PhD thesis,
+University of Twente, doi 10.3990/1.9789036561952. Read in full on 2026-10-05
+from research.utwente.nl. The PDF is held git-ignored at
+`datasets/raw/references/terHuurne2024_NavigatingTheUnderground.pdf` and is not
+redistributed. Pages below are **PDF page (printed page)**.
+
+| Statement | Where | Classification |
+|---|---|---|
+| The soil velocity was determined with **Reflex-W 9.1.3's hyperbola fit**, and the relative permittivity computed from it as (c/v)² | §5.3.1, 111 (85); repeated 115 | **Velocity estimated from the same survey data.** The permittivity in `Metadata.csv` is therefore not independent of the radargrams it would be used to depth-convert |
+| The air-launched antenna sat "**just a few centimeters above the surface**" | §5.3.2, 112 (86) | qualitative acquisition geometry. **No number** |
+| The "**airgap**" effect is discernible in the radargrams | §5.3.2, 112 (86) | qualitative. It corroborates the reply (no air-gap removal applied) and gives no magnitude |
+| 0.02 m trace spacing; 512 samples over 50 ns; 500 MHz air-launched antenna; SP80 GNSS RTK; wheel encoder; raw, unprocessed SEG-Y | §5.3.2, 112–113 (86–87) | acquisition description, consistent with the headers |
+
+**What changes:**
+- *Propagation velocity*: the method half of open question 2 is answered **in
+  published work**. The answer is a hyperbola fit on these same surveys. The
+  emailed question still has no reply, so its `status` stays OUTSTANDING; the
+  thesis is recorded in the question's new `published_evidence` field, not as
+  an answer. `docs/4tu-characterisation.md` describes this velocity as
+  *derived from a source-declared permittivity*. That is correct about the
+  number, but the declared permittivity is itself an estimate from the same
+  radar data, which matters for any claim of independent depth validation.
+  The ingestion label is not changed in this update.
+- *Time zero / air gap*: unchanged. "A few centimetres" is not a measurement.
+  **No numerical antenna height, air gap or time-zero correction is created
+  from it.** Subterra's own within-line geometry audit (5–16 cm variation) is a
+  separate, measured result and is not attributed to the thesis.
+
+**The 4TU absolute depth / time-zero blocker remains.** The depth axis still
+runs from an uncorrected instrument time zero, with an air path in it, and
+there is still no magnitude for that offset.

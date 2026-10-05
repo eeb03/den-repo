@@ -264,3 +264,37 @@ def test_the_time_zero_question_is_narrowed_by_measurement_but_stays_outstanding
     # about a different dataset's ground and must never be borrowed here.
     v = next(q for q in OPEN_QUESTIONS if q.id == "propagation-velocity")
     assert v.subterra_evidence == ""
+
+
+# ---------------------------------------------------------------------------
+# the author's published thesis -- a separate channel from the reply
+# ---------------------------------------------------------------------------
+
+def test_thesis_statements_are_published_not_replies_and_carry_no_number():
+    from evidence.fourtu_author import PUBLISHED_STATEMENTS, THESIS
+    assert THESIS["doi"] == "10.3990/1.9789036561952"
+    assert {p.id for p in PUBLISHED_STATEMENTS} >= {
+        "thesis-velocity-hyperbola-fit", "thesis-air-gap-few-cm", "thesis-air-gap-visible"}
+    for p in PUBLISHED_STATEMENTS:
+        assert p.kind is EvidenceKind.AUTHOR_PUBLISHED
+        assert p.verified_by_subterra is False
+        assert p.numeric_value is None
+        assert "PDF p" in p.where
+    # the published work never enters the reply's claims
+    assert not any(c.kind is EvidenceKind.AUTHOR_PUBLISHED for c in CLAIMS)
+
+
+def test_the_thesis_classifies_velocity_as_same_survey_and_creates_no_time_zero():
+    from evidence.fourtu_author import PUBLISHED_STATEMENTS
+    v = next(p for p in PUBLISHED_STATEMENTS if p.id == "thesis-velocity-hyperbola-fit")
+    assert "ESTIMATED FROM THE SAME SURVEY" in v.classification
+    gap = next(p for p in PUBLISHED_STATEMENTS if p.id == "thesis-air-gap-few-cm")
+    assert "a numerical antenna height or air gap" in gap.does_not_establish
+    # the questions it bears on stay OUTSTANDING; the thesis is recorded beside them
+    q = {q.id: q for q in OPEN_QUESTIONS}
+    assert q["time-zero-offset-magnitude"].status.startswith("OUTSTANDING")
+    assert "QUALITATIVE ONLY" in q["time-zero-offset-magnitude"].published_evidence
+    assert q["propagation-velocity"].status.startswith("OUTSTANDING")
+    assert "SAME survey data" in q["propagation-velocity"].published_evidence
+    # the depth chain is exactly as blocked as before
+    assert dimension("depth-axis origin relative to ground").after.startswith("BLOCKED")
