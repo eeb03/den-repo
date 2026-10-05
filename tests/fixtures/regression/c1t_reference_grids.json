@@ -1,0 +1,25 @@
+{
+ "captured_from_commit": "4b9ff0e (pre-M1 interpretation baseline)",
+ "verified_identical_to": "HEAD on research/yesan-kec-testbed-ground-truth (byte-identical in this environment)",
+ "captured_utc": "2026-10-05",
+ "environment_fingerprint": {
+  "python": "3.11.9",
+  "numpy": "2.1.1",
+  "scipy": "1.14.1",
+  "platform": "macOS-27.0-arm64-arm-64bit",
+  "machine": "arm64",
+  "blas": "accelerate",
+  "lapack": "accelerate"
+ },
+ "sha256": {
+  "C1T_7,5_0001__processed": "876e27a43b7c6f5c69ab50bfc6385f4854f11558ee31a4929a74b093fceca760",
+  "C1T_7,5_0001__z": "871fa03656e0b0e68129c41dc4effc26ffa5b68657f0e8f93df452be17ed39f6",
+  "C1T_7,5_0002__processed": "3ef9fbc020bb6bf4b1b3ac80ed2a3dcbb517e5c6ac1c22d72f5039fc94c6fe0d",
+  "C1T_7,5_0002__z": "a76110a1d3414bc7392cef010f8e13f72fa7d061da151a451133c9d8b16fea41"
+ },
+ "measured_ulp_sensitivity": {
+  "processed_max_abs_over_scale": 2.007e-15,
+  "z_max_abs": 7.505e-14,
+  "method": "every raw sample perturbed by +-2.3e-16 relative (about 1 ULP), 3 trials per line; finite mask and candidate counts unchanged"
+ }
+}

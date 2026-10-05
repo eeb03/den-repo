@@ -1,6 +1,6 @@
 # GPR regression baseline: is byte-exact output the contract?
 
-**Date:** 2026-10-05 · **Scope:** investigation and proposal only. `tests/test_gpr_regression_baseline.py` is **unchanged**.
+**Date:** 2026-10-05 · **Status:** proposal **implemented** (second commit below); the investigation is kept for the record.
 
 ## What fails
 
@@ -25,11 +25,24 @@ Four assertions fail, the processed grid and the anomaly z-grid digests for INGV
 
 The test docstring states its purpose: prove the M1 ingestion refactor "changed nothing numerically or behaviourally", with "no tolerances". That is a sound **same-machine refactor guard**. Exact float digests cannot also be a **cross-environment** contract: summation order, SIMD paths and BLAS builds legitimately change the last bits. The scientific contract that matters is numerical equivalence of the processed signal plus exact equality of discrete outputs (candidates, counts, ranges). Those still hold.
 
-## Proposed design (not applied)
+## Original proposal (now implemented, see below)
 
 1. Keep the **exact** assertions for discrete and integer outputs, raw decoded samples and record fields. These are environment-independent and still pass.
 2. For float grids, store the reference arrays (`.npz`, about 0.5 MB per line) captured from the pre-M1 tree. Compare with `np.testing.assert_allclose(rtol=1e-12, atol=1e-9 * max|ref|)` and report the worst element.
 3. Record an **environment fingerprint** (numpy/scipy versions, BLAS vendor, platform) next to the digests. Run the exact digest check only when the fingerprint matches; otherwise run the tolerance check and print which mode ran.
 4. Never regenerate the references from current code to make a test pass. A reference changes only through a reviewed commit that states why.
 
-This should be a separate, reviewed change. It is not bundled into the BAM gate commits.
+It was implemented as its own commit, separate from the BAM gate commits.
+
+## Implemented (2026-10-05)
+
+- **Pre-M1 code and HEAD are byte-identical** in the current environment: all four grid digests match between `4b9ff0e` and HEAD. Changing `VECLIB_MAXIMUM_THREADS` or disabling numpy's dispatched SIMD features does not change a bit. The August digests therefore came from a numeric stack that can no longer be reproduced.
+- **Measured sensitivity:** perturbing every raw sample by about 1 ULP (3 trials per line) moves the processed grid by at most **2.0e-15 of its scale** and the z-grid by at most **7.5e-14 absolute**. The finite mask and candidate counts are unchanged.
+- **Reference arrays** from `4b9ff0e` are in `tests/fixtures/regression/c1t_reference_grids.npz`, with the capture environment fingerprint and sha256 in the `.json`.
+- **The test now asserts:**
+  - shape, dtype and finite mask exactly;
+  - finite values within **1e-12 × max|ref|** (processed) and **1e-11 absolute** (z), about 500× the measured ULP sensitivity;
+  - z std / max abs / cells ≥ 3 exactly to 6 dp, and candidate counts, ranges and peaks exactly (unchanged tests);
+  - byte identity whenever the environment fingerprint equals the capture fingerprint.
+- **Self-test:** a 1e-9 relative drift, or a single changed NaN cell, fails; identity passes.
+- The August digests are kept in the file, labelled historical, and no longer asserted.

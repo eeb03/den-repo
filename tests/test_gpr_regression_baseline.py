@@ -56,6 +56,10 @@ NEW_FIELDS = {"position", "registered_position", "frame_id", "latitude", "longit
 #:                      changed meaning or value.
 NEW_METADATA_KEYS = {"position_source"}
 
+#: `processed_digest` / `z_digest` below are HISTORICAL: captured 2026-08-06 in an
+#: earlier numeric environment and no longer asserted. The float grids are checked
+#: against tests/fixtures/regression/c1t_reference_grids.npz (see the section above
+#: test_processed_grid_unchanged); every other entry is still asserted exactly.
 BASELINE = {
     "C1T_7,5_0001": {
         "file": "C1T_7,5_0001.SGY",
@@ -211,16 +215,109 @@ def test_trace_and_depth_axes_unchanged(line):
     assert round(depths[1] - depths[0], 5) == exp["depth_step"]
 
 
+# --------------------------------------------------------------------------
+# Float grids: numerical equivalence, not cross-environment byte identity.
+#
+# The original assertions compared sha256(float64 bytes) with digests captured on
+# 2026-08-06. Those digests stopped reproducing when the numeric stack was rebuilt
+# (numpy/scipy unchanged and pinned, macOS + Apple Accelerate newer), even at the
+# commit that introduced this test -- while the pre-M1 tree (4b9ff0e) and current
+# code still produce BYTE-IDENTICAL grids in one environment. Byte identity across
+# environments was never achievable; the contract is: no processing drift.
+#
+# Reference arrays: tests/fixtures/regression/c1t_reference_grids.npz, computed from
+# the pre-M1 tree 4b9ff0e (same baseline the digests described), with the capture
+# environment fingerprint in the .json beside it.
+#
+# Tolerances come from MEASURED sensitivity: perturbing every raw sample by ~1 ULP
+# moves the processed grid by <= 2.0e-15 of its scale and the z-grid by <= 7.5e-14
+# absolute (3 trials per line). The tolerances below are ~500x that -- room for
+# last-bit environment noise accumulated through the chain -- and still ~1e3-1e6
+# below any real processing change (test_the_tolerance_still_catches_real_drift).
+# --------------------------------------------------------------------------
+
+REFERENCE_DIR = Path(__file__).parent / "fixtures" / "regression"
+PROCESSED_ATOL_OVER_SCALE = 1e-12     # absolute tolerance as a fraction of max|reference|
+Z_ATOL = 1e-11                        # z-grid is dimensionless, O(1)
+
+
+def _reference():
+    meta = json.loads((REFERENCE_DIR / "c1t_reference_grids.json").read_text())
+    arrays = np.load(REFERENCE_DIR / "c1t_reference_grids.npz")
+    return meta, arrays
+
+
+def _env_fingerprint() -> dict:
+    import platform
+    import scipy
+    cfg = np.show_config(mode="dicts")["Build Dependencies"]
+    return {"python": platform.python_version(), "numpy": np.__version__,
+            "scipy": scipy.__version__, "platform": platform.platform(),
+            "machine": platform.machine(), "blas": cfg["blas"]["name"],
+            "lapack": cfg["lapack"]["name"]}
+
+
+def assert_grid_equivalent(actual, reference, atol: float, what: str):
+    """Shape, dtype, finite mask exactly; finite values within `atol`."""
+    actual = np.asarray(actual)
+    assert actual.shape == reference.shape, f"{what}: shape {actual.shape} != {reference.shape}"
+    assert actual.dtype == np.float64, f"{what}: dtype {actual.dtype}"
+    fin_a, fin_r = np.isfinite(actual), np.isfinite(reference)
+    assert np.array_equal(fin_a, fin_r), f"{what}: finite/non-finite mask changed"
+    diff = np.abs(actual[fin_a] - reference[fin_r])
+    worst = float(diff.max()) if diff.size else 0.0
+    assert worst <= atol, f"{what}: max abs difference {worst:.3e} exceeds tolerance {atol:.3e}"
+
+
+def _check_float_grid(line, kind: str):
+    meta, ref = _reference()
+    stem = line["name"]
+    reference = ref[f"{stem}__{kind}"]
+    actual = np.asarray(line["processed" if kind == "processed" else "z"], dtype=float)
+    atol = (PROCESSED_ATOL_OVER_SCALE * float(np.nanmax(np.abs(reference)))
+            if kind == "processed" else Z_ATOL)
+    assert_grid_equivalent(actual, reference, atol, f"{stem} {kind}")
+    if _env_fingerprint() == meta["environment_fingerprint"]:
+        # same environment as the capture: byte identity is expected and enforced
+        assert _arr_digest(actual) == meta["sha256"][f"{stem}__{kind}"]
+
+
 def test_processed_grid_unchanged(line):
-    assert _arr_digest(line["processed"]) == line["exp"]["processed_digest"]
+    _check_float_grid(line, "processed")
 
 
 def test_anomaly_zscore_grid_unchanged(line):
     exp, z = line["exp"], line["z"]
-    assert _arr_digest(z) == exp["z_digest"]
+    _check_float_grid(line, "z")
     assert round(float(np.nanstd(z)), 6) == exp["z_std"]
     assert round(float(np.nanmax(np.abs(z))), 6) == exp["z_absmax"]
     assert int((np.abs(np.nan_to_num(z)) >= 3.0).sum()) == exp["cells_ge_3"]
+
+
+def test_the_tolerance_still_catches_real_drift():
+    """A relative change of 1e-9 -- far below any parameter change -- must fail."""
+    _, ref = _reference()
+    for key in ref.files:
+        r = ref[key]
+        scale = float(np.nanmax(np.abs(r)))
+        atol = PROCESSED_ATOL_OVER_SCALE * scale if key.endswith("processed") else Z_ATOL
+        drifted = r * (1.0 + 1e-9)
+        with pytest.raises(AssertionError):
+            assert_grid_equivalent(drifted, r, atol, key)
+        masked = r.copy()
+        masked[0, 0] = np.nan
+        with pytest.raises(AssertionError):
+            assert_grid_equivalent(masked, r, atol, key)
+        assert_grid_equivalent(r.copy(), r, atol, key)      # identity passes
+
+
+def test_reference_fixture_records_its_environment(capsys):
+    meta, _ = _reference()
+    assert meta["captured_from_commit"].startswith("4b9ff0e")
+    fp = meta["environment_fingerprint"]
+    assert {"numpy", "scipy", "platform", "blas"} <= set(fp)
+    print("reference environment:", fp)
+    print("current environment:  ", _env_fingerprint())
 
 
 def test_candidate_count_unchanged(line):
