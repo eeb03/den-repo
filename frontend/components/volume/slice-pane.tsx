@@ -6,6 +6,7 @@ import {
   displayValue, paneExtent, paneToCursor, projectGroundTruth, sliceCount, sliceIndex, stepSlice,
   SUPPORT_VALUE,
 } from '@/lib/volume'
+import { type DecodedLabels, outline, regionAt } from '@/lib/regions'
 import type { GroundTruthOverlay, Orientation, VolumeProduct, VolumeSlice } from '@/types/volume'
 
 const TITLES: Record<Orientation, string> = {
@@ -32,7 +33,7 @@ const TITLES: Record<Orientation, string> = {
  */
 export function SlicePane({
   orientation, volume, slice, cursor, onCursor, display, showSupport, showInterpolated,
-  groundTruth, showGroundTruth, view, onView,
+  groundTruth, showGroundTruth, view, onView, regions, showRegions = false, selectedRegion = null, onSelectRegion,
 }: {
   orientation: Orientation
   volume: VolumeProduct
@@ -47,6 +48,11 @@ export function SlicePane({
   showGroundTruth: boolean
   view: { zoom: number; panX: number; panY: number }
   onView: (v: { zoom: number; panX: number; panY: number }) => void
+  /** Response-region labels for THIS slice (a separate layer: green outlines, selection in amber). */
+  regions?: DecodedLabels
+  showRegions?: boolean
+  selectedRegion?: string | null
+  onSelectRegion?: (id: string | null) => void
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -117,6 +123,32 @@ export function SlicePane({
     return off
   }, [slice, display, showSupport, showInterpolated])
 
+  // region layer: outlines (green) and the selected region's fill (amber), at slice resolution
+  const regionImage = useMemo(() => {
+    if (!regions || !showRegions || typeof document === 'undefined') return null
+    const off = document.createElement('canvas')
+    off.width = regions.cols
+    off.height = regions.rows
+    const ctx = off.getContext('2d')
+    if (!ctx) return null
+    const img = ctx.createImageData(regions.cols, regions.rows)
+    const edge = outline(regions)
+    const sel = selectedRegion ? regions.order.indexOf(selectedRegion) + 1 : 0
+    for (let p = 0; p < regions.data.length; p++) {
+      const v = regions.data[p] ?? 0
+      if (!v) continue
+      const o = p * 4
+      if (edge[p]) {
+        if (v === sel) { img.data[o] = 255; img.data[o + 1] = 191; img.data[o + 2] = 0; img.data[o + 3] = 255 }
+        else { img.data[o] = 74; img.data[o + 1] = 222; img.data[o + 2] = 128; img.data[o + 3] = 230 }
+      } else if (v === sel) {
+        img.data[o] = 255; img.data[o + 1] = 191; img.data[o + 2] = 0; img.data[o + 3] = 70
+      }
+    }
+    ctx.putImageData(img, 0, 0)
+    return off
+  }, [regions, showRegions, selectedRegion])
+
   const ext = paneExtent(orientation, volume)
   // fit the physical extent into the pane, then apply zoom / pan
   const fit = Math.min(size.w / ext.w, size.h / ext.h) * 0.94
@@ -143,6 +175,10 @@ export function SlicePane({
     if (image) {
       ctx.imageSmoothingEnabled = false
       ctx.drawImage(image, ox, oy, drawW, drawH)
+    }
+    if (regionImage) {
+      ctx.imageSmoothingEnabled = false
+      ctx.drawImage(regionImage, ox, oy, drawW, drawH)
     }
     // ground truth: separate layer, magenta, dashed
     if (showGroundTruth && groundTruth?.available) {
@@ -205,6 +241,10 @@ export function SlicePane({
             drag.current = { mode: 'cursor', x: 0, y: 0, panX: 0, panY: 0 }
             const { col, row } = eventToCell(e)
             onCursor(paneToCursor(orientation, volume, cursor, col, row))
+            if (showRegions && regions && onSelectRegion) {
+              const hit = regionAt(regions, col, row)
+              if (hit) onSelectRegion(hit)
+            }
           }}
           onMouseMove={(e) => {
             const d = drag.current
@@ -218,6 +258,11 @@ export function SlicePane({
           onMouseUp={() => { drag.current = null }}
           onMouseLeave={() => { drag.current = null }}
         />
+        {showRegions && regions && (
+          <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-[#4ade80]">
+            RESPONSE REGIONS — unclassified
+          </span>
+        )}
         {showGroundTruth && groundTruth?.available && (
           <span className="pointer-events-none absolute left-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-[#e040fb]">
             {groundTruth.label}

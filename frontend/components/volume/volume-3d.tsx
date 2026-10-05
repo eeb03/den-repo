@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { type VolumeCursor, cursorFromCoord, decodeU8 } from '@/lib/volume'
+import type { ResponseRegion } from '@/types/region'
 import type { GroundTruthOverlay, VolumeProduct, VolumeRender3D } from '@/types/volume'
 
 export interface Render3DSettings {
@@ -94,6 +95,7 @@ void main() {
  */
 export function Volume3D({
   volume, render, cursor, onCursor, settings, groundTruth, showGroundTruth,
+  regions = [], showRegions = false, selectedRegion = null, onSelectRegion,
 }: {
   volume: VolumeProduct
   render: VolumeRender3D | undefined
@@ -102,13 +104,18 @@ export function Volume3D({
   settings: Render3DSettings
   groundTruth?: GroundTruthOverlay
   showGroundTruth: boolean
+  /** Response regions: a separate layer of bounding boxes (green; selected amber). */
+  regions?: ResponseRegion[]
+  showRegions?: boolean
+  selectedRegion?: string | null
+  onSelectRegion?: (id: string | null) => void
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const state = useRef<{
     renderer: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.PerspectiveCamera
     controls: OrbitControls; mesh: THREE.Mesh; material: THREE.ShaderMaterial
     uniforms: Uniforms
-    slices: THREE.Group; gt: THREE.Group; marker: THREE.Mesh; dims: THREE.Vector3; raf: number
+    slices: THREE.Group; gt: THREE.Group; regionBoxes: THREE.Group; marker: THREE.Mesh; dims: THREE.Vector3; raf: number
   } | null>(null)
   const [fps, setFps] = useState<number | null>(null)
   const [unsupported, setUnsupported] = useState<string | null>(() =>
@@ -117,6 +124,8 @@ export function Volume3D({
       : 'WebGL2 is not available in this browser, so the 3D pane is off; the slice panes are unaffected.')
   const onCursorRef = useRef(onCursor)
   useEffect(() => { onCursorRef.current = onCursor }, [onCursor])
+  const onSelectRef = useRef(onSelectRegion)
+  useEffect(() => { onSelectRef.current = onSelectRegion }, [onSelectRegion])
 
   // physical extent; a time-domain z is scaled for display and says so
   const [nx, ny, nz] = volume.shape
@@ -171,6 +180,8 @@ export function Volume3D({
     const slices = new THREE.Group()
     scene.add(slices)
     const gt = new THREE.Group()
+    const regionBoxes = new THREE.Group()
+    scene.add(regionBoxes)
     scene.add(gt)
     const marker = new THREE.Mesh(new THREE.SphereGeometry(span * 0.008, 12, 12),
       new THREE.MeshBasicMaterial({ color: 0x22d3ee }))
@@ -198,7 +209,7 @@ export function Volume3D({
       if (now - last > 1000) { setFps(Math.round((frames * 1000) / (now - last))); frames = 0; last = now }
       st.raf = requestAnimationFrame(loop)
     }
-    const st = { renderer, scene, camera, controls, mesh, material, uniforms, slices, gt, marker, dims, raf: 0 }
+    const st = { renderer, scene, camera, controls, mesh, material, uniforms, slices, gt, regionBoxes, marker, dims, raf: 0 }
     state.current = st
     st.raf = requestAnimationFrame(loop)
 
@@ -219,10 +230,26 @@ export function Volume3D({
       onCursorRef.current(cursorFromCoord(v, x, y, z))
     }
     renderer.domElement.addEventListener('dblclick', onClick)
+    // single click on a region box selects that region (a drag to orbit does not)
+    let down: { x: number; y: number } | null = null
+    const onDown = (ev: PointerEvent) => { down = { x: ev.clientX, y: ev.clientY } }
+    const onUp = (ev: PointerEvent) => {
+      if (!down || Math.hypot(ev.clientX - down.x, ev.clientY - down.y) > 4) { down = null; return }
+      down = null
+      const r = renderer.domElement.getBoundingClientRect()
+      const ndc = new THREE.Vector2(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1)
+      ray.setFromCamera(ndc, camera)
+      const hit = ray.intersectObjects(regionBoxes.children.filter((o) => o.userData.regionId), false)[0]
+      if (hit) onSelectRef.current?.(hit.object.userData.regionId as string)
+    }
+    renderer.domElement.addEventListener('pointerdown', onDown)
+    renderer.domElement.addEventListener('pointerup', onUp)
     return () => {
       cancelAnimationFrame(st.raf)
       ro?.disconnect()
       renderer.domElement.removeEventListener('dblclick', onClick)
+      renderer.domElement.removeEventListener('pointerdown', onDown)
+      renderer.domElement.removeEventListener('pointerup', onUp)
       controls.dispose()
       renderer.dispose()
       renderer.domElement.remove()
@@ -290,6 +317,33 @@ export function Volume3D({
     mk(Lx, Lz, new THREE.Vector3(0, 0, pz), new THREE.Euler(0, 0, 0), 0x38bdf8)              // XZ
     mk(Ly, Lz, new THREE.Vector3(px, 0, 0), new THREE.Euler(0, Math.PI / 2, 0), 0x818cf8)    // YZ
   }, [cursor, settings.showSlices, volume, Lx, Ly, Lz, nz])
+
+  // --- response regions: bounding boxes (separate layer) --------------------------------
+  useEffect(() => {
+    const st = state.current
+    if (!st) return
+    st.regionBoxes.clear()
+    if (!showRegions) return
+    const X = (x: number) => x - volume.x_axis.origin - Lx / 2
+    const Z = (y: number) => y - volume.y_axis.origin - Ly / 2
+    const Y = (k: number) => Lz / 2 - (k / nz) * Lz
+    for (const g of regions) {
+      const [i0, i1, j0, j1, k0, k1] = g.index_bounds
+      const sel = g.id === selectedRegion
+      const w = (i1 - i0 + 1) * volume.x_axis.step, d = (j1 - j0 + 1) * volume.y_axis.step
+      const h = ((k1 - k0 + 1) / nz) * Lz
+      const pos = new THREE.Vector3(X(volume.x_axis.origin + (i0 + i1 + 1) / 2 * volume.x_axis.step) , Y((k0 + k1 + 1) / 2),
+                                    Z(volume.y_axis.origin + (j0 + j1 + 1) / 2 * volume.y_axis.step))
+      const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({
+        color: sel ? 0xffbf00 : 0x4ade80, transparent: true, opacity: sel ? 0.18 : 0.04, depthWrite: false }))
+      box.position.copy(pos)
+      box.userData.regionId = g.id
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)),
+        new THREE.LineBasicMaterial({ color: sel ? 0xffbf00 : 0x4ade80 }))
+      edges.position.copy(pos)
+      st.regionBoxes.add(box, edges)
+    }
+  }, [regions, showRegions, selectedRegion, volume, Lx, Ly, Lz, nz])
 
   // --- ground truth wireframes (separate layer) ------------------------------------------
   useEffect(() => {

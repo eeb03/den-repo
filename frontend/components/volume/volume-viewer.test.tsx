@@ -13,6 +13,8 @@ import { VolumeViewer } from './volume-viewer'
 const api = {
   listVolumes: vi.fn(), getDataset: vi.fn(), getVolume: vi.fn(), getVolumeSlice: vi.fn(), getVoxel: vi.fn(),
   getVolumeRender3d: vi.fn(), getVolumeGroundTruth: vi.fn(), previewVolume: vi.fn(), createVolume: vi.fn(),
+  listRegionSets: vi.fn(), getRegionSet: vi.fn(), getRegion: vi.fn(), getRegionSliceLabels: vi.fn(),
+  previewRegions: vi.fn(), createRegions: vi.fn(), reviewRegion: vi.fn(),
 }
 vi.mock('@/services/api', async () => {
   const actual = await vi.importActual<typeof import('@/services/api')>('@/services/api')
@@ -65,6 +67,13 @@ beforeEach(() => {
     source_frames: ['ds:grid'], coordinate_frame: 'local_volume', validation_status: '' } as VoxelInfo))
   api.getVolumeRender3d.mockResolvedValue(undefined)
   api.getVolumeGroundTruth.mockResolvedValue({ label: 'GROUND TRUTH — NOT INPUT TO RECONSTRUCTION', available: true, objects: [] })
+  api.listRegionSets.mockResolvedValue({ volume_id: 'v1', region_sets: [] })
+  api.getRegionSliceLabels.mockImplementation((_d: string, _v: string, _s: string, o: string, i: number) => {
+    const dims = { xy: [6, 8], xz: [10, 8], yz: [10, 6] }[o]!
+    const lab = new Uint16Array(dims[0]! * dims[1]!).fill(1)
+    return Promise.resolve({ orientation: o, index: i, rows: dims[0], cols: dims[1], order: ['rs1-r0001'],
+      labels_u16_b64: btoa(String.fromCharCode(...new Uint8Array(lab.buffer))) })
+  })
 })
 afterEach(cleanup)
 
@@ -118,5 +127,47 @@ describe('VolumeViewer', () => {
     api.getVolume.mockResolvedValue({ ...VOL, staleness: { stale: true, reasons: ['the applied time zero changed since this volume was built'], action: 'regenerate the volume' } })
     wrap()
     expect((await screen.findByTestId('stale-banner')).textContent).toContain('time zero changed')
+  })
+
+  it('generates regions only after preview + confirmation, selects one in sync, and records a neutral review', async () => {
+    const region = {
+      id: 'rs1-r0001', region_set_id: 'rs1', volume_id: 'v1', z_domain: 'depth', z_unit: 'm', status: 'proposed',
+      voxel_count: 120, centroid: { x: 0.02, y: 0.01, z: 0.01 }, peak_location: { x: 0.025, y: 0.015, z: 0.012 },
+      peak_index: [5, 3, 6], bounds: { x_min: 0, x_max: 0.035, y_min: 0, y_max: 0.025, z_min: 0.004, z_max: 0.018 },
+      index_bounds: [0, 7, 0, 5, 2, 9], physical_extent: { x: 0.04, y: 0.03, z: 0.016 }, fwhm: { x: 0.02, y: 0.03, z: 0.01 },
+      lines_spanned: 6, support: { measured_voxel_fraction: 0, reconstructed_voxel_fraction: 1, interpolated_voxel_fraction: 0,
+        unsupported_voxel_fraction: 0, nearest_measurement_distance_m: { max: 0 }, peak_support_class: 'RECONSTRUCTED' },
+      shape: { elongation: 2, flatness: 1, compactness: 0.5, azimuth_deg: 90, dip_deg: 0 },
+      evidence: [{ modality: 'gpr', property_name: 'response_envelope', unit: 'a.u.', method: 'm', peak_value: 5, peak_robust_z: 12, peak_local_contrast: 4, integrated_response: 1, mean_response: 1 }],
+      score_components: { response_strength: 0.5 }, evidence_score: 0.7, merged_from: [], flags: [],
+      meaning: 'A spatially coherent reconstructed response', review: { status: 'unreviewed' },
+    }
+    const set = { id: 'rs1', volume_id: 'v1', algorithm: 'volume_response_regions', algorithm_version: '1.0', threshold_method: 't',
+      config: {}, z_unit: 'm', migrated: true, created_at: '2026-10-05T00:00:00Z', regions: [region], rejected: {}, merges: [],
+      performance: {}, meaning: 'm', staleness: { stale: false, reasons: [] } }
+    api.previewRegions.mockResolvedValue({ possible: true, refusals: [], notes: [], algorithm: 'volume_response_regions 1.0', threshold_method: 't', estimated_region_count: 1, rejected: { tiny: 2 } })
+    api.createRegions.mockResolvedValue(set)
+    api.getRegionSet.mockResolvedValue(set)
+    api.getRegion.mockResolvedValue({ ...region, review_history: [], generation: { algorithm: 'volume_response_regions', version: '1.0', threshold_method: 't', config: {}, created_at: '', migrated_volume: true } })
+    api.reviewRegion.mockResolvedValue({ region })
+    wrap()
+    await screen.findByTestId('region-panel')
+    expect(api.createRegions).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('Preview regions'))
+    expect((await screen.findByTestId('region-preview')).textContent).toContain('≈ 1 region')
+    api.listRegionSets.mockResolvedValue({ volume_id: 'v1', region_sets: [{ id: 'rs1', created_at: '', count: 1, migrated: true, z_unit: 'm', algorithm: 'a', staleness: { stale: false, reasons: [] } }] })
+    fireEvent.click(screen.getByText('Confirm: generate regions'))
+    await waitFor(() => expect(api.createRegions).toHaveBeenCalledTimes(1))
+    const item = await screen.findByText(/r0001/)
+    fireEvent.click(item)
+    // selecting a region moves the ONE cursor to its peak, so every pane shows it
+    await waitFor(() => expect(screen.getByTestId('cursor-x').textContent).toContain('X = 0.025 m'))
+    expect(screen.getByTestId('pane-xz-index').textContent).toContain('slice 4/6')
+    const detail = await screen.findByTestId('region-detail')
+    expect(detail.textContent).toContain('unclassified')
+    expect(detail.textContent).not.toMatch(/pipe|void|cable|utility/i)
+    fireEvent.click(screen.getByText('Uncertain'))
+    await waitFor(() => expect(api.reviewRegion).toHaveBeenCalledWith('ds', 'v1', 'rs1', 'rs1-r0001', 'uncertain', undefined))
+    expect(screen.getAllByText(/RESPONSE REGIONS — unclassified/).length).toBeGreaterThan(0)
   })
 })

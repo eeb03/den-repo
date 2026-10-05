@@ -71,6 +71,7 @@ import type {
   GroundTruthOverlay, Orientation, FieldName, VolumeConfig, VolumeListItem, VolumePreview,
   VolumeProduct, VolumeRender3D, VolumeSlice, VoxelInfo,
 } from '@/types/volume'
+import type { RegionPreview, RegionSet, RegionSetSummary, RegionSliceLabels, ResponseRegion } from '@/types/region'
 
 /**
  * Base URL of the FastAPI backend. The single place this is decided.
@@ -668,6 +669,37 @@ export const api = {
 
   getVolumeGroundTruth(datasetId: string, volumeId: string): Promise<GroundTruthOverlay> {
     return request(`/api/volumes/${encodeURIComponent(datasetId)}/${encodeURIComponent(volumeId)}/ground_truth`)
+  },
+
+  /* ---------------------------- response regions ---------------------------- */
+
+  previewRegions(datasetId: string, volumeId: string, config: Record<string, unknown> = {}): Promise<RegionPreview> {
+    return postJson(`/api/volumes/${encodeURIComponent(datasetId)}/${encodeURIComponent(volumeId)}/regions/preview`, config)
+  },
+
+  createRegions(datasetId: string, volumeId: string, config: Record<string, unknown> = {}): Promise<RegionSet> {
+    return postJson(`/api/volumes/${encodeURIComponent(datasetId)}/${encodeURIComponent(volumeId)}/regions`, { confirm: true, config })
+  },
+
+  listRegionSets(datasetId: string, volumeId: string): Promise<{ volume_id: string; region_sets: RegionSetSummary[] }> {
+    return request(`/api/volumes/${encodeURIComponent(datasetId)}/${encodeURIComponent(volumeId)}/regions`)
+  },
+
+  getRegionSet(datasetId: string, volumeId: string, setId: string): Promise<RegionSet> {
+    return request(`/api/volumes/${encodeURIComponent(datasetId)}/${encodeURIComponent(volumeId)}/regions/${encodeURIComponent(setId)}`)
+  },
+
+  getRegion(datasetId: string, volumeId: string, setId: string, regionId: string): Promise<ResponseRegion> {
+    return request(`/api/volumes/${encodeURIComponent(datasetId)}/${encodeURIComponent(volumeId)}/regions/${encodeURIComponent(setId)}/${encodeURIComponent(regionId)}`)
+  },
+
+  getRegionSliceLabels(datasetId: string, volumeId: string, setId: string, orientation: Orientation, index: number): Promise<RegionSliceLabels> {
+    const qs = new URLSearchParams({ orientation, index: String(index) })
+    return request(`/api/volumes/${encodeURIComponent(datasetId)}/${encodeURIComponent(volumeId)}/regions/${encodeURIComponent(setId)}/slice_labels?${qs}`)
+  },
+
+  reviewRegion(datasetId: string, volumeId: string, setId: string, regionId: string, status: string, notes?: string): Promise<{ region: ResponseRegion }> {
+    return postJson(`/api/volumes/${encodeURIComponent(datasetId)}/${encodeURIComponent(volumeId)}/regions/${encodeURIComponent(setId)}/${encodeURIComponent(regionId)}/reviews`, { status, notes })
   },
 
   /* -------------------------------- scene -------------------------------- */

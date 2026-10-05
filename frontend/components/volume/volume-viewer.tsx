@@ -8,11 +8,14 @@ import { Panel, PanelHeader } from '@/components/subterra/panel'
 import { StateBox } from '@/components/subterra/state-box'
 import { Button } from '@/components/ui/button'
 import {
-  type DisplayWindow, type Polarity, type VolumeCursor, centreCursor, cursorFromCoord,
+  type DisplayWindow, type Polarity, type VolumeCursor, centreCursor, cursorFromCoord, cursorFromIndex,
   defaultWindow, formatZ,
 } from '@/lib/volume'
 import { ApiError, api } from '@/services/api'
 import type { FieldName, Orientation, VolumeConfig, VolumePreview, VolumeProduct } from '@/types/volume'
+import { decodeLabels } from '@/lib/regions'
+import type { ResponseRegion } from '@/types/region'
+import { RegionPanel } from './region-panel'
 import { SlicePane } from './slice-pane'
 import { type Render3DSettings, Volume3D } from './volume-3d'
 
@@ -208,6 +211,31 @@ function Inspector({ datasetId, volume }: { datasetId: string; volume: VolumePro
   const render = useSWR(['render3d', datasetId, volume.id], () => api.getVolumeRender3d(datasetId, volume.id, 'response_envelope'), swrOpts)
   const gt = useSWR(['gt', datasetId, volume.id], () => api.getVolumeGroundTruth(datasetId, volume.id), swrOpts)
 
+  // ---- response regions (a separate, unclassified layer; never generated on open) ----
+  const [showRegions, setShowRegions] = useState(false)
+  const [chosenSet, setChosenSet] = useState<string | null>(null)
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
+  const sets = useSWR(['region-sets', datasetId, volume.id], () => api.listRegionSets(datasetId, volume.id), swrOpts)
+  const setId = chosenSet ?? sets.data?.region_sets[0]?.id ?? null
+  const regionSet = useSWR(setId ? ['region-set', datasetId, volume.id, setId] : null,
+    () => api.getRegionSet(datasetId, volume.id, setId as string), swrOpts)
+  const labelKey = (o: Orientation, idx: number) => (showRegions && setId ? ['region-labels', datasetId, volume.id, setId, o, idx] : null)
+  const lxy = useSWR(labelKey('xy', cursor.k), () => api.getRegionSliceLabels(datasetId, volume.id, setId as string, 'xy', cursor.k), swrOpts)
+  const lxz = useSWR(labelKey('xz', cursor.j), () => api.getRegionSliceLabels(datasetId, volume.id, setId as string, 'xz', cursor.j), swrOpts)
+  const lyz = useSWR(labelKey('yz', cursor.i), () => api.getRegionSliceLabels(datasetId, volume.id, setId as string, 'yz', cursor.i), swrOpts)
+  const labels = useMemo(() => ({
+    xy: lxy.data ? decodeLabels(lxy.data) : undefined,
+    xz: lxz.data ? decodeLabels(lxz.data) : undefined,
+    yz: lyz.data ? decodeLabels(lyz.data) : undefined,
+  }), [lxy.data, lxz.data, lyz.data])
+  const goToRegion = (r: ResponseRegion, where: 'centroid' | 'peak') => {
+    setCursor(where === 'peak' ? cursorFromIndex(volume, ...r.peak_index) : cursorFromCoord(volume, r.centroid.x, r.centroid.y, r.centroid.z))
+  }
+  const selectRegion = (id: string | null) => {
+    setSelectedRegion(id)
+    regionSet.mutate()
+  }
+
   // the voxel inspector follows the cursor, a little behind a drag
   const [voxelAt, setVoxelAt] = useState(cursor)
   useEffect(() => { const t = setTimeout(() => setVoxelAt(cursor), 150); return () => clearTimeout(t) }, [cursor])
@@ -247,12 +275,19 @@ function Inspector({ datasetId, volume }: { datasetId: string; volume: VolumePro
               <SlicePane orientation={o} volume={volume} slice={slices[o]} cursor={cursor} onCursor={setCursor}
                 display={display} showSupport={showSupport} showInterpolated={showInterpolated}
                 groundTruth={gt.data} showGroundTruth={showGT}
+                regions={labels[o]} showRegions={showRegions} selectedRegion={selectedRegion} onSelectRegion={selectRegion}
                 view={views[o]} onView={(v) => setViews({ ...views, [o]: v })} />
             </div>
           ))}
           <div className="flex min-h-0 flex-col bg-card">
             <Volume3D volume={volume} render={render.data} cursor={cursor} onCursor={setCursor}
-              settings={r3} groundTruth={gt.data} showGroundTruth={showGT} />
+              settings={r3} groundTruth={gt.data} showGroundTruth={showGT}
+              regions={regionSet.data?.regions ?? []} showRegions={showRegions} selectedRegion={selectedRegion}
+              onSelectRegion={(id) => {
+                selectRegion(id)
+                const r = regionSet.data?.regions.find((x) => x.id === id)
+                if (r) goToRegion(r, 'peak')
+              }} />
           </div>
         </div>
       </Panel>
@@ -285,6 +320,11 @@ function Inspector({ datasetId, volume }: { datasetId: string; volume: VolumePro
             disabled={!gt.data?.available} hint={gt.data && !gt.data.available ? gt.data.reason : undefined} />
           <SupportLegend volume={volume} />
         </div>
+        <PanelHeader title="Response regions" count={regionSet.data?.regions.length ?? null} />
+        <RegionPanel datasetId={datasetId} volumeId={volume.id} set={regionSet.data}
+          onGenerated={(id) => { setChosenSet(id); sets.mutate() }}
+          showRegions={showRegions} onShowRegions={setShowRegions}
+          selected={selectedRegion} onSelect={selectRegion} onGoTo={goToRegion} />
         <PanelHeader title="Voxel" />
         <div className="space-y-1 px-3 pb-3 text-xs" data-testid="voxel-inspector">
           {voxel.data ? (
