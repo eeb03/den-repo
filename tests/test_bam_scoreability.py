@@ -59,6 +59,7 @@ def test_scoreable_does_not_imply_validated():
         "false_positive_rejection": gates.FAILED,
         "experimental_envelope_detector": gates.EXPERIMENTAL,
         "candidate_generation_v2": gates.EXPERIMENTAL,
+        "candidate_generation_v2_calibrated": gates.EXPERIMENTAL,
     }
     assert s == expected
     # the RESOLVED vocabulary of the gates never appears as a capability status

@@ -100,6 +100,7 @@ CAPABILITY_STATUS: dict[str, str] = {
     "false_positive_rejection": FAILED,
     "experimental_envelope_detector": EXPERIMENTAL,
     "candidate_generation_v2": EXPERIMENTAL,
+    "candidate_generation_v2_calibrated": EXPERIMENTAL,
 }
 CAPABILITY_EVIDENCE: dict[str, str] = {
     "duct_depth_at_known_position_backwall_calibrated": (
