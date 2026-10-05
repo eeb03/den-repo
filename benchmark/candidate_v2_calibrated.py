@@ -35,8 +35,8 @@ Stage A, conditioning, per B-scan line:
   each time row's robust scale is compared with the scan's noise floor.
   Structure and edges: on the dewowed envelope WITHOUT background removal,
   a lateral running median over STRUCT_WINDOW_MM marks laterally continuous
-  events; those prominent against their own time-local level are "horizons"
-  (back walls, layers). Horizon endpoints mark step edges and terminations.
+  events; those prominent against their own time-local level AND flat over at
+  least HORIZON_MIN_RUN_MM are "horizons" (back walls, layers). Horizon endpoints mark step edges and terminations.
   Ringing: a proposal with an earlier, at least as strong proposal directly
   above it (within 0.75-4 P) is more likely a reverberation or multiple.
 
@@ -77,7 +77,8 @@ import warnings
 from dataclasses import dataclass, field, replace
 
 import numpy as np
-from scipy.ndimage import distance_transform_edt, maximum_filter, median_filter, uniform_filter1d
+from scipy.ndimage import distance_transform_edt, label, maximum_filter, median_filter, uniform_filter1d
+from scipy.ndimage import median as ndi_median
 from scipy.signal import hilbert
 
 from benchmark.candidate_v2 import _contrast, _dominant_freq, _lateral_extent, direct_wave_time
@@ -97,6 +98,7 @@ NMS_X_MM, NMS_T_PERIODS = 50.0, 0.75
 CLUSTER_DX_MM, CLUSTER_DT_PERIODS, CLUSTER_LINE_GAP = 25.0, 0.4, 2
 STRUCT_WINDOW_MM = 400.0
 STRUCT_LOCAL_PERIODS = 3.0
+HORIZON_MIN_RUN_MM = 300.0
 RING_DX_MM, RING_MAX_PERIODS, RING_AMP_RATIO = 25.0, 4.0, 1.0
 EDGE_LAG_MM = 50.0
 EDGE_SIGMA_MM, EDGE_SIGMA_PERIODS = 40.0, 1.0
@@ -184,6 +186,24 @@ def _structure_maps(raw_env, dt, dx, P, i0, i1, ratio):
     H = is_max & (prominence >= ratio) & (cont >= 2.0 * floor)
     H[:, :i0] = False
     H[:, i1:] = False
+    # DEV ITERATION 2: a horizon must be FLAT and laterally continuous: at least
+    # HORIZON_MIN_RUN_MM of positions within +/- 0.25 P of the component's
+    # median time. Without this, the broad apex and arms of a deep compact
+    # scatterer (a duct at 241 mm on the development scan) passed as a
+    # "horizon" and were then penalised as structure and as a step edge.
+    lab, n = label(maximum_filter(H, size=(1, 3)) & (cont >= 2.0 * floor), structure=np.ones((3, 3)))
+    if n:
+        ts = np.broadcast_to(np.arange(n_t)[None, :], (n_x, n_t))
+        xs = np.broadcast_to(np.arange(n_x)[:, None], (n_x, n_t))
+        sel = lab > 0
+        med_t = np.zeros(n + 1)
+        med_t[1:] = ndi_median(ts, lab, index=np.arange(1, n + 1))
+        near = sel & (np.abs(ts - med_t[lab]) <= max(1, int(round(0.25 * P / dt))))
+        pairs = np.unique(lab[near].astype(np.int64) * n_x + xs[near])
+        counts = np.bincount((pairs // n_x).astype(int), minlength=n + 1)
+        flat_long = counts * dx >= HORIZON_MIN_RUN_MM
+        flat_long[0] = False
+        H &= flat_long[lab]
     lag = max(1, int(round(EDGE_LAG_MM / dx)))
     Hd = maximum_filter(H, size=(1, 2 * max(1, int(round(0.15 * P / dt))) + 1))
     left = np.zeros_like(H)
