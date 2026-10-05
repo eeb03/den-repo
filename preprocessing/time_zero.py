@@ -188,6 +188,88 @@ MAX_CONSENSUS_SPREAD_NS = 2.0
 MIN_SUCCESS_FRACTION = 0.5
 
 
+#: VALIDITY CHECKS (refusal-only). They can turn a pick into "no pick" and
+#: never move or create one. Each targets a failure MECHANISM documented in
+#: docs/timezero-method-c-validation.md section 3, and was developed on
+#: synthetic traces only (tests/test_time_zero_validity.py) -- never on the
+#: operator-reference corpus, which must be re-scored once with them
+#: (`scripts/validate_timezero_method_c.py`) before any accuracy is quoted.
+#:
+#: Mode 2, "arrival inside the quiet window": the late half of the quiet
+#: window departs from the early half's mean by more than this many early-half
+#: sigmas. Simulated on Gaussian noise (4-sample sigma): ~2.4% of noise-only
+#: traces are flagged; a line is refused only when flagged and failed traces
+#: together leave fewer than MIN_SUCCESS_FRACTION usable picks.
+QUIET_WINDOW_CONTAMINATION_SIGMA = 8.0
+#: Mode 3, "slow drift read as an onset": a radar arrival is TRANSIENT -- an
+#: antenna cannot radiate a DC component, so within a few rise times of its
+#: first lobe's peak the trace reverses or falls back to at most this
+#: fraction of that peak. A monotone drift or a baseline step does neither.
+TRANSIENT_FALLBACK_FRACTION = 0.5
+#: ...within `TRANSIENT_RISE_MULTIPLE` x rise (+3 samples of slack) after onset.
+TRANSIENT_RISE_MULTIPLE = 6
+#: ...and its rise (onset -> first-lobe peak, about a quarter period) must be
+#: under this fraction of the recorded window. A first lobe rising for more
+#: than a tenth of the window leaves under ~2.5 periods of record, which is a
+#: drift or a wow, not a direct wave. HEURISTIC; it cannot separate a slow
+#: oscillating drift from a genuinely very-low-frequency antenna.
+MAX_RISE_FRACTION_OF_WINDOW = 0.1
+
+#: Reasons a single trace's candidate pick is refused (counted per line).
+REJECT_NO_ONSET = "no_onset_above_threshold"
+REJECT_QUIET_CONTAMINATED = "quiet_window_contaminated"
+REJECT_NOT_TRANSIENT = "onset_not_transient"
+REJECT_SLOW_RISE = "onset_rise_too_slow"
+
+
+def _quiet_window_contaminated(quiet: list[float]) -> bool:
+    half = len(quiet) // 2
+    early, late = quiet[:half], quiet[half:]
+    if len(early) < 2 or not late:
+        return False
+    m = statistics.mean(early)
+    sd = statistics.pstdev(early) or 1e-9
+    return max(abs(x - m) for x in late) > QUIET_WINDOW_CONTAMINATION_SIGMA * sd
+
+
+def _onset_transient_problem(trace: list[float], onset_i: int, mean: float) -> Optional[str]:
+    """None when the event starting at `onset_i` behaves like a radar arrival."""
+    n = len(trace)
+    dev = [x - mean for x in trace]
+    sign = 1.0 if dev[onset_i] >= 0 else -1.0
+    end = onset_i
+    while end + 1 < n and sign * dev[end + 1] > 0:
+        end += 1
+    peak_i = max(range(onset_i, end + 1), key=lambda j: sign * dev[j])
+    peak = sign * dev[peak_i]
+    rise = max(peak_i - onset_i, 1)
+    if rise > MAX_RISE_FRACTION_OF_WINDOW * n:
+        return REJECT_SLOW_RISE
+    limit = min(n - 1, onset_i + TRANSIENT_RISE_MULTIPLE * rise + 3)
+    if any(sign * dev[j] <= TRANSIENT_FALLBACK_FRACTION * peak
+           for j in range(peak_i + 1, limit + 1)):
+        return None
+    return REJECT_NOT_TRANSIENT
+
+
+def _pick_onset_checked(trace: list[float], sample_interval_ns: float,
+                        quiet_samples: int = QUIET_SAMPLES):
+    """
+    `(time_ns, confidence, None)` for a valid pick, or `(None, None, reason)`.
+    The pick itself is exactly `_pick_onset_ns`'s; the checks only refuse.
+    """
+    if len(trace) >= quiet_samples + 10 and _quiet_window_contaminated(trace[:quiet_samples]):
+        return None, None, REJECT_QUIET_CONTAMINATED
+    picked = _pick_onset_ns(trace, sample_interval_ns, quiet_samples)
+    if picked is None:
+        return None, None, REJECT_NO_ONSET
+    onset_i = int(round(picked[0] / sample_interval_ns))
+    problem = _onset_transient_problem(trace, onset_i, statistics.mean(trace[:quiet_samples]))
+    if problem is not None:
+        return None, None, problem
+    return picked[0], picked[1], None
+
+
 def _pick_onset_ns(trace: list[float], sample_interval_ns: float,
                    quiet_samples: int = QUIET_SAMPLES) -> Optional[tuple[float, float]]:
     """
@@ -197,6 +279,9 @@ def _pick_onset_ns(trace: list[float], sample_interval_ns: float,
     `bam_hyperbola_velocity_audit.py::_direct_arrival_extent`'s "sustained
     run" philosophy: a single sample crossing a threshold can be a
     zero-crossing artefact; three consecutive samples cannot.
+
+    This is the raw picker; `direct_wave_consensus_time_zero` only uses its
+    output after the validity checks in `_pick_onset_checked`.
     """
     n = len(trace)
     if n < quiet_samples + 10:
@@ -248,19 +333,27 @@ def direct_wave_consensus_time_zero(
 
     picks: list[float] = []
     confidences: list[float] = []
+    rejections: dict[str, int] = {}
     for trace in traces:
-        result = _pick_onset_ns(trace, sample_interval_ns)
-        if result is not None:
-            picks.append(result[0])
-            confidences.append(result[1])
+        time_ns, confidence, reason = _pick_onset_checked(trace, sample_interval_ns)
+        if reason is None:
+            picks.append(time_ns)
+            confidences.append(confidence)
+        else:
+            rejections[reason] = rejections.get(reason, 0) + 1
 
     if len(picks) < max(3, int(MIN_SUCCESS_FRACTION * n_traces)):
+        refused = {k: v for k, v in rejections.items() if k != REJECT_NO_ONSET}
+        why = (f"; candidate onsets refused by validity checks: "
+               + ", ".join(f"{k}={v}" for k, v in sorted(refused.items()))
+               if refused else "")
         return TimeZeroResult(
             status=TimeZeroStatus.INCONCLUSIVE, method=TimeZeroMethod.DIRECT_WAVE_CONSENSUS,
-            basis=(f"only {len(picks)} of {n_traces} traces produced a pick above the "
+            basis=(f"only {len(picks)} of {n_traces} traces produced a valid pick above the "
                   f"confidence threshold ({MIN_PICK_CONFIDENCE}); too few for a defensible "
-                  f"consensus"),
-            traces_evaluated=n_traces, successful_picks=len(picks), generated_utc=_now(),
+                  f"consensus{why}"),
+            traces_evaluated=n_traces, successful_picks=len(picks),
+            pick_rejections=rejections or None, generated_utc=_now(),
         )
 
     med = statistics.median(picks)
@@ -275,7 +368,8 @@ def direct_wave_consensus_time_zero(
             basis=(f"after robust outlier rejection, only {len(kept)} of {len(picks)} picks "
                   f"remain -- too few and too scattered for a defensible consensus"),
             traces_evaluated=n_traces, successful_picks=len(picks),
-            outliers_rejected=n_outliers, generated_utc=_now(),
+            outliers_rejected=n_outliers, pick_rejections=rejections or None,
+            generated_utc=_now(),
         )
 
     consensus = start_time_ns + statistics.median(kept)
@@ -288,7 +382,8 @@ def direct_wave_consensus_time_zero(
                   f"{spread:.3f} ns, exceeding the {MAX_CONSENSUS_SPREAD_NS} ns consistency "
                   f"bound this method requires to call the result a genuine consensus"),
             traces_evaluated=n_traces, successful_picks=len(picks),
-            outliers_rejected=n_outliers, spread_ns=round(spread, 4), generated_utc=_now(),
+            outliers_rejected=n_outliers, spread_ns=round(spread, 4),
+            pick_rejections=rejections or None, generated_utc=_now(),
         )
 
     return TimeZeroResult(
@@ -299,7 +394,8 @@ def direct_wave_consensus_time_zero(
               f"{n_outliers} rejected as outliers), agreeing within {spread:.3f} ns"),
         source="direct_wave_consensus", applied=False,
         traces_evaluated=n_traces, successful_picks=len(picks),
-        outliers_rejected=n_outliers, spread_ns=round(spread, 4), generated_utc=_now(),
+        outliers_rejected=n_outliers, spread_ns=round(spread, 4),
+        pick_rejections=rejections or None, generated_utc=_now(),
     )
 
 

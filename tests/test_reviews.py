@@ -557,3 +557,27 @@ def test_export_serialization_confirmed_with_no_geometry_is_existence_only():
     assert example is not None
     assert example.mask is None
     assert example.label_level == LabelLevel.D_EXISTENCE
+
+
+# --- a review can never claim independence from the radar ---------------------
+
+@pytest.mark.parametrize("grade", ["independently_verified", "measurement_associated",
+                                   "weak_unsuitable"])
+def test_a_review_cannot_carry_any_grade_but_operator_reviewed(grade):
+    from schemas.review import ReviewStatus
+    with pytest.raises(ValueError, match="evidence_grade"):
+        CandidateReview(dataset_id="d", candidate_id="c", source_file="f", trace_range=(1, 2),
+                        reviewer_id="u", review_status=ReviewStatus.CONFIRMED,
+                        evidence_grade=grade)
+
+
+def test_a_stored_review_edited_to_grade_a_is_refused_on_reload():
+    from schemas.review import ReviewStatus
+    ok = CandidateReview(dataset_id="d", candidate_id="c", source_file="f", trace_range=(1, 2),
+                         reviewer_id="u", review_status=ReviewStatus.CONFIRMED)
+    tampered = {**ok.model_dump(mode="json"), "evidence_grade": "independently_verified"}
+    with pytest.raises(ValueError, match="evidence_grade"):
+        CandidateReview.model_validate(tampered)
+    tampered = {**ok.model_dump(mode="json"), "label_source": "measured_association"}
+    with pytest.raises(ValueError):
+        CandidateReview.model_validate(tampered)

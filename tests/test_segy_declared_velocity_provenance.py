@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from converters.segy_converter import DEFAULT_GPR_VELOCITY_M_PER_NS, SEGYConverter
 from schemas.provenance import ProvenanceClass, frame_provenance
 from schemas.spatial import NoPosition
@@ -113,3 +115,32 @@ class TestNonGprModalityIsUntouched:
         )
         assert not any(a.key in ("gpr_velocity", "gpr_velocity_source_quantity")
                        for a in frame.assumptions)
+
+
+class TestVelocityBasisKind:
+    """A caller can say what kind of evidence its velocity is (4TU: a same-survey
+    hyperbola-fit estimate); it then reaches the depth model and the gate."""
+
+    def test_an_estimated_basis_and_method_reach_the_conversion(self):
+        from schemas.depth_model import VelocityBasis, velocity_is_scientifically_sufficient, velocity_model_of
+        frame = _frame(0.0999, velocity_source_quantity="relative permittivity",
+                       velocity_source_value=9.0, velocity_basis_kind="estimated_from_same_survey",
+                       velocity_method="hyperbola fit (Reflex-W 9.1.3)")
+        conv = frame.vertical_axis.conversion
+        assert conv["velocity_basis"] == "estimated_from_same_survey"
+        assert conv["velocity_method"] == "hyperbola fit (Reflex-W 9.1.3)"
+        model = velocity_model_of(conv)
+        assert model.basis is VelocityBasis.ESTIMATED_FROM_SAME_SURVEY
+        assert model.method == "hyperbola fit (Reflex-W 9.1.3)"
+        assert velocity_is_scientifically_sufficient(model) is False
+
+    def test_without_a_kind_a_caller_velocity_is_still_user_declared(self):
+        frame = _frame(0.0999, velocity_source_quantity="relative permittivity",
+                       velocity_source_value=9.0)
+        assert frame.vertical_axis.conversion["velocity_basis"] == "user_declared"
+        assert "velocity_method" not in frame.vertical_axis.conversion
+
+    @pytest.mark.parametrize("kind", ["assumed_default", "undocumented", "not_a_basis"])
+    def test_a_caller_cannot_claim_the_default_or_an_unknown_kind(self, kind):
+        with pytest.raises(ValueError):
+            _frame(0.0999, velocity_basis_kind=kind)

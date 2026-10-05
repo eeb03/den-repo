@@ -25,10 +25,13 @@ plain, generic hooks (`velocity_basis`, `velocity_source_quantity`,
 `velocity_source_value`, `velocity_source_basis`) it will happily accept
 from any future caller with a declared-quantity velocity, 4TU or otherwise.
 
-WHAT THIS DOES NOT CLAIM. The declared permittivity has no published
-measurement method, instrument, or uncertainty (`Codebook.pdf` defines the
-field only as "the relative permittivity of the subsurface soil") and the
-resulting velocity has never been checked against 4TU's own trench-depth
+WHAT THIS DOES NOT CLAIM. The published permittivity is NOT an independent
+measurement: the data paper (ter Huurne et al., Data in Brief, PMC10973596) and
+the author's thesis (Sec. 5.3.1) state it was computed from a Reflex-W
+hyperbola-fit velocity on the same radargrams. The resulting velocity is
+therefore recorded as `estimated_from_same_survey` (`VELOCITY_METHOD`), which
+the scientific depth gate refuses. No uncertainty is published, and the
+velocity has never been checked against 4TU's own trench-depth
 ground truth: the public archive withholds trench coordinates, and its
 `survey_map.png` sketches carry no scale or origin to tie a trench distance
 to a trace index (independently verified: real survey-line lengths in one
@@ -64,6 +67,12 @@ PERMITTIVITY_FIELD = "Ground relative permittivity"
 #: for "this record is unambiguously a 4TU activity" -- never inferred from a
 #: filename, a CRS, or a coordinate range.
 DATASET_ID_PREFIX = "4tu_"
+
+#: How the data provider obtained the published permittivity: stated in the data
+#: paper (ter Huurne et al., Data in Brief; PMC10973596) and the author's thesis
+#: (Sec. 5.3.1). See `evidence.fourtu_author` statement "thesis-velocity-hyperbola-fit".
+VELOCITY_METHOD = ("hyperbola fit (Reflex-W 9.1.3) on the same survey's radargrams, "
+                   "eps_r = (c/v)^2, one value per activity")
 
 #: Carried on every resolution, unconditionally. Not independently validated:
 #: 4TU withholds trench coordinates and its survey maps carry no scale or
@@ -159,6 +168,13 @@ class FourTuVelocityResolution:
     #: Passed as `velocity_source_basis`. Contains "declared by" so
     #: `frame_provenance` classifies it as ProvenanceClass.DECLARED_BY_SOURCE.
     permittivity_basis: str
+    #: Passed as `velocity_basis_kind`. The published permittivity was computed from
+    #: a Reflex-W hyperbola-fit velocity on the same radargrams (data paper, PMC10973596;
+    #: thesis, doi 10.3990/1.9789036561952, Sec. 5.3.1) -- an estimate from the same
+    #: survey, not an independent measurement. Recorded so the depth gate refuses it.
+    velocity_basis_kind: str = "estimated_from_same_survey"
+    #: Passed as `velocity_method`.
+    velocity_method: str = VELOCITY_METHOD
     validated: bool = False
     validation_note: str = VALIDATION_NOTE
 
@@ -187,6 +203,8 @@ def resolve_four_tu_velocity(
                 velocity_source_quantity="relative permittivity",
                 velocity_source_value=resolution.eps_r,
                 velocity_source_basis=resolution.permittivity_basis,
+                velocity_basis_kind=resolution.velocity_basis_kind,
+                velocity_method=resolution.velocity_method,
             )
         SEGYConverter().load(path, dataset_id=dataset_id, sensor_type=SensorType.GPR,
                               coordinate_encoding="ieee_nmea", **kwargs)
@@ -215,9 +233,10 @@ def resolve_four_tu_velocity(
     )
     permittivity_basis = (
         f"declared by the 4TU data provider in Metadata.csv (LocationID {location_id!r}, "
-        f"field {PERMITTIVITY_FIELD!r} = {eps}); no independently documented measurement "
-        f"method or uncertainty is published for this value (Codebook.pdf defines the "
-        f"field only as 'the relative permittivity of the subsurface soil')."
+        f"field {PERMITTIVITY_FIELD!r} = {eps}); obtained by the provider from a "
+        f"{VELOCITY_METHOD} (data paper PMC10973596; thesis Sec. 5.3.1), so it is an "
+        f"estimate from the same survey, not an independent measurement; no uncertainty "
+        f"is published."
     )
     return FourTuVelocityResolution(
         location_id=location_id, eps_r=eps, velocity_m_per_ns=velocity,

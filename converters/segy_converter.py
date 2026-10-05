@@ -55,6 +55,7 @@ from pathlib import Path
 from converters.base import BaseConverter, ConversionResult, MissingDependencyError
 from converters.segy_endian import (
     BIG, LITTLE, LittleEndianSegyFile, detect_endianness, int32_as_float32,
+    nmea_float32_quantum_m,
     nmea_to_degrees,
 )
 from schemas.spatial import (
@@ -84,6 +85,10 @@ _NO_HEADER_POSITION = (
     "SEG-Y trace header SourceX/SourceY are (0, 0); the file carries no trace position"
 )
 
+_UNDECODABLE_COORDS = (
+    "SEG-Y trace header SourceX/SourceY could not be decoded under the declared "
+    "coordinate_encoding, so no coordinate can be read from this trace"
+)
 _NON_FINITE_COORDS = (
     "SEG-Y trace header SourceX/SourceY do not reinterpret to finite IEEE floats under the "
     "declared coordinate_encoding, so no coordinate can be read from this trace"
@@ -193,6 +198,26 @@ def _classify_position(x: float, y: float):
     return ProjectedPosition(easting=x, northing=y)
 
 
+
+def _conversion_velocity_basis(velocity_m_per_ns, velocity_source_quantity,
+                               velocity_basis_kind=None) -> str:
+    """
+    The `VelocityBasis` a GPR frame's conversion records. A caller may state the
+    kind of evidence its velocity is (validated against the enum); it may not
+    claim the platform default, which only this converter applies.
+    """
+    from schemas.depth_model import VelocityBasis
+
+    if velocity_basis_kind is not None:
+        kind = VelocityBasis(velocity_basis_kind)
+        if kind in (VelocityBasis.ASSUMED_DEFAULT, VelocityBasis.UNDOCUMENTED):
+            raise ValueError(f"velocity_basis_kind {kind.value!r} cannot be supplied by a caller")
+        return kind.value
+    if velocity_m_per_ns == DEFAULT_GPR_VELOCITY_M_PER_NS and velocity_source_quantity is None:
+        return "assumed_default"
+    return "user_declared"
+
+
 class SEGYConverter(BaseConverter):
     format_name = "segy"
     supported_extensions = (".sgy", ".segy")
@@ -212,6 +237,8 @@ class SEGYConverter(BaseConverter):
         velocity_source_quantity: str | None = None,
         velocity_source_value: float | None = None,
         velocity_source_basis: str | None = None,
+        velocity_basis_kind: str | None = None,
+        velocity_method: str | None = None,
         delay_encoding: str = DEFAULT_DELAY_ENCODING,
         **kwargs,
     ) -> list[SubterraRecord]:
@@ -224,6 +251,7 @@ class SEGYConverter(BaseConverter):
             velocity_source_quantity=velocity_source_quantity,
             velocity_source_value=velocity_source_value,
             velocity_source_basis=velocity_source_basis,
+            velocity_basis_kind=velocity_basis_kind, velocity_method=velocity_method,
             delay_encoding=delay_encoding,
             **kwargs,
         ).records
@@ -240,6 +268,8 @@ class SEGYConverter(BaseConverter):
         velocity_source_quantity: str | None = None,
         velocity_source_value: float | None = None,
         velocity_source_basis: str | None = None,
+        velocity_basis_kind: str | None = None,
+        velocity_method: str | None = None,
         delay_encoding: str = DEFAULT_DELAY_ENCODING,
         **kwargs,
     ) -> ConversionResult:
@@ -266,6 +296,12 @@ class SEGYConverter(BaseConverter):
         record. This converter stays generic: it does not know what the
         quantity IS, only that the caller is asserting one. All four default
         to None, which reproduces today's exact behaviour.
+
+        `velocity_basis_kind` (a `schemas.depth_model.VelocityBasis` value) and
+        `velocity_method` let that caller also say WHAT KIND of evidence the
+        quantity is -- e.g. `estimated_from_same_survey` with "hyperbola fit".
+        Without them a caller-supplied velocity is recorded as `user_declared`,
+        as before. The platform default can never be claimed this way.
         """
 
         try:
@@ -292,6 +328,7 @@ class SEGYConverter(BaseConverter):
         # See _build_frame for what non-GPR modalities get instead.
         is_gpr = sensor_type == SensorType.GPR
         any_elevation = False
+        nmea_quantum_m = 0.0   # largest float32 NMEA position step seen (ieee_nmea only)
         declared_crs = _parse_declared_crs(crs, path) if crs is not None else None
 
         # Recorded on each GPR record's metadata only when the velocity is
@@ -415,6 +452,10 @@ class SEGYConverter(BaseConverter):
                         else:
                             x = nmea_to_degrees(fx)
                             y = nmea_to_degrees(fy)
+                            nmea_quantum_m = max(
+                                nmea_quantum_m,
+                                nmea_float32_quantum_m(fy),
+                                nmea_float32_quantum_m(fx, latitude_deg=y))
                     elif coordinate_encoding == "int32_scalar_exponent":
                         # The ADS Roman-cities SEG-Y writes -2 meaning 10^-2;
                         # read by the standard, the same bytes place the
@@ -433,11 +474,16 @@ class SEGYConverter(BaseConverter):
                         y = float(raw_y) * scale
 
                 except Exception:
-                    x = 0.0
-                    y = 0.0
+                    # NOT (0.0, 0.0): that would be a confident position off the
+                    # coast of Africa. An undecodable header has no position.
+                    x = y = None
+                    undecodable = True
+                else:
+                    undecodable = False
 
                 if x is None:
-                    position = NoPosition(reason=_NON_FINITE_COORDS)
+                    position = NoPosition(
+                        reason=_UNDECODABLE_COORDS if undecodable else _NON_FINITE_COORDS)
                 else:
                     position = _classify_position(x, y)
                 trace_positions.append(position)
@@ -577,6 +623,7 @@ class SEGYConverter(BaseConverter):
                 byte_order=byte_order, endian_evidence=endian_evidence,
                 coordinate_encoding=coordinate_encoding,
                 has_elevation=any_elevation,
+                nmea_quantum_m=nmea_quantum_m,
                 delay_raw=delay_raw, time_scalar_raw=time_scalar_raw,
                 delay_encoding=delay_encoding,
                 interval_fallback=interval_fallback,
@@ -584,6 +631,7 @@ class SEGYConverter(BaseConverter):
                 velocity_source_quantity=velocity_source_quantity,
                 velocity_source_value=velocity_source_value,
                 velocity_source_basis=velocity_source_basis,
+                velocity_basis_kind=velocity_basis_kind, velocity_method=velocity_method,
             )
 
         return ConversionResult(records=records, frames=[frame])
@@ -593,9 +641,10 @@ class SEGYConverter(BaseConverter):
         sample_interval, velocity_m_per_ns, trace_count,
         declared_crs=None, declared_crs_input=None,
         byte_order=BIG, endian_evidence=None, coordinate_encoding="int32_scaled",
-        has_elevation=False,
+        has_elevation=False, nmea_quantum_m=0.0,
         velocity_basis=None, velocity_source_quantity=None,
         velocity_source_value=None, velocity_source_basis=None,
+        velocity_basis_kind=None, velocity_method=None,
         delay_raw=0, time_scalar_raw=0, delay_encoding=DEFAULT_DELAY_ENCODING,
         interval_fallback=False,
     ) -> SurveyFrame:
@@ -798,6 +847,18 @@ class SEGYConverter(BaseConverter):
                 verified=False,
             ))
 
+        if coordinate_encoding == "ieee_nmea" and nmea_quantum_m > 0:
+            assumptions.append(Assumption(
+                key="horizontal_coordinate_quantisation_m", value=round(nmea_quantum_m, 4),
+                basis=(
+                    f"derived from the storage format: NMEA ddmm.mmmm held as IEEE float32 can "
+                    f"only represent positions {nmea_quantum_m:.3f} m apart here (24-bit "
+                    f"significand; 1 arc-minute = 1852 m). Every stored position carries this "
+                    f"step on top of the unknown GNSS accuracy; no processing can recover it."
+                ),
+                verified=True,
+            ))
+
         if has_elevation and coordinate_encoding == "ieee_nmea":
             assumptions.append(Assumption(
                 key="acquisition_elevation_datum", value=None,
@@ -860,10 +921,9 @@ class SEGYConverter(BaseConverter):
                     "velocity_m_per_ns": velocity_m_per_ns,
                     # The basis travels with the value (schemas/depth_model.py): the
                     # default is an assumption and never resolves a depth.
-                    "velocity_basis": (
-                        "assumed_default"
-                        if velocity_m_per_ns == DEFAULT_GPR_VELOCITY_M_PER_NS
-                        and velocity_source_quantity is None else "user_declared"),
+                    "velocity_basis": _conversion_velocity_basis(
+                        velocity_m_per_ns, velocity_source_quantity, velocity_basis_kind),
+                    **({"velocity_method": velocity_method} if velocity_method else {}),
                     "formula": "depth_m = two_way_time_ns * velocity_m_per_ns / 2",
                     "target_axis": AxisKind.DEPTH_M.value,
                 } if is_gpr else None,

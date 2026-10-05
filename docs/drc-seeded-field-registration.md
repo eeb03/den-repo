@@ -162,3 +162,52 @@ Only what no public source provides:
 - Web map and data: https://de-mine.com/webmap (`data/1.csv`, `2.csv`, `3.csv`, `AIU.csv`, `datasets.json`)
 - Baur et al. 2026, https://doi.org/10.3390/rs18132182
 - Baur et al. 2023, JCWD 27.3: https://www.jmu.edu/news/cisr/2023/10/273/01-273-baur.shtml
+
+## 15. Re-verification from the sources, 2026-10-04
+
+Network access to Zenodo and de-mine.com was available for this pass; MDPI
+returned 403 to automated clients, so the paper was not re-read.
+
+**GPR availability: unchanged, now re-verified (Verified).**
+
+- Both versions of the concept record (15324498: 16 files; 19100554: 27
+  files) and the record 19100554 `isSupplementTo` (8323244: one RGB
+  orthomosaic) hold no GPR file.
+- Zenodo searches (demining, seeded minefield, landmine GPR, Radarteam Cobra,
+  UtilityScan, and the DRC authors) find no other DRC record. 18769571 (a
+  ground/UAV GPR set) is the INGV/Salerno dataset, unrelated.
+- Figshare, OSF, Harvard Dataverse and Mendeley Data return nothing relevant.
+- The web map's `datasets.json`, `1.csv` and `2.csv` are byte-identical to the
+  29 September copies (SHA-256 in the manifests). Its bundle loads only
+  `AIU.csv`, `datasets.json` and `<field>.csv`; rasters come only from
+  datasets flagged `Raster: Yes/UPLOADED`. Dataset 7 is `No`; 13 is blank.
+
+**Who holds the data (Verified, from the catalogue and the 2026 author list).**
+Dataset 7's group is "Maryland - Heidi", co-author Heidi Myers (University
+of Maryland). Dataset 13's group is "Binghamton - TdS & AN", co-authors
+Timothy de Smet and Alex Nikulin (Binghamton University).
+
+**When Field 2 existed (new, Verified).**
+
+- Zenodo 8323244 `Seeded_Minefield_June15th_Georeferenced.tif` (published
+  2023-09-07) is byte-identical (MD5 `9571543dd528289729e604ab1f1d631e`,
+  60,883,879 B) to 19100554 `19-1_Field2_Mavic3E_RGB_0days.tif`.
+- Its EPSG:4326 footprint (−96.857272 to −96.856830 E, 36.352916 to
+  36.353174 N; 3.5e-8° pixels, ~4 mm) contains **150/150 Field 2** grid
+  cells, 0/150 of Field 1 and 0/150 of Field 3.
+- So Field 2 was laid out and freshly seeded ("0 days") by **15 June 2023**,
+  matching JCWD 2023 ("reseeded at a permanent location in June 2023").
+- The web map's date for 19-1 (`June 10`, 2024, `Preburial`) contradicts both,
+  so the catalogue's dates are not reliable per item.
+
+**Consequence for dataset 13 (Unresolved).** It is catalogued Field 2,
+"June 12 - 16" 2023, "Postburial". Field 2 existing in that week makes the
+field label consistent, which removes the worry that 13 belongs to Field 1's
+layout. But "post-burial" holds only if the flight was on or after the day
+the items went in. Recorded as open question `drc-13-flight-vs-seeding`,
+which blocks matching. The flight log answers it.
+
+**Possible next step (not done).** At ~4 mm per pixel and 0 days after
+burial, the 15 June image may show the disturbed soil of each burial. This
+would give an image-based check of the web-map item coordinates
+(`drc-coordinate-method`), independent of any radar.

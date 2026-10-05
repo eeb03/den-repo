@@ -244,7 +244,11 @@ def _validated_depth_conversion(value: dict) -> dict:
     except ValueError:
         raise DeclarationError(
             f"velocity_basis {raw_basis!r} is not one of "
-            f"{[b.value for b in VelocityBasis if b is not VelocityBasis.ASSUMED_DEFAULT]}")
+            f"{[b.value for b in VelocityBasis if b not in (VelocityBasis.ASSUMED_DEFAULT, VelocityBasis.UNDOCUMENTED)]}")
+    if velocity_basis is VelocityBasis.UNDOCUMENTED:
+        raise DeclarationError(
+            "velocity_basis 'undocumented' describes a velocity nobody is on record as "
+            "stating; a declaration states one -- use 'user_declared' or 'literature'")
     if velocity_basis is VelocityBasis.ASSUMED_DEFAULT:
         raise DeclarationError(
             "velocity_basis 'assumed_default' is the platform's own preview assumption; a "

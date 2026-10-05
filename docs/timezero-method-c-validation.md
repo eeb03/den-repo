@@ -143,3 +143,24 @@ and MALA picks are identical before and after both fixes.
   amplitude is small relative to the trace's direct-wave peak, or a quiet window
   that visibly contains signal), developed on files outside this corpus and
   re-scored here once.
+
+## 6. Validity checks added (2026-10-04) -- re-score still owed
+
+`preprocessing.time_zero._pick_onset_checked` now refuses a trace's pick
+before the consensus when (a) the quiet window is contaminated (late half
+departs from the early half's mean by > 8 early-half sigmas -- mode 2) or
+(b) the onset is not a transient arrival (it neither reverses nor falls back
+to half its first-lobe peak within 6 rise times, or its rise exceeds 10% of
+the window -- mode 3: drift, steps, slow wows). Refusal-only: a surviving
+pick equals the unchecked picker's, and per-reason counts are recorded as
+`pick_rejections`.
+
+Developed on synthetic traces only (`tests/test_time_zero_validity.py`,
+which also shows the unchecked picker returning a tight false consensus on
+each refusal case). **This corpus has not been re-scored with the checks**:
+the held files are not in the environment where they were written. Run
+`python -m scripts.validate_timezero_method_c` once, unchanged, and record
+which of the 20 references and 6 no-reference files change status. Known
+limit: a slow, oscillating drift is indistinguishable from a genuinely
+low-frequency direct wave without trustworthy antenna metadata, so mode 3
+is narrowed, not closed. Method C stays **experimental**.
