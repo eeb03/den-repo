@@ -11,6 +11,8 @@ archives and is stored in `artifacts/bam/score_<scan>.json`.
 
 **Localisation scoring is BLOCKED** and enforced in code — see §6.
 
+> **Update 2026-10-05:** localisation and depth are now **scoreable** (not validated) against the BAM appendix construction drawings — `benchmark.gates` (`LOCALIZATION_STATUS`, `REFERENCE_FRAME_SOURCE`, `REFERENCE_FRAME_CONFLICT`, `CAPABILITY_STATUS`) and `docs/research/bam_quantitative_validation.md`. The detection numbers below are unchanged; under the depth-gated rule the current detector's localisation is FAILED.
+
 ## 1. What runs
 
 ```

@@ -7,7 +7,11 @@ Two questions only:
      find that is not a target?
   2. On the attested-empty control specimen, how much does it fire anyway?
 
-Localisation is not scored, and `benchmark.gates` raises if anything asks.
+Localisation and depth became SCOREABLE on 2026-10-05 (`benchmark.gates`):
+the appendix construction drawings supply a declared millimetre frame and
+independent object coordinates. Scoreable is not validated -- measured
+capability lives in `benchmark.gates.CAPABILITY_STATUS` and is never changed
+by scoring. See `score_localization` and `score_depth` at the end of this file.
 
 THE MATCHING RULE, stated rather than assumed. A detection matches a target
 when its PEAK trace node falls inside that target's footprint -- the grid nodes
@@ -18,9 +22,9 @@ detection whose evidence is mostly elsewhere would inflate recall. Both counts
 are reported (`matched_by_peak`, `overlapping_any_node`) so the choice is
 visible instead of buried.
 
-UNITS. Everything here is counted in grid nodes and lines. Nothing is reported
-per physical area, because the archives declare no unit for X/Y -- see
-`benchmark.gates` open question `coordinate-units`.
+UNITS. Detection and false-alarm counts are in grid nodes and lines (unchanged).
+Localisation and depth errors are in millimetres, the unit the drawings declare
+(`benchmark.gates` open question `coordinate-units`, now RESOLVED).
 """
 from __future__ import annotations
 
@@ -216,7 +220,167 @@ def score_false_alarms(run, control: ControlRegion) -> FalseAlarmScore:
     )
 
 
-def score_localization(*_args, **_kwargs):
-    """Refuses. Present so the refusal is discoverable where scoring lives."""
-    from benchmark.gates import require_localization_evidence
+# --------------------------------------------------------------------------
+# localisation and depth: SCOREABLE against the drawings, never "validated" here
+# --------------------------------------------------------------------------
+
+#: Pre-registered in scripts/bam_quantitative_validation.py before any result was
+#: computed, and reproduced here unchanged. A hit needs BOTH conditions: an
+#: X-only coincidence at the wrong depth is a false positive, not a detection.
+LOCALIZATION_RADIUS_MM = 100.0
+LOCALIZATION_DEPTH_TOLERANCE_MM = 60.0
+LOCALIZATION_RULE = (
+    "per scan line crossing a target: detections whose peak X is within "
+    f"{LOCALIZATION_RADIUS_MM:g} mm of the drawn target X AND whose depth (under a "
+    "provenance-labelled calibration) is within "
+    f"{LOCALIZATION_DEPTH_TOLERANCE_MM:g} mm of the drawn target top; the highest-|z| "
+    "such detection is the match, others in the window are duplicates; every other "
+    "detection is a false positive")
+
+
+@dataclass(frozen=True)
+class DepthCalibration:
+    """Time zero and velocity for converting two-way time to depth, with provenance."""
+    t0_ns: float
+    v_m_per_ns: float
+    provenance: str
+    source: str
+
+    def __post_init__(self):
+        from benchmark.gates import DEPTH_PROVENANCES
+        if self.provenance not in DEPTH_PROVENANCES:
+            raise ValueError(f"depth provenance {self.provenance!r}; one of {DEPTH_PROVENANCES}")
+        if not self.source.strip():
+            raise ValueError("a depth calibration must name its source")
+        if not self.v_m_per_ns > 0:
+            raise ValueError("velocity must be positive")
+
+    def depth_mm(self, t_ns: float) -> float:
+        return (t_ns - self.t0_ns) * self.v_m_per_ns / 2.0 * 1000.0
+
+
+@dataclass(frozen=True)
+class ScoringTarget:
+    """A target in the drawing frame, mm. `y_mm` None = spans every scan line."""
+    target_id: str
+    x_mm: float
+    z_top_mm: float
+    y_mm: Optional[float] = None
+    y_half_extent_mm: Optional[float] = None
+
+
+def bam_scoring_targets(specimen_id: str) -> list[ScoringTarget]:
+    """
+    Targets from the declared BAM manifest. z_top = drawn centre depth minus the
+    half-height that faces the antenna (duct: outer radius; cuboid: half its Z size).
+    """
+    from benchmark.targets import MANIFEST_DIR, MeasuredTo, load_manifest
+    m = load_manifest(MANIFEST_DIR / f"bam-{specimen_id.lower()}.targets.json")
+    out = []
+    for t in m.targets:
+        centre = next(d for d in t.depths if d.measured_to is MeasuredTo.CENTRE)
+        dims = t.dimensions
+        half = (dims.outer_diameter / 2.0) if dims.outer_diameter else dims.height / 2.0
+        loc = t.locations[0]
+        if loc.geometry == "segment":            # a duct along Y: crosses every line
+            out.append(ScoringTarget(t.target_id, loc.start[0], centre.value - half))
+        else:
+            out.append(ScoringTarget(t.target_id, loc.coordinates[0], centre.value - half,
+                                     y_mm=loc.coordinates[1], y_half_extent_mm=dims.width / 2.0))
+    return out
+
+
+def _err_stats(errs):
+    import numpy as np
+    a = np.asarray(errs, float)
+    if a.size == 0:
+        return None
+    ab = np.abs(a)
+    return {"n": int(a.size), "mean_signed": float(a.mean()), "mean_abs": float(ab.mean()),
+            "median_abs": float(np.median(ab)), "rmse": float(np.sqrt((a ** 2).mean())),
+            "p95_abs": float(np.percentile(ab, 95))}
+
+
+def score_localization(run, grid, targets: list[ScoringTarget],
+                       calibration: DepthCalibration) -> dict:
+    """
+    Localisation against the drawing geometry under the pre-registered rule.
+
+    Requires a depth calibration: there is deliberately no X-only mode. Returns
+    errors in mm, recall/precision of the X-and-depth rule, duplicates and false
+    positives. It reports a measurement; it never sets a capability status.
+    """
+    from benchmark.gates import CAPABILITY_STATUS, REFERENCE_FRAME_SOURCE, require_localization_evidence
     require_localization_evidence("localisation scoring")
+    if calibration is None:
+        raise ValueError("localisation scoring needs a DepthCalibration; X-only matching is refused")
+
+    dets = [{"line": d.line_index, "y": float(grid.y[d.line_index]), "x": float(grid.x[d.peak_trace]),
+             "depth": calibration.depth_mm(float(grid.z[d.peak_sample])), "z": abs(d.peak_z),
+             "id": d.detection_id} for d in run.detections]
+    by_line: dict[int, list] = {}
+    for d in dets:
+        by_line.setdefault(d["line"], []).append(d)
+    lines_all = sorted({int(i) for i in range(len(grid.y))}) if run.lines_processed == len(grid.y) \
+        else sorted(by_line)
+    used, dx, dz, dup, per_target, opportunities, hits = set(), [], [], 0, {}, 0, 0
+    for t in targets:
+        lines = [j for j in lines_all if t.y_mm is None
+                 or abs(float(grid.y[j]) - t.y_mm) <= t.y_half_extent_mm]
+        matched = 0
+        for j in lines:
+            cands = [d for d in by_line.get(j, [])
+                     if abs(d["x"] - t.x_mm) <= LOCALIZATION_RADIUS_MM
+                     and abs(d["depth"] - t.z_top_mm) <= LOCALIZATION_DEPTH_TOLERANCE_MM]
+            if not cands:
+                continue
+            best = max(cands, key=lambda d: d["z"])
+            used.update(d["id"] for d in cands)
+            dup += len(cands) - 1
+            dx.append(best["x"] - t.x_mm)
+            dz.append(best["depth"] - t.z_top_mm)
+            matched += 1
+        opportunities += len(lines)
+        hits += matched
+        per_target[t.target_id] = {"lines": len(lines), "lines_matched": matched}
+    fps = [d for d in dets if d["id"] not in used]
+    n_lines = len(lines_all) or 1
+    return {
+        "rule": LOCALIZATION_RULE,
+        "reference_frame": REFERENCE_FRAME_SOURCE,
+        "depth_provenance": calibration.provenance,
+        "depth_calibration_source": calibration.source,
+        "opportunities": opportunities,
+        "recall": (hits / opportunities) if opportunities else None,
+        "precision": (hits / (hits + len(fps))) if (hits + len(fps)) else None,
+        "false_positives": len(fps),
+        "false_positives_per_line": len(fps) / n_lines,
+        "duplicates": dup,
+        "longitudinal_error_mm": _err_stats(dx),
+        "depth_error_mm": _err_stats(dz),
+        "per_target": per_target,
+        "scoreable_not_validated": (
+            "this is a measurement; capability status is benchmark.gates.CAPABILITY_STATUS "
+            f"(current_detector_localisation = {CAPABILITY_STATUS['current_detector_localisation']})"),
+    }
+
+
+def score_depth(measurements: list[tuple[str, float, float]], calibration: DepthCalibration,
+                position_source: str) -> dict:
+    """
+    Depth error for (target_id, measured_depth_mm, true_depth_mm) measured under ONE
+    calibration provenance. Scores of different provenance are never combined:
+    call once per provenance. `position_source` must say how the position at which
+    depth was measured was obtained (e.g. 'independently known from drawing' vs
+    'detector output'), so a known-position depth can never read as a detection result.
+    """
+    from benchmark.gates import require_localization_evidence
+    require_localization_evidence("depth scoring")
+    if not position_source.strip():
+        raise ValueError("position_source is required")
+    errs = [m - t for _, m, t in measurements]
+    return {"depth_provenance": calibration.provenance,
+            "depth_calibration_source": calibration.source,
+            "position_source": position_source,
+            "per_target": {tid: m - t for tid, m, t in measurements},
+            "error_mm": _err_stats(errs)}

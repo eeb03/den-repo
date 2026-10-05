@@ -82,12 +82,14 @@ def test_the_evidence_is_published_placement_not_a_subterra_verification():
         assert t.evidence.verified_by_subterra is False
 
 
-def test_the_frame_keeps_the_legacy_frame_and_its_doubts():
+def test_the_frame_is_declared_from_the_drawings_and_keeps_the_conflict():
     f = PK266.frame(FRAME)
     assert f.kind.value == "local_cartesian" and f.crs is None and f.units == "mm"
-    assert f.origin_status == "corroborated"        # not declared: see absolute-origin
-    assert f.units_status == "documentation_prose"  # see coordinate-units
-    assert f.registration_to_radar == "corroborated"
+    assert f.origin_status == "declared"            # appendix drawing, absolute-origin RESOLVED
+    assert f.units_status == "declared"             # drawings state mm, coordinate-units RESOLVED
+    assert f.registration_to_radar == "declared"
+    assert "THICK end" in f.origin
+    assert "CONFLICT RETAINED" in f.registration_note
 
 
 def test_every_open_question_is_carried():
@@ -102,8 +104,8 @@ def test_the_gates_match_the_legacy_gates():
     for cap in (Capability.LOCALIZATION_ERROR, Capability.FALSE_ALARMS_PER_METRE,
                 Capability.DEPTH_SCORING):
         ok, reasons = PK266.capability(cap, FRAME)
-        assert ok is False and reasons
-    assert gates.LOCALIZATION_STATUS == gates.BLOCKED
+        assert ok is True and not reasons
+    assert gates.LOCALIZATION_STATUS == gates.RESOLVED
 
 
 def test_readiness_is_derived_from_the_gates():
@@ -115,7 +117,8 @@ def test_the_control_is_attested_empty_with_its_caveat():
     c = legacy_spec("Pk050")
     assert PK050.targets == ()
     assert PK050.exhaustive["value"] is bool(c["empty_is_attested"]) is True
-    assert PK050.exhaustive["caveat"] == c["back_wall_note"]
+    assert PK050.exhaustive["caveat"].startswith(c["back_wall_note"])
+    assert "M16 impact anchors" in PK050.exhaustive["caveat"]
 
 
 # ---------------------------------------------------------------------------

@@ -4,7 +4,7 @@
 
 **Purpose:** an honest baseline, not good numbers. The baseline detector and the time-zero code are unchanged. One improvement experiment is kept strictly separate (§10).
 
-**Gates:** the evidence to resolve the BAM origin / units / DZT-mapping / depth-reference questions is assembled here. The edit to `benchmark/gates.py` / `benchmark/scoring.py` was **refused by the session's permission system**, so **no gate or manifest status was changed**. The proposed change is in §11 for explicit approval.
+**Gates:** the evidence to resolve the BAM origin / units / DZT-mapping / depth-reference questions is assembled here. The first attempt to edit `benchmark/gates.py` was refused by the session's permission system. After **explicit approval (2026-10-05)** the §11 change was applied in a separate commit: BAM depth and localisation are now **scoreable, not validated**, and every capability status in §11 is unchanged.
 
 Reproduce (all research scripts; they read the archives, write JSON, change nothing):
 

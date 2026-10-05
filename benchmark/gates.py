@@ -17,8 +17,91 @@ RESOLVED = "RESOLVED"
 
 #: Localisation scoring -- any metric expressed in absolute or physical
 #: coordinates rather than in benchmark-local grid indices.
-LOCALIZATION_STATUS = BLOCKED
-LOCALIZATION_BLOCKED_REASON = "absolute origin is not verified"
+#:
+#: RESOLVED here means SCOREABLE: Subterra has independent ground truth and a
+#: declared coordinate frame sufficient to COMPUTE the metric. It says nothing
+#: about how well any Subterra method performs -- that is `CAPABILITY_STATUS`
+#: below, which a gate change never edits.
+LOCALIZATION_STATUS = RESOLVED
+LOCALIZATION_BLOCKED_REASON = ""
+
+#: Depth scoring against the published geometry: SCOREABLE, under the same
+#: meaning. Every depth score must carry a `DepthProvenance`.
+DEPTH_SCORING_STATUS = RESOLVED
+
+#: The benchmark reference frame is the appendix construction drawings, by
+#: explicit decision. The paper's prose describes a contradictory origin. That
+#: disagreement is RECORDED, not scientifically resolved: the radar data fit the
+#: drawings' orientation better (back-wall step residual 3-10x lower, research
+#: scripts/bam_quantitative_validation.py), which supports the CHOICE of frame
+#: but is not independent evidence about what the authors intended.
+REFERENCE_FRAME_SOURCE = (
+    "appendix construction drawings: Grohmann et al. 2026, Data in Brief 68:113103, "
+    "Appendices A (Pk050), B (Pk266), C (Pk401); origin = circled cross at the THICK end "
+    "(the 570 mm step), X along the 2000 mm length toward the thin end, Y across the width, "
+    "Z down from the scanned top surface; all dimensions in mm")
+REFERENCE_FRAME_CONFLICT = (
+    "paper prose (section 4.3) says the origin 'is located at the thin side of the stepped "
+    "specimens (at the side with the smallest concrete thickness)', contradicting all three "
+    "appendix drawings, which place it at the thick end. Not resolved by author statement; "
+    "the drawings are adopted as the benchmark frame.")
+REFERENCE_FRAME_SUPPORT = (
+    "consistency check, not proof of intent: on every 1.5 GHz scan the back-wall step fit "
+    "t = t0 + 2d/v has a residual 3-10x lower in the drawing orientation than mirrored "
+    "(evidence/bam/results/quantitative_validation.json, orientation_fit_rms_ns)")
+
+LOCALIZATION_RESOLVED_BY = (
+    "frame, units, file-to-grid mapping and object coordinates from the appendix drawings "
+    "and the paper's formatting workflow; see REFERENCE_FRAME_SOURCE and the resolutions on "
+    "OPEN_QUESTIONS. SCOREABLE ONLY; see CAPABILITY_STATUS.")
+
+#: Where a depth's time zero and velocity came from. A depth score must name one,
+#: and scores of different provenance are never combined into one headline.
+DEPTH_PROVENANCES = (
+    "published_calibration",        # paper Table 4 (back wall, 1.5 GHz Rot00 only)
+    "known_thickness_backwall",     # Subterra's fit to the fabricated step thicknesses
+    "method_c",                     # direct-wave onset consensus (preprocessing.time_zero)
+    "estimated_or_inferred",        # anything else, e.g. hyperbola fitting on the targets
+)
+
+#: Measured capability status on BAM (docs/research/bam_quantitative_validation.md
+#: section 11). Independent of the gates above: opening a gate never promotes these.
+VALIDATED = "VALIDATED"
+PARTIALLY_VALIDATED = "PARTIALLY_VALIDATED"
+EXPERIMENTAL = "EXPERIMENTAL"
+FAILED = "FAILED"
+CAPABILITY_STATUS: dict[str, str] = {
+    "dzt_ingestion": VALIDATED,
+    "amplitude_preservation": VALIDATED,
+    "backwall_time_zero_velocity_calibration": PARTIALLY_VALIDATED,
+    "duct_depth_at_known_position_backwall_calibrated": PARTIALLY_VALIDATED,
+    "foam_block_depth": EXPERIMENTAL,
+    "method_c_depth_chain_time_zero": FAILED,
+    "current_detector_localisation": FAILED,
+    "current_detector_detection": FAILED,
+    "lateral_localisation": FAILED,
+    "candidate_generation": FAILED,
+    "false_positive_rejection": FAILED,
+    "experimental_envelope_detector": EXPERIMENTAL,
+}
+CAPABILITY_EVIDENCE: dict[str, str] = {
+    "duct_depth_at_known_position_backwall_calibrated": (
+        "depth at an INDEPENDENTLY KNOWN object position using time zero and velocity "
+        "calibrated from the known-thickness back wall: mean +7.1 mm, RMS 7.7 mm, P95 11 mm "
+        "(16 measurements of 4 ducts). Not a detection result."),
+    "method_c_depth_chain_time_zero": (
+        "duct depth bias with no t0 correction about +72 mm, with Method C about +43 mm, with "
+        "back-wall calibration about +7 mm; unstable across Y on Pk266 1.5 GHz and at its "
+        "quiet-window floor at 2.6 GHz"),
+    "candidate_generation": (
+        "the ring z-score stays at about 1.7-2.0 at the duct crowns, below the 3.0 threshold, "
+        "while firing on the direct wave, gain-amplified late-time noise and step edges; "
+        "X-only matching previously credited coincidences at the wrong depth"),
+    "experimental_envelope_detector": (
+        "background-removed envelope (scripts/bam_candidate_experiment.py): held-out "
+        "depth-gated recall 0.75-0.82 but 15-43 false candidates per line; evidence for the "
+        "next engineering direction, not a production replacement"),
+}
 
 #: Detection and false-alarm scoring do NOT depend on the absolute origin:
 #: they ask whether a detection falls inside a target's grid-node footprint,
@@ -33,6 +116,8 @@ class OpenQuestion:
     blocks: str
     resolution_route: str
     status: str = BLOCKED
+    #: When RESOLVED: the evidence that made the prerequisite scoreable.
+    resolution: str = ""
 
 
 #: The unresolved evidence questions, carried forward verbatim from the
@@ -48,6 +133,13 @@ OPEN_QUESTIONS: tuple[OpenQuestion, ...] = (
         ),
         blocks="localisation scoring in absolute or physical coordinates",
         resolution_route="BAM appendix drawings, or author contact",
+        status=RESOLVED,
+        resolution=(
+            "Resolved by adopting the appendix construction drawings as the benchmark frame "
+            "(REFERENCE_FRAME_SOURCE): each drawing marks the origin, and the paper states "
+            "A-scan X000 / B-scan Y000 lie at that origin. The paper prose contradicts the "
+            "drawings about which end it is (REFERENCE_FRAME_CONFLICT); that conflict is "
+            "recorded, not resolved. Orientation consistency: REFERENCE_FRAME_SUPPORT."),
     ),
     OpenQuestion(
         id="depth-reference-surface",
@@ -60,6 +152,13 @@ OPEN_QUESTIONS: tuple[OpenQuestion, ...] = (
         ),
         blocks="absolute depth accuracy scoring",
         resolution_route="BAM Table 4 reference surface, via author contact",
+        status=RESOLVED,
+        resolution=(
+            "Appendix B dimensions each duct depth from the scanned top surface to the duct "
+            "CENTRE (274.5 / 214.6 / 151.4 / 94.4 mm); Appendix C does the same for the Pk401 "
+            "cuboid mid-lines. Depth is scored to the centre. The reflecting crown is centre "
+            "minus 33.5 mm (outer radius) or 30 mm (inner): a documented 3.5 mm reference "
+            "uncertainty. The 2023 article's 'cover' (centre - 30) stays recorded, non-blocking."),
     ),
     OpenQuestion(
         id="coordinate-units",
@@ -70,6 +169,11 @@ OPEN_QUESTIONS: tuple[OpenQuestion, ...] = (
         ),
         blocks="any metric reported in physical units rather than grid nodes",
         resolution_route="a units declaration from the publisher",
+        status=RESOLVED,
+        resolution=(
+            "Publisher declaration: every appendix drawing states 'All geometric data in "
+            "millimeters [mm]' and the paper gives the X/Y vectors in mm on a 5 x 5 mm grid "
+            "(Table 3). Time in ns is corroborated by the DZT header (15 ns, 512 samples)."),
     ),
     OpenQuestion(
         id="dzt-to-grid-mapping",
@@ -80,6 +184,13 @@ OPEN_QUESTIONS: tuple[OpenQuestion, ...] = (
         ),
         blocks="scoring directly against the native DZT stream",
         resolution_route="an acquisition-order statement from the publisher",
+        status=RESOLVED,
+        resolution=(
+            "Publisher statement (paper, Data formatting workflow): drop the first redundant "
+            "A-scan; 181 x 841 x 512; reverse every second line from No. 0; offset correction; "
+            "crop; 2.5 -> 5 mm. Reproduced by Subterra: 400/400 probed grid traces equal a "
+            "Subterra-decoded DZT A-scan exactly on samples 2-511 (grid row y = DZT line y+10). "
+            "evidence/bam/results/amplitude_preservation.json"),
     ),
 )
 

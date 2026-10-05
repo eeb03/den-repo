@@ -43,24 +43,33 @@
     "note": "SAME physical specimens, different modality (ultrasound). Supplies the X positions and the concrete-cover depths in its Table 4. This is the only located source giving numeric target X.",
     "licence": "CC BY 4.0"
    }
+  },
+  "reference_frame_source": "appendix construction drawings: Grohmann et al. 2026, Data in Brief 68:113103, Appendices A (Pk050), B (Pk266), C (Pk401); origin = circled cross at the THICK end (the 570 mm step), X along the 2000 mm length toward the thin end, Y across the width, Z down from the scanned top surface; all dimensions in mm",
+  "reference_frame_conflict": "paper prose (section 4.3) says the origin 'is located at the thin side of the stepped specimens (at the side with the smallest concrete thickness)', contradicting all three appendix drawings, which place it at the thick end. Not resolved by author statement; the drawings are adopted as the benchmark frame.",
+  "reference_frame_support": "consistency check, not proof of intent: on every 1.5 GHz scan the back-wall step fit t = t0 + 2d/v has a residual 3-10x lower in the drawing orientation than mirrored (evidence/bam/results/quantitative_validation.json, orientation_fit_rms_ns)",
+  "reference_frame_resolution": "ADOPTED by decision (benchmark reference frame); the prose/drawing disagreement is not scientifically resolved",
+  "appendix_drawings": {
+   "article_doi": "10.1016/j.dib.2026.113103",
+   "images": "Elsevier CDN 1-s2.0-S2352340926006517-fx1a/fx1b/fx2/fx3/fx4/fx5_lrg.jpg (held git-ignored, datasets/raw/references/bam_dib2026/)",
+   "transcription": "evidence/bam/specimen_ground_truth.csv"
   }
  },
  "exhaustive": {
   "value": true,
   "statement": "The data repository states verbatim: 'Specimen Pk050 does not contain any embedded elements.' This is a positive statement of absence by the specimen's own fabricator, not a blank field. It is therefore usable as control ground, unlike the 4TU activities whose blank utility field means missing information.",
-  "caveat": "Pk050 is not featureless. The step back walls are real reflectors at the step thicknesses above, and any detector will respond to them. It is a control for EMBEDDED OBJECTS, not a control for 'no reflector'."
+  "caveat": "Pk050 is not featureless. The step back walls are real reflectors at the step thicknesses above, and any detector will respond to them. It is a control for EMBEDDED OBJECTS, not a control for 'no reflector'. The appendix drawing (Appendix A) also shows 10 mm reinforcing bars near both long edges and at the step edges, a diagonal bar, and M16 impact anchors in the side faces: real reflectors, none of them a duct or void."
  },
  "frames": [
   {
    "frame_id": "bam:Pk050:specimen_mm",
    "kind": "local_cartesian",
    "units": "mm",
-   "origin": "upper (measuring) surface of the specimen; Z = 0 at that surface; X along specimen length (0-2000), Y across width (0-800)",
-   "origin_status": "corroborated",
-   "units_status": "documentation_prose",
-   "registration_to_radar": "corroborated",
-   "registration_note": "X-values.npy in the repository runs 0..2000 mm in uniform 5 mm steps and Y-values.npy runs 0..800 mm in uniform 5 mm steps, i.e. the scanner grid is expressed in the same millimetre specimen frame as the target X below. No transformation is required and none is applied.",
-   "note": "Benchmark-local specimen frame; no CRS exists or is implied. There is no geodetic vertical datum and none is needed: depth is measured from the specimen surface, which is a physical reference, not an elevation. No absolute Z exists or is implied."
+   "origin": "BAM appendix construction drawing (Appendix A, Grohmann et al. 2026, Data in Brief 68:113103): origin at the circled cross at the THICK end of the specimen; X along the 2000 mm length toward the thin end; Y across the 800 mm width; Z = 0 at the scanned top surface, positive downward",
+   "origin_status": "declared",
+   "units_status": "declared",
+   "registration_to_radar": "declared",
+   "registration_note": "The paper states A-scan X000 / B-scan Y000 lie at the drawing origin, and the X/Y-values vectors run 0..2000 / 0..800 mm in 5 mm steps. Subterra reproduced the publisher's DZT-to-grid formatting exactly (400/400 probes; evidence/bam/results/amplitude_preservation.json). No transformation is applied, and no radar response is used to adjust the frame. CONFLICT RETAINED: the paper prose places the origin at the thin side, contradicting the drawings; the drawings are adopted (see truth_source).",
+   "note": "Benchmark-local specimen frame; no CRS and no vertical datum exist or are implied."
   }
  ],
  "depth_reference_surfaces": [
@@ -72,41 +81,43 @@
  "open_questions": [
   {
    "id": "absolute-origin",
-   "statement": "No file in either archive contains a drawing, an origin marker, or any statement of where scanner X=0 sits on the specimen. That the scanner origin is the same physical corner as the drawing origin the target X values are measured from is corroborated, not declared.",
+   "statement": "RESOLVED 2026-10-05 -- Resolved by adopting the appendix construction drawings as the benchmark frame (REFERENCE_FRAME_SOURCE): each drawing marks the origin, and the paper states A-scan X000 / B-scan Y000 lie at that origin. The paper prose contradicts the drawings about which end it is (REFERENCE_FRAME_CONFLICT); that conflict is recorded, not resolved. Orientation consistency: REFERENCE_FRAME_SUPPORT. (Original question: No file in either archive contains a drawing, an origin marker, or any statement of where scanner X=0 sits on the specimen. That the scanner origin is the same physical corner as the drawing origin the target X values are measured from is corroborated, not declared.)",
    "blocks": [
     "localization_error"
    ],
-   "resolution_route": "BAM appendix drawings, or author contact"
+   "resolution_route": "BAM appendix drawings, or author contact",
+   "status": "RESOLVED"
   },
   {
    "id": "depth-reference-surface",
-   "statement": "Published centre depth minus published concrete cover is exactly 30.0 mm (the inner radius) for all four ducts, where a cover measured to the outer surface facing the antenna would give 33.5 mm. The two sources use different reference surfaces; which one Table 4 means is unsettled.",
+   "statement": "RESOLVED 2026-10-05 -- Appendix B dimensions each duct depth from the scanned top surface to the duct CENTRE (274.5 / 214.6 / 151.4 / 94.4 mm); Appendix C does the same for the Pk401 cuboid mid-lines. Depth is scored to the centre. The reflecting crown is centre minus 33.5 mm (outer radius) or 30 mm (inner): a documented 3.5 mm reference uncertainty. The 2023 article's 'cover' (centre - 30) stays recorded, non-blocking. (Original question: Published centre depth minus published concrete cover is exactly 30.0 mm (the inner radius) for all four ducts, where a cover measured to the outer surface facing the antenna would give 33.5 mm. The two sources use different reference surfaces; which one Table 4 means is unsettled.)",
    "blocks": [
     "depth_scoring"
    ],
-   "resolution_route": "BAM Table 4 reference surface, via author contact"
+   "resolution_route": "BAM Table 4 reference surface, via author contact",
+   "status": "RESOLVED"
   },
   {
    "id": "coordinate-units",
-   "statement": "The coordinate .npy arrays carry no unit and no file in either archive declares one. Millimetres come from the Dataverse prose. (Nanoseconds are independently corroborated by the DZT header.)",
+   "statement": "RESOLVED 2026-10-05 -- Publisher declaration: every appendix drawing states 'All geometric data in millimeters [mm]' and the paper gives the X/Y vectors in mm on a 5 x 5 mm grid (Table 3). Time in ns is corroborated by the DZT header (15 ns, 512 samples). (Original question: The coordinate .npy arrays carry no unit and no file in either archive declares one. Millimetres come from the Dataverse prose. (Nanoseconds are independently corroborated by the DZT header.))",
    "blocks": [
     "localization_error",
     "false_alarms_per_metre"
    ],
-   "resolution_route": "a units declaration from the publisher"
+   "resolution_route": "a units declaration from the publisher",
+   "status": "RESOLVED"
   },
   {
    "id": "dzt-to-grid-mapping",
-   "statement": "The DZT holds 152,222 traces; the coordinate-registered grid is 401 x 161 = 64,561. No source documents how DZT traces map onto grid nodes, so the DZT is not used as the scoring amplitude source.",
+   "statement": "RESOLVED 2026-10-05 -- Publisher statement (paper, Data formatting workflow): drop the first redundant A-scan; 181 x 841 x 512; reverse every second line from No. 0; offset correction; crop; 2.5 -> 5 mm. Reproduced by Subterra: 400/400 probed grid traces equal a Subterra-decoded DZT A-scan exactly on samples 2-511 (grid row y = DZT line y+10). evidence/bam/results/amplitude_preservation.json (Original question: The DZT holds 152,222 traces; the coordinate-registered grid is 401 x 161 = 64,561. No source documents how DZT traces map onto grid nodes, so the DZT is not used as the scoring amplitude source.)",
    "blocks": [],
-   "resolution_route": "an acquisition-order statement from the publisher"
+   "resolution_route": "an acquisition-order statement from the publisher",
+   "status": "RESOLVED"
   },
   {
    "id": "cover-vs-centre-reference",
-   "statement": "For all four ducts, centre_depth_mm minus concrete_cover_mm is exactly 30.0 mm, which is the INNER radius (60/2). If the cover were measured to the duct's outer surface facing the antenna, the difference would be 33.5 mm (the outer radius). The two published sources therefore do not use the same reference surface, and which one Table 4's 'cover' refers to is not settled by anything read so far.",
-   "blocks": [
-    "depth_scoring"
-   ],
+   "statement": "For all four ducts, centre_depth_mm minus concrete_cover_mm is exactly 30.0 mm, which is the INNER radius (60/2). If the cover were measured to the duct's outer surface facing the antenna, the difference would be 33.5 mm (the outer radius). The two published sources therefore do not use the same reference surface, and which one Table 4's 'cover' refers to is not settled by anything read so far. NON-BLOCKING since 2026-10-05: the appendix drawing dimensions the duct CENTRE directly, and depth is scored to the centre; this question now concerns only what the 2023 article's 'cover' value refers to.",
+   "blocks": [],
    "resolution_route": "author contact (BAM), or the full text of the companion article, which was not retrievable -- Elsevier returned HTTP 403 and the article is not yet in Europe PMC."
   },
   {

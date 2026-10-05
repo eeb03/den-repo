@@ -331,40 +331,42 @@ def test_false_alarm_scoring_refuses_a_non_control_specimen():
 
 # ---------------------------------------------------------------- the gate
 
-def test_localization_is_blocked():
-    assert gates.LOCALIZATION_STATUS == gates.BLOCKED
-    assert gates.LOCALIZATION_BLOCKED_REASON == "absolute origin is not verified"
+def test_localization_is_scoreable_and_says_why():
+    """2026-10-05: resolved from the appendix drawings. Scoreable, not validated."""
+    assert gates.LOCALIZATION_STATUS == gates.RESOLVED
+    assert gates.DEPTH_SCORING_STATUS == gates.RESOLVED
+    assert "SCOREABLE ONLY" in gates.LOCALIZATION_RESOLVED_BY
 
 
 def test_detection_scoring_is_not_blocked_by_the_localization_gate():
     assert gates.DETECTION_STATUS == gates.RESOLVED
 
 
-def test_asking_for_localization_raises_and_names_the_blocker():
-    with pytest.raises(gates.LocalizationBlocked) as e:
-        gates.require_localization_evidence()
-    msg = str(e.value)
-    assert "absolute origin is not verified" in msg
-    assert "absolute-origin" in msg
-    assert "Detection and false-alarm scoring remain available" in msg
+def test_asking_for_localization_evidence_now_passes():
+    gates.require_localization_evidence()        # no raise
 
 
-def test_the_scoring_entry_point_for_localization_also_refuses():
-    with pytest.raises(gates.LocalizationBlocked):
-        score_localization()
+def test_the_scoring_entry_point_refuses_x_only_matching():
+    """Without a depth calibration there is no localisation score: X-only is refused."""
+    with pytest.raises(ValueError) as e:
+        score_localization(_run([], lines=1), None, [], None)
+    assert "X-only matching is refused" in str(e.value)
 
 
-def test_the_two_named_open_questions_are_still_open():
+def test_the_two_named_open_questions_are_resolved_with_evidence():
     ids = {q.id: q for q in gates.OPEN_QUESTIONS}
-    assert ids["absolute-origin"].status == gates.BLOCKED
-    assert ids["depth-reference-surface"].status == gates.BLOCKED
+    assert ids["absolute-origin"].status == gates.RESOLVED
+    assert ids["depth-reference-surface"].status == gates.RESOLVED
     assert "BAM appendix drawings" in ids["absolute-origin"].resolution_route
     assert "Table 4" in ids["depth-reference-surface"].resolution_route
+    assert "REFERENCE_FRAME_CONFLICT" in ids["absolute-origin"].resolution
+    assert "CENTRE" in ids["depth-reference-surface"].resolution
 
 
-def test_the_dzt_to_grid_mapping_is_recorded_as_unresolved():
+def test_the_dzt_to_grid_mapping_is_resolved_by_reproduction():
     q = next(q for q in gates.OPEN_QUESTIONS if q.id == "dzt-to-grid-mapping")
     assert "152,222" in q.statement and "64,561" in q.statement
+    assert q.status == gates.RESOLVED and "400/400" in q.resolution
 
 
 # ---------------------------------------------------------------- detector adapter

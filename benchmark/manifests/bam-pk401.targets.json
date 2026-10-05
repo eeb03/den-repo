@@ -1,0 +1,269 @@
+{
+ "$comment": [
+  "BAM specimen Pk401 (four polystyrene cuboids, void analogues). Truth from the Appendix C construction drawing, transcribed in evidence/bam/specimen_ground_truth.csv. Scoreable, not validated."
+ ],
+ "schema": "subterra.targets.v1",
+ "dataset_id": "bam-concrete-gpr:Pk401",
+ "title": "BAM concrete step specimen Pk401 -- four embedded polystyrene foam cuboids",
+ "truth_source": {
+  "provenance_class": "transcribed_from_publication",
+  "transcribed_utc": "2026-10-05T00:00:00+00:00",
+  "sources": {
+   "data_repository": {
+    "doi": "10.7910/DVN/FCMUJQ",
+    "title": "Ground-Penetrating Radar Data (Pulse-Echo Mode) Acquired with 1.5 GHz and 2.6 GHz Antennas on Concrete Step Specimens Containing Embedded Objects",
+    "authors": [
+     "Grohmann, Maria",
+     "Maack, Stefan",
+     "Niederleithinger, Ernst",
+     "Wöstmann, Jens"
+    ],
+    "publisher": "Harvard Dataverse",
+    "publication_date": "2026-04-22",
+    "licence": "CC0 1.0",
+    "licence_source": "Dataverse dataset record, field latestVersion.license.rightsIdentifier",
+    "contains_target_geometry": false,
+    "note": "Supplies the CENTRE depths and the object descriptions quoted below, in its dsDescription field."
+   },
+   "companion_article": {
+    "doi": "10.1016/j.dib.2026.113103",
+    "title": "Ground-penetrating radar datasets for non-destructive geometry evaluation of concrete step specimens with embedded elements",
+    "journal": "Data in Brief",
+    "published": "2026-08",
+    "relation": "Crossref records doi:10.7910/DVN/FCMUJQ as is-supplemented-by of this article"
+   }
+  },
+  "archive_md5": "b5262d4ea98dd0a9a40941aef9bec5e9",
+  "reference_frame_source": "appendix construction drawings: Grohmann et al. 2026, Data in Brief 68:113103, Appendices A (Pk050), B (Pk266), C (Pk401); origin = circled cross at the THICK end (the 570 mm step), X along the 2000 mm length toward the thin end, Y across the width, Z down from the scanned top surface; all dimensions in mm",
+  "reference_frame_conflict": "paper prose (section 4.3) says the origin 'is located at the thin side of the stepped specimens (at the side with the smallest concrete thickness)', contradicting all three appendix drawings, which place it at the thick end. Not resolved by author statement; the drawings are adopted as the benchmark frame.",
+  "reference_frame_support": "consistency check, not proof of intent: on every 1.5 GHz scan the back-wall step fit t = t0 + 2d/v has a residual 3-10x lower in the drawing orientation than mirrored (evidence/bam/results/quantitative_validation.json, orientation_fit_rms_ns)",
+  "reference_frame_resolution": "ADOPTED by decision (benchmark reference frame); the prose/drawing disagreement is not scientifically resolved",
+  "appendix_drawings": {
+   "article_doi": "10.1016/j.dib.2026.113103",
+   "images": "Elsevier CDN 1-s2.0-S2352340926006517-fx1a/fx1b/fx2/fx3/fx4/fx5_lrg.jpg (held git-ignored, datasets/raw/references/bam_dib2026/)",
+   "transcription": "evidence/bam/specimen_ground_truth.csv"
+  }
+ },
+ "exhaustive": {
+  "value": true,
+  "statement": "Appendix C lists four polystyrene cuboids as the specimen's embedded elements. Four grouted boreholes in the top surface (X 368/506/647/827 mm) and reinforcing bars mostly within 75 mm of the long edges are real reflectors, never targets: a detection on them is a false positive, as are detections on the step back walls."
+ },
+ "frames": [
+  {
+   "frame_id": "bam:Pk401:specimen_mm",
+   "kind": "local_cartesian",
+   "units": "mm",
+   "origin": "BAM appendix construction drawing (Appendix C, Grohmann et al. 2026, Data in Brief 68:113103): origin at the circled cross at the THICK end of the specimen; X along the 2000 mm length toward the thin end; Y across the 796.4 mm width; Z = 0 at the scanned top surface, positive downward",
+   "origin_status": "declared",
+   "units_status": "declared",
+   "registration_to_radar": "declared",
+   "registration_note": "The paper states A-scan X000 / B-scan Y000 lie at the drawing origin, and the X/Y-values vectors run 0..2000 / 0..800 mm in 5 mm steps. Subterra reproduced the publisher's DZT-to-grid formatting exactly (400/400 probes; evidence/bam/results/amplitude_preservation.json). No transformation is applied, and no radar response is used to adjust the frame. CONFLICT RETAINED: the paper prose places the origin at the thin side, contradicting the drawings; the drawings are adopted (see truth_source).",
+   "note": "Benchmark-local specimen frame; no CRS and no vertical datum exist or are implied."
+  }
+ ],
+ "depth_reference_surfaces": [
+  {
+   "surface_id": "measuring_surface",
+   "description": "upper (measuring) surface of the specimen; Z = 0 at that surface"
+  }
+ ],
+ "open_questions": [
+  {
+   "id": "pk401-reinforcement-unverified",
+   "statement": "Appendix C marks some bars 'unverified' (10 mm and 3 mm). They lie mostly near the long edges and are not targets.",
+   "blocks": [],
+   "resolution_route": "BAM"
+  },
+  {
+   "id": "pk401-borehole-depth",
+   "statement": "The grouted boreholes' depths are not dimensioned.",
+   "blocks": [],
+   "resolution_route": "BAM"
+  }
+ ],
+ "targets": [
+  {
+   "target_id": "Pk401-cuboid-1",
+   "object_class": "polystyrene rigid foam cuboid (void analogue)",
+   "material": "polystyrene rigid foam",
+   "dimensions": {
+    "units": "mm",
+    "shape": "cuboid",
+    "length": 120.0,
+    "width": 120.0,
+    "height": 60.0,
+    "note": "X x Y x Z = 120 x 120 x 60 (Appendix C)"
+   },
+   "locations": [
+    {
+     "frame_id": "bam:Pk401:specimen_mm",
+     "geometry": "point",
+     "coordinates": [
+      250.0,
+      398.2
+     ],
+     "note": "cuboid centre in plan; X and Y from the Appendix C dimension chains"
+    }
+   ],
+   "depths": [
+    {
+     "value": 270.0,
+     "units": "mm",
+     "measured_to": "centre",
+     "reference_surface": "measuring_surface",
+     "method": "publication_transcription",
+     "source": "Appendix C construction drawing",
+     "note": "drawing dimension to the cuboid mid-line; top = centre - 30 mm"
+    }
+   ],
+   "evidence": {
+    "basis": "publication_transcription",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "Appendix C construction drawing (Grohmann et al. 2026)",
+    "established_by": "BAM (Grohmann, Maack)",
+    "notes": "fabrication drawing, not re-surveyed; grade B",
+    "verified_by_subterra": false
+   },
+   "notes": "Y read as 398.2 from the top-view dimension chain (pixel check 401.6)"
+  },
+  {
+   "target_id": "Pk401-cuboid-2",
+   "object_class": "polystyrene rigid foam cuboid (void analogue)",
+   "material": "polystyrene rigid foam",
+   "dimensions": {
+    "units": "mm",
+    "shape": "cuboid",
+    "length": 120.0,
+    "width": 120.0,
+    "height": 60.0,
+    "note": "X x Y x Z = 120 x 120 x 60 (Appendix C)"
+   },
+   "locations": [
+    {
+     "frame_id": "bam:Pk401:specimen_mm",
+     "geometry": "point",
+     "coordinates": [
+      750.0,
+      398.2
+     ],
+     "note": "cuboid centre in plan; X and Y from the Appendix C dimension chains"
+    }
+   ],
+   "depths": [
+    {
+     "value": 210.0,
+     "units": "mm",
+     "measured_to": "centre",
+     "reference_surface": "measuring_surface",
+     "method": "publication_transcription",
+     "source": "Appendix C construction drawing",
+     "note": "drawing dimension to the cuboid mid-line; top = centre - 30 mm"
+    }
+   ],
+   "evidence": {
+    "basis": "publication_transcription",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "Appendix C construction drawing (Grohmann et al. 2026)",
+    "established_by": "BAM (Grohmann, Maack)",
+    "notes": "fabrication drawing, not re-surveyed; grade B",
+    "verified_by_subterra": false
+   },
+   "notes": ""
+  },
+  {
+   "target_id": "Pk401-cuboid-3",
+   "object_class": "polystyrene rigid foam cuboid (void analogue)",
+   "material": "polystyrene rigid foam",
+   "dimensions": {
+    "units": "mm",
+    "shape": "cuboid",
+    "length": 120.0,
+    "width": 120.0,
+    "height": 60.0,
+    "note": "X x Y x Z = 120 x 120 x 60 (Appendix C)"
+   },
+   "locations": [
+    {
+     "frame_id": "bam:Pk401:specimen_mm",
+     "geometry": "point",
+     "coordinates": [
+      1250.0,
+      498.2
+     ],
+     "note": "cuboid centre in plan; X and Y from the Appendix C dimension chains"
+    }
+   ],
+   "depths": [
+    {
+     "value": 150.0,
+     "units": "mm",
+     "measured_to": "centre",
+     "reference_surface": "measuring_surface",
+     "method": "publication_transcription",
+     "source": "Appendix C construction drawing",
+     "note": "drawing dimension to the cuboid mid-line; top = centre - 30 mm"
+    }
+   ],
+   "evidence": {
+    "basis": "publication_transcription",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "Appendix C construction drawing (Grohmann et al. 2026)",
+    "established_by": "BAM (Grohmann, Maack)",
+    "notes": "fabrication drawing, not re-surveyed; grade B",
+    "verified_by_subterra": false
+   },
+   "notes": "the only cuboid at Y 498.2 (pixel check 500.0)"
+  },
+  {
+   "target_id": "Pk401-cuboid-4",
+   "object_class": "polystyrene rigid foam cuboid (void analogue)",
+   "material": "polystyrene rigid foam",
+   "dimensions": {
+    "units": "mm",
+    "shape": "cuboid",
+    "length": 120.0,
+    "width": 120.0,
+    "height": 60.0,
+    "note": "X x Y x Z = 120 x 120 x 60 (Appendix C)"
+   },
+   "locations": [
+    {
+     "frame_id": "bam:Pk401:specimen_mm",
+     "geometry": "point",
+     "coordinates": [
+      1750.0,
+      398.2
+     ],
+     "note": "cuboid centre in plan; X and Y from the Appendix C dimension chains"
+    }
+   ],
+   "depths": [
+    {
+     "value": 90.0,
+     "units": "mm",
+     "measured_to": "centre",
+     "reference_surface": "measuring_surface",
+     "method": "publication_transcription",
+     "source": "Appendix C construction drawing",
+     "note": "drawing dimension to the cuboid mid-line; top = centre - 30 mm"
+    }
+   ],
+   "evidence": {
+    "basis": "publication_transcription",
+    "grade": "measurement_associated",
+    "independent_of_gpr": true,
+    "source": "Appendix C construction drawing (Grohmann et al. 2026)",
+    "established_by": "BAM (Grohmann, Maack)",
+    "notes": "fabrication drawing, not re-surveyed; grade B",
+    "verified_by_subterra": false
+   },
+   "notes": ""
+  }
+ ],
+ "notes": [
+  "BAM benchmark results measure performance on controlled concrete NDT specimens. They are not evidence of soil/utility-scale subsurface detection or localisation performance."
+ ]
+}
