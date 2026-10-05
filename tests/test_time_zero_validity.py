@@ -236,3 +236,58 @@ def test_a_drift_line_gets_no_corrected_time_and_depth_stays_approximate():
     assert readiness.status is DepthStatus.APPROXIMATE
     assert any("time zero is not established" in r for r in readiness.reasons)
     assert readiness.as_dict()["scientifically_sufficient"] is False
+
+
+# --------------------------------------------------------------------------
+# BAM findings (docs/research/bam_quantitative_validation.md section 3)
+# --------------------------------------------------------------------------
+
+class TestBamFindings:
+    def test_an_onset_at_the_search_floor_is_refused(self):
+        """2.6 GHz on BAM: the arrival already rising when the search starts."""
+        from preprocessing.time_zero import QUIET_SAMPLES, REJECT_FLOOR_PINNED
+
+        def pinned(seed):
+            tr = _noise(seed)
+            for i in range(QUIET_SAMPLES, QUIET_SAMPLES + 12):
+                tr[i] += 3000.0 * (1 - abs(i - QUIET_SAMPLES - 5) / 6.0)
+            return tr
+        result = direct_wave_consensus_time_zero(_line(pinned), DT)
+        assert result.status is TimeZeroStatus.INCONCLUSIVE
+        assert result.pick_rejections.get(REJECT_FLOOR_PINNED, 0) > N_TRACES // 2
+
+    def test_overwritten_leading_samples_are_excluded_from_the_noise_estimate(self):
+        """readgssi copies sample 2 into samples 0-1; left in, a large constant
+        inflates nothing but shifts the quiet mean far from the true baseline."""
+        def overwritten(seed):
+            tr = _wavelet_trace(seed)
+            tr[0] = tr[1] = tr[2] = 2500.0
+            return tr
+        clean = direct_wave_consensus_time_zero(_line(_wavelet_trace), DT)
+        fixed = direct_wave_consensus_time_zero(_line(overwritten), DT)
+        assert clean.status is fixed.status is TimeZeroStatus.DERIVED
+        assert fixed.correction_ns == pytest.approx(clean.correction_ns, abs=DT)
+
+    def test_two_identical_leading_samples_are_not_treated_as_an_overwrite(self):
+        from preprocessing.time_zero import _overwritten_lead
+        assert _overwritten_lead([5.0, 5.0, 1.0, 2.0]) == 0
+        assert _overwritten_lead([5.0, 5.0, 5.0, 2.0]) == 3
+
+    def test_method_c_says_it_is_an_onset_and_reports_the_peak_beside_it(self):
+        result = direct_wave_consensus_time_zero(_line(_wavelet_trace), DT)
+        assert result.pick_convention == "onset"
+        assert result.direct_wave_peak_ns > result.correction_ns
+        stamp = result.as_processing_applied()
+        assert stamp["time_zero_pick_convention"] == "onset"
+        assert stamp["time_zero_direct_wave_peak_ns"] == result.direct_wave_peak_ns
+
+    def test_readiness_warns_that_an_onset_time_zero_biases_peak_read_depth(self):
+        from types import SimpleNamespace
+
+        from schemas.depth_model import assess_depth_readiness
+        result = direct_wave_consensus_time_zero(_line(_wavelet_trace), DT)
+        axis = SimpleNamespace(conversion={"velocity_m_per_ns": 0.12, "basis": "x",
+                                           "velocity_basis": "user_declared"},
+                               origin="ground surface", origin_offset=None)
+        notes = assess_depth_readiness(axis, time_zero=result).notes
+        assert any("ONSET" in n and "PEAK" in n for n in notes)

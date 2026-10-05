@@ -215,8 +215,18 @@ TRANSIENT_RISE_MULTIPLE = 6
 #: oscillating drift from a genuinely very-low-frequency antenna.
 MAX_RISE_FRACTION_OF_WINDOW = 0.1
 
+#: A leading run of at least this many EXACTLY identical samples is a
+#: processing overwrite (readgssi copies sample 2 into samples 0-1; BAM,
+#: docs/research/bam_quantitative_validation.md section 3), not noise, and is
+#: excluded from the quiet window. Three identical floats in real noise are rare.
+MIN_OVERWRITTEN_RUN = 3
+
 #: Reasons a single trace's candidate pick is refused (counted per line).
 REJECT_NO_ONSET = "no_onset_above_threshold"
+#: The onset is the FIRST sample the picker may return: the signal was already
+#: above threshold when the search began, so the true onset lies inside or
+#: before the quiet window and the pick is the method's own floor (BAM 2.6 GHz).
+REJECT_FLOOR_PINNED = "onset_at_search_floor"
 REJECT_QUIET_CONTAMINATED = "quiet_window_contaminated"
 REJECT_NOT_TRANSIENT = "onset_not_transient"
 REJECT_SLOW_RISE = "onset_rise_too_slow"
@@ -230,6 +240,24 @@ def _quiet_window_contaminated(quiet: list[float]) -> bool:
     m = statistics.mean(early)
     sd = statistics.pstdev(early) or 1e-9
     return max(abs(x - m) for x in late) > QUIET_WINDOW_CONTAMINATION_SIGMA * sd
+
+
+def _overwritten_lead(trace: list[float]) -> int:
+    """Length of a leading run of exactly identical samples, if it is an overwrite."""
+    k = 1
+    while k < len(trace) and trace[k] == trace[0]:
+        k += 1
+    return k if k >= MIN_OVERWRITTEN_RUN else 0
+
+
+def _first_lobe_peak(trace: list[float], onset_i: int, mean: float) -> int:
+    """Index of the extreme sample of the lobe that starts at `onset_i`."""
+    dev = [x - mean for x in trace]
+    sign = 1.0 if dev[onset_i] >= 0 else -1.0
+    end = onset_i
+    while end + 1 < len(trace) and sign * dev[end + 1] > 0:
+        end += 1
+    return max(range(onset_i, end + 1), key=lambda j: sign * dev[j])
 
 
 def _onset_transient_problem(trace: list[float], onset_i: int, mean: float) -> Optional[str]:
@@ -255,23 +283,34 @@ def _onset_transient_problem(trace: list[float], onset_i: int, mean: float) -> O
 def _pick_onset_checked(trace: list[float], sample_interval_ns: float,
                         quiet_samples: int = QUIET_SAMPLES):
     """
-    `(time_ns, confidence, None)` for a valid pick, or `(None, None, reason)`.
-    The pick itself is exactly `_pick_onset_ns`'s; the checks only refuse.
+    `(time_ns, confidence, None, peak_ns)` for a valid pick, or
+    `(None, None, reason, None)`. The pick is `_pick_onset_ns`'s, with one
+    data-driven difference: a leading run of identical (overwritten) samples is
+    excluded from the quiet window. Otherwise the checks only refuse.
+    `peak_ns` is the first lobe's extreme -- the PEAK convention for the same
+    arrival, reported beside the onset, never substituted for it.
     """
-    if len(trace) >= quiet_samples + 10 and _quiet_window_contaminated(trace[:quiet_samples]):
-        return None, None, REJECT_QUIET_CONTAMINATED
-    picked = _pick_onset_ns(trace, sample_interval_ns, quiet_samples)
+    lead = _overwritten_lead(trace)
+    quiet = trace[lead:lead + quiet_samples]
+    if len(trace) - lead >= quiet_samples + 10 and _quiet_window_contaminated(quiet):
+        return None, None, REJECT_QUIET_CONTAMINATED, None
+    picked = _pick_onset_ns(trace, sample_interval_ns, quiet_samples, lead=lead)
     if picked is None:
-        return None, None, REJECT_NO_ONSET
+        return None, None, REJECT_NO_ONSET, None
     onset_i = int(round(picked[0] / sample_interval_ns))
-    problem = _onset_transient_problem(trace, onset_i, statistics.mean(trace[:quiet_samples]))
+    if onset_i <= lead + quiet_samples:
+        return None, None, REJECT_FLOOR_PINNED, None
+    mean = statistics.mean(quiet)
+    problem = _onset_transient_problem(trace, onset_i, mean)
     if problem is not None:
-        return None, None, problem
-    return picked[0], picked[1], None
+        return None, None, problem, None
+    return (picked[0], picked[1], None,
+            _first_lobe_peak(trace, onset_i, mean) * sample_interval_ns)
 
 
 def _pick_onset_ns(trace: list[float], sample_interval_ns: float,
-                   quiet_samples: int = QUIET_SAMPLES) -> Optional[tuple[float, float]]:
+                   quiet_samples: int = QUIET_SAMPLES,
+                   lead: int = 0) -> Optional[tuple[float, float]]:
     """
     The first sustained, high-confidence deviation from the pre-signal
     noise floor, in nanoseconds -- purely from this ONE trace's own
@@ -284,13 +323,13 @@ def _pick_onset_ns(trace: list[float], sample_interval_ns: float,
     output after the validity checks in `_pick_onset_checked`.
     """
     n = len(trace)
-    if n < quiet_samples + 10:
+    if n - lead < quiet_samples + 10:
         return None
-    quiet = trace[:quiet_samples]
+    quiet = trace[lead:lead + quiet_samples]
     mean = statistics.mean(quiet)
     sd = statistics.pstdev(quiet) or 1e-9
     run = 0
-    for i in range(quiet_samples, n - 2):
+    for i in range(lead + quiet_samples, n - 2):
         dev = abs(trace[i] - mean) / sd
         if dev > MIN_PICK_CONFIDENCE:
             run += 1
@@ -333,12 +372,14 @@ def direct_wave_consensus_time_zero(
 
     picks: list[float] = []
     confidences: list[float] = []
+    peaks: list[float] = []
     rejections: dict[str, int] = {}
     for trace in traces:
-        time_ns, confidence, reason = _pick_onset_checked(trace, sample_interval_ns)
+        time_ns, confidence, reason, peak_ns = _pick_onset_checked(trace, sample_interval_ns)
         if reason is None:
             picks.append(time_ns)
             confidences.append(confidence)
+            peaks.append(peak_ns)
         else:
             rejections[reason] = rejections.get(reason, 0) + 1
 
@@ -386,9 +427,12 @@ def direct_wave_consensus_time_zero(
             pick_rejections=rejections or None, generated_utc=_now(),
         )
 
+    kept_peaks = [pk for p, pk in zip(picks, peaks) if p in kept]
+    peak_consensus = start_time_ns + statistics.median(kept_peaks) if kept_peaks else None
     return TimeZeroResult(
         status=TimeZeroStatus.DERIVED, method=TimeZeroMethod.DIRECT_WAVE_CONSENSUS,
-        correction_ns=round(consensus, 4),
+        correction_ns=round(consensus, 4), pick_convention="onset",
+        direct_wave_peak_ns=None if peak_consensus is None else round(peak_consensus, 4),
         basis=(f"derived from a robust median consensus of {len(kept)} independently-picked "
               f"direct/coupling-wave onsets (of {n_traces} traces evaluated, "
               f"{n_outliers} rejected as outliers), agreeing within {spread:.3f} ns"),

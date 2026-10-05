@@ -266,6 +266,10 @@ def assess_depth_readiness(axis, time_zero=None, recording_delay_ns: Optional[fl
         notes.append("the time zero is an automatic estimate from this survey's own waveform "
                      f"({time_zero.method.value}); usable for processing and display, but not "
                      "independent evidence")
+        if time_zero.pick_convention == "onset":
+            notes.append("this time zero marks the direct-wave ONSET; a reflector read at its "
+                         "PEAK will appear deeper by the onset-to-peak delay (on BAM about "
+                         "+43 mm on ducts) -- a known-depth calibration avoids this")
     if recording_delay_ns:
         notes.append(f"the recording delay ({recording_delay_ns:g} ns) is where the recorded "
                      f"window starts on the instrument clock; it is part of the raw time axis "

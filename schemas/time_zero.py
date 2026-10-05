@@ -148,6 +148,14 @@ class TimeZeroResult(BaseModel):
     #: passed leave-one-out check). A non-redundant calibration is operational
     #: but not scientifically sufficient.
     redundant: Optional[bool] = None
+    #: Which point of the arrival `correction_ns` marks ("onset" for Method C).
+    #: Depth read at reflection PEAKS from an ONSET time zero is biased late by
+    #: the onset-to-peak delay (BAM: +43 mm on ducts); consumers must compare
+    #: like with like.
+    pick_convention: Optional[str] = None
+    #: DIRECT_WAVE_CONSENSUS only: the median first-lobe PEAK time of the same
+    #: arrivals, on the raw axis -- a diagnostic, never applied in its place.
+    direct_wave_peak_ns: Optional[float] = None
 
     @property
     def resolved(self) -> bool:
@@ -182,4 +190,8 @@ class TimeZeroResult(BaseModel):
             out["time_zero_spread_ns"] = self.spread_ns
         if self.pick_rejections:
             out["time_zero_pick_rejections"] = dict(self.pick_rejections)
+        if self.pick_convention is not None:
+            out["time_zero_pick_convention"] = self.pick_convention
+        if self.direct_wave_peak_ns is not None:
+            out["time_zero_direct_wave_peak_ns"] = self.direct_wave_peak_ns
         return out
