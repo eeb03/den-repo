@@ -222,7 +222,11 @@ def test_the_trench_subset_question_is_recorded_as_open():
 
 def test_the_bam_gate_is_untouched_by_the_4tu_gate():
     """Two corpora, two different blockers; neither may leak into the other."""
-    assert gates.LOCALIZATION_BLOCKED_REASON == "absolute origin is not verified"
+    # BAM localisation became scoreable from its appendix drawings (2026-10-05);
+    # that must not open 4TU, whose blocker (no trench coordinates) is unrelated.
+    assert gates.LOCALIZATION_STATUS == gates.RESOLVED
+    assert gates.OBJECT_LEVEL_STATUS == gates.BLOCKED
+    assert "no trench coordinates" in gates.OBJECT_LEVEL_BLOCKED_REASON
     assert gates.OBJECT_LEVEL_BLOCKED_REASON != gates.LOCALIZATION_BLOCKED_REASON
 
 
