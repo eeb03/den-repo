@@ -312,6 +312,12 @@ Otherwise it is not supported, and the residual stays open.
 
 **Permutation statistics** (correcting PR #12). Ten draws cannot give p < 0.05: the smallest attainable p is 1/11. PR #12's "p < 0.05" columns are void, and its conclusions rested only on the null mean and p95 comparisons, which stand. This phase uses 99 draws (§8).
 
+## Amendment 1 (2026-10-12, before any corpus_s1_v2 scene was simulated)
+
+**The conflict.** §4.1 defined `wet_conductive` as "σ in the upper half of `max_conductivity` (loss tangent 0.05–0.10)". These two statements contradict each other. `generator.max_conductivity` also caps σ at 0.01 S/m, and at GHz frequencies that cap binds. The first test of the generator showed loss tangents of about 0.003: a nearly lossless soil, not the wet, conductive one the family exists for.
+
+**The fix.** The family now draws the **loss tangent** uniformly in [0.05, 0.10] and sets σ from it. This keeps truth.py's low-loss bound of tan δ ≤ 0.1. The 0.01 S/m cap does not apply to this family. Nothing else changed. This was found by a generator unit test, before any simulation or result.
+
 ## 11. Results
 
 (Added after the freeze and the eval run.)

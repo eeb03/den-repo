@@ -32,7 +32,9 @@ from pathlib import Path
 import numpy as np
 
 from simulation.analysis import ANALYSIS_VERSION, assess_against_truth
-from simulation.scenario import SCENARIOS, CircularTarget, Scenario2D, Soil, to_gprmax_input
+from simulation.scenario import (
+    CLUTTER_PREFIX, SCENARIOS, CircularTarget, Layer, Scenario2D, Soil, to_gprmax_input,
+)
 from simulation.truth import TRUTH_MODEL_VERSION, build_truth_manifest
 
 DEFAULT_OUT = Path("artifacts/simulation")
@@ -112,14 +114,24 @@ def _validate(s: Scenario2D, bscan, dt, time_offset, truth, background) -> dict:
     }
 
 
+def _target_free_twin(s: Scenario2D) -> tuple[bool, Scenario2D]:
+    """(has scored targets, the same scene without them). Clutter stones
+    (CLUTTER_PREFIX) and a layer are part of the background and stay."""
+    clutter = tuple(t for t in s.targets if t.target_id.startswith(CLUTTER_PREFIX))
+    keep = {t.material for t in clutter}
+    twin = replace(s, targets=clutter, materials=tuple(m for m in s.materials if m.name in keep))
+    return len(clutter) < len(s.targets), twin
+
+
 def run_scenario(s: Scenario2D, out_root: Path = DEFAULT_OUT) -> dict:
     out = out_root / s.scenario_id
     out.mkdir(parents=True, exist_ok=True)
 
     started = time.monotonic()
     bscan, dt, time_offset, input_text = simulate(s)
-    if s.targets:
-        background, bg_dt, bg_offset, _ = simulate(replace(s, targets=(), materials=()))
+    scored, twin = _target_free_twin(s)
+    if scored:
+        background, bg_dt, bg_offset, _ = simulate(twin)
         if (bg_dt, bg_offset, background.shape) != (dt, time_offset, bscan.shape):
             raise RuntimeError("target-free twin does not share the B-scan's sampling")
     else:
@@ -179,6 +191,10 @@ def _validation_summary(validation: dict) -> dict:
     }
 
 
+def _layer_from(d: dict | None) -> Layer | None:
+    return None if d is None else Layer(material=Soil(**d["material"]), interface_y=d["interface_y"])
+
+
 def rescore(out: Path) -> dict:
     """Re-validate a stored artifact under the current analysis, no solver.
 
@@ -192,7 +208,8 @@ def rescore(out: Path) -> dict:
     s = Scenario2D(**{**manifest["scenario"],
                       "soil": Soil(**manifest["scenario"]["soil"]),
                       "targets": tuple(CircularTarget(**t) for t in manifest["scenario"]["targets"]),
-                      "materials": tuple(Soil(**m) for m in manifest["scenario"].get("materials", ()))})
+                      "materials": tuple(Soil(**m) for m in manifest["scenario"].get("materials", ())),
+                      "layer": _layer_from(manifest["scenario"].get("layer"))})
     if s.fingerprint() != manifest["scenario_fingerprint"]:
         raise RuntimeError(f"{out}: stored scene does not reproduce its fingerprint")
     history = out / "validation_history"

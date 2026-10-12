@@ -254,4 +254,25 @@ def build_truth_manifest(s: Scenario2D) -> dict:
             "height_above_surface_m": 0.0,
         },
         "targets": targets,
+        **_layer_entry(s),
     }
+
+
+def _layer_entry(s: Scenario2D) -> dict:
+    """Only scenes with a layer get this key, so existing manifests are
+    unchanged. Two-way time of the specular reflection off the flat
+    interface for each trace's tx/rx pair (one medium above it)."""
+    if s.layer is None:
+        return {}
+    h = s.surface_y - s.layer.interface_y
+    v = s.soil.velocity
+    times = [2 * math.hypot(h, s.antenna_offset / 2) / v + ricker_peak_delay(s.centre_frequency)
+             for _ in range(s.n_traces)]
+    return {"layer": {
+        "interface_depth_m": h,
+        "material": {"name": s.layer.material.name,
+                     "relative_permittivity": s.layer.material.relative_permittivity,
+                     "conductivity_s_per_m": s.layer.material.conductivity},
+        "predicted_two_way_time_s": times,
+        "model": "straight_ray_single_medium_specular_flat_interface",
+    }}
