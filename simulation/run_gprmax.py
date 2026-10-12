@@ -31,8 +31,8 @@ from pathlib import Path
 
 import numpy as np
 
-from simulation.analysis import assess_against_truth
-from simulation.scenario import SCENARIOS, Scenario2D, to_gprmax_input
+from simulation.analysis import ANALYSIS_VERSION, assess_against_truth
+from simulation.scenario import SCENARIOS, CircularTarget, Scenario2D, Soil, to_gprmax_input
 from simulation.truth import build_truth_manifest
 
 DEFAULT_OUT = Path("artifacts/simulation")
@@ -79,26 +79,26 @@ def simulate(s: Scenario2D) -> tuple[np.ndarray, float, float, str]:
     return np.stack(columns, axis=1), dts.pop(), offsets.pop(), input_text
 
 
-def run(scenario_id: str, out_root: Path = DEFAULT_OUT) -> dict:
-    s = SCENARIOS[scenario_id]
-    out = out_root / s.scenario_id
-    out.mkdir(parents=True, exist_ok=True)
-
-    started = time.monotonic()
-    bscan, dt, time_offset, input_text = simulate(s)
-    background, bg_dt, bg_offset, _ = simulate(replace(s, targets=()))
-    elapsed = time.monotonic() - started
-    if (bg_dt, bg_offset, background.shape) != (dt, time_offset, bscan.shape):
-        raise RuntimeError("target-free twin does not share the B-scan's sampling")
-
-    truth = build_truth_manifest(s)
+def _validate(s: Scenario2D, bscan, dt, time_offset, truth, background) -> dict:
+    if len(s.targets) != 1:
+        # The blind global-max picker is defined for one target per scene.
+        # Empty and multi-target scenes are still corpus members with exact
+        # truth; they are simply outside what this check can score.
+        return {
+            "analysis_version": ANALYSIS_VERSION,
+            "status": "not_applicable",
+            "reason": f"{len(s.targets)} targets; the assessor scores single-target scenes only",
+            "pass": None,
+        }
     # Both methods, always: see simulation.analysis on why the first one's
     # failure on the reference scene is kept rather than replaced.
     by_method = {
         "mean_trace": assess_against_truth(bscan, dt, time_offset, truth),
         "target_free_reference": assess_against_truth(bscan, dt, time_offset, truth, background),
     }
-    validation = {
+    return {
+        "analysis_version": ANALYSIS_VERSION,
+        "status": "scored",
         "methods": by_method,
         "preregistration": {
             "mean_trace": "before the first solver run (2026-10-12)",
@@ -111,6 +111,22 @@ def run(scenario_id: str, out_root: Path = DEFAULT_OUT) -> dict:
         "pass_basis": "target_free_reference",
     }
 
+
+def run_scenario(s: Scenario2D, out_root: Path = DEFAULT_OUT) -> dict:
+    out = out_root / s.scenario_id
+    out.mkdir(parents=True, exist_ok=True)
+
+    started = time.monotonic()
+    bscan, dt, time_offset, input_text = simulate(s)
+    if s.targets:
+        background, bg_dt, bg_offset, _ = simulate(replace(s, targets=(), materials=()))
+        if (bg_dt, bg_offset, background.shape) != (dt, time_offset, bscan.shape):
+            raise RuntimeError("target-free twin does not share the B-scan's sampling")
+    else:
+        background = bscan  # an empty scene is its own target-free twin
+    elapsed = time.monotonic() - started
+
+    truth = build_truth_manifest(s)
     (out / "model.in").write_text(input_text)
     np.savez_compressed(
         out / "bscan.npz",
@@ -122,6 +138,8 @@ def run(scenario_id: str, out_root: Path = DEFAULT_OUT) -> dict:
         background=background.astype(np.float32),
     )
     (out / "truth.json").write_text(json.dumps(truth, indent=2))
+    # Validate only after the expensive solver output is safely on disk.
+    validation = _validate(s, bscan, dt, time_offset, truth, background)
     (out / "validation.json").write_text(json.dumps(validation, indent=2))
 
     manifest = {
@@ -143,9 +161,51 @@ def run(scenario_id: str, out_root: Path = DEFAULT_OUT) -> dict:
             name: _sha256(out / name)
             for name in ("model.in", "bscan.npz", "truth.json", "validation.json")
         },
-        "validation_pass": validation["pass"],
-        "validation_pass_by_method": {k: v["pass"] for k, v in by_method.items()},
+        **_validation_summary(validation),
     }
+    (out / "manifest.json").write_text(json.dumps(manifest, indent=2))
+    return manifest
+
+
+def _validation_summary(validation: dict) -> dict:
+    return {
+        "analysis_version": validation["analysis_version"],
+        "validation_pass": validation["pass"],
+        "validation_status": validation["status"],
+        "validation_pass_by_method": {
+            k: v["pass"] for k, v in validation.get("methods", {}).items()
+        },
+    }
+
+
+def rescore(out: Path) -> dict:
+    """Re-validate a stored artifact under the current analysis, no solver.
+
+    The previous validation.json is archived under validation_history/, never
+    overwritten: a superseded verdict is part of the record."""
+    manifest = json.loads((out / "manifest.json").read_text())
+    previous = json.loads((out / "validation.json").read_text())
+    s = Scenario2D(**{**manifest["scenario"],
+                      "soil": Soil(**manifest["scenario"]["soil"]),
+                      "targets": tuple(CircularTarget(**t) for t in manifest["scenario"]["targets"]),
+                      "materials": tuple(Soil(**m) for m in manifest["scenario"].get("materials", ()))})
+    if s.fingerprint() != manifest["scenario_fingerprint"]:
+        raise RuntimeError(f"{out}: stored scene does not reproduce its fingerprint")
+    history = out / "validation_history"
+    history.mkdir(exist_ok=True)
+    old_version = previous.get("analysis_version", 1)
+    (history / f"validation_v{old_version}.json").write_text(json.dumps(previous, indent=2))
+
+    d = np.load(out / "bscan.npz")
+    truth = json.loads((out / "truth.json").read_text())
+    validation = _validate(s, d["data"].astype(np.float64), float(d["dt"]), float(d["time_offset"]),
+                           truth, d["background"].astype(np.float64))
+    (out / "validation.json").write_text(json.dumps(validation, indent=2))
+    manifest.update(_validation_summary(validation))
+    manifest["files"]["validation.json"] = _sha256(out / "validation.json")
+    manifest["rescored_utc"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    manifest.setdefault("superseded_validations", []).append(
+        {"analysis_version": old_version, "pass": previous.get("pass")})
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2))
     return manifest
 
@@ -154,8 +214,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     parser.add_argument("scenario_id", choices=sorted(SCENARIOS))
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument("--rescore", action="store_true",
+                        help="re-validate the stored artifact; do not run the solver")
     args = parser.parse_args(argv)
-    manifest = run(args.scenario_id, args.out)
+    if args.rescore:
+        manifest = rescore(args.out / args.scenario_id)
+    else:
+        manifest = run_scenario(SCENARIOS[args.scenario_id], args.out)
     print(json.dumps({k: manifest[k] for k in
                       ("scenario_id", "bscan_shape_samples_traces", "dt_s", "validation_pass")}))
     return 0

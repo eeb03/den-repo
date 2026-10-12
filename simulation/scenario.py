@@ -27,6 +27,8 @@ C0 = 299_792_458.0  # m/s
 # source, receiver or target inside it is not modelled as in open ground.
 PML_CELLS = 10
 
+GPRMAX_BUILTIN_MATERIALS = frozenset({"pec", "free_space"})
+
 
 @dataclass(frozen=True)
 class Soil:
@@ -67,6 +69,9 @@ class Scenario2D:
     step: float            # antenna move per trace, metres
     n_traces: int
     targets: tuple[CircularTarget, ...] = field(default_factory=tuple)
+    # Dielectric materials a target may use besides the soil and gprMax's
+    # built-ins (e.g. a rock). Same shape as the soil: eps_r, sigma, name.
+    materials: tuple[Soil, ...] = field(default_factory=tuple)
 
     def tx_x(self, trace: int) -> float:
         return self.tx_start_x + trace * self.step
@@ -101,8 +106,15 @@ def validate(s: Scenario2D) -> None:
     if min(xs) < margin or max(xs) > s.domain_x - margin:
         problems.append("antenna positions leave the domain or enter the absorbing boundary")
 
+    known = GPRMAX_BUILTIN_MATERIALS | {s.soil.name} | {m.name for m in s.materials}
+    names = [s.soil.name] + [m.name for m in s.materials]
+    if len(set(names)) != len(names) or set(names) & GPRMAX_BUILTIN_MATERIALS:
+        problems.append("material names must be unique and must not shadow gprMax built-ins")
+
     seen: set[str] = set()
     for t in s.targets:
+        if t.material not in known:
+            problems.append(f"{t.target_id}: unknown material {t.material!r}")
         if t.target_id in seen:
             problems.append(f"duplicate target_id {t.target_id!r}")
         seen.add(t.target_id)
@@ -113,6 +125,11 @@ def validate(s: Scenario2D) -> None:
         if (t.centre_x - t.radius < margin or t.centre_x + t.radius > s.domain_x - margin
                 or t.centre_y - t.radius < margin):
             problems.append(f"{t.target_id}: target enters the absorbing boundary or leaves the domain")
+
+    for i, a in enumerate(s.targets):
+        for b in s.targets[i + 1:]:
+            if math.hypot(a.centre_x - b.centre_x, a.centre_y - b.centre_y) <= a.radius + b.radius:
+                problems.append(f"{a.target_id} and {b.target_id} overlap")
 
     if problems:
         raise ScenarioError("; ".join(problems))
@@ -134,6 +151,8 @@ def to_gprmax_input(s: Scenario2D) -> str:
         f"#time_window: {_fmt(s.time_window)}",
         "",
         f"#material: {_fmt(soil.relative_permittivity)} {_fmt(soil.conductivity)} 1 0 {soil.name}",
+        *(f"#material: {_fmt(m.relative_permittivity)} {_fmt(m.conductivity)} 1 0 {m.name}"
+          for m in s.materials),
         "",
         f"#waveform: ricker 1 {_fmt(s.centre_frequency)} src_wavelet",
         f"#hertzian_dipole: z {_fmt(s.tx_x(0))} {_fmt(s.surface_y)} inf src_wavelet",

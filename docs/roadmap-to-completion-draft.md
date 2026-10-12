@@ -249,7 +249,11 @@ public data and borrowed access. Everything else in Part C stands.
    done 2026-10-12: gprMax 4.0.0 image, scene → input → B-scan → truth →
    validation. The reference scene validates within 5 ps RMS. The
    pre-registered mean-trace picker failed, and that failure is recorded.
-   See `docs/simulation.md`.)*
+   See `docs/simulation.md`. Slice 2: a seeded scenario generator and a
+   resumable corpus builder. The first 20-scene corpus is built, and 11 of 12
+   scored scenes pass. Two physics findings: the strongest return is not
+   the apex (interface antenna lobes), and dielectric targets' bottom
+   echoes can dominate. One is open.)*
 2. **M2 volume schema + M3 CT slice viewer**, built on simulated volumes.
    This is the demo.
 3. **M2 velocity + migration**, validated on simulation.
