@@ -538,7 +538,9 @@ The saturation result of PR #11 is confirmed on held-out scenes.
 failures, not physics failures. An analytic forward model reproduces all
 12. The whole-line vertex fit is pulled off by event-switching picks on
 deep, low-contrast, near-edge targets. Validation tolerances are unchanged.
-Scene 13's 110 ps residual is in the wavefield, not the analysis; see the
+Scene 13's 110 ps residual is in the wavefield, not the analysis.
+Halving the cell cuts it to 78 ps, about 30% less, as in scenes 135 and
+277, so part of it is discretisation. The rest is unexplained. See the
 experiment doc §9.6.
 
 ## Next

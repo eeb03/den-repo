@@ -171,7 +171,7 @@ If both arms are rejected, the failure mechanism and the next research approach 
 
 Written 2026-10-12, after the frozen test run (freeze commit `9bca277` came before any test scene was scored). Sections 1–8 are unchanged. **SIMULATION ONLY** applies to every synthetic number below. None of them is a field accuracy claim.
 
-**Result files.** Runs write to `artifacts/`, which is git-ignored. The summary outputs are committed under `evidence/detector_saturation/`: `report.json`, `selection.json`, `bam.json`, `ingv.json`, `4tu.json` and `failure_diagnosis.json`. The per-scene JSONL files (56 MB) can be regenerated with `python -m simulation.detector_comparison evaluate`.
+**Result files.** Runs write to `artifacts/`, which is git-ignored. The summary outputs are committed under `evidence/detector_saturation/`: `report.json`, `selection.json`, `bam.json`, `ingv.json`, `4tu.json`, `failure_diagnosis.json` and `halfcell_resimulation.json`. The per-scene JSONL files (56 MB) can be regenerated with `python -m simulation.detector_comparison evaluate`.
 
 ### 9.1 Verdict
 
@@ -501,7 +501,22 @@ That is a limitation of the **analysis**, not of the solver or the truth. It is 
 - **The predicted geometry matches** the closed-form zero-offset time.
 - **The remaining candidate is discretisation:** staircasing of the rock boundary and numerical dispersion inside the rock.
 
-**Half-cell re-simulation (scenes 13, 135 and 277 at Δ/2): pending.** It was queued after the real-data runs, and its output goes to `artifacts/simulation/investigation/resimulate.json`. Until it reports, the cause of scene 13's residual is open.
+**Half-cell re-simulation** (`artifacts/simulation/investigation/resimulate.json`). The same scenarios were run with the grid cell halved and everything else unchanged.
+
+| Scene | Cell | Pass | Vertex error (traces) | Apex-time residual | Shape RMS |
+|---|---|---|---|---|---|
+| 13 | 2.4 → 1.2 mm | pass → pass | 0 → 0 | **112 → 78 ps** | 110 → 78 ps |
+| 135 | 3.3 → 1.65 mm | fail → fail | −18 → −18 | 179 → 120 ps | 174 → 119 ps |
+| 277 | 4.0 → 2.0 mm | fail → fail | 8 → 7 | 233 → 163 ps | 231 → 160 ps |
+
+**Reading.**
+
+- **The time residual is partly discretisation.** Halving the cell removes about 30% of it in all three scenes. The ratio is 0.69–0.70 each time, which is systematic and not noise.
+- **Discretisation does not explain all of it.** The residual falls more slowly than the solver's second-order dispersion would predict: dispersion error should scale by about 0.25 per halving, and first-order staircasing by 0.5. An apparent order of about 0.5 suggests an additional component that does not converge with the cell size, or converges slowly.
+  - Candidates are the definition of the source wavelet delay or time zero in the truth model, and the reflection phase at a dispersive or lossy boundary.
+  - Neither is tested here. Separating them would need a third refinement, Δ/4.
+- **The vertex failures of scenes 135 and 277 do not move with the cell** (−18 → −18 and 8 → 7). This independently confirms that the apex-trace failures are not a discretisation effect, consistent with the analytic forward model above.
+- **Scene 13 still passes.** Its residual is within the time tolerance at both resolutions, so no rule or tolerance is affected.
 
 ### 9.7 Deviations from §1–8
 
@@ -520,4 +535,4 @@ That is a limitation of the **analysis**, not of the solver or the truth. It is 
 - **BAM background.** No removal outperforms mean-trace subtraction on concrete. This is untested as a hypothesis.
 - **Cost.** About 30 s per 401-trace line. A coarse-to-fine velocity search or an FFT-based migration would be needed before any interactive use.
 - **The weak-echo regime** is not covered by the 300-scene corpus.
-- **Scene 13:** see the half-cell result above.
+- **Scene 13's residual:** about 30% of it is cell-size dependent. The rest is not explained, and it needs a Δ/4 run plus a check of the truth model's time-zero convention.
