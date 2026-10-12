@@ -119,6 +119,20 @@ def _event_times(target: dict) -> dict[str, np.ndarray]:
 
 
 def score_scene(line: SyntheticLine, arm: str) -> dict:
+    z = ARMS[arm](line)
+    detections = detect_line(line.traces, line.scenario_id, 0,
+                             threshold=DEFAULT_ANOMALY_THRESHOLD, min_cells=DEFAULT_MIN_CELLS,
+                             estimator=lambda _traces: z)
+    times = line.sample_times_s
+    located = [{"x": float(line.midpoint_x_m[d.peak_trace]), "t": float(times[d.peak_sample]),
+                "trace": d.peak_trace, "abs_z": abs(d.peak_z)} for d in detections]
+    return {"scenario_id": line.scenario_id, "arm": arm, **score_located(line, located)}
+
+
+def score_located(line: SyntheticLine, located: list[dict]) -> dict:
+    """The pre-registered match/classify/localise rules, for any detector.
+    A located detection is {x, t, trace, abs_z}, optionally with v_est (a
+    velocity the detector itself estimated, m/s)."""
     truth = line.truth
     f = truth["wavelet"]["centre_frequency_hz"]
     period = 1.0 / f
@@ -127,14 +141,6 @@ def score_scene(line: SyntheticLine, arm: str) -> dict:
     wavelength = v / f
     tx, rx = np.asarray(truth["antennas"]["tx_x_m"]), np.asarray(truth["antennas"]["rx_x_m"])
     half_offset = float(rx[0] - tx[0]) / 2
-    times = line.sample_times_s
-
-    z = ARMS[arm](line)
-    detections = detect_line(line.traces, line.scenario_id, 0,
-                             threshold=DEFAULT_ANOMALY_THRESHOLD, min_cells=DEFAULT_MIN_CELLS,
-                             estimator=lambda _traces: z)
-    located = [{"x": float(line.midpoint_x_m[d.peak_trace]), "t": float(times[d.peak_sample]),
-                "trace": d.peak_trace, "abs_z": abs(d.peak_z)} for d in detections]
 
     windows = []
     for tg in truth["targets"]:
@@ -189,10 +195,16 @@ def score_scene(line: SyntheticLine, arm: str) -> dict:
                 "depth_error_wavelengths": (depth_est - g["depth_to_top_m"]) / wavelength,
                 "peak_abs_z": d["abs_z"],
             })
+            if d.get("v_est"):
+                path_est = d["v_est"] * max(d["t"] - chi, 0.0) / 2
+                depth_v = math.sqrt(max(path_est ** 2 - half_offset ** 2, 0.0))
+                entry.update({
+                    "velocity_error_fraction": d["v_est"] / v - 1.0,
+                    "depth_error_own_velocity_wavelengths": (depth_v - g["depth_to_top_m"]) / wavelength,
+                })
         targets.append(entry)
 
     return {
-        "scenario_id": line.scenario_id, "arm": arm,
         "n_detections": len(located),
         "unmatched": dict(classes),
         "fp_strict": sum(classes.values()),
