@@ -1,0 +1,716 @@
+{
+ "scenes": {
+  "gen_s0_00022": {
+   "features": {
+    "scene": "gen_s0_00022",
+    "label": "rock",
+    "material": "rock_T1",
+    "frequency_ghz": 2.6,
+    "soil_eps": 5.18,
+    "target_eps": 9.16,
+    "abs_R_top": 0.1415532984113932,
+    "internal_minus_top_periods": 1.4436014718344925,
+    "direct_wave_clearance_periods": 0.6076832829815967,
+    "half_offset_over_depth": 0.24324324324324345,
+    "depth_top_over_lambda": 1.0224622550200928,
+    "radius_over_lambda": 0.27634115000543075,
+    "radius_cells": 10.0,
+    "cells_per_lambda_in_target": 27.212696775075727,
+    "cells_per_lambda_in_soil": 36.18715489822445,
+    "apex_distance_from_line_end_traces": 15,
+    "scored_event": "internal",
+    "pass": false,
+    "vertex_error_traces": -6
+   },
+   "picks": {
+    "pick_classes": {
+     "top": 2,
+     "internal": 79,
+     "other": 0
+    },
+    "fraction_other": 0.0,
+    "event_switches": 1,
+    "scored_event": "internal",
+    "diagnostic_vertex_on_scored_event_only": {
+     "vertex_trace": 12,
+     "error_traces": -3,
+     "would_pass_tolerance": false
+    },
+    "official_vertex_error_traces": -6
+   },
+   "analytic_forward_model": {
+    "pass": false,
+    "scored_event": "internal",
+    "per_trace_pick_agreement_with_simulation": 0.9876543209876543,
+    "vertex_error_traces": -7,
+    "apex_time_error_ps": 0,
+    "shape_rms_ps": 2
+   }
+  },
+  "gen_s0_00065": {
+   "features": {
+    "scene": "gen_s0_00065",
+    "label": "rock",
+    "material": "rock_T1",
+    "frequency_ghz": 2.6,
+    "soil_eps": 4.54,
+    "target_eps": 7.57,
+    "abs_R_top": 0.12712498378838513,
+    "internal_minus_top_periods": 1.142495000743683,
+    "direct_wave_clearance_periods": 5.282789763062473,
+    "half_offset_over_depth": 0.07377049180327867,
+    "depth_top_over_lambda": 3.3816733985738994,
+    "radius_over_lambda": 0.2217490753163212,
+    "radius_cells": 8.0,
+    "cells_per_lambda_in_target": 27.9388262063534,
+    "cells_per_lambda_in_soil": 36.07681334674401,
+    "apex_distance_from_line_end_traces": 14,
+    "scored_event": "internal",
+    "pass": false,
+    "vertex_error_traces": -14
+   },
+   "picks": {
+    "pick_classes": {
+     "top": 11,
+     "internal": 64,
+     "other": 6
+    },
+    "fraction_other": 0.07407407407407407,
+    "event_switches": 2,
+    "scored_event": "internal",
+    "diagnostic_vertex_on_scored_event_only": {
+     "vertex_trace": 13,
+     "error_traces": -1,
+     "would_pass_tolerance": true
+    },
+    "official_vertex_error_traces": -14
+   },
+   "analytic_forward_model": {
+    "pass": false,
+    "scored_event": "internal",
+    "per_trace_pick_agreement_with_simulation": 0.9876543209876543,
+    "vertex_error_traces": -14,
+    "apex_time_error_ps": 3,
+    "shape_rms_ps": 3
+   }
+  },
+  "gen_s0_00066": {
+   "features": {
+    "scene": "gen_s0_00066",
+    "label": "cable",
+    "material": "pec",
+    "frequency_ghz": 1.5,
+    "soil_eps": 16.12,
+    "target_eps": null,
+    "abs_R_top": 1.0,
+    "internal_minus_top_periods": null,
+    "direct_wave_clearance_periods": 5.655240513111809,
+    "half_offset_over_depth": 0.07086614173228346,
+    "depth_top_over_lambda": 3.571781072157098,
+    "radius_over_lambda": 0.05624852082137162,
+    "radius_cells": 2.0,
+    "cells_per_lambda_in_target": null,
+    "cells_per_lambda_in_soil": 35.556490567127945,
+    "apex_distance_from_line_end_traces": 15,
+    "scored_event": "top",
+    "pass": false,
+    "vertex_error_traces": 7
+   },
+   "picks": {
+    "pick_classes": {
+     "top": 72,
+     "internal": 0,
+     "other": 7
+    },
+    "fraction_other": 0.08860759493670886,
+    "event_switches": 1,
+    "scored_event": "top",
+    "diagnostic_vertex_on_scored_event_only": {
+     "vertex_trace": 63,
+     "error_traces": 0,
+     "would_pass_tolerance": true
+    },
+    "official_vertex_error_traces": 7
+   },
+   "analytic_forward_model": {
+    "pass": false,
+    "scored_event": "top",
+    "per_trace_pick_agreement_with_simulation": 0.9493670886075949,
+    "vertex_error_traces": 11,
+    "apex_time_error_ps": 2,
+    "shape_rms_ps": 1
+   }
+  },
+  "gen_s0_00085": {
+   "features": {
+    "scene": "gen_s0_00085",
+    "label": "cable",
+    "material": "pec",
+    "frequency_ghz": 0.25,
+    "soil_eps": 5.21,
+    "target_eps": null,
+    "abs_R_top": 1.0,
+    "internal_minus_top_periods": null,
+    "direct_wave_clearance_periods": 3.9354436554186973,
+    "half_offset_over_depth": 0.09473684210526316,
+    "depth_top_over_lambda": 2.712395603357956,
+    "radius_over_lambda": 0.0571030653338517,
+    "radius_cells": 2.0,
+    "cells_per_lambda_in_target": null,
+    "cells_per_lambda_in_soil": 35.024389466783404,
+    "apex_distance_from_line_end_traces": 13,
+    "scored_event": "top",
+    "pass": false,
+    "vertex_error_traces": 4
+   },
+   "picks": {
+    "pick_classes": {
+     "top": 75,
+     "internal": 0,
+     "other": 3
+    },
+    "fraction_other": 0.038461538461538464,
+    "event_switches": 1,
+    "scored_event": "top",
+    "diagnostic_vertex_on_scored_event_only": {
+     "vertex_trace": 65,
+     "error_traces": 1,
+     "would_pass_tolerance": true
+    },
+    "official_vertex_error_traces": 4
+   },
+   "analytic_forward_model": {
+    "pass": false,
+    "scored_event": "top",
+    "per_trace_pick_agreement_with_simulation": 1.0,
+    "vertex_error_traces": 5,
+    "apex_time_error_ps": 0,
+    "shape_rms_ps": 11
+   }
+  },
+  "gen_s0_00106": {
+   "features": {
+    "scene": "gen_s0_00106",
+    "label": "rock",
+    "material": "rock_T1",
+    "frequency_ghz": 0.5,
+    "soil_eps": 24.27,
+    "target_eps": 10.41,
+    "abs_R_top": 0.20851518374371728,
+    "internal_minus_top_periods": 0.5109195804801352,
+    "direct_wave_clearance_periods": 5.555151701976967,
+    "half_offset_over_depth": 0.07142857142857142,
+    "depth_top_over_lambda": 3.5199269596737106,
+    "radius_over_lambda": 0.19555149775965056,
+    "radius_cells": 7.0,
+    "cells_per_lambda_in_target": 54.65707881291545,
+    "cells_per_lambda_in_soil": 35.7961973198671,
+    "apex_distance_from_line_end_traces": 16,
+    "scored_event": "top",
+    "pass": false,
+    "vertex_error_traces": 5
+   },
+   "picks": {
+    "pick_classes": {
+     "top": 73,
+     "internal": 2,
+     "other": 5
+    },
+    "fraction_other": 0.0625,
+    "event_switches": 3,
+    "scored_event": "top",
+    "diagnostic_vertex_on_scored_event_only": {
+     "vertex_trace": 64,
+     "error_traces": 1,
+     "would_pass_tolerance": true
+    },
+    "official_vertex_error_traces": 5
+   },
+   "analytic_forward_model": {
+    "pass": false,
+    "scored_event": "top",
+    "per_trace_pick_agreement_with_simulation": 1.0,
+    "vertex_error_traces": 7,
+    "apex_time_error_ps": 506,
+    "shape_rms_ps": 509
+   }
+  },
+  "gen_s0_00135": {
+   "features": {
+    "scene": "gen_s0_00135",
+    "label": "rock",
+    "material": "rock_T1",
+    "frequency_ghz": 1.0,
+    "soil_eps": 6.52,
+    "target_eps": 10.11,
+    "abs_R_top": 0.10922517124289267,
+    "internal_minus_top_periods": 1.8154558305475696,
+    "direct_wave_clearance_periods": 4.978485864926772,
+    "half_offset_over_depth": 0.0782608695652174,
+    "depth_top_over_lambda": 3.2323239129371326,
+    "radius_over_lambda": 0.36539313798419765,
+    "radius_cells": 13.0,
+    "cells_per_lambda_in_target": 28.571377888603003,
+    "cells_per_lambda_in_soil": 35.578117508496334,
+    "apex_distance_from_line_end_traces": 18,
+    "scored_event": "internal",
+    "pass": false,
+    "vertex_error_traces": -18
+   },
+   "picks": {
+    "pick_classes": {
+     "top": 16,
+     "internal": 64,
+     "other": 0
+    },
+    "fraction_other": 0.0,
+    "event_switches": 1,
+    "scored_event": "internal",
+    "diagnostic_vertex_on_scored_event_only": {
+     "vertex_trace": 18,
+     "error_traces": 0,
+     "would_pass_tolerance": true
+    },
+    "official_vertex_error_traces": -18
+   },
+   "analytic_forward_model": {
+    "pass": false,
+    "scored_event": "internal",
+    "per_trace_pick_agreement_with_simulation": 0.9875,
+    "vertex_error_traces": -17,
+    "apex_time_error_ps": 0,
+    "shape_rms_ps": 2
+   }
+  },
+  "gen_s0_00157": {
+   "features": {
+    "scene": "gen_s0_00157",
+    "label": "rock",
+    "material": "rock_T1",
+    "frequency_ghz": 2.6,
+    "soil_eps": 4.67,
+    "target_eps": 8.35,
+    "abs_R_top": 0.14426215736462297,
+    "internal_minus_top_periods": 2.099965187127042,
+    "direct_wave_clearance_periods": 5.091987004893451,
+    "half_offset_over_depth": 0.07692307692307691,
+    "depth_top_over_lambda": 3.289184281208228,
+    "radius_over_lambda": 0.3935776062984204,
+    "radius_cells": 14.0,
+    "cells_per_lambda_in_target": 26.601912348756848,
+    "cells_per_lambda_in_soil": 35.57112949506799,
+    "apex_distance_from_line_end_traces": 16,
+    "scored_event": "internal",
+    "pass": false,
+    "vertex_error_traces": 16
+   },
+   "picks": {
+    "pick_classes": {
+     "top": 18,
+     "internal": 60,
+     "other": 2
+    },
+    "fraction_other": 0.025,
+    "event_switches": 4,
+    "scored_event": "internal",
+    "diagnostic_vertex_on_scored_event_only": {
+     "vertex_trace": 64,
+     "error_traces": 1,
+     "would_pass_tolerance": true
+    },
+    "official_vertex_error_traces": 16
+   },
+   "analytic_forward_model": {
+    "pass": false,
+    "scored_event": "internal",
+    "per_trace_pick_agreement_with_simulation": 0.9875,
+    "vertex_error_traces": 16,
+    "apex_time_error_ps": -1,
+    "shape_rms_ps": 1
+   }
+  },
+  "gen_s0_00177": {
+   "features": {
+    "scene": "gen_s0_00177",
+    "label": "rock",
+    "material": "rock_T1",
+    "frequency_ghz": 1.5,
+    "soil_eps": 19.36,
+    "target_eps": 4.91,
+    "abs_R_top": 0.33013858619923203,
+    "internal_minus_top_periods": 0.977471323801718,
+    "direct_wave_clearance_periods": 5.570776030160108,
+    "half_offset_over_depth": 0.06910569105691057,
+    "depth_top_over_lambda": 3.5202353222641776,
+    "radius_over_lambda": 0.4865365892560245,
+    "radius_cells": 17.0,
+    "cells_per_lambda_in_target": 69.3817652966786,
+    "cells_per_lambda_in_soil": 34.94084592074592,
+    "apex_distance_from_line_end_traces": 13,
+    "scored_event": "top",
+    "pass": false,
+    "vertex_error_traces": -5
+   },
+   "picks": {
+    "pick_classes": {
+     "top": 72,
+     "internal": 0,
+     "other": 6
+    },
+    "fraction_other": 0.07692307692307693,
+    "event_switches": 1,
+    "scored_event": "top",
+    "diagnostic_vertex_on_scored_event_only": {
+     "vertex_trace": 13,
+     "error_traces": 0,
+     "would_pass_tolerance": true
+    },
+    "official_vertex_error_traces": -5
+   },
+   "analytic_forward_model": {
+    "pass": false,
+    "scored_event": "top",
+    "per_trace_pick_agreement_with_simulation": 0.9871794871794872,
+    "vertex_error_traces": -7,
+    "apex_time_error_ps": -6,
+    "shape_rms_ps": 6
+   }
+  },
+  "gen_s0_00185": {
+   "features": {
+    "scene": "gen_s0_00185",
+    "label": "rock",
+    "material": "rock_T1",
+    "frequency_ghz": 1.0,
+    "soil_eps": 6.85,
+    "target_eps": 10.68,
+    "abs_R_top": 0.11057702441523849,
+    "internal_minus_top_periods": 2.5023959496975525,
+    "direct_wave_clearance_periods": 3.3843228676011403,
+    "half_offset_over_depth": 0.10344827586206898,
+    "depth_top_over_lambda": 2.430489861222185,
+    "radius_over_lambda": 0.5028599712873486,
+    "radius_cells": 18.0,
+    "cells_per_lambda_in_target": 28.66718824489315,
+    "cells_per_lambda_in_soil": 35.79525320720802,
+    "apex_distance_from_line_end_traces": 21,
+    "scored_event": "internal",
+    "pass": false,
+    "vertex_error_traces": 14
+   },
+   "picks": {
+    "pick_classes": {
+     "top": 9,
+     "internal": 70,
+     "other": 1
+    },
+    "fraction_other": 0.0125,
+    "event_switches": 3,
+    "scored_event": "internal",
+    "diagnostic_vertex_on_scored_event_only": {
+     "vertex_trace": 58,
+     "error_traces": 0,
+     "would_pass_tolerance": true
+    },
+    "official_vertex_error_traces": 14
+   },
+   "analytic_forward_model": {
+    "pass": false,
+    "scored_event": "internal",
+    "per_trace_pick_agreement_with_simulation": 0.975,
+    "vertex_error_traces": 14,
+    "apex_time_error_ps": -3,
+    "shape_rms_ps": 4
+   }
+  },
+  "gen_s0_00241": {
+   "features": {
+    "scene": "gen_s0_00241",
+    "label": "pipe",
+    "material": "pec",
+    "frequency_ghz": 1.0,
+    "soil_eps": 11.53,
+    "target_eps": null,
+    "abs_R_top": 1.0,
+    "internal_minus_top_periods": null,
+    "direct_wave_clearance_periods": 5.70085787327939,
+    "half_offset_over_depth": 0.07086614173228346,
+    "depth_top_over_lambda": 3.5961490223453265,
+    "radius_over_lambda": 0.14158067017107584,
+    "radius_cells": 5.0,
+    "cells_per_lambda_in_target": null,
+    "cells_per_lambda_in_soil": 35.315555392966864,
+    "apex_distance_from_line_end_traces": 14,
+    "scored_event": "top",
+    "pass": false,
+    "vertex_error_traces": -7
+   },
+   "picks": {
+    "pick_classes": {
+     "top": 72,
+     "internal": 0,
+     "other": 7
+    },
+    "fraction_other": 0.08860759493670886,
+    "event_switches": 1,
+    "scored_event": "top",
+    "diagnostic_vertex_on_scored_event_only": {
+     "vertex_trace": 14,
+     "error_traces": 0,
+     "would_pass_tolerance": true
+    },
+    "official_vertex_error_traces": -7
+   },
+   "analytic_forward_model": {
+    "pass": false,
+    "scored_event": "top",
+    "per_trace_pick_agreement_with_simulation": 1.0,
+    "vertex_error_traces": -9,
+    "apex_time_error_ps": 2,
+    "shape_rms_ps": 2
+   }
+  },
+  "gen_s0_00245": {
+   "features": {
+    "scene": "gen_s0_00245",
+    "label": "rock",
+    "material": "rock_T1",
+    "frequency_ghz": 0.5,
+    "soil_eps": 4.86,
+    "target_eps": 8.26,
+    "abs_R_top": 0.1318248667957089,
+    "internal_minus_top_periods": 2.238739378232086,
+    "direct_wave_clearance_periods": 5.412686284692137,
+    "half_offset_over_depth": 0.07083333333333333,
+    "depth_top_over_lambda": 3.441464426901209,
+    "radius_over_lambda": 0.43018305336265106,
+    "radius_cells": 15.0,
+    "cells_per_lambda_in_target": 26.746445384204566,
+    "cells_per_lambda_in_soil": 34.868877057680756,
+    "apex_distance_from_line_end_traces": 34,
+    "scored_event": "internal",
+    "pass": false,
+    "vertex_error_traces": 3
+   },
+   "picks": {
+    "pick_classes": {
+     "top": 4,
+     "internal": 73,
+     "other": 1
+    },
+    "fraction_other": 0.01282051282051282,
+    "event_switches": 5,
+    "scored_event": "internal",
+    "diagnostic_vertex_on_scored_event_only": {
+     "vertex_trace": 35,
+     "error_traces": 1,
+     "would_pass_tolerance": true
+    },
+    "official_vertex_error_traces": 3
+   },
+   "analytic_forward_model": {
+    "pass": false,
+    "scored_event": "internal",
+    "per_trace_pick_agreement_with_simulation": 0.9615384615384616,
+    "vertex_error_traces": 4,
+    "apex_time_error_ps": -4,
+    "shape_rms_ps": 5
+   }
+  },
+  "gen_s0_00277": {
+   "features": {
+    "scene": "gen_s0_00277",
+    "label": "void",
+    "material": "free_space",
+    "frequency_ghz": 0.5,
+    "soil_eps": 17.82,
+    "target_eps": 1.0,
+    "abs_R_top": 0.6169590744540919,
+    "internal_minus_top_periods": 0.39806506872857644,
+    "direct_wave_clearance_periods": 5.4958278630121935,
+    "half_offset_over_depth": 0.07258064516129033,
+    "depth_top_over_lambda": 3.4920851731119584,
+    "radius_over_lambda": 0.4224296580377369,
+    "radius_cells": 15.0,
+    "cells_per_lambda_in_target": 149.89622899999998,
+    "cells_per_lambda_in_soil": 35.508870446449585,
+    "apex_distance_from_line_end_traces": 13,
+    "scored_event": "top",
+    "pass": false,
+    "vertex_error_traces": 8
+   },
+   "picks": {
+    "pick_classes": {
+     "top": 73,
+     "internal": 0,
+     "other": 6
+    },
+    "fraction_other": 0.0759493670886076,
+    "event_switches": 1,
+    "scored_event": "top",
+    "diagnostic_vertex_on_scored_event_only": {
+     "vertex_trace": 66,
+     "error_traces": 1,
+     "would_pass_tolerance": true
+    },
+    "official_vertex_error_traces": 8
+   },
+   "analytic_forward_model": {
+    "pass": false,
+    "scored_event": "internal",
+    "per_trace_pick_agreement_with_simulation": 1.0,
+    "vertex_error_traces": 11,
+    "apex_time_error_ps": -402,
+    "shape_rms_ps": 398
+   }
+  },
+  "gen_s0_00013": {
+   "features": {
+    "scene": "gen_s0_00013",
+    "label": "rock",
+    "material": "rock_T1",
+    "frequency_ghz": 1.5,
+    "soil_eps": 5.48,
+    "target_eps": 9.69,
+    "abs_R_top": 0.14154060849099973,
+    "internal_minus_top_periods": 1.9350944851940342,
+    "direct_wave_clearance_periods": 3.1880289708953646,
+    "half_offset_over_depth": 0.10843373493975902,
+    "depth_top_over_lambda": 2.3331903388463653,
+    "radius_over_lambda": 0.36543945066268374,
+    "radius_cells": 13.0,
+    "cells_per_lambda_in_target": 26.752003565110513,
+    "cells_per_lambda_in_soil": 35.57360864139312,
+    "apex_distance_from_line_end_traces": 39,
+    "scored_event": "internal",
+    "pass": true,
+    "vertex_error_traces": 0
+   },
+   "picks": {
+    "pick_classes": {
+     "top": 0,
+     "internal": 80,
+     "other": 0
+    },
+    "fraction_other": 0.0,
+    "event_switches": 0,
+    "scored_event": "internal",
+    "diagnostic_vertex_on_scored_event_only": {
+     "vertex_trace": 39,
+     "error_traces": 0,
+     "would_pass_tolerance": true
+    },
+    "official_vertex_error_traces": 0
+   },
+   "analytic_forward_model": {
+    "pass": true,
+    "scored_event": "internal",
+    "per_trace_pick_agreement_with_simulation": 1.0,
+    "vertex_error_traces": 0,
+    "apex_time_error_ps": -1,
+    "shape_rms_ps": 2
+   }
+  }
+ },
+ "feature_comparison": {
+  "frequency_ghz": {
+   "failing_median": 1.0,
+   "passing_median": 1.0,
+   "mann_whitney_p": 0.6875435433862129,
+   "n_failing": 12,
+   "n_passing": 131
+  },
+  "soil_eps": {
+   "failing_median": 6.685,
+   "passing_median": 14.54,
+   "mann_whitney_p": 0.05322705883164804,
+   "n_failing": 12,
+   "n_passing": 131
+  },
+  "target_eps": {
+   "failing_median": 8.35,
+   "passing_median": 1.0,
+   "mann_whitney_p": 0.004827712627039909,
+   "n_failing": 9,
+   "n_passing": 74
+  },
+  "abs_R_top": {
+   "failing_median": 0.17638867055417012,
+   "passing_median": 0.6561587539173948,
+   "mann_whitney_p": 0.0133630304656868,
+   "n_failing": 12,
+   "n_passing": 131
+  },
+  "internal_minus_top_periods": {
+   "failing_median": 1.4436014718344925,
+   "passing_median": 0.4574404111186424,
+   "mann_whitney_p": 0.000775998246063285,
+   "n_failing": 9,
+   "n_passing": 74
+  },
+  "direct_wave_clearance_periods": {
+   "failing_median": 5.347738023877305,
+   "passing_median": 2.5661861799876773,
+   "mann_whitney_p": 0.001273952659904945,
+   "n_failing": 12,
+   "n_passing": 131
+  },
+  "half_offset_over_depth": {
+   "failing_median": 0.0731755684822845,
+   "passing_median": 0.12500000000000003,
+   "mann_whitney_p": 0.0011067650024188028,
+   "n_failing": 12,
+   "n_passing": 131
+  },
+  "depth_top_over_lambda": {
+   "failing_median": 3.411568912737554,
+   "passing_median": 2.0130949483354383,
+   "mann_whitney_p": 0.001273952659904945,
+   "n_failing": 12,
+   "n_passing": 131
+  },
+  "radius_over_lambda": {
+   "failing_median": 0.3208671439948142,
+   "passing_median": 0.25368810636023287,
+   "mann_whitney_p": 0.2961128694573919,
+   "n_failing": 12,
+   "n_passing": 131
+  },
+  "radius_cells": {
+   "failing_median": 11.5,
+   "passing_median": 9.0,
+   "mann_whitney_p": 0.31193872018265567,
+   "n_failing": 12,
+   "n_passing": 131
+  },
+  "cells_per_lambda_in_target": {
+   "failing_median": 28.571377888603003,
+   "passing_median": 94.16557975641027,
+   "mann_whitney_p": 0.001443452686349005,
+   "n_failing": 9,
+   "n_passing": 74
+  },
+  "cells_per_lambda_in_soil": {
+   "failing_median": 35.56381003109797,
+   "passing_median": 35.36156455906317,
+   "mann_whitney_p": 0.71854501134827,
+   "n_failing": 12,
+   "n_passing": 131
+  },
+  "apex_distance_from_line_end_traces": {
+   "failing_median": 15.0,
+   "passing_median": 26.0,
+   "mann_whitney_p": 1.9168951867738727e-05,
+   "n_failing": 12,
+   "n_passing": 131
+  },
+  "vertex_error_traces": {
+   "failing_median": 3.5,
+   "passing_median": 0.0,
+   "mann_whitney_p": 0.24077006994287797,
+   "n_failing": 12,
+   "n_passing": 131
+  }
+ },
+ "passing_fraction_other_median": 0.0
+}

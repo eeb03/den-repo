@@ -494,14 +494,64 @@ such evidence. It shows the gap but does not select a replacement.
 **Every number in this section is a simulation result** on noise-free 2D
 TM data. None of it is field accuracy.
 
+## Detector saturation experiment (branch `exp/detector-saturation`)
+
+The full pre-registration and results are in
+[`docs/detector-saturation-experiment.md`](detector-saturation-experiment.md).
+**Production behaviour is unchanged.**
+
+**Setup.** Two experimental candidate detectors were compared with the
+production ring z-score on this corpus. Parameters were frozen on
+train ∪ val and committed before the 54-scene test split was scored.
+
+- `ring_widened`: the production ring with larger windows.
+- `hyperbola_stack`: the envelope stacked along zero-offset diffraction
+  hyperbolas over a velocity grid, against a flat-line stack, scored as a
+  one-sided robust z.
+
+Synthetic traces now also carry white noise, calibrated from the 759 raw
+4TU lines (`simulation/noise_calibration.py`). The level is 2.99×10⁻⁴ of the
+direct wave at the median and 1.25×10⁻³ at p90, and the noise is seeded
+from the scene id.
+
+**Primary condition** (20 samples per period, 4TU-median noise, mean-trace
+subtraction; test split; simulation only):
+
+| Detector | Recall [95% CI] | Precision | FP/scan | FP/empty scene | Lateral error |
+|---|---|---|---|---|---|
+| ring (production statistic, threshold 2.5) | 0.00 [0.00–0.00] | 0.00 | 0.30 | 0.53 | – |
+| ring_widened (11/21 × 9/27, threshold 3.0) | 0.03 [0.00–0.08] | 0.05 | 0.69 | 0.00 | 0.55 λ |
+| hyperbola_stack (45°, δ T/4, threshold 6.0) | **0.69 [0.58–0.80]** | 0.44 | 0.98 | 0.00 | 0.03 λ |
+
+**Verdicts under the pre-registered gate.**
+
+- **hyperbola_stack: KEEP_EXPERIMENTAL.**
+  - It passes S1, synthetic recovery.
+  - It fails S2: precision 0.44 < 0.50, and most of its false positives are limbs of hyperbolas it has already found.
+  - BAM regression (R1) cannot be measured. No threshold in the grid stays within the false-positive budget on the concrete dev scan, and the empty controls fail at every threshold.
+- **ring_widened: REJECT.** It fails S1.
+
+The saturation result of PR #11 is confirmed on held-out scenes.
+
+**Failure investigation.** The 12 validation failures are analysis
+failures, not physics failures. An analytic forward model reproduces all
+12. The whole-line vertex fit is pulled off by event-switching picks on
+deep, low-contrast, near-edge targets. Validation tolerances are unchanged.
+Scene 13's 110 ps residual is in the wavefield, not the analysis; see the
+experiment doc §9.6.
+
 ## Next
 
-- Decide whether to add a hyperbola-aware detector arm, such as a
-  migration or Hough-style matched filter, as a candidate to compare
-  against the ring z-score. It would be compared on this corpus first, not
-  swapped in.
-- Investigate the lateral-vertex failures on low-contrast rock: whether
-  overlapping echoes or the vertex fit is responsible.
-- A class-balanced soil sampler for the next corpus seed.
+- Hyperbola-stack limb suppression: group the components that share one
+  apex/velocity solution. Pre-register it separately, with a fresh test
+  split or with the current one declared spent.
+- Calibrate the detector threshold per sampling rate and per corpus, or
+  use a statistic whose null does not depend on sample density.
+- Lateral-vertex failures (§9.6 of the experiment doc): a per-event vertex
+  fit as a future, separately pre-registered analysis version. Tolerances
+  are unchanged.
+- A class-balanced soil sampler and a weak-echo (low-SNR) stratum for the
+  next corpus seed.
 - 3D volumes (gprMax 3D, Kaggle or Colab GPU), which feed the
-  `SubsurfaceVolume` schema and the CT slice viewer (roadmap M2/M3).
+  `SubsurfaceVolume` schema and the CT slice viewer (roadmap M2/M3). Not
+  started in this phase.
