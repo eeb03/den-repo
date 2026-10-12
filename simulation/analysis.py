@@ -51,6 +51,26 @@ APEX POSITION, and why it is kinematic.
   for gen_s0_00004 and the reference scene; pre-registered for every scene
   run after it.
 
+WHICH EVENT IS SCORED, and why there can be two (v3).
+
+* v1/v2 scored every target against its TOP reflection only. On
+  gen_s0_00013 (a rock, eps 9.69 in soil 5.48) that FAILED: every pick sat
+  +1.40 ns late, uniformly, with the apex exact. The picks were on the echo
+  from the rock's far wall, which was the stronger (envelope 1.00 vs 0.55).
+  The solver was right; the truth model was incomplete.
+* v3: truth model v2 predicts both events for a dielectric target (see
+  truth.py). The blind picks are scored against the predicted event they
+  fit best (lowest RMS over the 21 central traces), and every check uses
+  that event. A PEC target has one event, so v3 == v2 for it. The top-only
+  verdict is still computed and recorded (`top_only_v2_rule`). Post hoc for
+  the 20 scenes of corpus seed 0 run before it; pre-registered for scenes
+  scored after it. Choosing between TWO physically predicted events is not
+  a free window: picks that match neither still fail.
+* Consequence: where the two events are closer than about a period they
+  interfere, and the envelope peak falls between them. Picks on dielectric
+  targets are therefore expected to be biased relative to either event --
+  measured, not assumed; see docs/simulation.md.
+
 A miss is a finding, not a bug to be tuned away: the likeliest physical
 causes (the 2D line-source pulse, the specular phase of a PEC, the antennas
 sitting on the interface) are each worth knowing about before this corpus is
@@ -63,9 +83,12 @@ from scipy.signal import hilbert
 
 # Bumped whenever a scoring rule changes; artifacts scored under an older
 # version are rescored (simulation.run_gprmax.rescore), old verdicts archived.
-ANALYSIS_VERSION = 2
+ANALYSIS_VERSION = 3
 APEX_TRACE_TOLERANCE = 2
 SHAPE_HALF_WIDTH = 10  # traces either side of the predicted apex
+# An event a ray reaches on fewer of the central traces than this is not
+# scoreable (the internal echo can be cut off by total internal reflection).
+MIN_SHAPE_TRACES = 15
 
 
 def remove_background(bscan: np.ndarray) -> np.ndarray:
@@ -105,40 +128,32 @@ def kinematic_apex_x(times: np.ndarray, midpoints: np.ndarray) -> float:
     return float(-b / (2 * a))
 
 
-def assess_against_truth(
-    bscan: np.ndarray, dt: float, time_offset: float, truth: dict,
-    background: np.ndarray | None = None,
-) -> dict:
-    """Score one single-target scene. Returns a JSON-serialisable verdict."""
-    if len(truth["targets"]) != 1:
-        raise ValueError("assess_against_truth scores single-target scenes only")
-    target = truth["targets"][0]
-    predicted = np.asarray(target["predicted"]["two_way_time_s"])
-    if bscan.shape[1] != predicted.size:
-        raise ValueError(f"B-scan has {bscan.shape[1]} traces, truth predicts {predicted.size}")
+def _events(target: dict) -> dict[str, np.ndarray]:
+    """Predicted events of one target, NaN where no ray connects. Truth from
+    model v1 has no `predicted_events`; its single event is the top one."""
+    raw = target.get("predicted_events") or {"top": target["predicted"]}
+    return {k: np.array([np.nan if t is None else t for t in e["two_way_time_s"]], dtype=float)
+            for k, e in raw.items()}
 
-    half_period = 1.0 / (2.0 * truth["wavelet"]["centre_frequency_hz"])
-    times, amps = pick_peaks(bscan, dt, time_offset, background)
 
-    pred_apex = int(target["predicted"]["apex_trace"])
-    midpoints = (np.asarray(truth["antennas"]["tx_x_m"]) + np.asarray(truth["antennas"]["rx_x_m"])) / 2
-    try:
-        vertex_x = kinematic_apex_x(times, midpoints)
-        meas_apex = int(np.argmin(np.abs(midpoints - vertex_x)))
-        no_hyperbola = None
-    except ValueError as exc:
-        # The picks do not trace a hyperbola at all: the target was not
-        # recovered. That is a failed verdict, never a crash.
-        vertex_x, meas_apex, no_hyperbola = None, None, str(exc)
-    amplitude_apex = int(np.argmax(amps))
-    apex_time_error = float(times[pred_apex] - predicted[pred_apex])
-
-    lo = max(0, pred_apex - SHAPE_HALF_WIDTH)
-    hi = min(predicted.size, pred_apex + SHAPE_HALF_WIDTH + 1)
+def _shape(times: np.ndarray, predicted: np.ndarray, centre: int) -> dict | None:
+    lo = max(0, centre - SHAPE_HALF_WIDTH)
+    hi = min(predicted.size, centre + SHAPE_HALF_WIDTH + 1)
     residual = times[lo:hi] - predicted[lo:hi]
-    rms = float(np.sqrt(np.mean(residual ** 2)))
+    residual = residual[np.isfinite(residual)]
+    if residual.size < min(MIN_SHAPE_TRACES, hi - lo):
+        return None
+    return {"traces": [lo, hi - 1], "n_traces": int(residual.size),
+            "rms_error_s": float(np.sqrt(np.mean(residual ** 2))),
+            "mean_error_s": float(residual.mean())}
 
-    checks = {
+
+def _score_event(times, midpoints, vertex_x, meas_apex, no_hyperbola, predicted, half_period):
+    finite = np.where(np.isfinite(predicted), predicted, np.inf)
+    pred_apex = int(np.argmin(finite))
+    apex_time_error = float(times[pred_apex] - predicted[pred_apex])
+    shape = _shape(times, predicted, pred_apex)
+    return {
         "apex_time": {
             "error_s": apex_time_error,
             "tolerance_s": half_period,
@@ -154,27 +169,70 @@ def assess_against_truth(
             "pass": meas_apex is not None and abs(meas_apex - pred_apex) <= APEX_TRACE_TOLERANCE,
             "failure": no_hyperbola,
         },
-        "hyperbola_shape": {
-            "traces": [lo, hi - 1],
-            "rms_error_s": rms,
-            "mean_error_s": float(residual.mean()),
-            "tolerance_s": half_period,
-            "pass": rms <= half_period,
-        },
+        "hyperbola_shape": {**shape, "tolerance_s": half_period,
+                            "pass": shape["rms_error_s"] <= half_period},
     }
+
+
+def assess_against_truth(
+    bscan: np.ndarray, dt: float, time_offset: float, truth: dict,
+    background: np.ndarray | None = None,
+) -> dict:
+    """Score one single-target scene. Returns a JSON-serialisable verdict."""
+    if len(truth["targets"]) != 1:
+        raise ValueError("assess_against_truth scores single-target scenes only")
+    target = truth["targets"][0]
+    events = _events(target)
+    if bscan.shape[1] != events["top"].size:
+        raise ValueError(f"B-scan has {bscan.shape[1]} traces, truth predicts {events['top'].size}")
+
+    half_period = 1.0 / (2.0 * truth["wavelet"]["centre_frequency_hz"])
+    times, amps = pick_peaks(bscan, dt, time_offset, background)
+
+    midpoints = (np.asarray(truth["antennas"]["tx_x_m"]) + np.asarray(truth["antennas"]["rx_x_m"])) / 2
+    try:
+        vertex_x = kinematic_apex_x(times, midpoints)
+        meas_apex = int(np.argmin(np.abs(midpoints - vertex_x)))
+        no_hyperbola = None
+    except ValueError as exc:
+        # The picks do not trace a hyperbola at all: the target was not
+        # recovered. That is a failed verdict, never a crash.
+        vertex_x, meas_apex, no_hyperbola = None, None, str(exc)
+    amplitude_apex = int(np.argmax(amps))
+
+    # Shape fit of the picks to every scoreable event, centred on the top
+    # event's apex so each is judged on the same traces.
+    top_apex = int(np.argmin(events["top"]))
+    fits = {k: _shape(times, p, top_apex) for k, p in events.items()}
+    scoreable = {k: f for k, f in fits.items() if f is not None}
+    scored_event = min(scoreable, key=lambda k: scoreable[k]["rms_error_s"])
+
+    by_event = {k: _score_event(times, midpoints, vertex_x, meas_apex, no_hyperbola, p, half_period)
+                for k, p in events.items() if k in scoreable}
+    checks = by_event[scored_event]
+    top_only = by_event["top"]
     return {
         "analysis_version": ANALYSIS_VERSION,
         "target_id": target["target_id"],
         "background_method": "mean_trace" if background is None else "target_free_reference",
         "picker": "background removal, Hilbert envelope, global max per trace; blind to prediction",
         "tolerances_preregistered": True,
+        "event_rule": "best_fitting_predicted_event_v3",
+        "predicted_events": sorted(events),
+        "scored_event": scored_event,
         "checks": checks,
         "pass": all(c["pass"] for c in checks.values()),
         "diagnostics": {
             # v1 apex rule, physically invalid on an interface antenna; see
             # the module docstring. Recorded, never scored.
             "amplitude_apex_trace_v1": amplitude_apex,
-            "amplitude_apex_v1_would_pass": abs(amplitude_apex - pred_apex) <= APEX_TRACE_TOLERANCE,
+            "amplitude_apex_v1_would_pass": abs(amplitude_apex - int(target["predicted"]["apex_trace"]))
+            <= APEX_TRACE_TOLERANCE,
+            # The v2 rule (top reflection only), still computed so a change
+            # of verdict between v2 and v3 is visible in one file.
+            "top_only_v2_rule": {"pass": all(c["pass"] for c in top_only.values()),
+                                 "checks": top_only},
+            "event_fits": scoreable,
         },
         "picked_times_s": times.tolist(),
     }

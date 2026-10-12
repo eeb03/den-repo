@@ -33,7 +33,7 @@ import numpy as np
 
 from simulation.analysis import ANALYSIS_VERSION, assess_against_truth
 from simulation.scenario import SCENARIOS, CircularTarget, Scenario2D, Soil, to_gprmax_input
-from simulation.truth import build_truth_manifest
+from simulation.truth import TRUTH_MODEL_VERSION, build_truth_manifest
 
 DEFAULT_OUT = Path("artifacts/simulation")
 
@@ -161,6 +161,7 @@ def run_scenario(s: Scenario2D, out_root: Path = DEFAULT_OUT) -> dict:
             name: _sha256(out / name)
             for name in ("model.in", "bscan.npz", "truth.json", "validation.json")
         },
+        "truth_model_version": TRUTH_MODEL_VERSION,
         **_validation_summary(validation),
     }
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2))
@@ -182,7 +183,10 @@ def rescore(out: Path) -> dict:
     """Re-validate a stored artifact under the current analysis, no solver.
 
     The previous validation.json is archived under validation_history/, never
-    overwritten: a superseded verdict is part of the record."""
+    overwritten: a superseded verdict is part of the record. Truth built by
+    an older truth model is rebuilt from the scene (geometry cannot change:
+    the fingerprint is checked first) and the old file kept in
+    truth_history/."""
     manifest = json.loads((out / "manifest.json").read_text())
     previous = json.loads((out / "validation.json").read_text())
     s = Scenario2D(**{**manifest["scenario"],
@@ -198,6 +202,16 @@ def rescore(out: Path) -> dict:
 
     d = np.load(out / "bscan.npz")
     truth = json.loads((out / "truth.json").read_text())
+    old_truth_version = truth.get("truth_model_version", 1)
+    if old_truth_version != TRUTH_MODEL_VERSION:
+        truth_history = out / "truth_history"
+        truth_history.mkdir(exist_ok=True)
+        (truth_history / f"truth_v{old_truth_version}.json").write_text(json.dumps(truth, indent=2))
+        truth = build_truth_manifest(s)
+        (out / "truth.json").write_text(json.dumps(truth, indent=2))
+        manifest["files"]["truth.json"] = _sha256(out / "truth.json")
+        manifest.setdefault("superseded_truth", []).append({"truth_model_version": old_truth_version})
+    manifest["truth_model_version"] = TRUTH_MODEL_VERSION
     validation = _validate(s, d["data"].astype(np.float64), float(d["dt"]), float(d["time_offset"]),
                            truth, d["background"].astype(np.float64))
     (out / "validation.json").write_text(json.dumps(validation, indent=2))

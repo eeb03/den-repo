@@ -16,11 +16,12 @@ import pytest
 
 from simulation.analysis import assess_against_truth, pick_peaks
 from simulation.scenario import (
-    C0, REFERENCE_CYLINDER_2D, SCENARIOS, CircularTarget, ScenarioError,
+    C0, REFERENCE_CYLINDER_2D, SCENARIOS, CircularTarget, ScenarioError, Soil,
     to_gprmax_input, validate,
 )
 from simulation.truth import (
-    build_truth_manifest, predicted_two_way_times, ricker_peak_delay, specular_path_length,
+    TRUTH_MODEL_VERSION, build_truth_manifest, internal_reflection_time,
+    predicted_two_way_times, ricker_peak_delay, specular_path_length,
 )
 
 S = REFERENCE_CYLINDER_2D
@@ -108,6 +109,67 @@ def test_truth_manifest_separates_geometry_from_prediction():
     assert t["predicted"]["model"] == "straight_ray_single_medium_specular"
     assert len(t["predicted"]["two_way_time_s"]) == S.n_traces
     assert truth["wavelet"]["peak_delay_s"] == pytest.approx(math.sqrt(2) / 1.5e9)
+    assert truth["truth_model_version"] == TRUTH_MODEL_VERSION
+    # A PEC target has one event, and it is the v1 prediction verbatim.
+    assert set(t["predicted_events"]) == {"top"}
+    assert t["predicted_events"]["top"]["two_way_time_s"] == t["predicted"]["two_way_time_s"]
+
+
+# --- internal (bottom) reflection of a dielectric target --------------------
+
+ROCK = Soil(name="rock_T1", relative_permittivity=12.0, conductivity=0.001)
+S_ROCK = replace(S, targets=(replace(S.targets[0], label="rock", material="rock_T1"),),
+                 materials=(ROCK,))
+
+
+def test_zero_offset_internal_echo_is_top_plus_the_diameter_twice():
+    """Vertically above the centre, the far-wall echo is the top echo plus a
+    round trip through the full diameter at the inside velocity."""
+    t = S_ROCK.targets[0]
+    above = (t.centre_x, S.surface_y)
+    v_out, v_in = S.soil.velocity, ROCK.velocity
+    expected = 2 * (S.surface_y - t.centre_y - t.radius) / v_out + 4 * t.radius / v_in
+    assert internal_reflection_time(above, above, t, v_out, v_in) == pytest.approx(expected, rel=1e-9)
+
+
+@pytest.mark.parametrize("eps_in, half", [(12.0, 0.01), (1.0, 0.04)])  # slower inside (rock), faster (void)
+def test_offset_internal_echo_matches_fermat_on_the_symmetric_path(eps_in, half):
+    """Antennas symmetric about the centre: the path reflects at the very
+    bottom of the circle, so it is twice the least-time path from tx to that
+    point through the circle wall -- an independent brute-force check of the
+    shooting, Snell and mirror steps together."""
+    t = S_ROCK.targets[0]
+    tx, rx = (t.centre_x - half, S.surface_y), (t.centre_x + half, S.surface_y)
+    v_out, v_in = S.soil.velocity, C0 / math.sqrt(eps_in)
+    theta = np.linspace(0.0, np.pi, 2_000_001)[1:-1]
+    px, py = t.centre_x + t.radius * np.cos(theta), t.centre_y + t.radius * np.sin(theta)
+    bottom = (t.centre_x, t.centre_y - t.radius)
+    one_way = (np.hypot(px - tx[0], py - tx[1]) / v_out
+               + np.hypot(px - bottom[0], py - bottom[1]) / v_in)
+    k = int(one_way.argmin())
+    assert 0 < k < theta.size - 1, "an endpoint minimum is not a ray; pick another geometry"
+    assert internal_reflection_time(tx, rx, t, v_out, v_in) == pytest.approx(
+        2 * one_way.min(), rel=1e-7)
+
+
+def test_no_internal_ray_reaches_a_receiver_outside_the_exit_fan():
+    """A slow rock is a converging lens: with antennas 8 cm apart over this
+    1 cm-radius rock, every once-reflected exit ray lands within 3 cm of the
+    centre, so the receiver at +4 cm has no internal event (None, not a
+    made-up time)."""
+    t = S_ROCK.targets[0]
+    tx, rx = (t.centre_x - 0.04, S.surface_y), (t.centre_x + 0.04, S.surface_y)
+    assert internal_reflection_time(tx, rx, t, S.soil.velocity, ROCK.velocity) is None
+
+
+def test_dielectric_targets_predict_both_events_and_pec_only_the_top():
+    t = build_truth_manifest(S_ROCK)["targets"][0]
+    top = np.asarray(t["predicted_events"]["top"]["two_way_time_s"])
+    internal = np.array([np.nan if x is None else x for x in t["predicted_events"]["internal"]["two_way_time_s"]])
+    assert np.all(internal[np.isfinite(internal)] > top[np.isfinite(internal)])
+    assert abs(t["predicted_events"]["internal"]["apex_trace"] - t["predicted"]["apex_trace"]) <= 1
+    void = replace(S, targets=(replace(S.targets[0], label="void", material="free_space"),))
+    assert "internal" in build_truth_manifest(void)["targets"][0]["predicted_events"]
 
 
 # --- assessor ----------------------------------------------------------------
@@ -193,6 +255,39 @@ def test_an_unrecovered_target_is_a_failed_verdict_not_a_crash():
     assert check["measured"] is None and "hyperbola" in check["failure"]
 
 
+def test_picks_on_the_internal_echo_pass_v3_and_are_recorded_as_failing_v2():
+    """The gen_s0_00013 case, analytically: the far-wall echo is the stronger
+    one. v3 scores it; the top-only v2 verdict stays on record as a fail."""
+    truth = build_truth_manifest(S_ROCK)
+    internal = truth["targets"][0]["predicted_events"]["internal"]["two_way_time_s"]
+    top = truth["targets"][0]["predicted"]["two_way_time_s"]
+    bscan = _analytic_bscan(internal, [1.0] * S.n_traces) + _analytic_bscan(top, [0.55] * S.n_traces) \
+        - _analytic_bscan([0.0] * S.n_traces, [0.0] * S.n_traces)
+    background = _analytic_bscan([0.0] * S.n_traces, [0.0] * S.n_traces)
+    verdict = assess_against_truth(bscan, DT, 0.0, truth, background)
+    assert verdict["scored_event"] == "internal"
+    assert verdict["pass"], verdict["checks"]
+    assert verdict["diagnostics"]["top_only_v2_rule"]["pass"] is False
+
+
+def test_picks_matching_neither_event_still_fail():
+    truth = build_truth_manifest(S_ROCK)
+    top = truth["targets"][0]["predicted"]["two_way_time_s"]
+    late = [x + 4 / S.centre_frequency for x in top]  # beyond the internal echo too
+    background = _analytic_bscan([0.0] * S.n_traces, [0.0] * S.n_traces)
+    verdict = assess_against_truth(_analytic_bscan(late, [1.0] * S.n_traces), DT, 0.0, truth, background)
+    assert not verdict["pass"]
+
+
+def test_assessor_still_reads_truth_written_by_model_v1():
+    truth = build_truth_manifest(S)
+    for t in truth["targets"]:
+        del t["predicted_events"]
+    bscan = _analytic_bscan(truth["targets"][0]["predicted"]["two_way_time_s"], _amps(truth))
+    verdict = assess_against_truth(bscan, DT, 0.0, truth)
+    assert verdict["pass"] and verdict["scored_event"] == "top"
+
+
 def test_time_offset_is_applied_to_picks():
     truth = build_truth_manifest(S)
     bscan = _analytic_bscan(truth["targets"][0]["predicted"]["two_way_time_s"], _amps(truth))
@@ -259,6 +354,22 @@ def test_rescore_archives_the_old_verdict_and_rescores(tmp_path):
     assert manifest["validation_pass"] is True
     assert manifest["superseded_validations"] == [{"analysis_version": 1, "pass": False}]
     assert json.loads((out / "validation_history" / "validation_v1.json").read_text())["note"] == "v1 verdict"
+
+
+def test_rescore_rebuilds_truth_from_an_older_model_and_archives_it(tmp_path):
+    import json
+    from simulation.run_gprmax import _sha256, rescore
+    out = _stored_artifact(tmp_path, {"pass": True, "analysis_version": 2})
+    old = json.loads((out / "truth.json").read_text())
+    del old["truth_model_version"]
+    for t in old["targets"]:
+        del t["predicted_events"]
+    (out / "truth.json").write_text(json.dumps(old))
+    manifest = rescore(out)
+    assert manifest["truth_model_version"] == TRUTH_MODEL_VERSION
+    assert manifest["superseded_truth"] == [{"truth_model_version": 1}]
+    assert "predicted_events" not in json.loads((out / "truth_history" / "truth_v1.json").read_text())["targets"][0]
+    assert manifest["files"]["truth.json"] == _sha256(out / "truth.json")
 
 
 def test_rescore_refuses_a_stale_scene_without_touching_it(tmp_path):

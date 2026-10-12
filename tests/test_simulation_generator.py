@@ -11,7 +11,7 @@ import pytest
 
 from simulation.generator import (
     CELLS_PER_LIMIT_WAVELENGTH, LIMIT_FREQUENCY_FACTOR, MAX_LOSS_TANGENT, MIN_RADIUS_CELLS,
-    ROCK_MIN_CONTRAST, choose_cell, generate, generate_scene, split_of,
+    ROCK_MIN_CONTRAST, choose_cell, generate, generate_scene, geometry_group, split_of,
 )
 from simulation.scenario import Soil, ScenarioError, to_gprmax_input, validate
 from simulation.truth import build_truth_manifest
@@ -108,3 +108,34 @@ def test_validate_rejects_unknown_materials_and_overlaps():
         validate(replace(s, targets=(a, replace(b, centre_x=a.centre_x, centre_y=a.centre_y))))
     with pytest.raises(ScenarioError, match="shadow"):
         validate(replace(s, materials=(Soil("pec", 5.0, 0.0),)))
+
+
+def test_variants_of_one_draw_share_a_split_so_they_cannot_leak():
+    """A re-acquisition of the same objects (another antenna, a later 3D
+    variant) is not an independent scene and must land in the same split."""
+    s = SCENES[11]
+    variant = replace(s, scenario_id=s.scenario_id + "_3d", centre_frequency=s.centre_frequency * 2)
+    assert variant.fingerprint() != s.fingerprint()
+    assert geometry_group(variant) == geometry_group(s) == "draw_s7_11"
+    assert split_of(variant) == split_of(s)
+    assert len({geometry_group(s) for s in SCENES}) == len(SCENES)
+
+
+def test_leakage_audit_on_a_300_scene_design():
+    from simulation.leakage import audit
+    report = audit(SCENES)
+    assert report["duplicate_fingerprints"] == []
+    assert report["groups_straddling_splits"] == []
+    assert report["empty_scenes_excluded_from_near_check"] == sum(not s.targets for s in SCENES)
+
+
+def test_leakage_audit_flags_a_rescaled_copy_in_another_split():
+    """The same picture at another frequency is the same geometry in
+    wavelengths; planted under a different draw id it must be flagged."""
+    from simulation.leakage import audit
+    s = next(s for s in SCENES if len(s.targets) == 1)
+    other_split = next(i for i in range(10_000)
+                       if split_of(replace(s, scenario_id=f"gen_s99_{i:05d}")) != split_of(s))
+    copy = replace(s, scenario_id=f"gen_s99_{other_split:05d}")
+    pairs = audit([s, copy])["near_duplicate_pairs_across_splits"]
+    assert [sorted((p["a"], p["b"])) for p in pairs] == [sorted((s.scenario_id, copy.scenario_id))]

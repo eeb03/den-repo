@@ -218,6 +218,125 @@ the stronger bottom one. The failure is recorded, not re-scored.
   sanity check of predicted travel times is incomplete for dielectric
   targets.
 
+## Slice 3: two echoes per dielectric target (truth model v2, analysis v3)
+
+### Scene 13, investigated without touching the simulator
+
+`gen_s0_00013` is a rock (ε_r 9.69, r = 3.12 cm) in soil with ε_r 5.48, at
+1.5 GHz. It failed v2 because every pick sat +1.40 ns late. Neither the
+scene nor the solver input nor gprMax was changed. Only the *prediction*
+was extended:
+
+- `truth.py` now predicts a second event for every target a ray can enter
+  (rock, void). It is the **internal reflection**: refract in, reflect once
+  off the far wall, refract out. This is traced exactly by shooting rays
+  through the circle (Snell at entry and exit, mirror at the far wall,
+  each root refined with `brentq`), not estimated as 4r/v. Rays that are
+  totally internally reflected, or whose exit fan misses the receiver,
+  give no time (`null`) rather than an invented one.
+- The truth tests pin the zero-offset closed form (top + 4r/v_in). They
+  check an independent Fermat brute force on symmetric offset paths, for a
+  slow rock and for a fast void. They also pin a case where no internal ray
+  reaches the receiver: a slow rock is a converging lens, and its exit fan
+  spans only ±2.8 cm.
+
+| gen_s0_00013 (blind picks unchanged) | vs top echo | vs internal echo |
+|---|---|---|
+| shape RMS, `target_free_reference` | 1,400 ps | **110 ps** |
+| shape RMS, `mean_trace` | 1,413 ps | **122 ps** |
+| apex time error, `target_free_reference` (tolerance 333 ps) | +1,402 ps | **+112 ps** |
+| apex trace (pred. 39) | 39 | 39 |
+
+The predicted internal–top separation at the apex is 1.29 ns, against the
+1.40 ns measured. The picks are on the far-wall echo, which is the stronger
+of the two here. A **+110 ps residual remains and is unexplained.** It is a
+third of the tolerance, uniform across the scan, and plausibly the tail of
+the top echo interfering. It is not investigated further.
+
+### Analysis v3: score the best-fitting predicted event
+
+The blind picks are scored against whichever predicted event they fit best
+(lowest RMS over the 21 central traces), and all three checks use that
+event. A PEC target has one event, so v3 is identical to v2 for pipes and
+cables. Picks that fit neither event still fail; there is a test for that.
+The top-only v2 verdict is still computed in every validation
+(`diagnostics.top_only_v2_rule`), and the original v2 file is archived
+under `validation_history/`. The old truth is archived under
+`truth_history/` (`TRUTH_MODEL_VERSION` 1 → 2).
+
+v3 is **post hoc for scenes 0–19** (it was written after seeing scene 13)
+and **pre-registered for scenes 20–299**. Those were simulated with the v2
+code and rescored under v3 after the rule was fixed.
+
+### Before/after, scenes 0–19 and the reference scene
+
+| | v2 (archived) | v3 |
+|---|---|---|
+| `target_free_reference` (pre-registered basis) | 11/12 pass | **12/12 pass** |
+| `mean_trace` | 8/12 pass | 9/12 pass |
+| Verdicts that changed | n/a | only gen_s0_00013, on both methods |
+| Scored on the internal echo | n/a | 13 (rock), 09 (void, 43 ps vs 274 ps on top) |
+
+**A by-product: the dielectric residuals are interference.** For rock and
+void scenes 03, 06, 07 and 19, the picks sit *between* the two predicted
+events. They are 100–210 ps late of the top echo and 230–760 ps early of
+the internal one. That is what overlapping echoes do to an envelope peak.
+It explains the 100–300 ps dielectric residuals against 4–27 ps for PEC,
+which the slice-2 notes had left unverified.
+
+## Interface to the platform (`simulation/interface.py`)
+
+The request named "Volume V1" and "Interpretation V1". **Neither name exists
+in this codebase.** The interface is therefore defined against what does
+exist. Nothing was rebuilt, and no viewer was touched.
+
+| Platform piece (existing) | What a simulated profile gives it |
+|---|---|
+| Array path: `anomaly_grid_from_traces`, `benchmark.detection.detect_line` | `SyntheticLine.traces`, (n_traces, n_samples) |
+| Record path: `process_gpr_traces` → `preprocess_trace_local_anomaly` → `find_anomaly_candidates`, radargram view | `to_subterra_records`: one `SubterraRecord` per (trace, sample), the shape `SEGYConverter` writes |
+| 3D scene (`ScenePayload`, `views._scene_3d`) | **Nothing.** A profile has model-local x and no geographic or vertical reference, so the scene correctly stays unresolved |
+| Volume (`SubsurfaceVolume`, roadmap M2) | **Nothing yet.** The schema does not exist. Only `GRIDDED_3D_VOLUME` acquisitions will ever be eligible |
+| Ground truth, `SubsurfaceObject`, real-label tally | **Never.** Simulated truth stays in `truth.json` and is used for scoring only |
+
+**Two acquisition kinds, never mixed.**
+- `INDEPENDENT_2D_PROFILE` is everything the corpus holds. Each scene is a
+  2D TM world with infinitely long cylinders. Two profiles are not two
+  slices through one ground, so `volume_eligibility` refuses to stack or
+  interpolate them.
+- `GRIDDED_3D_VOLUME` is reserved for gprMax 3D runs, with many lines over
+  one model. Nothing produces it yet.
+
+**Records.**
+- Position is `LocalCartesianPosition(x = midpoint, y = 0)`. Latitude and
+  longitude are `None`.
+- Depth uses the soil velocity the solver was given, tagged `declared`
+  with an attribution.
+- `ground_truth` is `none`, and `simulated: true` is set on every record.
+
+**Equivalence.** A test runs one analytic line down both paths: array
+(`detect_line`) and records (`find_anomaly_candidates`). Both find the same
+candidates on the same traces.
+
+## Leakage and claim scope
+
+- **Split by draw, not by scene** (`SPLIT_VERSION` 2). The split hashes the
+  geometry group (`draw_s{seed}_{index}`). Any later variant of the same
+  random draw, such as another antenna or a 3D acquisition of the same
+  objects, lands in the same split. Split v1 hashed the full fingerprint;
+  this was changed before any model used a split. The split counts for
+  scenes 0–19 changed as a result.
+- **`simulation/leakage.py`** audits a corpus:
+  - duplicate fingerprints, which must be 0;
+  - draws straddling splits, which must be 0;
+  - near-duplicate geometry across splits once lengths are in wavelengths.
+    Generated scenes scale with the wavelength, so a 250 MHz scene and a
+    2.6 GHz scene can be the same picture. Flagged pairs are reported and
+    never moved, because moving them after seeing results would mean
+    choosing the split.
+- **Every number from the corpus is a simulation result.** It is never
+  merged with, averaged into, or quoted as real-data accuracy. The
+  platform's real-label count stays at 4.
+
 ## Next
 
 - Dielectric-target bottom reflections in `truth.py` (see gen_s0_00013).
