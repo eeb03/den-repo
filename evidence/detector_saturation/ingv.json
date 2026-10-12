@@ -1,0 +1,2854 @@
+{
+ "protocol": "\nReal-data arm (INGV-UNISA and 4TU) of the detector-saturation experiment,\nunder docs/detector-saturation-experiment.md \u00a77. BAM has its own script\n(scripts/bam_detector_saturation.py) because it has object truth; these two\ncorpora do not.\n\n* INGV-UNISA: the 50 content-unique lines (150 files, md5-deduplicated) of the\n  2026-08-06 false-alarm baseline (production: 2,551 candidates, at the\n  trace-permutation chance rate).\n* 4TU: the file subset chosen by scripts/characterise_4tu_null.py's own\n  rule (random.Random(20260807).sample of the sorted file list, 40 files),\n  plus the activity-level comparison of benchmark.fourtu_scoring.\n\nDetector configurations and thresholds are those frozen on synthetic\ntrain+val (simulation/detector_freeze.json); the production ring is also run\nat 3.0. Arm: mean-trace subtraction (the production path). For each line:\ncandidates (components >= min_cells), multi-trace candidates (>= 3 trace\ncolumns), and the same count on N_DRAWS trace-order permutations of the raw\nline (positions kept in place: the null destroys lateral structure only).\n\nInputs at inference are the traces, the sample interval, trace positions from\nthe SEG-Y headers (along-line distance; INGV source X/Y, 4TU group X), and a\nfrequency: 4TU's nominal 500 MHz; for INGV, whose antenna frequency is not in\nthe headers, the spectral peak of the line's own mean amplitude spectrum.\n\n    python -m scripts.real_data_detector_saturation --corpus ingv --out artifacts/realdata/ingv.json\n    python -m scripts.real_data_detector_saturation --corpus 4tu  --out artifacts/realdata/4tu.json\n",
+ "corpus": "ingv",
+ "draws": 10,
+ "files": 50,
+ "summary": {
+  "ring@3.0_production": {
+   "lines": 50,
+   "candidates": 2551,
+   "candidates_per_line": 51.02,
+   "multi_trace": 0,
+   "null_candidates_mean_total": 9323.3,
+   "null_multi_trace_mean_total": 0.0,
+   "lines_candidates_above_null_p95": 0,
+   "lines_multi_trace_p_below_0_05": 0,
+   "median_cpu_s_per_line": 0.04343652050000202
+  },
+  "ring@2.5_synthetic_frozen": {
+   "lines": 50,
+   "candidates": 9362,
+   "candidates_per_line": 187.24,
+   "multi_trace": 0,
+   "null_candidates_mean_total": 22108.7,
+   "null_multi_trace_mean_total": 0.0,
+   "lines_candidates_above_null_p95": 0,
+   "lines_multi_trace_p_below_0_05": 0,
+   "median_cpu_s_per_line": 0.03859156199999347
+  },
+  "ring_widened@3.0_synthetic_frozen": {
+   "lines": 50,
+   "candidates": 5619,
+   "candidates_per_line": 112.38,
+   "multi_trace": 372,
+   "null_candidates_mean_total": 12054.5,
+   "null_multi_trace_mean_total": 28.6,
+   "lines_candidates_above_null_p95": 1,
+   "lines_multi_trace_p_below_0_05": 0,
+   "median_cpu_s_per_line": 0.03745995850000838
+  },
+  "hyperbola_stack@6.0_synthetic_frozen": {
+   "lines": 50,
+   "candidates": 569,
+   "candidates_per_line": 11.38,
+   "multi_trace": 201,
+   "null_candidates_mean_total": 578.2,
+   "null_multi_trace_mean_total": 179.5,
+   "lines_candidates_above_null_p95": 22,
+   "lines_multi_trace_p_below_0_05": 0,
+   "median_cpu_s_per_line": 0.9058042015000041
+  }
+ },
+ "lines": [
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/UAV_drone/C1T_7,5.SGY",
+   "traces": 1999,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.25789360978922105,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 78051272.59052174,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 540,
+     "multi_trace": 0,
+     "cpu_s": 0.523407954,
+     "null_candidates_mean": 2416.8,
+     "null_candidates_p95": 2480.4,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 1893,
+     "multi_trace": 0,
+     "cpu_s": 0.6320330370000002,
+     "null_candidates_mean": 4810.6,
+     "null_candidates_p95": 4866.95,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 1084,
+     "multi_trace": 58,
+     "cpu_s": 0.6669281680000001,
+     "null_candidates_mean": 2665.7,
+     "null_candidates_p95": 2720.95,
+     "null_multi_trace_mean": 5.3,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 118,
+     "multi_trace": 31,
+     "cpu_s": 27.072829599000002,
+     "null_candidates_mean": 244.3,
+     "null_candidates_p95": 272.84999999999997,
+     "null_multi_trace_mean": 82.4,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/UAV_drone/C2T_7,5.SGY",
+   "traces": 499,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2163163870307817,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 85146842.82602373,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 103,
+     "multi_trace": 0,
+     "cpu_s": 0.14573483499999998,
+     "null_candidates_mean": 711.7,
+     "null_candidates_p95": 747.05,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 349,
+     "multi_trace": 0,
+     "cpu_s": 0.13794225000000004,
+     "null_candidates_mean": 1235.0,
+     "null_candidates_p95": 1273.3,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 217,
+     "multi_trace": 26,
+     "cpu_s": 0.12884958400000013,
+     "null_candidates_mean": 735.6,
+     "null_candidates_p95": 749.5,
+     "null_multi_trace_mean": 2.7,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 24,
+     "multi_trace": 11,
+     "cpu_s": 5.510614363,
+     "null_candidates_mean": 15.2,
+     "null_candidates_p95": 21.199999999999996,
+     "null_multi_trace_mean": 2.9,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/UAV_drone/C4T_7,5.SGY",
+   "traces": 554,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2670705592621303,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63860132.11951779,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 94,
+     "multi_trace": 0,
+     "cpu_s": 0.150040125,
+     "null_candidates_mean": 468.0,
+     "null_candidates_p95": 517.5,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 358,
+     "multi_trace": 0,
+     "cpu_s": 0.15284154000000005,
+     "null_candidates_mean": 1178.0,
+     "null_candidates_p95": 1240.25,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 281,
+     "multi_trace": 31,
+     "cpu_s": 0.14275170599999987,
+     "null_candidates_mean": 662.2,
+     "null_candidates_p95": 688.3,
+     "null_multi_trace_mean": 2.1,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 47,
+     "multi_trace": 14,
+     "cpu_s": 4.904648143,
+     "null_candidates_mean": 24.0,
+     "null_candidates_p95": 31.199999999999996,
+     "null_multi_trace_mean": 8.3,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/UAV_drone/c1_7,5.SGY",
+   "traces": 1402,
+   "samples": 484,
+   "dt_ns": 0.293,
+   "spacing_m": 0.26254796971394967,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 84619073.13908556,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 173,
+     "multi_trace": 0,
+     "cpu_s": 0.384377705,
+     "null_candidates_mean": 1533.1,
+     "null_candidates_p95": 1586.65,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 814,
+     "multi_trace": 0,
+     "cpu_s": 0.37717341599999976,
+     "null_candidates_mean": 3344.5,
+     "null_candidates_p95": 3430.05,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 460,
+     "multi_trace": 40,
+     "cpu_s": 0.46732983499999925,
+     "null_candidates_mean": 1781.6,
+     "null_candidates_p95": 1817.25,
+     "null_multi_trace_mean": 2.8,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 102,
+     "multi_trace": 43,
+     "cpu_s": 16.983076845,
+     "null_candidates_mean": 11.8,
+     "null_candidates_p95": 20.299999999999994,
+     "null_multi_trace_mean": 1.3,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/UAV_drone/c2_7,5.SGY",
+   "traces": 1388,
+   "samples": 482,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2757401389869001,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63727642.21885489,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 373,
+     "multi_trace": 0,
+     "cpu_s": 0.406634708,
+     "null_candidates_mean": 1035.6,
+     "null_candidates_p95": 1075.15,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 1496,
+     "multi_trace": 0,
+     "cpu_s": 0.3922916240000003,
+     "null_candidates_mean": 2801.7,
+     "null_candidates_p95": 2848.55,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 788,
+     "multi_trace": 32,
+     "cpu_s": 0.46556470400000016,
+     "null_candidates_mean": 1481.9,
+     "null_candidates_p95": 1524.95,
+     "null_multi_trace_mean": 0.7,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 94,
+     "multi_trace": 29,
+     "cpu_s": 11.203507242999999,
+     "null_candidates_mean": 162.2,
+     "null_candidates_p95": 177.95,
+     "null_multi_trace_mean": 44.4,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/UAV_drone/c8t.SGY",
+   "traces": 190,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2581219871321583,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63860132.11951779,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 25,
+     "multi_trace": 0,
+     "cpu_s": 0.061532082999999994,
+     "null_candidates_mean": 62.4,
+     "null_candidates_p95": 69.64999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 95,
+     "multi_trace": 0,
+     "cpu_s": 0.04227024800000001,
+     "null_candidates_mean": 260.2,
+     "null_candidates_p95": 281.75,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 98,
+     "multi_trace": 5,
+     "cpu_s": 0.053894499999999956,
+     "null_candidates_mean": 157.5,
+     "null_candidates_p95": 179.65,
+     "null_multi_trace_mean": 0.4,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 24,
+     "multi_trace": 4,
+     "cpu_s": 1.4692464459999999,
+     "null_candidates_mean": 44.7,
+     "null_candidates_p95": 57.099999999999994,
+     "null_multi_trace_mean": 13.2,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C1T_7,5_0001.SGY",
+   "traces": 72,
+   "samples": 482,
+   "dt_ns": 0.293,
+   "spacing_m": 0.24569744809903016,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 70808491.35428321,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 25,
+     "multi_trace": 0,
+     "cpu_s": 0.027859958000000518,
+     "null_candidates_mean": 32.2,
+     "null_candidates_p95": 41.3,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.8181818181818182,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 84,
+     "multi_trace": 0,
+     "cpu_s": 0.02435487500000022,
+     "null_candidates_mean": 110.3,
+     "null_candidates_p95": 118.64999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 41,
+     "multi_trace": 0,
+     "cpu_s": 0.026429248999999544,
+     "null_candidates_mean": 55.9,
+     "null_candidates_p95": 62.199999999999996,
+     "null_multi_trace_mean": 0.4,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 0,
+     "multi_trace": 0,
+     "cpu_s": 0.5885896650000007,
+     "null_candidates_mean": 0.1,
+     "null_candidates_p95": 0.5499999999999989,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C1T_7,5_0002.SGY",
+   "traces": 66,
+   "samples": 482,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2755219837902967,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 70808491.35428321,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 12,
+     "multi_trace": 0,
+     "cpu_s": 0.02295133300000174,
+     "null_candidates_mean": 59.4,
+     "null_candidates_p95": 73.3,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 54,
+     "multi_trace": 0,
+     "cpu_s": 0.03275266700000046,
+     "null_candidates_mean": 117.0,
+     "null_candidates_p95": 133.95,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 29,
+     "multi_trace": 4,
+     "cpu_s": 0.03417629199999794,
+     "null_candidates_mean": 62.6,
+     "null_candidates_p95": 69.3,
+     "null_multi_trace_mean": 0.5,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 2,
+     "multi_trace": 1,
+     "cpu_s": 0.7791061230000018,
+     "null_candidates_mean": 4.7,
+     "null_candidates_p95": 8.0,
+     "null_multi_trace_mean": 1.0,
+     "p_candidates": 0.8181818181818182,
+     "p_multi_trace": 0.6363636363636364
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C1T_7,5_0003 (1).SGY",
+   "traces": 40,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2798081297551862,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 78051272.59052174,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 1,
+     "multi_trace": 0,
+     "cpu_s": 0.015483375000002297,
+     "null_candidates_mean": 13.4,
+     "null_candidates_p95": 21.299999999999994,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 6,
+     "multi_trace": 0,
+     "cpu_s": 0.014833832999997298,
+     "null_candidates_mean": 50.3,
+     "null_candidates_p95": 57.55,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 20,
+     "multi_trace": 5,
+     "cpu_s": 0.014481582999998466,
+     "null_candidates_mean": 23.3,
+     "null_candidates_p95": 27.549999999999997,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.9090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 0,
+     "multi_trace": 0,
+     "cpu_s": 0.37021587299999936,
+     "null_candidates_mean": 0.0,
+     "null_candidates_p95": 0.0,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C1T_7,5_0003 (3).SGY",
+   "traces": 172,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.26781602397756643,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 78051272.59052174,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 33,
+     "multi_trace": 0,
+     "cpu_s": 0.0781421249999994,
+     "null_candidates_mean": 159.6,
+     "null_candidates_p95": 176.65,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 127,
+     "multi_trace": 0,
+     "cpu_s": 0.05479766700000255,
+     "null_candidates_mean": 348.0,
+     "null_candidates_p95": 376.05,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 74,
+     "multi_trace": 7,
+     "cpu_s": 0.06274754000000371,
+     "null_candidates_mean": 202.3,
+     "null_candidates_p95": 213.2,
+     "null_multi_trace_mean": 1.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 7,
+     "multi_trace": 3,
+     "cpu_s": 2.026314412000005,
+     "null_candidates_mean": 0.8,
+     "null_candidates_p95": 2.649999999999997,
+     "null_multi_trace_mean": 0.1,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C1T_7,5_0003 (5).SGY",
+   "traces": 34,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.24797138974941735,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 70955702.35501976,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 4,
+     "multi_trace": 0,
+     "cpu_s": 0.01741929099999595,
+     "null_candidates_mean": 8.5,
+     "null_candidates_p95": 15.549999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.9090909090909091,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 19,
+     "multi_trace": 0,
+     "cpu_s": 0.015051416999995126,
+     "null_candidates_mean": 34.7,
+     "null_candidates_p95": 45.39999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 17,
+     "multi_trace": 2,
+     "cpu_s": 0.019542708000003017,
+     "null_candidates_mean": 18.4,
+     "null_candidates_p95": 22.0,
+     "null_multi_trace_mean": 0.6,
+     "p_candidates": 0.8181818181818182,
+     "p_multi_trace": 0.18181818181818182
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 12,
+     "multi_trace": 6,
+     "cpu_s": 0.36978566400000545,
+     "null_candidates_mean": 12.7,
+     "null_candidates_p95": 15.549999999999999,
+     "null_multi_trace_mean": 6.5,
+     "p_candidates": 0.6363636363636364,
+     "p_multi_trace": 0.9090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C1T_7,5_0003 (6).SGY",
+   "traces": 166,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.27650644916497313,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 70955702.35501976,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 56,
+     "multi_trace": 0,
+     "cpu_s": 0.0738484580000005,
+     "null_candidates_mean": 176.9,
+     "null_candidates_p95": 209.49999999999997,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 143,
+     "multi_trace": 0,
+     "cpu_s": 0.06655374900000766,
+     "null_candidates_mean": 379.6,
+     "null_candidates_p95": 412.9,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 93,
+     "multi_trace": 10,
+     "cpu_s": 0.10055754100000058,
+     "null_candidates_mean": 219.2,
+     "null_candidates_p95": 237.95,
+     "null_multi_trace_mean": 0.3,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 1,
+     "multi_trace": 1,
+     "cpu_s": 2.1820809089999926,
+     "null_candidates_mean": 8.2,
+     "null_candidates_p95": 13.549999999999999,
+     "null_multi_trace_mean": 2.5,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C1T_7,5_0004.SGY",
+   "traces": 16,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2662953464361597,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 85146842.82602373,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 4,
+     "multi_trace": 0,
+     "cpu_s": 0.007073832999992646,
+     "null_candidates_mean": 3.0,
+     "null_candidates_p95": 6.199999999999996,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.45454545454545453,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 7,
+     "multi_trace": 0,
+     "cpu_s": 0.009979791000006344,
+     "null_candidates_mean": 11.7,
+     "null_candidates_p95": 15.549999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.9090909090909091,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 11,
+     "multi_trace": 2,
+     "cpu_s": 0.007981624999999326,
+     "null_candidates_mean": 4.1,
+     "null_candidates_p95": 7.0,
+     "null_multi_trace_mean": 0.1,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 4,
+     "multi_trace": 1,
+     "cpu_s": 0.10809687400001167,
+     "null_candidates_mean": 2.9,
+     "null_candidates_p95": 4.549999999999999,
+     "null_multi_trace_mean": 1.1,
+     "p_candidates": 0.45454545454545453,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C1T_7,5_0005 (1).SGY",
+   "traces": 132,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2536713204369576,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 70955702.35501976,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 33,
+     "multi_trace": 0,
+     "cpu_s": 0.0729476240000082,
+     "null_candidates_mean": 50.3,
+     "null_candidates_p95": 59.65,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 132,
+     "multi_trace": 0,
+     "cpu_s": 0.05806574800000419,
+     "null_candidates_mean": 192.7,
+     "null_candidates_p95": 212.14999999999998,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 70,
+     "multi_trace": 5,
+     "cpu_s": 0.04826258399999972,
+     "null_candidates_mean": 89.1,
+     "null_candidates_p95": 98.1,
+     "null_multi_trace_mean": 0.5,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 2,
+     "multi_trace": 1,
+     "cpu_s": 1.3059238280000045,
+     "null_candidates_mean": 0.7,
+     "null_candidates_p95": 2.099999999999998,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.18181818181818182,
+     "p_multi_trace": 0.09090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C1T_7,5_0005 (10).SGY",
+   "traces": 110,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2496702941126201,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63860132.11951779,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 39,
+     "multi_trace": 0,
+     "cpu_s": 0.04514691800000037,
+     "null_candidates_mean": 55.8,
+     "null_candidates_p95": 67.79999999999998,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 108,
+     "multi_trace": 0,
+     "cpu_s": 0.03881299999999044,
+     "null_candidates_mean": 184.2,
+     "null_candidates_p95": 198.2,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 59,
+     "multi_trace": 6,
+     "cpu_s": 0.038352791000008324,
+     "null_candidates_mean": 102.7,
+     "null_candidates_p95": 109.55,
+     "null_multi_trace_mean": 0.3,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 1,
+     "multi_trace": 0,
+     "cpu_s": 1.0079692460000018,
+     "null_candidates_mean": 1.3,
+     "null_candidates_p95": 3.099999999999998,
+     "null_multi_trace_mean": 0.1,
+     "p_candidates": 0.8181818181818182,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C1T_7,5_0005 (11).SGY",
+   "traces": 82,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2771357163185044,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63860132.11951779,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 33,
+     "multi_trace": 0,
+     "cpu_s": 0.03417129099999272,
+     "null_candidates_mean": 50.2,
+     "null_candidates_p95": 59.74999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 112,
+     "multi_trace": 0,
+     "cpu_s": 0.02921545799999592,
+     "null_candidates_mean": 141.2,
+     "null_candidates_p95": 160.7,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 63,
+     "multi_trace": 3,
+     "cpu_s": 0.029323625000003517,
+     "null_candidates_mean": 76.7,
+     "null_candidates_p95": 84.85,
+     "null_multi_trace_mean": 0.3,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 3,
+     "multi_trace": 2,
+     "cpu_s": 0.8371949579999978,
+     "null_candidates_mean": 0.6,
+     "null_candidates_p95": 2.0,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C1T_7,5_0005 (2).SGY",
+   "traces": 112,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2457025048091559,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63860132.11951779,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 24,
+     "multi_trace": 0,
+     "cpu_s": 0.04369770800001049,
+     "null_candidates_mean": 70.0,
+     "null_candidates_p95": 79.55,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 124,
+     "multi_trace": 0,
+     "cpu_s": 0.040418249999987665,
+     "null_candidates_mean": 202.1,
+     "null_candidates_p95": 235.45,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 63,
+     "multi_trace": 12,
+     "cpu_s": 0.037596625000006156,
+     "null_candidates_mean": 117.5,
+     "null_candidates_p95": 125.1,
+     "null_multi_trace_mean": 0.3,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 3,
+     "multi_trace": 0,
+     "cpu_s": 0.8812748710000022,
+     "null_candidates_mean": 1.7,
+     "null_candidates_p95": 3.0,
+     "null_multi_trace_mean": 0.2,
+     "p_candidates": 0.36363636363636365,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C1T_7,5_0005 (3).SGY",
+   "traces": 114,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.26399687651731973,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63860132.11951779,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 81,
+     "multi_trace": 0,
+     "cpu_s": 0.053844334000004324,
+     "null_candidates_mean": 78.7,
+     "null_candidates_p95": 88.3,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.5454545454545454,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 161,
+     "multi_trace": 0,
+     "cpu_s": 0.040298125000006735,
+     "null_candidates_mean": 218.0,
+     "null_candidates_p95": 235.1,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 100,
+     "multi_trace": 1,
+     "cpu_s": 0.040392457999999465,
+     "null_candidates_mean": 111.0,
+     "null_candidates_p95": 119.1,
+     "null_multi_trace_mean": 0.2,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.2727272727272727
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 5,
+     "multi_trace": 1,
+     "cpu_s": 0.9813507030000039,
+     "null_candidates_mean": 1.0,
+     "null_candidates_p95": 2.549999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C1T_7,5_0005 (4).SGY",
+   "traces": 124,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2535088326754753,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 85146842.82602373,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 47,
+     "multi_trace": 0,
+     "cpu_s": 0.04537337499999694,
+     "null_candidates_mean": 160.9,
+     "null_candidates_p95": 179.2,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 147,
+     "multi_trace": 0,
+     "cpu_s": 0.04427187400000321,
+     "null_candidates_mean": 303.2,
+     "null_candidates_p95": 329.0,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 73,
+     "multi_trace": 1,
+     "cpu_s": 0.04997716600000501,
+     "null_candidates_mean": 189.3,
+     "null_candidates_p95": 206.65,
+     "null_multi_trace_mean": 0.6,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.5454545454545454
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 6,
+     "multi_trace": 2,
+     "cpu_s": 1.3385201600000016,
+     "null_candidates_mean": 0.0,
+     "null_candidates_p95": 0.0,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C1T_7,5_0005 (6).SGY",
+   "traces": 116,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.27130306227130774,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 99337983.29702768,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 32,
+     "multi_trace": 0,
+     "cpu_s": 0.054188166999992404,
+     "null_candidates_mean": 119.4,
+     "null_candidates_p95": 133.39999999999998,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 105,
+     "multi_trace": 0,
+     "cpu_s": 0.04073674999999355,
+     "null_candidates_mean": 258.2,
+     "null_candidates_p95": 281.4,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 96,
+     "multi_trace": 5,
+     "cpu_s": 0.0504370830000056,
+     "null_candidates_mean": 152.5,
+     "null_candidates_p95": 174.04999999999998,
+     "null_multi_trace_mean": 0.3,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 9,
+     "multi_trace": 3,
+     "cpu_s": 1.017542953000003,
+     "null_candidates_mean": 0.1,
+     "null_candidates_p95": 0.5499999999999989,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C1T_7,5_0005 (7).SGY",
+   "traces": 112,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2854509249310464,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 99337983.29702768,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 25,
+     "multi_trace": 0,
+     "cpu_s": 0.04580954200000065,
+     "null_candidates_mean": 75.3,
+     "null_candidates_p95": 88.19999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 114,
+     "multi_trace": 0,
+     "cpu_s": 0.03837012399999651,
+     "null_candidates_mean": 217.6,
+     "null_candidates_p95": 232.39999999999998,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 57,
+     "multi_trace": 1,
+     "cpu_s": 0.03732329200001061,
+     "null_candidates_mean": 118.3,
+     "null_candidates_p95": 126.1,
+     "null_multi_trace_mean": 0.5,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.45454545454545453
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 11,
+     "multi_trace": 6,
+     "cpu_s": 0.885098493000001,
+     "null_candidates_mean": 0.5,
+     "null_candidates_p95": 1.549999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C1T_7,5_0005 (9).SGY",
+   "traces": 126,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.24759058070886653,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63860132.11951779,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 37,
+     "multi_trace": 0,
+     "cpu_s": 0.06276066600000263,
+     "null_candidates_mean": 75.0,
+     "null_candidates_p95": 86.3,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 117,
+     "multi_trace": 0,
+     "cpu_s": 0.04980562499999053,
+     "null_candidates_mean": 227.9,
+     "null_candidates_p95": 250.99999999999997,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 73,
+     "multi_trace": 2,
+     "cpu_s": 0.05685183299999608,
+     "null_candidates_mean": 120.7,
+     "null_candidates_p95": 131.1,
+     "null_multi_trace_mean": 0.4,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 0,
+     "multi_trace": 0,
+     "cpu_s": 1.3019736199999983,
+     "null_candidates_mean": 0.1,
+     "null_candidates_p95": 0.5499999999999989,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C2T_7,5_0001 (1).SGY",
+   "traces": 82,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.27251988968599505,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63860132.11951779,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 27,
+     "multi_trace": 0,
+     "cpu_s": 0.030685083999998142,
+     "null_candidates_mean": 59.6,
+     "null_candidates_p95": 74.3,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 112,
+     "multi_trace": 0,
+     "cpu_s": 0.02928475000000219,
+     "null_candidates_mean": 147.1,
+     "null_candidates_p95": 162.2,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 55,
+     "multi_trace": 2,
+     "cpu_s": 0.03127575000000604,
+     "null_candidates_mean": 80.9,
+     "null_candidates_p95": 86.0,
+     "null_multi_trace_mean": 0.1,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 4,
+     "multi_trace": 1,
+     "cpu_s": 0.688614912999995,
+     "null_candidates_mean": 7.3,
+     "null_candidates_p95": 13.0,
+     "null_multi_trace_mean": 1.9,
+     "p_candidates": 0.8181818181818182,
+     "p_multi_trace": 0.8181818181818182
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C2T_7,5_0003 (1).SGY",
+   "traces": 96,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.23642655817440072,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63860132.11951779,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 10,
+     "multi_trace": 0,
+     "cpu_s": 0.04011350000000391,
+     "null_candidates_mean": 74.2,
+     "null_candidates_p95": 93.55,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 61,
+     "multi_trace": 0,
+     "cpu_s": 0.03000020900000777,
+     "null_candidates_mean": 195.9,
+     "null_candidates_p95": 216.75,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 56,
+     "multi_trace": 3,
+     "cpu_s": 0.03376475000000312,
+     "null_candidates_mean": 95.1,
+     "null_candidates_p95": 106.24999999999999,
+     "null_multi_trace_mean": 0.2,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 4,
+     "multi_trace": 2,
+     "cpu_s": 0.9265099100000072,
+     "null_candidates_mean": 3.3,
+     "null_candidates_p95": 5.0,
+     "null_multi_trace_mean": 1.1,
+     "p_candidates": 0.5454545454545454,
+     "p_multi_trace": 0.36363636363636365
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C2T_7,5_0003 (5).SGY",
+   "traces": 129,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.1687693694203789,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63860132.11951779,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 12,
+     "multi_trace": 0,
+     "cpu_s": 0.04538649899998859,
+     "null_candidates_mean": 66.1,
+     "null_candidates_p95": 80.64999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 45,
+     "multi_trace": 0,
+     "cpu_s": 0.047728333000009115,
+     "null_candidates_mean": 214.8,
+     "null_candidates_p95": 229.1,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 45,
+     "multi_trace": 4,
+     "cpu_s": 0.04962499900000239,
+     "null_candidates_mean": 119.0,
+     "null_candidates_p95": 127.19999999999999,
+     "null_multi_trace_mean": 0.4,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 2,
+     "multi_trace": 0,
+     "cpu_s": 2.096298318999999,
+     "null_candidates_mean": 0.1,
+     "null_candidates_p95": 0.5499999999999989,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C4T_7,5_0001 (1).SGY",
+   "traces": 90,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.23466994401115926,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63860132.11951779,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 35,
+     "multi_trace": 0,
+     "cpu_s": 0.04317533299999354,
+     "null_candidates_mean": 55.5,
+     "null_candidates_p95": 66.39999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 98,
+     "multi_trace": 0,
+     "cpu_s": 0.029956083000001854,
+     "null_candidates_mean": 160.2,
+     "null_candidates_p95": 172.95,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 70,
+     "multi_trace": 7,
+     "cpu_s": 0.03107512500000098,
+     "null_candidates_mean": 88.7,
+     "null_candidates_p95": 95.1,
+     "null_multi_trace_mean": 0.1,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 0,
+     "multi_trace": 0,
+     "cpu_s": 0.7640505820000101,
+     "null_candidates_mean": 0.4,
+     "null_candidates_p95": 1.549999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C4T_7,5_0001 (3).SGY",
+   "traces": 90,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2469264734072496,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63860132.11951779,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 30,
+     "multi_trace": 0,
+     "cpu_s": 0.03395374900000547,
+     "null_candidates_mean": 57.1,
+     "null_candidates_p95": 69.94999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 78,
+     "multi_trace": 0,
+     "cpu_s": 0.03205399899999861,
+     "null_candidates_mean": 152.7,
+     "null_candidates_p95": 173.29999999999998,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 57,
+     "multi_trace": 2,
+     "cpu_s": 0.03238216700000862,
+     "null_candidates_mean": 82.2,
+     "null_candidates_p95": 97.49999999999999,
+     "null_multi_trace_mean": 0.2,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 0,
+     "multi_trace": 0,
+     "cpu_s": 0.8231467470000098,
+     "null_candidates_mean": 0.0,
+     "null_candidates_p95": 0.0,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C4T_7,5_0002 (1).SGY",
+   "traces": 78,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2806981081000721,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63860132.11951779,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 26,
+     "multi_trace": 0,
+     "cpu_s": 0.0372811249999927,
+     "null_candidates_mean": 55.8,
+     "null_candidates_p95": 66.55,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 68,
+     "multi_trace": 0,
+     "cpu_s": 0.030101957999988826,
+     "null_candidates_mean": 150.8,
+     "null_candidates_p95": 167.1,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 53,
+     "multi_trace": 3,
+     "cpu_s": 0.028995165999987194,
+     "null_candidates_mean": 86.1,
+     "null_candidates_p95": 102.39999999999999,
+     "null_multi_trace_mean": 0.2,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 0,
+     "multi_trace": 0,
+     "cpu_s": 0.7890714979999984,
+     "null_candidates_mean": 0.0,
+     "null_candidates_p95": 0.0,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C4T_7,5_0002 (2).SGY",
+   "traces": 64,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.31607496756340137,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63860132.11951779,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 18,
+     "multi_trace": 0,
+     "cpu_s": 0.026951083000000153,
+     "null_candidates_mean": 45.4,
+     "null_candidates_p95": 56.39999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 56,
+     "multi_trace": 0,
+     "cpu_s": 0.021650042000004532,
+     "null_candidates_mean": 115.3,
+     "null_candidates_p95": 128.55,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 41,
+     "multi_trace": 2,
+     "cpu_s": 0.02255533300001389,
+     "null_candidates_mean": 68.3,
+     "null_candidates_p95": 81.14999999999999,
+     "null_multi_trace_mean": 0.1,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 0,
+     "multi_trace": 0,
+     "cpu_s": 0.5234695819999899,
+     "null_candidates_mean": 0.0,
+     "null_candidates_p95": 0.0,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/C4T_7,5_0002 (3).SGY",
+   "traces": 82,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.26085526054332675,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63860132.11951779,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 20,
+     "multi_trace": 0,
+     "cpu_s": 0.03521200000000135,
+     "null_candidates_mean": 43.3,
+     "null_candidates_p95": 49.55,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 61,
+     "multi_trace": 0,
+     "cpu_s": 0.025006624000013744,
+     "null_candidates_mean": 132.2,
+     "null_candidates_p95": 141.1,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 44,
+     "multi_trace": 1,
+     "cpu_s": 0.02573091600001476,
+     "null_candidates_mean": 68.9,
+     "null_candidates_p95": 74.64999999999999,
+     "null_multi_trace_mean": 0.2,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.2727272727272727
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 0,
+     "multi_trace": 0,
+     "cpu_s": 0.6990292069999953,
+     "null_candidates_mean": 0.0,
+     "null_candidates_p95": 0.0,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c1_7,5_0001 (1).SGY",
+   "traces": 52,
+   "samples": 492,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2216479470831083,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 76306223.81309138,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 7,
+     "multi_trace": 0,
+     "cpu_s": 0.03081470699999045,
+     "null_candidates_mean": 15.5,
+     "null_candidates_p95": 19.549999999999997,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 13,
+     "multi_trace": 0,
+     "cpu_s": 0.017635041999994883,
+     "null_candidates_mean": 54.9,
+     "null_candidates_p95": 68.24999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 11,
+     "multi_trace": 2,
+     "cpu_s": 0.018605166000014606,
+     "null_candidates_mean": 25.7,
+     "null_candidates_p95": 32.94999999999999,
+     "null_multi_trace_mean": 0.2,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 5,
+     "multi_trace": 2,
+     "cpu_s": 0.6706965819999766,
+     "null_candidates_mean": 5.9,
+     "null_candidates_p95": 8.099999999999998,
+     "null_multi_trace_mean": 3.2,
+     "p_candidates": 0.9090909090909091,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c1_7,5_0001 (11).SGY",
+   "traces": 50,
+   "samples": 489,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2423523853846925,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 83753847.44236688,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 8,
+     "multi_trace": 0,
+     "cpu_s": 0.017152039999984936,
+     "null_candidates_mean": 19.7,
+     "null_candidates_p95": 25.0,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 16,
+     "multi_trace": 0,
+     "cpu_s": 0.01691154100001313,
+     "null_candidates_mean": 61.7,
+     "null_candidates_p95": 71.1,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 20,
+     "multi_trace": 3,
+     "cpu_s": 0.019097708000003877,
+     "null_candidates_mean": 27.6,
+     "null_candidates_p95": 30.549999999999997,
+     "null_multi_trace_mean": 0.3,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 4,
+     "multi_trace": 3,
+     "cpu_s": 0.6004491219999863,
+     "null_candidates_mean": 5.9,
+     "null_candidates_p95": 8.649999999999997,
+     "null_multi_trace_mean": 2.7,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.7272727272727273
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c1_7,5_0001 (2).SGY",
+   "traces": 52,
+   "samples": 488,
+   "dt_ns": 0.293,
+   "spacing_m": 0.24025917563050214,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 83925474.17892912,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 7,
+     "multi_trace": 0,
+     "cpu_s": 0.021510083999999097,
+     "null_candidates_mean": 19.5,
+     "null_candidates_p95": 23.099999999999998,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 33,
+     "multi_trace": 0,
+     "cpu_s": 0.02022133399998438,
+     "null_candidates_mean": 70.0,
+     "null_candidates_p95": 86.64999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 28,
+     "multi_trace": 5,
+     "cpu_s": 0.020564374999992197,
+     "null_candidates_mean": 39.0,
+     "null_candidates_p95": 45.55,
+     "null_multi_trace_mean": 0.5,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 0,
+     "multi_trace": 0,
+     "cpu_s": 0.46683108100000936,
+     "null_candidates_mean": 0.0,
+     "null_candidates_p95": 0.0,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c1_7,5_0001 (4).SGY",
+   "traces": 50,
+   "samples": 493,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2508946131579539,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 83074303.04121178,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 5,
+     "multi_trace": 0,
+     "cpu_s": 0.01828466599999956,
+     "null_candidates_mean": 23.9,
+     "null_candidates_p95": 30.65,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 12,
+     "multi_trace": 0,
+     "cpu_s": 0.016632375000000366,
+     "null_candidates_mean": 79.0,
+     "null_candidates_p95": 90.0,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 23,
+     "multi_trace": 4,
+     "cpu_s": 0.018720042000012427,
+     "null_candidates_mean": 39.9,
+     "null_candidates_p95": 48.849999999999994,
+     "null_multi_trace_mean": 0.2,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 2,
+     "multi_trace": 1,
+     "cpu_s": 0.513956329999985,
+     "null_candidates_mean": 4.3,
+     "null_candidates_p95": 7.549999999999999,
+     "null_multi_trace_mean": 2.2,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.9090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c1_7,5_0001 (7).SGY",
+   "traces": 52,
+   "samples": 491,
+   "dt_ns": 0.293,
+   "spacing_m": 0.22161999826578516,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 76461633.63755795,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 4,
+     "multi_trace": 0,
+     "cpu_s": 0.017723499999988235,
+     "null_candidates_mean": 21.6,
+     "null_candidates_p95": 29.39999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 19,
+     "multi_trace": 0,
+     "cpu_s": 0.017726916999976083,
+     "null_candidates_mean": 79.2,
+     "null_candidates_p95": 97.79999999999998,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 21,
+     "multi_trace": 3,
+     "cpu_s": 0.017443958999990627,
+     "null_candidates_mean": 34.7,
+     "null_candidates_p95": 41.849999999999994,
+     "null_multi_trace_mean": 0.4,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 3,
+     "multi_trace": 3,
+     "cpu_s": 0.543239538999984,
+     "null_candidates_mean": 3.6,
+     "null_candidates_p95": 6.549999999999999,
+     "null_multi_trace_mean": 2.2,
+     "p_candidates": 0.7272727272727273,
+     "p_multi_trace": 0.45454545454545453
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c1_7,5_0002 (2).SGY",
+   "traces": 56,
+   "samples": 487,
+   "dt_ns": 0.293,
+   "spacing_m": 0.23208113051459156,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 77089655.26907794,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 10,
+     "multi_trace": 0,
+     "cpu_s": 0.018117332999992186,
+     "null_candidates_mean": 24.8,
+     "null_candidates_p95": 30.099999999999998,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 41,
+     "multi_trace": 0,
+     "cpu_s": 0.018947539999999208,
+     "null_candidates_mean": 77.7,
+     "null_candidates_p95": 92.55,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 26,
+     "multi_trace": 2,
+     "cpu_s": 0.0175668329999894,
+     "null_candidates_mean": 37.8,
+     "null_candidates_p95": 43.0,
+     "null_multi_trace_mean": 0.2,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 1,
+     "multi_trace": 1,
+     "cpu_s": 0.6181934170000147,
+     "null_candidates_mean": 0.0,
+     "null_candidates_p95": 0.0,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c1_7,5_0002 (4).SGY",
+   "traces": 62,
+   "samples": 485,
+   "dt_ns": 0.293,
+   "spacing_m": 0.3024210713152691,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 105555751.02916859,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 7,
+     "multi_trace": 0,
+     "cpu_s": 0.021479250999988153,
+     "null_candidates_mean": 29.2,
+     "null_candidates_p95": 38.499999999999986,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 41,
+     "multi_trace": 0,
+     "cpu_s": 0.019575915999979543,
+     "null_candidates_mean": 97.2,
+     "null_candidates_p95": 110.85,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 27,
+     "multi_trace": 1,
+     "cpu_s": 0.023183501000005435,
+     "null_candidates_mean": 49.2,
+     "null_candidates_p95": 58.74999999999999,
+     "null_multi_trace_mean": 0.3,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.36363636363636365
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 1,
+     "multi_trace": 0,
+     "cpu_s": 0.39750970600002233,
+     "null_candidates_mean": 0.1,
+     "null_candidates_p95": 0.5499999999999989,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.18181818181818182,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c1_7,5_0002 (5).SGY",
+   "traces": 186,
+   "samples": 484,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2841614467698719,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 70515894.2825713,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 52,
+     "multi_trace": 0,
+     "cpu_s": 0.06462879100001828,
+     "null_candidates_mean": 127.7,
+     "null_candidates_p95": 147.45,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 187,
+     "multi_trace": 0,
+     "cpu_s": 0.05924695799998858,
+     "null_candidates_mean": 351.5,
+     "null_candidates_p95": 369.5,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 90,
+     "multi_trace": 7,
+     "cpu_s": 0.05728129099998114,
+     "null_candidates_mean": 188.7,
+     "null_candidates_p95": 202.2,
+     "null_multi_trace_mean": 0.1,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 13,
+     "multi_trace": 2,
+     "cpu_s": 1.6158768290000012,
+     "null_candidates_mean": 0.2,
+     "null_candidates_p95": 1.0,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c1_7,5_0002 (6).SGY",
+   "traces": 98,
+   "samples": 484,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2774406958364999,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 70515894.2825713,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 20,
+     "multi_trace": 0,
+     "cpu_s": 0.034253707999994276,
+     "null_candidates_mean": 53.5,
+     "null_candidates_p95": 65.3,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 90,
+     "multi_trace": 0,
+     "cpu_s": 0.03798662500000205,
+     "null_candidates_mean": 170.9,
+     "null_candidates_p95": 185.2,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 53,
+     "multi_trace": 2,
+     "cpu_s": 0.033614833000001454,
+     "null_candidates_mean": 85.7,
+     "null_candidates_p95": 98.24999999999999,
+     "null_multi_trace_mean": 0.2,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.18181818181818182
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 1,
+     "multi_trace": 0,
+     "cpu_s": 0.7241670379999903,
+     "null_candidates_mean": 0.0,
+     "null_candidates_p95": 0.0,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c1_7,5_0002 (7).SGY",
+   "traces": 102,
+   "samples": 484,
+   "dt_ns": 0.293,
+   "spacing_m": 0.26198960535192717,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63464304.85431417,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 21,
+     "multi_trace": 0,
+     "cpu_s": 0.037630833999998003,
+     "null_candidates_mean": 49.5,
+     "null_candidates_p95": 62.3,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 85,
+     "multi_trace": 0,
+     "cpu_s": 0.03195395899999198,
+     "null_candidates_mean": 176.5,
+     "null_candidates_p95": 202.14999999999998,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 44,
+     "multi_trace": 1,
+     "cpu_s": 0.07960649799997555,
+     "null_candidates_mean": 77.8,
+     "null_candidates_p95": 86.75,
+     "null_multi_trace_mean": 0.6,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.45454545454545453
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 0,
+     "multi_trace": 0,
+     "cpu_s": 0.9502347869999994,
+     "null_candidates_mean": 0.1,
+     "null_candidates_p95": 0.5499999999999989,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c1_7,5_0002 (8).SGY",
+   "traces": 184,
+   "samples": 483,
+   "dt_ns": 0.293,
+   "spacing_m": 0.28031130630071743,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 105992834.88436182,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 49,
+     "multi_trace": 0,
+     "cpu_s": 0.06710787399998708,
+     "null_candidates_mean": 103.2,
+     "null_candidates_p95": 118.1,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 198,
+     "multi_trace": 0,
+     "cpu_s": 0.07166675000001987,
+     "null_candidates_mean": 314.1,
+     "null_candidates_p95": 342.0,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 84,
+     "multi_trace": 5,
+     "cpu_s": 0.07553999699999281,
+     "null_candidates_mean": 153.8,
+     "null_candidates_p95": 162.75,
+     "null_multi_trace_mean": 0.4,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 6,
+     "multi_trace": 3,
+     "cpu_s": 1.981077325000001,
+     "null_candidates_mean": 0.2,
+     "null_candidates_p95": 1.0999999999999979,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c2_7,5_0001 (1).SGY",
+   "traces": 24,
+   "samples": 483,
+   "dt_ns": 0.293,
+   "spacing_m": 0.04521224191828255,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 84794267.90748946,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 2,
+     "multi_trace": 0,
+     "cpu_s": 0.010650292000008221,
+     "null_candidates_mean": 28.0,
+     "null_candidates_p95": 53.499999999999986,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 10,
+     "multi_trace": 0,
+     "cpu_s": 0.009127833999997392,
+     "null_candidates_mean": 48.2,
+     "null_candidates_p95": 68.14999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 26,
+     "multi_trace": 4,
+     "cpu_s": 0.00897650000001704,
+     "null_candidates_mean": 42.5,
+     "null_candidates_p95": 55.099999999999994,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 2,
+     "multi_trace": 2,
+     "cpu_s": 0.18738483299998165,
+     "null_candidates_mean": 2.1,
+     "null_candidates_p95": 2.549999999999999,
+     "null_multi_trace_mean": 2.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c2_7,5_0001 (2).SGY",
+   "traces": 210,
+   "samples": 482,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2872212002467194,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63727642.21885489,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 51,
+     "multi_trace": 0,
+     "cpu_s": 0.10160112500000196,
+     "null_candidates_mean": 139.7,
+     "null_candidates_p95": 149.55,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 205,
+     "multi_trace": 0,
+     "cpu_s": 0.06992808399999717,
+     "null_candidates_mean": 380.3,
+     "null_candidates_p95": 399.3,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 136,
+     "multi_trace": 10,
+     "cpu_s": 0.07781858300000977,
+     "null_candidates_mean": 205.1,
+     "null_candidates_p95": 218.75,
+     "null_multi_trace_mean": 0.1,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 6,
+     "multi_trace": 4,
+     "cpu_s": 1.5769909960000064,
+     "null_candidates_mean": 3.2,
+     "null_candidates_p95": 5.549999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.18181818181818182,
+     "p_multi_trace": 0.09090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c2_7,5_0001 (3).SGY",
+   "traces": 192,
+   "samples": 482,
+   "dt_ns": 0.293,
+   "spacing_m": 0.30061508551466254,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63727642.21885489,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 60,
+     "multi_trace": 0,
+     "cpu_s": 0.07179974899997887,
+     "null_candidates_mean": 145.0,
+     "null_candidates_p95": 164.1,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 248,
+     "multi_trace": 0,
+     "cpu_s": 0.06530420699999695,
+     "null_candidates_mean": 367.4,
+     "null_candidates_p95": 391.55,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 131,
+     "multi_trace": 5,
+     "cpu_s": 0.07465991800000893,
+     "null_candidates_mean": 182.4,
+     "null_candidates_p95": 193.55,
+     "null_multi_trace_mean": 0.3,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 8,
+     "multi_trace": 6,
+     "cpu_s": 2.1614400789999877,
+     "null_candidates_mean": 0.3,
+     "null_candidates_p95": 1.549999999999999,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c2_7,5_0001 (4).SGY",
+   "traces": 202,
+   "samples": 483,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2750380206716585,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63595700.930617094,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 73,
+     "multi_trace": 0,
+     "cpu_s": 0.07517620900000566,
+     "null_candidates_mean": 154.9,
+     "null_candidates_p95": 168.29999999999998,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 222,
+     "multi_trace": 0,
+     "cpu_s": 0.06480445700000814,
+     "null_candidates_mean": 408.2,
+     "null_candidates_p95": 424.79999999999995,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 124,
+     "multi_trace": 10,
+     "cpu_s": 0.07297754199998963,
+     "null_candidates_mean": 228.9,
+     "null_candidates_p95": 242.7,
+     "null_multi_trace_mean": 0.6,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 9,
+     "multi_trace": 3,
+     "cpu_s": 1.8736187420000192,
+     "null_candidates_mean": 0.1,
+     "null_candidates_p95": 0.5499999999999989,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c2_7,5_0001 (7).SGY",
+   "traces": 194,
+   "samples": 482,
+   "dt_ns": 0.293,
+   "spacing_m": 0.29512588771556203,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63727642.21885489,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 48,
+     "multi_trace": 0,
+     "cpu_s": 0.07467412400001194,
+     "null_candidates_mean": 147.8,
+     "null_candidates_p95": 174.0,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 208,
+     "multi_trace": 0,
+     "cpu_s": 0.0674024989999964,
+     "null_candidates_mean": 396.0,
+     "null_candidates_p95": 432.4,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 117,
+     "multi_trace": 10,
+     "cpu_s": 0.07437558299997704,
+     "null_candidates_mean": 226.8,
+     "null_candidates_p95": 237.65,
+     "null_multi_trace_mean": 0.8,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 8,
+     "multi_trace": 4,
+     "cpu_s": 2.130789034000003,
+     "null_candidates_mean": 0.6,
+     "null_candidates_p95": 2.099999999999998,
+     "null_multi_trace_mean": 0.1,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c2_7,5_0001 (8).SGY",
+   "traces": 208,
+   "samples": 482,
+   "dt_ns": 0.293,
+   "spacing_m": 0.2894105854276354,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63727642.21885489,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 53,
+     "multi_trace": 0,
+     "cpu_s": 0.07912166600002024,
+     "null_candidates_mean": 111.9,
+     "null_candidates_p95": 127.55,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 204,
+     "multi_trace": 0,
+     "cpu_s": 0.0913032919999921,
+     "null_candidates_mean": 378.3,
+     "null_candidates_p95": 422.0,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 141,
+     "multi_trace": 5,
+     "cpu_s": 0.10225562600001581,
+     "null_candidates_mean": 195.7,
+     "null_candidates_p95": 205.0,
+     "null_multi_trace_mean": 0.5,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 1,
+     "multi_trace": 0,
+     "cpu_s": 1.6825052430000085,
+     "null_candidates_mean": 0.0,
+     "null_candidates_p95": 0.0,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c2_7,5_0001 (9).SGY",
+   "traces": 242,
+   "samples": 482,
+   "dt_ns": 0.293,
+   "spacing_m": 0.23735156529585666,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 70808491.35428321,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 78,
+     "multi_trace": 0,
+     "cpu_s": 0.09569395799999825,
+     "null_candidates_mean": 160.3,
+     "null_candidates_p95": 176.89999999999998,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 293,
+     "multi_trace": 0,
+     "cpu_s": 0.09087379100000703,
+     "null_candidates_mean": 465.0,
+     "null_candidates_p95": 497.29999999999995,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 119,
+     "multi_trace": 4,
+     "cpu_s": 0.09281662300000448,
+     "null_candidates_mean": 237.1,
+     "null_candidates_p95": 251.1,
+     "null_multi_trace_mean": 0.6,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 12,
+     "multi_trace": 5,
+     "cpu_s": 2.6591061569999965,
+     "null_candidates_mean": 2.7,
+     "null_candidates_p95": 5.0,
+     "null_multi_trace_mean": 0.1,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c8t_0001 (2).SGY",
+   "traces": 82,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.26927808746150994,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63860132.11951779,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 10,
+     "multi_trace": 0,
+     "cpu_s": 0.027747624999989284,
+     "null_candidates_mean": 23.7,
+     "null_candidates_p95": 33.55,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 53,
+     "multi_trace": 0,
+     "cpu_s": 0.02559187499997506,
+     "null_candidates_mean": 100.5,
+     "null_candidates_p95": 114.6,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 41,
+     "multi_trace": 4,
+     "cpu_s": 0.02680395900000576,
+     "null_candidates_mean": 51.5,
+     "null_candidates_p95": 61.199999999999996,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.9090909090909091,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 0,
+     "multi_trace": 0,
+     "cpu_s": 0.6147493310000129,
+     "null_candidates_mean": 0.1,
+     "null_candidates_p95": 0.5499999999999989,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    }
+   }
+  },
+  {
+   "path": "datasets/downloads/INGV-UNISA Site 1 GPR v2_extracted/Site_1/ground_cart/c8t_0001 (3).SGY",
+   "traces": 92,
+   "samples": 481,
+   "dt_ns": 0.293,
+   "spacing_m": 0.24451968791898082,
+   "position_source": "source_xy_path_length_uniform",
+   "frequency_hz": 63860132.11951779,
+   "frequency_source": "spectral_peak",
+   "detectors": {
+    "ring@3.0_production": {
+     "threshold": 3.0,
+     "candidates": 14,
+     "multi_trace": 0,
+     "cpu_s": 0.03393654200002061,
+     "null_candidates_mean": 50.7,
+     "null_candidates_p95": 60.65,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring@2.5_synthetic_frozen": {
+     "threshold": 2.5,
+     "candidates": 40,
+     "multi_trace": 0,
+     "cpu_s": 0.05583179199999222,
+     "null_candidates_mean": 136.4,
+     "null_candidates_p95": 155.39999999999998,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 1.0,
+     "p_multi_trace": 1.0
+    },
+    "ring_widened@3.0_synthetic_frozen": {
+     "threshold": 3.0,
+     "candidates": 69,
+     "multi_trace": 3,
+     "cpu_s": 0.035811166000002004,
+     "null_candidates_mean": 87.3,
+     "null_candidates_p95": 96.85,
+     "null_multi_trace_mean": 0.5,
+     "p_candidates": 1.0,
+     "p_multi_trace": 0.09090909090909091
+    },
+    "hyperbola_stack@6.0_synthetic_frozen": {
+     "threshold": 6.0,
+     "candidates": 2,
+     "multi_trace": 0,
+     "cpu_s": 0.8286410789999934,
+     "null_candidates_mean": 0.1,
+     "null_candidates_p95": 0.5499999999999989,
+     "null_multi_trace_mean": 0.0,
+     "p_candidates": 0.09090909090909091,
+     "p_multi_trace": 1.0
+    }
+   }
+  }
+ ]
+}

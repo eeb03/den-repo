@@ -144,3 +144,107 @@ def test_every_arm_runs_and_reports_the_same_fields():
     line = _line()
     keys = {frozenset(score_scene(line, arm)) for arm in ARMS}
     assert len(keys) == 1
+
+
+# --- detector comparison (candidate detectors; production unchanged) ---------
+
+import dataclasses  # noqa: E402
+
+from benchmark.hyperbola_stack import VELOCITY_GRID, estimate_time_zero, hyperbola_stack  # noqa: E402
+from simulation.background_benchmark import score_located  # noqa: E402
+from simulation.detector_comparison import (  # noqa: E402
+    BACKGROUNDS, CONFIGS, _locate, add_noise, config_id, detector_grid, target_attributes,
+)
+
+
+def _detect(line, det, cfg=None, arm="target_free_reference_oracle", threshold=3.0):
+    cfg = CONFIGS[det][0] if cfg is None else cfg
+    tz = estimate_time_zero(line.traces, line.dt_s, line.time_offset_s)
+    z, v_hat = detector_grid(det, cfg, BACKGROUNDS[arm](line), line, tz, S.centre_frequency)
+    return score_located(line, _locate(line, z, v_hat, threshold))
+
+
+HYP45 = {"cone_half_angle_deg": 45.0, "tolerance_periods": 0.0}
+
+
+def test_hyperbola_stack_finds_the_full_width_hyperbola_the_ring_cannot():
+    line = digitise(_line(), 20)
+    assert not _detect(line, "ring")["targets"][0]["detected"]
+    (target,) = _detect(line, "hyperbola_stack", HYP45)["targets"]
+    assert target["detected"]
+    wavelength = S.soil.velocity / S.centre_frequency
+    assert abs(target["lateral_error_m"]) <= wavelength / 2
+    assert abs(target["depth_error_wavelengths"]) < 0.5
+    # A velocity is estimated (localisation), but this fixture is a shallow,
+    # 4 cm-offset target (depth 9 cm): the zero-offset point model is biased
+    # here by construction, so only the sign of a real estimate is pinned.
+    assert target["velocity_error_fraction"] is not None
+
+
+def test_detectors_never_read_truth():
+    """Every detector runs, unchanged, on a line whose truth, soil velocity
+    and target-free twin are garbage: none of them is an inference input."""
+    line = digitise(_line(), 20)
+    blind = dataclasses.replace(line, truth={}, soil_velocity_m_per_s=float("nan"),
+                                background=np.full_like(line.background, np.nan))
+    tz = estimate_time_zero(line.traces, line.dt_s, line.time_offset_s)
+    for det, cfgs in CONFIGS.items():
+        for arm in ("mean_trace_subtraction", "no_background_removal"):
+            z1, _ = detector_grid(det, cfgs[0], BACKGROUNDS[arm](line), line, tz, S.centre_frequency)
+            z2, _ = detector_grid(det, cfgs[0], BACKGROUNDS[arm](blind), blind, tz, S.centre_frequency)
+            np.testing.assert_array_equal(z1, z2)
+
+
+def test_time_zero_comes_from_the_direct_wave_in_the_data():
+    line = digitise(_line(), 20)
+    tz = estimate_time_zero(line.traces, line.dt_s, line.time_offset_s)
+    assert abs(tz - 0.9e-9) <= 2 * line.dt_s  # the fixture's direct-wave delay
+
+
+def test_hyperbola_stack_ignores_flat_events():
+    """Direct wave only, no background removal: a flat event stacks equally
+    along hyperbola and flat line, so the one-sided contrast stays quiet."""
+    line = digitise(_line(with_target=False), 20)
+    line = dataclasses.replace(line, truth=dict(line.truth, targets=[]))
+    result = _detect(line, "hyperbola_stack", HYP45, arm="no_background_removal")
+    assert result["n_detections"] == 0
+
+
+def test_hyperbola_stack_orientation_and_velocity_grid():
+    line = digitise(_line(), 20)
+    z, v_hat = hyperbola_stack(line.traces, line.midpoint_x_m, line.dt_s, line.time_offset_s,
+                               estimate_time_zero(line.traces, line.dt_s, line.time_offset_s),
+                               S.centre_frequency, cone_half_angle_deg=30.0, tolerance_periods=0.25)
+    assert z.shape == v_hat.shape == (line.traces.shape[1], line.traces.shape[0])
+    assert set(np.unique(v_hat[np.isfinite(v_hat)])) <= set(VELOCITY_GRID)
+    assert np.nanmin(z) >= 0.0
+
+
+def test_tolerance_needs_the_nominal_frequency():
+    line = digitise(_line(), 20)
+    with pytest.raises(ValueError):
+        hyperbola_stack(line.traces, line.midpoint_x_m, line.dt_s, line.time_offset_s, 1e-9,
+                        None, tolerance_periods=0.25)
+
+
+def test_search_space_is_the_preregistered_one():
+    assert [config_id("ring_widened", c) for c in CONFIGS["ring_widened"]][0] == "ring_widened[t5-9,d5-15]"
+    assert len(CONFIGS["ring_widened"]) == 6 and len(CONFIGS["hyperbola_stack"]) == 6
+    assert CONFIGS["ring"] == [{}]
+
+
+def test_noise_is_seeded_and_never_touches_the_twin():
+    line = digitise(_line(), 20)
+    a, b = add_noise(line, 1e-3, 1), add_noise(line, 1e-3, 1)
+    np.testing.assert_array_equal(a.traces, b.traces)
+    assert not np.array_equal(a.traces, line.traces)
+    np.testing.assert_array_equal(a.background, line.background)
+    assert not np.array_equal(add_noise(line, 1e-3, 2).traces, a.traces)
+    assert add_noise(line, None, 0) is line
+
+
+def test_target_attributes():
+    line = digitise(_line(), 20)
+    (a,) = target_attributes(line).values()
+    assert a["strength"] in {"weak", "moderate", "strong"} and a["overlapping"] is False
+    assert a["label"] == S.targets[0].label

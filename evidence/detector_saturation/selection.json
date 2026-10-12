@@ -1,0 +1,5976 @@
+{
+ "freeze": {
+  "frozen_before_test": true,
+  "rule": "max train+val recall with fp_per_scan <= 1.0; ties -> higher threshold, then the configuration listed first",
+  "primary_condition": "instrument_20spp|noise_4tu_median",
+  "primary_arm": "mean_trace_subtraction",
+  "selection_scenes": 246,
+  "detectors": {
+   "ring": {
+    "config": {},
+    "config_id": "ring",
+    "threshold": 2.5,
+    "train_val_recall": 0.01557632398753894
+   },
+   "ring_widened": {
+    "config": {
+     "trace": [
+      11,
+      21
+     ],
+     "depth": [
+      9,
+      27
+     ]
+    },
+    "config_id": "ring_widened[t11-21,d9-27]",
+    "threshold": 3.0,
+    "train_val_recall": 0.11214953271028037
+   },
+   "hyperbola_stack": {
+    "config": {
+     "cone_half_angle_deg": 45.0,
+     "tolerance_periods": 0.25
+    },
+    "config_id": "hyperbola_stack[cone45,tol0.25]",
+    "threshold": 6.0,
+    "train_val_recall": 0.7009345794392523
+   },
+   "ring_production_threshold": {
+    "config": {},
+    "config_id": "ring",
+    "threshold": 3.0
+   }
+  }
+ },
+ "table": {
+  "ring@2.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 70,
+    "detections": 2386,
+    "recall": 0.21806853582554517,
+    "precision": 0.02933780385582565,
+    "fp_per_scan": 9.414634146341463,
+    "fp_clutter_per_scan": 8.227642276422765,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 12.510204081632653
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 64,
+    "detections": 2028,
+    "recall": 0.2302158273381295,
+    "precision": 0.03155818540433925,
+    "fp_per_scan": 9.308056872037914,
+    "fp_clutter_per_scan": 8.104265402843602,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 11.78048780487805
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 6,
+    "detections": 358,
+    "recall": 0.13953488372093023,
+    "precision": 0.01675977653631285,
+    "fp_per_scan": 10.057142857142857,
+    "fp_clutter_per_scan": 8.971428571428572,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 16.25
+   }
+  },
+  "ring@2.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 5,
+    "detections": 59,
+    "recall": 0.01557632398753894,
+    "precision": 0.0847457627118644,
+    "fp_per_scan": 0.21951219512195122,
+    "fp_clutter_per_scan": 0.2073170731707317,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.3877551020408163
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 5,
+    "detections": 48,
+    "recall": 0.017985611510791366,
+    "precision": 0.10416666666666667,
+    "fp_per_scan": 0.2037914691943128,
+    "fp_clutter_per_scan": 0.1943127962085308,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.36585365853658536
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 11,
+    "recall": 0.0,
+    "precision": 0.0,
+    "fp_per_scan": 0.3142857142857143,
+    "fp_clutter_per_scan": 0.2857142857142857,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.5
+   }
+  },
+  "ring@3.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring@3.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring@4.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring@5.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring@6.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring@8.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring@10.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring@15.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring@20.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring@30.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d5-15]@2.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 271,
+    "detections": 5058,
+    "recall": 0.8442367601246106,
+    "precision": 0.05357848952155002,
+    "fp_per_scan": 19.459349593495936,
+    "fp_clutter_per_scan": 14.329268292682928,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 12.040816326530612
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 235,
+    "detections": 4393,
+    "recall": 0.8453237410071942,
+    "precision": 0.0534941953107216,
+    "fp_per_scan": 19.70616113744076,
+    "fp_clutter_per_scan": 14.431279620853081,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 11.536585365853659
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 36,
+    "detections": 665,
+    "recall": 0.8372093023255814,
+    "precision": 0.05413533834586466,
+    "fp_per_scan": 17.97142857142857,
+    "fp_clutter_per_scan": 13.714285714285714,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 14.625
+   }
+  },
+  "ring_widened[t5-9,d5-15]@2.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 42,
+    "detections": 427,
+    "recall": 0.1308411214953271,
+    "precision": 0.09836065573770492,
+    "fp_per_scan": 1.565040650406504,
+    "fp_clutter_per_scan": 1.170731707317073,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.6122448979591837
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 38,
+    "detections": 379,
+    "recall": 0.1366906474820144,
+    "precision": 0.10026385224274406,
+    "fp_per_scan": 1.6161137440758293,
+    "fp_clutter_per_scan": 1.2227488151658767,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.5609756097560976
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 4,
+    "detections": 48,
+    "recall": 0.09302325581395349,
+    "precision": 0.08333333333333333,
+    "fp_per_scan": 1.2571428571428571,
+    "fp_clutter_per_scan": 0.8571428571428571,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.875
+   }
+  },
+  "ring_widened[t5-9,d5-15]@3.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 4,
+    "detections": 23,
+    "recall": 0.012461059190031152,
+    "precision": 0.17391304347826086,
+    "fp_per_scan": 0.07723577235772358,
+    "fp_clutter_per_scan": 0.06910569105691057,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 4,
+    "detections": 23,
+    "recall": 0.014388489208633094,
+    "precision": 0.17391304347826086,
+    "fp_per_scan": 0.09004739336492891,
+    "fp_clutter_per_scan": 0.08056872037914692,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d5-15]@3.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d5-15]@4.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d5-15]@5.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d5-15]@6.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d5-15]@8.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d5-15]@10.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d5-15]@15.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d5-15]@20.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d5-15]@30.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d9-27]@2.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 310,
+    "detections": 7194,
+    "recall": 0.9657320872274143,
+    "precision": 0.04309146510981374,
+    "fp_per_scan": 27.983739837398375,
+    "fp_clutter_per_scan": 16.19918699186992,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 11.142857142857142
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 268,
+    "detections": 6244,
+    "recall": 0.9640287769784173,
+    "precision": 0.042921204356181936,
+    "fp_per_scan": 28.322274881516588,
+    "fp_clutter_per_scan": 16.255924170616115,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 10.707317073170731
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 42,
+    "detections": 950,
+    "recall": 0.9767441860465116,
+    "precision": 0.04421052631578947,
+    "fp_per_scan": 25.942857142857143,
+    "fp_clutter_per_scan": 15.857142857142858,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 13.375
+   }
+  },
+  "ring_widened[t5-9,d9-27]@2.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 230,
+    "detections": 1581,
+    "recall": 0.7165109034267912,
+    "precision": 0.1454775458570525,
+    "fp_per_scan": 5.491869918699187,
+    "fp_clutter_per_scan": 3.6463414634146343,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.40816326530612246
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 200,
+    "detections": 1353,
+    "recall": 0.7194244604316546,
+    "precision": 0.14781966001478197,
+    "fp_per_scan": 5.464454976303317,
+    "fp_clutter_per_scan": 3.639810426540284,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.3902439024390244
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 30,
+    "detections": 228,
+    "recall": 0.6976744186046512,
+    "precision": 0.13157894736842105,
+    "fp_per_scan": 5.6571428571428575,
+    "fp_clutter_per_scan": 3.6857142857142855,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.5
+   }
+  },
+  "ring_widened[t5-9,d9-27]@3.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 28,
+    "detections": 102,
+    "recall": 0.08722741433021806,
+    "precision": 0.27450980392156865,
+    "fp_per_scan": 0.3008130081300813,
+    "fp_clutter_per_scan": 0.2073170731707317,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 26,
+    "detections": 89,
+    "recall": 0.09352517985611511,
+    "precision": 0.29213483146067415,
+    "fp_per_scan": 0.2985781990521327,
+    "fp_clutter_per_scan": 0.2132701421800948,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 2,
+    "detections": 13,
+    "recall": 0.046511627906976744,
+    "precision": 0.15384615384615385,
+    "fp_per_scan": 0.3142857142857143,
+    "fp_clutter_per_scan": 0.17142857142857143,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d9-27]@3.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 7,
+    "detections": 11,
+    "recall": 0.021806853582554516,
+    "precision": 0.6363636363636364,
+    "fp_per_scan": 0.016260162601626018,
+    "fp_clutter_per_scan": 0.008130081300813009,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 7,
+    "detections": 10,
+    "recall": 0.025179856115107913,
+    "precision": 0.7,
+    "fp_per_scan": 0.014218009478672985,
+    "fp_clutter_per_scan": 0.009478672985781991,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 1,
+    "recall": 0.0,
+    "precision": 0.0,
+    "fp_per_scan": 0.02857142857142857,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d9-27]@4.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 1,
+    "recall": 0.0,
+    "precision": 0.0,
+    "fp_per_scan": 0.0040650406504065045,
+    "fp_clutter_per_scan": 0.0040650406504065045,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 1,
+    "recall": 0.0,
+    "precision": 0.0,
+    "fp_per_scan": 0.004739336492890996,
+    "fp_clutter_per_scan": 0.004739336492890996,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d9-27]@5.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d9-27]@6.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d9-27]@8.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d9-27]@10.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d9-27]@15.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d9-27]@20.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t5-9,d9-27]@30.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d5-15]@2.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 267,
+    "detections": 7123,
+    "recall": 0.8317757009345794,
+    "precision": 0.03748420609293837,
+    "fp_per_scan": 27.869918699186993,
+    "fp_clutter_per_scan": 14.678861788617887,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 10.755102040816327
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 233,
+    "detections": 6156,
+    "recall": 0.8381294964028777,
+    "precision": 0.03784925276153346,
+    "fp_per_scan": 28.071090047393366,
+    "fp_clutter_per_scan": 14.696682464454977,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 10.292682926829269
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 34,
+    "detections": 967,
+    "recall": 0.7906976744186046,
+    "precision": 0.03516028955532575,
+    "fp_per_scan": 26.65714285714286,
+    "fp_clutter_per_scan": 14.571428571428571,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 13.125
+   }
+  },
+  "ring_widened[t7-13,d5-15]@2.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 52,
+    "detections": 450,
+    "recall": 0.16199376947040497,
+    "precision": 0.11555555555555555,
+    "fp_per_scan": 1.6178861788617886,
+    "fp_clutter_per_scan": 1.0203252032520325,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.5510204081632653
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 46,
+    "detections": 388,
+    "recall": 0.16546762589928057,
+    "precision": 0.11855670103092783,
+    "fp_per_scan": 1.6208530805687205,
+    "fp_clutter_per_scan": 1.04739336492891,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.5365853658536586
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 6,
+    "detections": 62,
+    "recall": 0.13953488372093023,
+    "precision": 0.0967741935483871,
+    "fp_per_scan": 1.6,
+    "fp_clutter_per_scan": 0.8571428571428571,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.625
+   }
+  },
+  "ring_widened[t7-13,d5-15]@3.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 5,
+    "detections": 24,
+    "recall": 0.01557632398753894,
+    "precision": 0.20833333333333334,
+    "fp_per_scan": 0.07723577235772358,
+    "fp_clutter_per_scan": 0.06097560975609756,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 4,
+    "detections": 21,
+    "recall": 0.014388489208633094,
+    "precision": 0.19047619047619047,
+    "fp_per_scan": 0.08056872037914692,
+    "fp_clutter_per_scan": 0.061611374407582936,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 1,
+    "detections": 3,
+    "recall": 0.023255813953488372,
+    "precision": 0.3333333333333333,
+    "fp_per_scan": 0.05714285714285714,
+    "fp_clutter_per_scan": 0.05714285714285714,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d5-15]@3.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d5-15]@4.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d5-15]@5.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d5-15]@6.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d5-15]@8.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d5-15]@10.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d5-15]@15.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d5-15]@20.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d5-15]@30.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d9-27]@2.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 306,
+    "detections": 7736,
+    "recall": 0.9532710280373832,
+    "precision": 0.039555325749741466,
+    "fp_per_scan": 30.203252032520325,
+    "fp_clutter_per_scan": 15.008130081300813,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 9.938775510204081
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 265,
+    "detections": 6685,
+    "recall": 0.9532374100719424,
+    "precision": 0.039640987284966345,
+    "fp_per_scan": 30.42654028436019,
+    "fp_clutter_per_scan": 14.924170616113743,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 9.439024390243903
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 41,
+    "detections": 1051,
+    "recall": 0.9534883720930233,
+    "precision": 0.0390104662226451,
+    "fp_per_scan": 28.857142857142858,
+    "fp_clutter_per_scan": 15.514285714285714,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 12.5
+   }
+  },
+  "ring_widened[t7-13,d9-27]@2.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 203,
+    "detections": 1379,
+    "recall": 0.632398753894081,
+    "precision": 0.14720812182741116,
+    "fp_per_scan": 4.780487804878049,
+    "fp_clutter_per_scan": 3.0447154471544717,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.4897959183673469
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 176,
+    "detections": 1170,
+    "recall": 0.6330935251798561,
+    "precision": 0.15042735042735042,
+    "fp_per_scan": 4.710900473933649,
+    "fp_clutter_per_scan": 3.028436018957346,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.4634146341463415
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 27,
+    "detections": 209,
+    "recall": 0.627906976744186,
+    "precision": 0.1291866028708134,
+    "fp_per_scan": 5.2,
+    "fp_clutter_per_scan": 3.142857142857143,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.625
+   }
+  },
+  "ring_widened[t7-13,d9-27]@3.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 27,
+    "detections": 92,
+    "recall": 0.08411214953271028,
+    "precision": 0.29347826086956524,
+    "fp_per_scan": 0.26422764227642276,
+    "fp_clutter_per_scan": 0.17886178861788618,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 24,
+    "detections": 79,
+    "recall": 0.08633093525179857,
+    "precision": 0.3037974683544304,
+    "fp_per_scan": 0.26066350710900477,
+    "fp_clutter_per_scan": 0.1848341232227488,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 3,
+    "detections": 13,
+    "recall": 0.06976744186046512,
+    "precision": 0.23076923076923078,
+    "fp_per_scan": 0.2857142857142857,
+    "fp_clutter_per_scan": 0.14285714285714285,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d9-27]@3.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 5,
+    "detections": 14,
+    "recall": 0.01557632398753894,
+    "precision": 0.35714285714285715,
+    "fp_per_scan": 0.036585365853658534,
+    "fp_clutter_per_scan": 0.028455284552845527,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 4,
+    "detections": 12,
+    "recall": 0.014388489208633094,
+    "precision": 0.3333333333333333,
+    "fp_per_scan": 0.037914691943127965,
+    "fp_clutter_per_scan": 0.02843601895734597,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 1,
+    "detections": 2,
+    "recall": 0.023255813953488372,
+    "precision": 0.5,
+    "fp_per_scan": 0.02857142857142857,
+    "fp_clutter_per_scan": 0.02857142857142857,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d9-27]@4.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 1,
+    "detections": 2,
+    "recall": 0.003115264797507788,
+    "precision": 0.5,
+    "fp_per_scan": 0.0040650406504065045,
+    "fp_clutter_per_scan": 0.0040650406504065045,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 1,
+    "detections": 2,
+    "recall": 0.0035971223021582736,
+    "precision": 0.5,
+    "fp_per_scan": 0.004739336492890996,
+    "fp_clutter_per_scan": 0.004739336492890996,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d9-27]@5.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d9-27]@6.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d9-27]@8.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d9-27]@10.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d9-27]@15.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d9-27]@20.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t7-13,d9-27]@30.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d5-15]@2.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 214,
+    "detections": 8801,
+    "recall": 0.6666666666666666,
+    "precision": 0.02431541870242018,
+    "fp_per_scan": 34.90650406504065,
+    "fp_clutter_per_scan": 15.512195121951219,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 11.775510204081632
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 188,
+    "detections": 7547,
+    "recall": 0.6762589928057554,
+    "precision": 0.02491056048761097,
+    "fp_per_scan": 34.87677725118483,
+    "fp_clutter_per_scan": 15.303317535545023,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 11.512195121951219
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 26,
+    "detections": 1254,
+    "recall": 0.6046511627906976,
+    "precision": 0.02073365231259968,
+    "fp_per_scan": 35.08571428571429,
+    "fp_clutter_per_scan": 16.771428571428572,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 13.125
+   }
+  },
+  "ring_widened[t11-21,d5-15]@2.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 83,
+    "detections": 2909,
+    "recall": 0.2585669781931464,
+    "precision": 0.028532141629425918,
+    "fp_per_scan": 11.487804878048781,
+    "fp_clutter_per_scan": 2.292682926829268,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.5102040816326531
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 72,
+    "detections": 2510,
+    "recall": 0.2589928057553957,
+    "precision": 0.028685258964143426,
+    "fp_per_scan": 11.554502369668246,
+    "fp_clutter_per_scan": 2.251184834123223,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.4634146341463415
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 11,
+    "detections": 399,
+    "recall": 0.2558139534883721,
+    "precision": 0.02756892230576441,
+    "fp_per_scan": 11.085714285714285,
+    "fp_clutter_per_scan": 2.5428571428571427,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.75
+   }
+  },
+  "ring_widened[t11-21,d5-15]@3.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 11,
+    "detections": 166,
+    "recall": 0.03426791277258567,
+    "precision": 0.06626506024096386,
+    "fp_per_scan": 0.6300813008130082,
+    "fp_clutter_per_scan": 0.0975609756097561,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 10,
+    "detections": 147,
+    "recall": 0.03597122302158273,
+    "precision": 0.06802721088435375,
+    "fp_per_scan": 0.6492890995260664,
+    "fp_clutter_per_scan": 0.09004739336492891,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 1,
+    "detections": 19,
+    "recall": 0.023255813953488372,
+    "precision": 0.05263157894736842,
+    "fp_per_scan": 0.5142857142857142,
+    "fp_clutter_per_scan": 0.14285714285714285,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d5-15]@3.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 2,
+    "recall": 0.0,
+    "precision": 0.0,
+    "fp_per_scan": 0.008130081300813009,
+    "fp_clutter_per_scan": 0.0040650406504065045,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 1,
+    "recall": 0.0,
+    "precision": 0.0,
+    "fp_per_scan": 0.004739336492890996,
+    "fp_clutter_per_scan": 0.004739336492890996,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 1,
+    "recall": 0.0,
+    "precision": 0.0,
+    "fp_per_scan": 0.02857142857142857,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d5-15]@4.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d5-15]@5.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d5-15]@6.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d5-15]@8.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d5-15]@10.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d5-15]@15.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d5-15]@20.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d5-15]@30.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d9-27]@2.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 300,
+    "detections": 8568,
+    "recall": 0.9345794392523364,
+    "precision": 0.0350140056022409,
+    "fp_per_scan": 33.609756097560975,
+    "fp_clutter_per_scan": 15.134146341463415,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 11.612244897959183
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 260,
+    "detections": 7289,
+    "recall": 0.935251798561151,
+    "precision": 0.03567018795445191,
+    "fp_per_scan": 33.312796208530806,
+    "fp_clutter_per_scan": 14.895734597156398,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 11.414634146341463
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 40,
+    "detections": 1279,
+    "recall": 0.9302325581395349,
+    "precision": 0.03127443315089914,
+    "fp_per_scan": 35.4,
+    "fp_clutter_per_scan": 16.571428571428573,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 12.625
+   }
+  },
+  "ring_widened[t11-21,d9-27]@2.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 185,
+    "detections": 3079,
+    "recall": 0.5763239875389408,
+    "precision": 0.06008444300097434,
+    "fp_per_scan": 11.764227642276422,
+    "fp_clutter_per_scan": 3.8333333333333335,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.6122448979591837
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 164,
+    "detections": 2674,
+    "recall": 0.5899280575539568,
+    "precision": 0.061331338818249814,
+    "fp_per_scan": 11.895734597156398,
+    "fp_clutter_per_scan": 3.796208530805687,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.6341463414634146
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 21,
+    "detections": 405,
+    "recall": 0.4883720930232558,
+    "precision": 0.05185185185185185,
+    "fp_per_scan": 10.971428571428572,
+    "fp_clutter_per_scan": 4.057142857142857,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.5
+   }
+  },
+  "ring_widened[t11-21,d9-27]@3.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 36,
+    "detections": 229,
+    "recall": 0.11214953271028037,
+    "precision": 0.1572052401746725,
+    "fp_per_scan": 0.7845528455284553,
+    "fp_clutter_per_scan": 0.3902439024390244,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 33,
+    "detections": 190,
+    "recall": 0.11870503597122302,
+    "precision": 0.1736842105263158,
+    "fp_per_scan": 0.7440758293838863,
+    "fp_clutter_per_scan": 0.3791469194312796,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 3,
+    "detections": 39,
+    "recall": 0.06976744186046512,
+    "precision": 0.07692307692307693,
+    "fp_per_scan": 1.0285714285714285,
+    "fp_clutter_per_scan": 0.45714285714285713,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d9-27]@3.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 1,
+    "detections": 12,
+    "recall": 0.003115264797507788,
+    "precision": 0.08333333333333333,
+    "fp_per_scan": 0.044715447154471545,
+    "fp_clutter_per_scan": 0.008130081300813009,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 1,
+    "detections": 9,
+    "recall": 0.0035971223021582736,
+    "precision": 0.1111111111111111,
+    "fp_per_scan": 0.037914691943127965,
+    "fp_clutter_per_scan": 0.004739336492890996,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 3,
+    "recall": 0.0,
+    "precision": 0.0,
+    "fp_per_scan": 0.08571428571428572,
+    "fp_clutter_per_scan": 0.02857142857142857,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d9-27]@4.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 1,
+    "recall": 0.0,
+    "precision": 0.0,
+    "fp_per_scan": 0.0040650406504065045,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 1,
+    "recall": 0.0,
+    "precision": 0.0,
+    "fp_per_scan": 0.02857142857142857,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d9-27]@5.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d9-27]@6.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d9-27]@8.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d9-27]@10.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d9-27]@15.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d9-27]@20.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "ring_widened[t11-21,d9-27]@30.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 0,
+    "detections": 0,
+    "recall": 0.0,
+    "precision": null,
+    "fp_per_scan": 0.0,
+    "fp_clutter_per_scan": 0.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone30,tol0]@2.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 248,
+    "detections": 4428,
+    "recall": 0.7725856697819314,
+    "precision": 0.05600722673893405,
+    "fp_per_scan": 16.991869918699187,
+    "fp_clutter_per_scan": 15.764227642276422,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 73.06122448979592
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 213,
+    "detections": 3743,
+    "recall": 0.7661870503597122,
+    "precision": 0.05690622495324606,
+    "fp_per_scan": 16.729857819905213,
+    "fp_clutter_per_scan": 15.497630331753555,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 73.46341463414635
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 35,
+    "detections": 685,
+    "recall": 0.813953488372093,
+    "precision": 0.051094890510948905,
+    "fp_per_scan": 18.571428571428573,
+    "fp_clutter_per_scan": 17.37142857142857,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 71.0
+   }
+  },
+  "hyperbola_stack[cone30,tol0]@2.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 246,
+    "detections": 2295,
+    "recall": 0.7663551401869159,
+    "precision": 0.10718954248366012,
+    "fp_per_scan": 8.329268292682928,
+    "fp_clutter_per_scan": 7.170731707317073,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 30.244897959183675
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 211,
+    "detections": 1918,
+    "recall": 0.7589928057553957,
+    "precision": 0.11001042752867571,
+    "fp_per_scan": 8.090047393364928,
+    "fp_clutter_per_scan": 6.890995260663507,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 29.390243902439025
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 35,
+    "detections": 377,
+    "recall": 0.813953488372093,
+    "precision": 0.09283819628647215,
+    "fp_per_scan": 9.771428571428572,
+    "fp_clutter_per_scan": 8.857142857142858,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 34.625
+   }
+  },
+  "hyperbola_stack[cone30,tol0]@3.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 254,
+    "detections": 1373,
+    "recall": 0.7912772585669782,
+    "precision": 0.18499635833940276,
+    "fp_per_scan": 4.548780487804878,
+    "fp_clutter_per_scan": 3.361788617886179,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 11.918367346938776
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 219,
+    "detections": 1151,
+    "recall": 0.7877697841726619,
+    "precision": 0.1902693310165074,
+    "fp_per_scan": 4.4170616113744074,
+    "fp_clutter_per_scan": 3.199052132701422,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 11.317073170731707
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 35,
+    "detections": 222,
+    "recall": 0.813953488372093,
+    "precision": 0.15765765765765766,
+    "fp_per_scan": 5.3428571428571425,
+    "fp_clutter_per_scan": 4.3428571428571425,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 15.0
+   }
+  },
+  "hyperbola_stack[cone30,tol0]@3.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 253,
+    "detections": 1004,
+    "recall": 0.7881619937694704,
+    "precision": 0.25199203187250996,
+    "fp_per_scan": 3.0528455284552845,
+    "fp_clutter_per_scan": 1.8699186991869918,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 4.591836734693878
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 218,
+    "detections": 860,
+    "recall": 0.7841726618705036,
+    "precision": 0.2534883720930233,
+    "fp_per_scan": 3.042654028436019,
+    "fp_clutter_per_scan": 1.8293838862559242,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 4.341463414634147
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 35,
+    "detections": 144,
+    "recall": 0.813953488372093,
+    "precision": 0.24305555555555555,
+    "fp_per_scan": 3.1142857142857143,
+    "fp_clutter_per_scan": 2.1142857142857143,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 5.875
+   }
+  },
+  "hyperbola_stack[cone30,tol0]@4.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 250,
+    "detections": 850,
+    "recall": 0.778816199376947,
+    "precision": 0.29411764705882354,
+    "fp_per_scan": 2.4390243902439024,
+    "fp_clutter_per_scan": 1.1747967479674797,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 1.7346938775510203
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 216,
+    "detections": 728,
+    "recall": 0.7769784172661871,
+    "precision": 0.2967032967032967,
+    "fp_per_scan": 2.4265402843601898,
+    "fp_clutter_per_scan": 1.1421800947867298,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 1.6585365853658536
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 34,
+    "detections": 122,
+    "recall": 0.7906976744186046,
+    "precision": 0.2786885245901639,
+    "fp_per_scan": 2.5142857142857142,
+    "fp_clutter_per_scan": 1.3714285714285714,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 2.125
+   }
+  },
+  "hyperbola_stack[cone30,tol0]@5.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 256,
+    "detections": 710,
+    "recall": 0.7975077881619937,
+    "precision": 0.36056338028169016,
+    "fp_per_scan": 1.8455284552845528,
+    "fp_clutter_per_scan": 0.6829268292682927,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.32653061224489793
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 222,
+    "detections": 621,
+    "recall": 0.7985611510791367,
+    "precision": 0.357487922705314,
+    "fp_per_scan": 1.8909952606635072,
+    "fp_clutter_per_scan": 0.6777251184834123,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.36585365853658536
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 34,
+    "detections": 89,
+    "recall": 0.7906976744186046,
+    "precision": 0.38202247191011235,
+    "fp_per_scan": 1.5714285714285714,
+    "fp_clutter_per_scan": 0.7142857142857143,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.125
+   }
+  },
+  "hyperbola_stack[cone30,tol0]@6.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 252,
+    "detections": 668,
+    "recall": 0.7850467289719626,
+    "precision": 0.3772455089820359,
+    "fp_per_scan": 1.6910569105691058,
+    "fp_clutter_per_scan": 0.6097560975609756,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.08163265306122448
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 219,
+    "detections": 589,
+    "recall": 0.7877697841726619,
+    "precision": 0.37181663837011886,
+    "fp_per_scan": 1.7535545023696681,
+    "fp_clutter_per_scan": 0.6255924170616114,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0975609756097561
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 33,
+    "detections": 79,
+    "recall": 0.7674418604651163,
+    "precision": 0.4177215189873418,
+    "fp_per_scan": 1.3142857142857143,
+    "fp_clutter_per_scan": 0.5142857142857142,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone30,tol0]@8.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 234,
+    "detections": 650,
+    "recall": 0.7289719626168224,
+    "precision": 0.36,
+    "fp_per_scan": 1.6910569105691058,
+    "fp_clutter_per_scan": 0.6666666666666666,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 204,
+    "detections": 571,
+    "recall": 0.7338129496402878,
+    "precision": 0.3572679509632224,
+    "fp_per_scan": 1.7393364928909953,
+    "fp_clutter_per_scan": 0.6824644549763034,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 30,
+    "detections": 79,
+    "recall": 0.6976744186046512,
+    "precision": 0.379746835443038,
+    "fp_per_scan": 1.4,
+    "fp_clutter_per_scan": 0.5714285714285714,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone30,tol0]@10.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 222,
+    "detections": 631,
+    "recall": 0.6915887850467289,
+    "precision": 0.3518225039619651,
+    "fp_per_scan": 1.6626016260162602,
+    "fp_clutter_per_scan": 0.6910569105691057,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 193,
+    "detections": 543,
+    "recall": 0.6942446043165468,
+    "precision": 0.35543278084714547,
+    "fp_per_scan": 1.6587677725118484,
+    "fp_clutter_per_scan": 0.6824644549763034,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 29,
+    "detections": 88,
+    "recall": 0.6744186046511628,
+    "precision": 0.32954545454545453,
+    "fp_per_scan": 1.6857142857142857,
+    "fp_clutter_per_scan": 0.7428571428571429,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone30,tol0]@15.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 178,
+    "detections": 486,
+    "recall": 0.5545171339563862,
+    "precision": 0.3662551440329218,
+    "fp_per_scan": 1.2520325203252032,
+    "fp_clutter_per_scan": 0.5528455284552846,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 154,
+    "detections": 408,
+    "recall": 0.5539568345323741,
+    "precision": 0.37745098039215685,
+    "fp_per_scan": 1.2037914691943128,
+    "fp_clutter_per_scan": 0.4834123222748815,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 24,
+    "detections": 78,
+    "recall": 0.5581395348837209,
+    "precision": 0.3076923076923077,
+    "fp_per_scan": 1.542857142857143,
+    "fp_clutter_per_scan": 0.9714285714285714,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone30,tol0]@20.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 149,
+    "detections": 400,
+    "recall": 0.46417445482866043,
+    "precision": 0.3725,
+    "fp_per_scan": 1.0203252032520325,
+    "fp_clutter_per_scan": 0.4105691056910569,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 127,
+    "detections": 358,
+    "recall": 0.4568345323741007,
+    "precision": 0.3547486033519553,
+    "fp_per_scan": 1.09478672985782,
+    "fp_clutter_per_scan": 0.44549763033175355,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 22,
+    "detections": 42,
+    "recall": 0.5116279069767442,
+    "precision": 0.5238095238095238,
+    "fp_per_scan": 0.5714285714285714,
+    "fp_clutter_per_scan": 0.2,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone30,tol0]@30.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 131,
+    "detections": 289,
+    "recall": 0.40809968847352024,
+    "precision": 0.4532871972318339,
+    "fp_per_scan": 0.6422764227642277,
+    "fp_clutter_per_scan": 0.2764227642276423,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 110,
+    "detections": 249,
+    "recall": 0.39568345323741005,
+    "precision": 0.44176706827309237,
+    "fp_per_scan": 0.6587677725118484,
+    "fp_clutter_per_scan": 0.2938388625592417,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 21,
+    "detections": 40,
+    "recall": 0.4883720930232558,
+    "precision": 0.525,
+    "fp_per_scan": 0.5428571428571428,
+    "fp_clutter_per_scan": 0.17142857142857143,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone30,tol0.25]@2.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 239,
+    "detections": 2783,
+    "recall": 0.7445482866043613,
+    "precision": 0.08587854832914121,
+    "fp_per_scan": 10.341463414634147,
+    "fp_clutter_per_scan": 9.036585365853659,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 40.795918367346935
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 205,
+    "detections": 2376,
+    "recall": 0.737410071942446,
+    "precision": 0.08627946127946128,
+    "fp_per_scan": 10.289099526066352,
+    "fp_clutter_per_scan": 8.938388625592417,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 40.951219512195124
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 34,
+    "detections": 407,
+    "recall": 0.7906976744186046,
+    "precision": 0.08353808353808354,
+    "fp_per_scan": 10.657142857142857,
+    "fp_clutter_per_scan": 9.628571428571428,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 40.0
+   }
+  },
+  "hyperbola_stack[cone30,tol0.25]@2.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 239,
+    "detections": 1809,
+    "recall": 0.7445482866043613,
+    "precision": 0.13211719181868437,
+    "fp_per_scan": 6.382113821138211,
+    "fp_clutter_per_scan": 5.048780487804878,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 21.163265306122447
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 205,
+    "detections": 1570,
+    "recall": 0.737410071942446,
+    "precision": 0.1305732484076433,
+    "fp_per_scan": 6.469194312796208,
+    "fp_clutter_per_scan": 5.061611374407583,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 21.463414634146343
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 34,
+    "detections": 239,
+    "recall": 0.7906976744186046,
+    "precision": 0.14225941422594143,
+    "fp_per_scan": 5.857142857142857,
+    "fp_clutter_per_scan": 4.9714285714285715,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 19.625
+   }
+  },
+  "hyperbola_stack[cone30,tol0.25]@3.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 235,
+    "detections": 1243,
+    "recall": 0.7320872274143302,
+    "precision": 0.18905872888173772,
+    "fp_per_scan": 4.097560975609756,
+    "fp_clutter_per_scan": 2.8292682926829267,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 9.959183673469388
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 203,
+    "detections": 1092,
+    "recall": 0.7302158273381295,
+    "precision": 0.1858974358974359,
+    "fp_per_scan": 4.213270142180095,
+    "fp_clutter_per_scan": 2.876777251184834,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 10.146341463414634
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 32,
+    "detections": 151,
+    "recall": 0.7441860465116279,
+    "precision": 0.2119205298013245,
+    "fp_per_scan": 3.4,
+    "fp_clutter_per_scan": 2.5428571428571427,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 9.0
+   }
+  },
+  "hyperbola_stack[cone30,tol0.25]@3.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 248,
+    "detections": 956,
+    "recall": 0.7725856697819314,
+    "precision": 0.2594142259414226,
+    "fp_per_scan": 2.8780487804878048,
+    "fp_clutter_per_scan": 1.6382113821138211,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 4.346938775510204
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 215,
+    "detections": 836,
+    "recall": 0.7733812949640287,
+    "precision": 0.25717703349282295,
+    "fp_per_scan": 2.943127962085308,
+    "fp_clutter_per_scan": 1.6208530805687205,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 4.2682926829268295
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 33,
+    "detections": 120,
+    "recall": 0.7674418604651163,
+    "precision": 0.275,
+    "fp_per_scan": 2.4857142857142858,
+    "fp_clutter_per_scan": 1.7428571428571429,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 4.75
+   }
+  },
+  "hyperbola_stack[cone30,tol0.25]@4.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 246,
+    "detections": 822,
+    "recall": 0.7663551401869159,
+    "precision": 0.29927007299270075,
+    "fp_per_scan": 2.341463414634146,
+    "fp_clutter_per_scan": 1.0447154471544715,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 1.7959183673469388
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 215,
+    "detections": 725,
+    "recall": 0.7733812949640287,
+    "precision": 0.296551724137931,
+    "fp_per_scan": 2.4170616113744074,
+    "fp_clutter_per_scan": 1.052132701421801,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 1.8048780487804879
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 31,
+    "detections": 97,
+    "recall": 0.7209302325581395,
+    "precision": 0.31958762886597936,
+    "fp_per_scan": 1.8857142857142857,
+    "fp_clutter_per_scan": 1.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 1.75
+   }
+  },
+  "hyperbola_stack[cone30,tol0.25]@5.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 235,
+    "detections": 670,
+    "recall": 0.7320872274143302,
+    "precision": 0.35074626865671643,
+    "fp_per_scan": 1.7682926829268293,
+    "fp_clutter_per_scan": 0.7317073170731707,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.3469387755102041
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 202,
+    "detections": 586,
+    "recall": 0.7266187050359713,
+    "precision": 0.3447098976109215,
+    "fp_per_scan": 1.819905213270142,
+    "fp_clutter_per_scan": 0.7393364928909952,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.36585365853658536
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 33,
+    "detections": 84,
+    "recall": 0.7674418604651163,
+    "precision": 0.39285714285714285,
+    "fp_per_scan": 1.457142857142857,
+    "fp_clutter_per_scan": 0.6857142857142857,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.25
+   }
+  },
+  "hyperbola_stack[cone30,tol0.25]@6.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 228,
+    "detections": 648,
+    "recall": 0.7102803738317757,
+    "precision": 0.35185185185185186,
+    "fp_per_scan": 1.7073170731707317,
+    "fp_clutter_per_scan": 0.7317073170731707,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.061224489795918366
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 196,
+    "detections": 568,
+    "recall": 0.7050359712230215,
+    "precision": 0.34507042253521125,
+    "fp_per_scan": 1.7630331753554502,
+    "fp_clutter_per_scan": 0.7440758293838863,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.07317073170731707
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 32,
+    "detections": 80,
+    "recall": 0.7441860465116279,
+    "precision": 0.4,
+    "fp_per_scan": 1.3714285714285714,
+    "fp_clutter_per_scan": 0.6571428571428571,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone30,tol0.25]@8.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 217,
+    "detections": 580,
+    "recall": 0.67601246105919,
+    "precision": 0.3741379310344828,
+    "fp_per_scan": 1.475609756097561,
+    "fp_clutter_per_scan": 0.7154471544715447,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.02040816326530612
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 190,
+    "detections": 501,
+    "recall": 0.6834532374100719,
+    "precision": 0.37924151696606784,
+    "fp_per_scan": 1.4739336492890995,
+    "fp_clutter_per_scan": 0.6777251184834123,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.024390243902439025
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 27,
+    "detections": 79,
+    "recall": 0.627906976744186,
+    "precision": 0.34177215189873417,
+    "fp_per_scan": 1.4857142857142858,
+    "fp_clutter_per_scan": 0.9428571428571428,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone30,tol0.25]@10.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 195,
+    "detections": 472,
+    "recall": 0.6074766355140186,
+    "precision": 0.413135593220339,
+    "fp_per_scan": 1.1260162601626016,
+    "fp_clutter_per_scan": 0.491869918699187,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 167,
+    "detections": 405,
+    "recall": 0.6007194244604317,
+    "precision": 0.4123456790123457,
+    "fp_per_scan": 1.127962085308057,
+    "fp_clutter_per_scan": 0.47393364928909953,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 28,
+    "detections": 67,
+    "recall": 0.6511627906976745,
+    "precision": 0.417910447761194,
+    "fp_per_scan": 1.1142857142857143,
+    "fp_clutter_per_scan": 0.6,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone30,tol0.25]@15.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 149,
+    "detections": 339,
+    "recall": 0.46417445482866043,
+    "precision": 0.43952802359882004,
+    "fp_per_scan": 0.7723577235772358,
+    "fp_clutter_per_scan": 0.4065040650406504,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 128,
+    "detections": 299,
+    "recall": 0.460431654676259,
+    "precision": 0.4280936454849498,
+    "fp_per_scan": 0.8104265402843602,
+    "fp_clutter_per_scan": 0.44075829383886256,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 21,
+    "detections": 40,
+    "recall": 0.4883720930232558,
+    "precision": 0.525,
+    "fp_per_scan": 0.5428571428571428,
+    "fp_clutter_per_scan": 0.2,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone30,tol0.25]@20.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 131,
+    "detections": 286,
+    "recall": 0.40809968847352024,
+    "precision": 0.458041958041958,
+    "fp_per_scan": 0.6300813008130082,
+    "fp_clutter_per_scan": 0.37398373983739835,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 111,
+    "detections": 244,
+    "recall": 0.39928057553956836,
+    "precision": 0.45491803278688525,
+    "fp_per_scan": 0.6303317535545023,
+    "fp_clutter_per_scan": 0.38388625592417064,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 20,
+    "detections": 42,
+    "recall": 0.46511627906976744,
+    "precision": 0.47619047619047616,
+    "fp_per_scan": 0.6285714285714286,
+    "fp_clutter_per_scan": 0.3142857142857143,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone30,tol0.25]@30.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 106,
+    "detections": 236,
+    "recall": 0.3302180685358255,
+    "precision": 0.4491525423728814,
+    "fp_per_scan": 0.5284552845528455,
+    "fp_clutter_per_scan": 0.2967479674796748,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 91,
+    "detections": 208,
+    "recall": 0.3273381294964029,
+    "precision": 0.4375,
+    "fp_per_scan": 0.5545023696682464,
+    "fp_clutter_per_scan": 0.33175355450236965,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 15,
+    "detections": 28,
+    "recall": 0.3488372093023256,
+    "precision": 0.5357142857142857,
+    "fp_per_scan": 0.37142857142857144,
+    "fp_clutter_per_scan": 0.08571428571428572,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone45,tol0]@2.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 232,
+    "detections": 4146,
+    "recall": 0.7227414330218068,
+    "precision": 0.05595754944524843,
+    "fp_per_scan": 15.910569105691057,
+    "fp_clutter_per_scan": 14.861788617886178,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 70.73469387755102
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 199,
+    "detections": 3508,
+    "recall": 0.7158273381294964,
+    "precision": 0.05672748004561003,
+    "fp_per_scan": 15.682464454976303,
+    "fp_clutter_per_scan": 14.597156398104266,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 71.14634146341463
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 33,
+    "detections": 638,
+    "recall": 0.7674418604651163,
+    "precision": 0.05172413793103448,
+    "fp_per_scan": 17.285714285714285,
+    "fp_clutter_per_scan": 16.457142857142856,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 68.625
+   }
+  },
+  "hyperbola_stack[cone45,tol0]@2.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 236,
+    "detections": 2239,
+    "recall": 0.735202492211838,
+    "precision": 0.10540419830281375,
+    "fp_per_scan": 8.142276422764228,
+    "fp_clutter_per_scan": 7.215447154471545,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 32.46938775510204
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 204,
+    "detections": 1908,
+    "recall": 0.7338129496402878,
+    "precision": 0.1069182389937107,
+    "fp_per_scan": 8.075829383886257,
+    "fp_clutter_per_scan": 7.113744075829384,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 32.73170731707317
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 32,
+    "detections": 331,
+    "recall": 0.7441860465116279,
+    "precision": 0.09667673716012085,
+    "fp_per_scan": 8.542857142857143,
+    "fp_clutter_per_scan": 7.828571428571428,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 31.125
+   }
+  },
+  "hyperbola_stack[cone45,tol0]@3.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 239,
+    "detections": 1348,
+    "recall": 0.7445482866043613,
+    "precision": 0.17729970326409494,
+    "fp_per_scan": 4.508130081300813,
+    "fp_clutter_per_scan": 3.6097560975609757,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 14.775510204081632
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 206,
+    "detections": 1145,
+    "recall": 0.7410071942446043,
+    "precision": 0.1799126637554585,
+    "fp_per_scan": 4.450236966824645,
+    "fp_clutter_per_scan": 3.5165876777251186,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 14.682926829268293
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 33,
+    "detections": 203,
+    "recall": 0.7674418604651163,
+    "precision": 0.1625615763546798,
+    "fp_per_scan": 4.857142857142857,
+    "fp_clutter_per_scan": 4.171428571428572,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 15.25
+   }
+  },
+  "hyperbola_stack[cone45,tol0]@3.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 247,
+    "detections": 936,
+    "recall": 0.7694704049844237,
+    "precision": 0.2638888888888889,
+    "fp_per_scan": 2.8008130081300813,
+    "fp_clutter_per_scan": 1.9024390243902438,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 6.775510204081633
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 213,
+    "detections": 791,
+    "recall": 0.7661870503597122,
+    "precision": 0.2692793931731985,
+    "fp_per_scan": 2.7393364928909953,
+    "fp_clutter_per_scan": 1.8151658767772512,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 6.585365853658536
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 34,
+    "detections": 145,
+    "recall": 0.7906976744186046,
+    "precision": 0.23448275862068965,
+    "fp_per_scan": 3.1714285714285713,
+    "fp_clutter_per_scan": 2.4285714285714284,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 7.75
+   }
+  },
+  "hyperbola_stack[cone45,tol0]@4.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 244,
+    "detections": 756,
+    "recall": 0.7601246105919003,
+    "precision": 0.32275132275132273,
+    "fp_per_scan": 2.0813008130081303,
+    "fp_clutter_per_scan": 1.1178861788617886,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 2.836734693877551
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 210,
+    "detections": 642,
+    "recall": 0.7553956834532374,
+    "precision": 0.32710280373831774,
+    "fp_per_scan": 2.0473933649289098,
+    "fp_clutter_per_scan": 1.061611374407583,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 2.658536585365854
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 34,
+    "detections": 114,
+    "recall": 0.7906976744186046,
+    "precision": 0.2982456140350877,
+    "fp_per_scan": 2.2857142857142856,
+    "fp_clutter_per_scan": 1.457142857142857,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 3.75
+   }
+  },
+  "hyperbola_stack[cone45,tol0]@5.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 243,
+    "detections": 617,
+    "recall": 0.7570093457943925,
+    "precision": 0.39384116693679094,
+    "fp_per_scan": 1.5203252032520325,
+    "fp_clutter_per_scan": 0.556910569105691,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.5918367346938775
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 210,
+    "detections": 529,
+    "recall": 0.7553956834532374,
+    "precision": 0.39697542533081287,
+    "fp_per_scan": 1.5118483412322274,
+    "fp_clutter_per_scan": 0.5592417061611374,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.6097560975609756
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 33,
+    "detections": 88,
+    "recall": 0.7674418604651163,
+    "precision": 0.375,
+    "fp_per_scan": 1.5714285714285714,
+    "fp_clutter_per_scan": 0.5428571428571428,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.5
+   }
+  },
+  "hyperbola_stack[cone45,tol0]@6.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 231,
+    "detections": 552,
+    "recall": 0.719626168224299,
+    "precision": 0.41847826086956524,
+    "fp_per_scan": 1.3048780487804879,
+    "fp_clutter_per_scan": 0.43089430894308944,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.10204081632653061
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 201,
+    "detections": 474,
+    "recall": 0.7230215827338129,
+    "precision": 0.4240506329113924,
+    "fp_per_scan": 1.2938388625592416,
+    "fp_clutter_per_scan": 0.43601895734597157,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.12195121951219512
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 30,
+    "detections": 78,
+    "recall": 0.6976744186046512,
+    "precision": 0.38461538461538464,
+    "fp_per_scan": 1.3714285714285714,
+    "fp_clutter_per_scan": 0.4,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone45,tol0]@8.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 226,
+    "detections": 529,
+    "recall": 0.7040498442367601,
+    "precision": 0.42722117202268434,
+    "fp_per_scan": 1.2317073170731707,
+    "fp_clutter_per_scan": 0.44715447154471544,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 196,
+    "detections": 461,
+    "recall": 0.7050359712230215,
+    "precision": 0.42516268980477223,
+    "fp_per_scan": 1.2559241706161137,
+    "fp_clutter_per_scan": 0.47393364928909953,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 30,
+    "detections": 68,
+    "recall": 0.6976744186046512,
+    "precision": 0.4411764705882353,
+    "fp_per_scan": 1.0857142857142856,
+    "fp_clutter_per_scan": 0.2857142857142857,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone45,tol0]@10.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 208,
+    "detections": 467,
+    "recall": 0.6479750778816199,
+    "precision": 0.44539614561027835,
+    "fp_per_scan": 1.0528455284552845,
+    "fp_clutter_per_scan": 0.34146341463414637,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 180,
+    "detections": 405,
+    "recall": 0.6474820143884892,
+    "precision": 0.4444444444444444,
+    "fp_per_scan": 1.066350710900474,
+    "fp_clutter_per_scan": 0.35545023696682465,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 28,
+    "detections": 62,
+    "recall": 0.6511627906976745,
+    "precision": 0.45161290322580644,
+    "fp_per_scan": 0.9714285714285714,
+    "fp_clutter_per_scan": 0.2571428571428571,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone45,tol0]@15.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 174,
+    "detections": 402,
+    "recall": 0.5420560747663551,
+    "precision": 0.43283582089552236,
+    "fp_per_scan": 0.926829268292683,
+    "fp_clutter_per_scan": 0.35365853658536583,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 151,
+    "detections": 348,
+    "recall": 0.5431654676258992,
+    "precision": 0.4339080459770115,
+    "fp_per_scan": 0.933649289099526,
+    "fp_clutter_per_scan": 0.35545023696682465,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 23,
+    "detections": 54,
+    "recall": 0.5348837209302325,
+    "precision": 0.42592592592592593,
+    "fp_per_scan": 0.8857142857142857,
+    "fp_clutter_per_scan": 0.34285714285714286,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone45,tol0]@20.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 148,
+    "detections": 343,
+    "recall": 0.46105919003115264,
+    "precision": 0.4314868804664723,
+    "fp_per_scan": 0.7926829268292683,
+    "fp_clutter_per_scan": 0.32926829268292684,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 128,
+    "detections": 300,
+    "recall": 0.460431654676259,
+    "precision": 0.4266666666666667,
+    "fp_per_scan": 0.8151658767772512,
+    "fp_clutter_per_scan": 0.35071090047393366,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 20,
+    "detections": 43,
+    "recall": 0.46511627906976744,
+    "precision": 0.46511627906976744,
+    "fp_per_scan": 0.6571428571428571,
+    "fp_clutter_per_scan": 0.2,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone45,tol0]@30.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 114,
+    "detections": 249,
+    "recall": 0.35514018691588783,
+    "precision": 0.4578313253012048,
+    "fp_per_scan": 0.5487804878048781,
+    "fp_clutter_per_scan": 0.2601626016260163,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 99,
+    "detections": 213,
+    "recall": 0.35611510791366907,
+    "precision": 0.4647887323943662,
+    "fp_per_scan": 0.5402843601895735,
+    "fp_clutter_per_scan": 0.24644549763033174,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 15,
+    "detections": 36,
+    "recall": 0.3488372093023256,
+    "precision": 0.4166666666666667,
+    "fp_per_scan": 0.6,
+    "fp_clutter_per_scan": 0.34285714285714286,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone45,tol0.25]@2.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 232,
+    "detections": 2029,
+    "recall": 0.7227414330218068,
+    "precision": 0.11434204041399704,
+    "fp_per_scan": 7.304878048780488,
+    "fp_clutter_per_scan": 6.353658536585366,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 28.979591836734695
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 200,
+    "detections": 1754,
+    "recall": 0.7194244604316546,
+    "precision": 0.11402508551881414,
+    "fp_per_scan": 7.3649289099526065,
+    "fp_clutter_per_scan": 6.38388625592417,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 29.75609756097561
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 32,
+    "detections": 275,
+    "recall": 0.7441860465116279,
+    "precision": 0.11636363636363636,
+    "fp_per_scan": 6.942857142857143,
+    "fp_clutter_per_scan": 6.171428571428572,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 25.0
+   }
+  },
+  "hyperbola_stack[cone45,tol0.25]@2.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 231,
+    "detections": 1188,
+    "recall": 0.719626168224299,
+    "precision": 0.19444444444444445,
+    "fp_per_scan": 3.8902439024390243,
+    "fp_clutter_per_scan": 3.008130081300813,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 12.489795918367347
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 198,
+    "detections": 1020,
+    "recall": 0.7122302158273381,
+    "precision": 0.19411764705882353,
+    "fp_per_scan": 3.895734597156398,
+    "fp_clutter_per_scan": 2.985781990521327,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 12.560975609756097
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 33,
+    "detections": 168,
+    "recall": 0.7674418604651163,
+    "precision": 0.19642857142857142,
+    "fp_per_scan": 3.857142857142857,
+    "fp_clutter_per_scan": 3.142857142857143,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 12.125
+   }
+  },
+  "hyperbola_stack[cone45,tol0.25]@3.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 235,
+    "detections": 772,
+    "recall": 0.7320872274143302,
+    "precision": 0.30440414507772023,
+    "fp_per_scan": 2.182926829268293,
+    "fp_clutter_per_scan": 1.3333333333333333,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 4.775510204081633
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 203,
+    "detections": 662,
+    "recall": 0.7302158273381295,
+    "precision": 0.3066465256797583,
+    "fp_per_scan": 2.175355450236967,
+    "fp_clutter_per_scan": 1.3080568720379147,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 4.7317073170731705
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 32,
+    "detections": 110,
+    "recall": 0.7441860465116279,
+    "precision": 0.2909090909090909,
+    "fp_per_scan": 2.2285714285714286,
+    "fp_clutter_per_scan": 1.4857142857142858,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 5.0
+   }
+  },
+  "hyperbola_stack[cone45,tol0.25]@3.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 237,
+    "detections": 636,
+    "recall": 0.7383177570093458,
+    "precision": 0.37264150943396224,
+    "fp_per_scan": 1.6219512195121952,
+    "fp_clutter_per_scan": 0.7845528455284553,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 1.9591836734693877
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 205,
+    "detections": 547,
+    "recall": 0.737410071942446,
+    "precision": 0.37477148080438755,
+    "fp_per_scan": 1.6208530805687205,
+    "fp_clutter_per_scan": 0.7582938388625592,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 1.853658536585366
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 32,
+    "detections": 89,
+    "recall": 0.7441860465116279,
+    "precision": 0.3595505617977528,
+    "fp_per_scan": 1.6285714285714286,
+    "fp_clutter_per_scan": 0.9428571428571428,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 2.5
+   }
+  },
+  "hyperbola_stack[cone45,tol0.25]@4.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 232,
+    "detections": 543,
+    "recall": 0.7227414330218068,
+    "precision": 0.427255985267035,
+    "fp_per_scan": 1.2642276422764227,
+    "fp_clutter_per_scan": 0.46747967479674796,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.7142857142857143
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 203,
+    "detections": 476,
+    "recall": 0.7302158273381295,
+    "precision": 0.4264705882352941,
+    "fp_per_scan": 1.2938388625592416,
+    "fp_clutter_per_scan": 0.46919431279620855,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.6829268292682927
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 29,
+    "detections": 67,
+    "recall": 0.6744186046511628,
+    "precision": 0.43283582089552236,
+    "fp_per_scan": 1.0857142857142856,
+    "fp_clutter_per_scan": 0.45714285714285713,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.875
+   }
+  },
+  "hyperbola_stack[cone45,tol0.25]@5.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 228,
+    "detections": 484,
+    "recall": 0.7102803738317757,
+    "precision": 0.47107438016528924,
+    "fp_per_scan": 1.0406504065040652,
+    "fp_clutter_per_scan": 0.3333333333333333,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.08163265306122448
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 199,
+    "detections": 423,
+    "recall": 0.7158273381294964,
+    "precision": 0.47044917257683216,
+    "fp_per_scan": 1.061611374407583,
+    "fp_clutter_per_scan": 0.33175355450236965,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0975609756097561
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 29,
+    "detections": 61,
+    "recall": 0.6744186046511628,
+    "precision": 0.47540983606557374,
+    "fp_per_scan": 0.9142857142857143,
+    "fp_clutter_per_scan": 0.34285714285714286,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone45,tol0.25]@6.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 225,
+    "detections": 466,
+    "recall": 0.7009345794392523,
+    "precision": 0.48283261802575106,
+    "fp_per_scan": 0.9796747967479674,
+    "fp_clutter_per_scan": 0.34552845528455284,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.04081632653061224
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 197,
+    "detections": 409,
+    "recall": 0.7086330935251799,
+    "precision": 0.48166259168704156,
+    "fp_per_scan": 1.004739336492891,
+    "fp_clutter_per_scan": 0.36018957345971564,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.04878048780487805
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 28,
+    "detections": 57,
+    "recall": 0.6511627906976745,
+    "precision": 0.49122807017543857,
+    "fp_per_scan": 0.8285714285714286,
+    "fp_clutter_per_scan": 0.2571428571428571,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone45,tol0.25]@8.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 206,
+    "detections": 404,
+    "recall": 0.6417445482866043,
+    "precision": 0.5099009900990099,
+    "fp_per_scan": 0.8048780487804879,
+    "fp_clutter_per_scan": 0.34959349593495936,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 178,
+    "detections": 344,
+    "recall": 0.6402877697841727,
+    "precision": 0.5174418604651163,
+    "fp_per_scan": 0.7867298578199052,
+    "fp_clutter_per_scan": 0.32701421800947866,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 28,
+    "detections": 60,
+    "recall": 0.6511627906976745,
+    "precision": 0.4666666666666667,
+    "fp_per_scan": 0.9142857142857143,
+    "fp_clutter_per_scan": 0.4857142857142857,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone45,tol0.25]@10.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 185,
+    "detections": 372,
+    "recall": 0.5763239875389408,
+    "precision": 0.49731182795698925,
+    "fp_per_scan": 0.7601626016260162,
+    "fp_clutter_per_scan": 0.3902439024390244,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 161,
+    "detections": 316,
+    "recall": 0.579136690647482,
+    "precision": 0.509493670886076,
+    "fp_per_scan": 0.7345971563981043,
+    "fp_clutter_per_scan": 0.3886255924170616,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 24,
+    "detections": 56,
+    "recall": 0.5581395348837209,
+    "precision": 0.42857142857142855,
+    "fp_per_scan": 0.9142857142857143,
+    "fp_clutter_per_scan": 0.4,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone45,tol0.25]@15.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 150,
+    "detections": 277,
+    "recall": 0.4672897196261682,
+    "precision": 0.5415162454873647,
+    "fp_per_scan": 0.516260162601626,
+    "fp_clutter_per_scan": 0.3089430894308943,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 129,
+    "detections": 242,
+    "recall": 0.46402877697841727,
+    "precision": 0.5330578512396694,
+    "fp_per_scan": 0.5355450236966824,
+    "fp_clutter_per_scan": 0.32701421800947866,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 21,
+    "detections": 35,
+    "recall": 0.4883720930232558,
+    "precision": 0.6,
+    "fp_per_scan": 0.4,
+    "fp_clutter_per_scan": 0.2,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone45,tol0.25]@20.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 134,
+    "detections": 226,
+    "recall": 0.4174454828660436,
+    "precision": 0.5929203539823009,
+    "fp_per_scan": 0.37398373983739835,
+    "fp_clutter_per_scan": 0.23170731707317074,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 116,
+    "detections": 193,
+    "recall": 0.4172661870503597,
+    "precision": 0.6010362694300518,
+    "fp_per_scan": 0.36492890995260663,
+    "fp_clutter_per_scan": 0.23222748815165878,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 18,
+    "detections": 33,
+    "recall": 0.4186046511627907,
+    "precision": 0.5454545454545454,
+    "fp_per_scan": 0.42857142857142855,
+    "fp_clutter_per_scan": 0.22857142857142856,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone45,tol0.25]@30.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 103,
+    "detections": 165,
+    "recall": 0.32087227414330216,
+    "precision": 0.6242424242424243,
+    "fp_per_scan": 0.25203252032520324,
+    "fp_clutter_per_scan": 0.1991869918699187,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 90,
+    "detections": 138,
+    "recall": 0.3237410071942446,
+    "precision": 0.6521739130434783,
+    "fp_per_scan": 0.22748815165876776,
+    "fp_clutter_per_scan": 0.1895734597156398,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 13,
+    "detections": 27,
+    "recall": 0.3023255813953488,
+    "precision": 0.48148148148148145,
+    "fp_per_scan": 0.4,
+    "fp_clutter_per_scan": 0.2571428571428571,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone60,tol0]@2.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 217,
+    "detections": 3580,
+    "recall": 0.67601246105919,
+    "precision": 0.0606145251396648,
+    "fp_per_scan": 13.670731707317072,
+    "fp_clutter_per_scan": 12.886178861788618,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 60.91836734693877
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 188,
+    "detections": 3067,
+    "recall": 0.6762589928057554,
+    "precision": 0.06129768503423541,
+    "fp_per_scan": 13.644549763033176,
+    "fp_clutter_per_scan": 12.867298578199053,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 62.19512195121951
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 29,
+    "detections": 513,
+    "recall": 0.6744186046511628,
+    "precision": 0.056530214424951264,
+    "fp_per_scan": 13.82857142857143,
+    "fp_clutter_per_scan": 13.0,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 54.375
+   }
+  },
+  "hyperbola_stack[cone60,tol0]@2.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 218,
+    "detections": 1866,
+    "recall": 0.6791277258566978,
+    "precision": 0.11682743837084673,
+    "fp_per_scan": 6.699186991869919,
+    "fp_clutter_per_scan": 5.963414634146342,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 26.857142857142858
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 186,
+    "detections": 1594,
+    "recall": 0.6690647482014388,
+    "precision": 0.11668757841907151,
+    "fp_per_scan": 6.672985781990521,
+    "fp_clutter_per_scan": 5.938388625592417,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 27.341463414634145
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 32,
+    "detections": 272,
+    "recall": 0.7441860465116279,
+    "precision": 0.11764705882352941,
+    "fp_per_scan": 6.857142857142857,
+    "fp_clutter_per_scan": 6.114285714285714,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 24.375
+   }
+  },
+  "hyperbola_stack[cone60,tol0]@3.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 221,
+    "detections": 1161,
+    "recall": 0.6884735202492211,
+    "precision": 0.19035314384151594,
+    "fp_per_scan": 3.821138211382114,
+    "fp_clutter_per_scan": 3.1097560975609757,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 12.89795918367347
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 192,
+    "detections": 985,
+    "recall": 0.6906474820143885,
+    "precision": 0.1949238578680203,
+    "fp_per_scan": 3.758293838862559,
+    "fp_clutter_per_scan": 3.061611374407583,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 12.902439024390244
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 29,
+    "detections": 176,
+    "recall": 0.6744186046511628,
+    "precision": 0.16477272727272727,
+    "fp_per_scan": 4.2,
+    "fp_clutter_per_scan": 3.4,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 12.875
+   }
+  },
+  "hyperbola_stack[cone60,tol0]@3.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 224,
+    "detections": 831,
+    "recall": 0.6978193146417445,
+    "precision": 0.2695547533092659,
+    "fp_per_scan": 2.467479674796748,
+    "fp_clutter_per_scan": 1.7682926829268293,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 6.244897959183674
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 195,
+    "detections": 710,
+    "recall": 0.7014388489208633,
+    "precision": 0.2746478873239437,
+    "fp_per_scan": 2.440758293838863,
+    "fp_clutter_per_scan": 1.7251184834123223,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 6.073170731707317
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 29,
+    "detections": 121,
+    "recall": 0.6744186046511628,
+    "precision": 0.2396694214876033,
+    "fp_per_scan": 2.6285714285714286,
+    "fp_clutter_per_scan": 2.0285714285714285,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 7.125
+   }
+  },
+  "hyperbola_stack[cone60,tol0]@4.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 223,
+    "detections": 666,
+    "recall": 0.6947040498442367,
+    "precision": 0.33483483483483484,
+    "fp_per_scan": 1.8008130081300813,
+    "fp_clutter_per_scan": 1.1341463414634145,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 3.36734693877551
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 194,
+    "detections": 566,
+    "recall": 0.697841726618705,
+    "precision": 0.34275618374558303,
+    "fp_per_scan": 1.7630331753554502,
+    "fp_clutter_per_scan": 1.1090047393364928,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 3.2195121951219514
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 29,
+    "detections": 100,
+    "recall": 0.6744186046511628,
+    "precision": 0.29,
+    "fp_per_scan": 2.0285714285714285,
+    "fp_clutter_per_scan": 1.2857142857142858,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 4.125
+   }
+  },
+  "hyperbola_stack[cone60,tol0]@5.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 208,
+    "detections": 492,
+    "recall": 0.6479750778816199,
+    "precision": 0.42276422764227645,
+    "fp_per_scan": 1.1544715447154472,
+    "fp_clutter_per_scan": 0.5813008130081301,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.6938775510204082
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 179,
+    "detections": 427,
+    "recall": 0.6438848920863309,
+    "precision": 0.41920374707259955,
+    "fp_per_scan": 1.1753554502369667,
+    "fp_clutter_per_scan": 0.6066350710900474,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.7317073170731707
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 29,
+    "detections": 65,
+    "recall": 0.6744186046511628,
+    "precision": 0.4461538461538462,
+    "fp_per_scan": 1.0285714285714285,
+    "fp_clutter_per_scan": 0.42857142857142855,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.5
+   }
+  },
+  "hyperbola_stack[cone60,tol0]@6.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 203,
+    "detections": 413,
+    "recall": 0.632398753894081,
+    "precision": 0.4915254237288136,
+    "fp_per_scan": 0.8536585365853658,
+    "fp_clutter_per_scan": 0.4105691056910569,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.14285714285714285
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 176,
+    "detections": 359,
+    "recall": 0.6330935251798561,
+    "precision": 0.49025069637883006,
+    "fp_per_scan": 0.8672985781990521,
+    "fp_clutter_per_scan": 0.4218009478672986,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.17073170731707318
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 27,
+    "detections": 54,
+    "recall": 0.627906976744186,
+    "precision": 0.5,
+    "fp_per_scan": 0.7714285714285715,
+    "fp_clutter_per_scan": 0.34285714285714286,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone60,tol0]@8.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 192,
+    "detections": 390,
+    "recall": 0.5981308411214953,
+    "precision": 0.49230769230769234,
+    "fp_per_scan": 0.8048780487804879,
+    "fp_clutter_per_scan": 0.3983739837398374,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 164,
+    "detections": 339,
+    "recall": 0.5899280575539568,
+    "precision": 0.4837758112094395,
+    "fp_per_scan": 0.8293838862559242,
+    "fp_clutter_per_scan": 0.4218009478672986,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 28,
+    "detections": 51,
+    "recall": 0.6511627906976745,
+    "precision": 0.5490196078431373,
+    "fp_per_scan": 0.6571428571428571,
+    "fp_clutter_per_scan": 0.2571428571428571,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone60,tol0]@10.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 174,
+    "detections": 345,
+    "recall": 0.5420560747663551,
+    "precision": 0.5043478260869565,
+    "fp_per_scan": 0.6951219512195121,
+    "fp_clutter_per_scan": 0.4349593495934959,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 152,
+    "detections": 293,
+    "recall": 0.5467625899280576,
+    "precision": 0.5187713310580204,
+    "fp_per_scan": 0.6682464454976303,
+    "fp_clutter_per_scan": 0.41706161137440756,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 22,
+    "detections": 52,
+    "recall": 0.5116279069767442,
+    "precision": 0.4230769230769231,
+    "fp_per_scan": 0.8571428571428571,
+    "fp_clutter_per_scan": 0.5428571428571428,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone60,tol0]@15.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 140,
+    "detections": 273,
+    "recall": 0.43613707165109034,
+    "precision": 0.5128205128205128,
+    "fp_per_scan": 0.540650406504065,
+    "fp_clutter_per_scan": 0.3861788617886179,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 120,
+    "detections": 235,
+    "recall": 0.4316546762589928,
+    "precision": 0.5106382978723404,
+    "fp_per_scan": 0.5450236966824644,
+    "fp_clutter_per_scan": 0.3886255924170616,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 20,
+    "detections": 38,
+    "recall": 0.46511627906976744,
+    "precision": 0.5263157894736842,
+    "fp_per_scan": 0.5142857142857142,
+    "fp_clutter_per_scan": 0.37142857142857144,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone60,tol0]@20.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 124,
+    "detections": 218,
+    "recall": 0.3862928348909657,
+    "precision": 0.5688073394495413,
+    "fp_per_scan": 0.3821138211382114,
+    "fp_clutter_per_scan": 0.26422764227642276,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 108,
+    "detections": 188,
+    "recall": 0.38848920863309355,
+    "precision": 0.574468085106383,
+    "fp_per_scan": 0.3791469194312796,
+    "fp_clutter_per_scan": 0.26066350710900477,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 16,
+    "detections": 30,
+    "recall": 0.37209302325581395,
+    "precision": 0.5333333333333333,
+    "fp_per_scan": 0.4,
+    "fp_clutter_per_scan": 0.2857142857142857,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone60,tol0]@30.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 91,
+    "detections": 154,
+    "recall": 0.2834890965732087,
+    "precision": 0.5909090909090909,
+    "fp_per_scan": 0.25609756097560976,
+    "fp_clutter_per_scan": 0.2032520325203252,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 78,
+    "detections": 130,
+    "recall": 0.2805755395683453,
+    "precision": 0.6,
+    "fp_per_scan": 0.24644549763033174,
+    "fp_clutter_per_scan": 0.2132701421800948,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 13,
+    "detections": 24,
+    "recall": 0.3023255813953488,
+    "precision": 0.5416666666666666,
+    "fp_per_scan": 0.3142857142857143,
+    "fp_clutter_per_scan": 0.14285714285714285,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone60,tol0.25]@2.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 203,
+    "detections": 1461,
+    "recall": 0.632398753894081,
+    "precision": 0.13894592744695414,
+    "fp_per_scan": 5.1138211382113825,
+    "fp_clutter_per_scan": 4.6138211382113825,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 20.142857142857142
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 175,
+    "detections": 1234,
+    "recall": 0.6294964028776978,
+    "precision": 0.14181523500810372,
+    "fp_per_scan": 5.018957345971564,
+    "fp_clutter_per_scan": 4.516587677725118,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 20.121951219512194
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 28,
+    "detections": 227,
+    "recall": 0.6511627906976745,
+    "precision": 0.12334801762114538,
+    "fp_per_scan": 5.685714285714286,
+    "fp_clutter_per_scan": 5.2,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 20.25
+   }
+  },
+  "hyperbola_stack[cone60,tol0.25]@2.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 214,
+    "detections": 833,
+    "recall": 0.6666666666666666,
+    "precision": 0.25690276110444177,
+    "fp_per_scan": 2.516260162601626,
+    "fp_clutter_per_scan": 2.040650406504065,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 7.755102040816326
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 185,
+    "detections": 708,
+    "recall": 0.6654676258992805,
+    "precision": 0.2612994350282486,
+    "fp_per_scan": 2.4786729857819907,
+    "fp_clutter_per_scan": 1.995260663507109,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 7.682926829268292
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 29,
+    "detections": 125,
+    "recall": 0.6744186046511628,
+    "precision": 0.232,
+    "fp_per_scan": 2.742857142857143,
+    "fp_clutter_per_scan": 2.3142857142857145,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 8.125
+   }
+  },
+  "hyperbola_stack[cone60,tol0.25]@3.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 206,
+    "detections": 563,
+    "recall": 0.6417445482866043,
+    "precision": 0.36589698046181174,
+    "fp_per_scan": 1.451219512195122,
+    "fp_clutter_per_scan": 1.0121951219512195,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 2.7755102040816326
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 177,
+    "detections": 490,
+    "recall": 0.6366906474820144,
+    "precision": 0.36122448979591837,
+    "fp_per_scan": 1.4834123222748816,
+    "fp_clutter_per_scan": 1.042654028436019,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 2.926829268292683
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 29,
+    "detections": 73,
+    "recall": 0.6744186046511628,
+    "precision": 0.3972602739726027,
+    "fp_per_scan": 1.2571428571428571,
+    "fp_clutter_per_scan": 0.8285714285714286,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 2.0
+   }
+  },
+  "hyperbola_stack[cone60,tol0.25]@3.5": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 201,
+    "detections": 463,
+    "recall": 0.6261682242990654,
+    "precision": 0.43412526997840173,
+    "fp_per_scan": 1.065040650406504,
+    "fp_clutter_per_scan": 0.6341463414634146,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.8367346938775511
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 173,
+    "detections": 396,
+    "recall": 0.6223021582733813,
+    "precision": 0.43686868686868685,
+    "fp_per_scan": 1.0568720379146919,
+    "fp_clutter_per_scan": 0.6350710900473934,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.8048780487804879
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 28,
+    "detections": 67,
+    "recall": 0.6511627906976745,
+    "precision": 0.417910447761194,
+    "fp_per_scan": 1.1142857142857143,
+    "fp_clutter_per_scan": 0.6285714285714286,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 1.0
+   }
+  },
+  "hyperbola_stack[cone60,tol0.25]@4.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 201,
+    "detections": 413,
+    "recall": 0.6261682242990654,
+    "precision": 0.48668280871670705,
+    "fp_per_scan": 0.8617886178861789,
+    "fp_clutter_per_scan": 0.4878048780487805,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.1836734693877551
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 172,
+    "detections": 357,
+    "recall": 0.6187050359712231,
+    "precision": 0.48179271708683474,
+    "fp_per_scan": 0.8767772511848341,
+    "fp_clutter_per_scan": 0.5023696682464455,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.21951219512195122
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 29,
+    "detections": 56,
+    "recall": 0.6744186046511628,
+    "precision": 0.5178571428571429,
+    "fp_per_scan": 0.7714285714285715,
+    "fp_clutter_per_scan": 0.4,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone60,tol0.25]@5.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 193,
+    "detections": 360,
+    "recall": 0.6012461059190031,
+    "precision": 0.5361111111111111,
+    "fp_per_scan": 0.6788617886178862,
+    "fp_clutter_per_scan": 0.42276422764227645,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.061224489795918366
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 166,
+    "detections": 309,
+    "recall": 0.5971223021582733,
+    "precision": 0.5372168284789643,
+    "fp_per_scan": 0.6777251184834123,
+    "fp_clutter_per_scan": 0.4265402843601896,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.07317073170731707
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 27,
+    "detections": 51,
+    "recall": 0.627906976744186,
+    "precision": 0.5294117647058824,
+    "fp_per_scan": 0.6857142857142857,
+    "fp_clutter_per_scan": 0.4,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone60,tol0.25]@6.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 183,
+    "detections": 321,
+    "recall": 0.5700934579439252,
+    "precision": 0.5700934579439252,
+    "fp_per_scan": 0.5609756097560976,
+    "fp_clutter_per_scan": 0.3699186991869919,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 157,
+    "detections": 273,
+    "recall": 0.564748201438849,
+    "precision": 0.575091575091575,
+    "fp_per_scan": 0.5497630331753555,
+    "fp_clutter_per_scan": 0.35545023696682465,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 26,
+    "detections": 48,
+    "recall": 0.6046511627906976,
+    "precision": 0.5416666666666666,
+    "fp_per_scan": 0.6285714285714286,
+    "fp_clutter_per_scan": 0.45714285714285713,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone60,tol0.25]@8.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 166,
+    "detections": 271,
+    "recall": 0.5171339563862928,
+    "precision": 0.6125461254612546,
+    "fp_per_scan": 0.4268292682926829,
+    "fp_clutter_per_scan": 0.3333333333333333,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 144,
+    "detections": 239,
+    "recall": 0.5179856115107914,
+    "precision": 0.602510460251046,
+    "fp_per_scan": 0.45023696682464454,
+    "fp_clutter_per_scan": 0.35545023696682465,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 22,
+    "detections": 32,
+    "recall": 0.5116279069767442,
+    "precision": 0.6875,
+    "fp_per_scan": 0.2857142857142857,
+    "fp_clutter_per_scan": 0.2,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone60,tol0.25]@10.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 149,
+    "detections": 245,
+    "recall": 0.46417445482866043,
+    "precision": 0.6081632653061224,
+    "fp_per_scan": 0.3902439024390244,
+    "fp_clutter_per_scan": 0.35365853658536583,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 127,
+    "detections": 207,
+    "recall": 0.4568345323741007,
+    "precision": 0.6135265700483091,
+    "fp_per_scan": 0.3791469194312796,
+    "fp_clutter_per_scan": 0.35071090047393366,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 22,
+    "detections": 38,
+    "recall": 0.5116279069767442,
+    "precision": 0.5789473684210527,
+    "fp_per_scan": 0.45714285714285713,
+    "fp_clutter_per_scan": 0.37142857142857144,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone60,tol0.25]@15.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 130,
+    "detections": 223,
+    "recall": 0.40498442367601245,
+    "precision": 0.5829596412556054,
+    "fp_per_scan": 0.3780487804878049,
+    "fp_clutter_per_scan": 0.32926829268292684,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 111,
+    "detections": 189,
+    "recall": 0.39928057553956836,
+    "precision": 0.5873015873015873,
+    "fp_per_scan": 0.3696682464454976,
+    "fp_clutter_per_scan": 0.33175355450236965,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 19,
+    "detections": 34,
+    "recall": 0.4418604651162791,
+    "precision": 0.5588235294117647,
+    "fp_per_scan": 0.42857142857142855,
+    "fp_clutter_per_scan": 0.3142857142857143,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone60,tol0.25]@20.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 113,
+    "detections": 180,
+    "recall": 0.35202492211838005,
+    "precision": 0.6277777777777778,
+    "fp_per_scan": 0.27235772357723576,
+    "fp_clutter_per_scan": 0.23577235772357724,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 99,
+    "detections": 159,
+    "recall": 0.35611510791366907,
+    "precision": 0.6226415094339622,
+    "fp_per_scan": 0.2843601895734597,
+    "fp_clutter_per_scan": 0.2559241706161137,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 14,
+    "detections": 21,
+    "recall": 0.32558139534883723,
+    "precision": 0.6666666666666666,
+    "fp_per_scan": 0.2,
+    "fp_clutter_per_scan": 0.11428571428571428,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  },
+  "hyperbola_stack[cone60,tol0.25]@30.0": {
+   "train_val": {
+    "scenes": 246,
+    "targets": 321,
+    "matched": 70,
+    "detections": 108,
+    "recall": 0.21806853582554517,
+    "precision": 0.6481481481481481,
+    "fp_per_scan": 0.15447154471544716,
+    "fp_clutter_per_scan": 0.14634146341463414,
+    "empty_scenes": 49,
+    "fp_per_empty_scene": 0.0
+   },
+   "train": {
+    "scenes": 211,
+    "targets": 278,
+    "matched": 61,
+    "detections": 93,
+    "recall": 0.21942446043165467,
+    "precision": 0.6559139784946236,
+    "fp_per_scan": 0.15165876777251186,
+    "fp_clutter_per_scan": 0.15165876777251186,
+    "empty_scenes": 41,
+    "fp_per_empty_scene": 0.0
+   },
+   "val": {
+    "scenes": 35,
+    "targets": 43,
+    "matched": 9,
+    "detections": 15,
+    "recall": 0.20930232558139536,
+    "precision": 0.6,
+    "fp_per_scan": 0.17142857142857143,
+    "fp_clutter_per_scan": 0.11428571428571428,
+    "empty_scenes": 8,
+    "fp_per_empty_scene": 0.0
+   }
+  }
+ }
+}

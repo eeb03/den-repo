@@ -1,0 +1,44 @@
+{
+  "frozen_before_test": true,
+  "rule": "max train+val recall with fp_per_scan <= 1.0; ties -> higher threshold, then the configuration listed first",
+  "primary_condition": "instrument_20spp|noise_4tu_median",
+  "primary_arm": "mean_trace_subtraction",
+  "selection_scenes": 246,
+  "detectors": {
+    "ring": {
+      "config": {},
+      "config_id": "ring",
+      "threshold": 2.5,
+      "train_val_recall": 0.01557632398753894
+    },
+    "ring_widened": {
+      "config": {
+        "trace": [
+          11,
+          21
+        ],
+        "depth": [
+          9,
+          27
+        ]
+      },
+      "config_id": "ring_widened[t11-21,d9-27]",
+      "threshold": 3.0,
+      "train_val_recall": 0.11214953271028037
+    },
+    "hyperbola_stack": {
+      "config": {
+        "cone_half_angle_deg": 45.0,
+        "tolerance_periods": 0.25
+      },
+      "config_id": "hyperbola_stack[cone45,tol0.25]",
+      "threshold": 6.0,
+      "train_val_recall": 0.7009345794392523
+    },
+    "ring_production_threshold": {
+      "config": {},
+      "config_id": "ring",
+      "threshold": 3.0
+    }
+  }
+}

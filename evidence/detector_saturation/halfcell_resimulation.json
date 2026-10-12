@@ -1,0 +1,65 @@
+{
+ "gen_s0_00013": {
+  "cell_m": 0.0024,
+  "original": {
+   "pass": true,
+   "scored_event": "internal",
+   "vertex_error_traces": 0,
+   "apex_time_error_ps": 112,
+   "shape_rms_ps": 110,
+   "shape_mean_ps": 110
+  },
+  "half_cell": {
+   "cell_m": 0.0012,
+   "pass": true,
+   "scored_event": "internal",
+   "vertex_error_traces": 0,
+   "apex_time_error_ps": 78,
+   "shape_rms_ps": 78,
+   "shape_mean_ps": 78,
+   "wall_seconds": null
+  }
+ },
+ "gen_s0_00135": {
+  "cell_m": 0.0033,
+  "original": {
+   "pass": false,
+   "scored_event": "internal",
+   "vertex_error_traces": -18,
+   "apex_time_error_ps": 179,
+   "shape_rms_ps": 174,
+   "shape_mean_ps": 174
+  },
+  "half_cell": {
+   "cell_m": 0.00165,
+   "pass": false,
+   "scored_event": "internal",
+   "vertex_error_traces": -18,
+   "apex_time_error_ps": 120,
+   "shape_rms_ps": 119,
+   "shape_mean_ps": 119,
+   "wall_seconds": null
+  }
+ },
+ "gen_s0_00277": {
+  "cell_m": 0.004,
+  "original": {
+   "pass": false,
+   "scored_event": "top",
+   "vertex_error_traces": 8,
+   "apex_time_error_ps": 233,
+   "shape_rms_ps": 231,
+   "shape_mean_ps": 231
+  },
+  "half_cell": {
+   "cell_m": 0.002,
+   "pass": false,
+   "scored_event": "top",
+   "vertex_error_traces": 7,
+   "apex_time_error_ps": 163,
+   "shape_rms_ps": 160,
+   "shape_mean_ps": 159,
+   "wall_seconds": null
+  }
+ }
+}
