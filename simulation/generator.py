@@ -21,13 +21,19 @@ stated with its reason so a later change is visibly a change:
   which keeps truth.py's low-loss velocity c/sqrt(eps_r) within ~0.15%.
 * NEGATIVES ARE FIRST-CLASS. A fifth of scenes are attested-empty: the 4TU
   benchmark could not separate a detector from chance with 6 negatives.
-* SPLIT BY HASH. train/val/test is decided by the scene fingerprint, so it is
-  stable, independent of corpus size, and cannot be chosen after results.
+* SPLIT BY HASH OF THE DRAW. train/val/test is decided by hashing the
+  scene's geometry group, so it is stable, independent of corpus size, and
+  cannot be chosen after results. The group is the random draw
+  (seed, index), not the full fingerprint: any later variant of the same
+  draw -- another antenna, a 3D acquisition of the same objects -- shares
+  its split, so correlated scenes cannot straddle train and test. (Split v1
+  hashed the fingerprint; changed before any model used a split.)
 """
 from __future__ import annotations
 
 import hashlib
 import math
+import re
 
 import numpy as np
 
@@ -88,8 +94,19 @@ def max_conductivity(permittivity: float, frequency: float) -> float:
     return min(MAX_CONDUCTIVITY, MAX_LOSS_TANGENT * 2 * math.pi * frequency * EPS0 * permittivity)
 
 
+SPLIT_VERSION = 2
+_DRAW_ID = re.compile(r"gen_s(\d+)_(\d+)")
+
+
+def geometry_group(s: Scenario2D) -> str:
+    """The draw a scene came from; every variant of one draw shares it. A
+    scene not made by this generator is its own group."""
+    m = _DRAW_ID.match(s.scenario_id)
+    return f"draw_s{int(m.group(1))}_{int(m.group(2))}" if m else f"scene_{s.fingerprint()}"
+
+
 def split_of(s: Scenario2D) -> str:
-    bucket = int(hashlib.sha256(s.fingerprint().encode()).hexdigest(), 16) % 100
+    bucket = int(hashlib.sha256(geometry_group(s).encode()).hexdigest(), 16) % 100
     edge = 0
     for name, percent in SPLITS:
         edge += percent

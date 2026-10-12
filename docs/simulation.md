@@ -218,10 +218,290 @@ the stronger bottom one. The failure is recorded, not re-scored.
   sanity check of predicted travel times is incomplete for dielectric
   targets.
 
+## Slice 3: two echoes per dielectric target (truth model v2, analysis v3)
+
+### Scene 13, investigated without touching the simulator
+
+`gen_s0_00013` is a rock (ε_r 9.69, r = 3.12 cm) in soil with ε_r 5.48, at
+1.5 GHz. It failed v2 because every pick sat +1.40 ns late. Neither the
+scene nor the solver input nor gprMax was changed. Only the *prediction*
+was extended:
+
+- `truth.py` now predicts a second event for every target a ray can enter
+  (rock, void). It is the **internal reflection**: refract in, reflect once
+  off the far wall, refract out. This is traced exactly by shooting rays
+  through the circle (Snell at entry and exit, mirror at the far wall,
+  each root refined with `brentq`), not estimated as 4r/v. Rays that are
+  totally internally reflected, or whose exit fan misses the receiver,
+  give no time (`null`) rather than an invented one.
+- The truth tests pin the zero-offset closed form (top + 4r/v_in). They
+  check an independent Fermat brute force on symmetric offset paths, for a
+  slow rock and for a fast void. They also pin a case where no internal ray
+  reaches the receiver: a slow rock is a converging lens, and its exit fan
+  spans only ±2.8 cm.
+
+| gen_s0_00013 (blind picks unchanged) | vs top echo | vs internal echo |
+|---|---|---|
+| shape RMS, `target_free_reference` | 1,400 ps | **110 ps** |
+| shape RMS, `mean_trace` | 1,413 ps | **122 ps** |
+| apex time error, `target_free_reference` (tolerance 333 ps) | +1,402 ps | **+112 ps** |
+| apex trace (pred. 39) | 39 | 39 |
+
+The predicted internal–top separation at the apex is 1.29 ns, against the
+1.40 ns measured. The picks are on the far-wall echo, which is the stronger
+of the two here. A **+110 ps residual remains and is unexplained.** It is a
+third of the tolerance, uniform across the scan, and plausibly the tail of
+the top echo interfering. It is not investigated further.
+
+### Analysis v3: score the best-fitting predicted event
+
+The blind picks are scored against whichever predicted event they fit best
+(lowest RMS over the 21 central traces), and all three checks use that
+event. A PEC target has one event, so v3 is identical to v2 for pipes and
+cables. Picks that fit neither event still fail; there is a test for that.
+The top-only v2 verdict is still computed in every validation
+(`diagnostics.top_only_v2_rule`), and the original v2 file is archived
+under `validation_history/`. The old truth is archived under
+`truth_history/` (`TRUTH_MODEL_VERSION` 1 → 2).
+
+v3 is **post hoc for scenes 0–19** (it was written after seeing scene 13)
+and **pre-registered for scenes 20–299**. Those were simulated with the v2
+code and rescored under v3 after the rule was fixed.
+
+### Before/after, scenes 0–19 and the reference scene
+
+| | v2 (archived) | v3 |
+|---|---|---|
+| `target_free_reference` (pre-registered basis) | 11/12 pass | **12/12 pass** |
+| `mean_trace` | 8/12 pass | 9/12 pass |
+| Verdicts that changed | n/a | only gen_s0_00013, on both methods |
+| Scored on the internal echo | n/a | 13 (rock), 09 (void, 43 ps vs 274 ps on top) |
+
+**A by-product: the dielectric residuals are interference.** For rock and
+void scenes 03, 06, 07 and 19, the picks sit *between* the two predicted
+events. They are 100–210 ps late of the top echo and 230–760 ps early of
+the internal one. That is what overlapping echoes do to an envelope peak.
+It explains the 100–300 ps dielectric residuals against 4–27 ps for PEC,
+which the slice-2 notes had left unverified.
+
+## Interface to the platform (`simulation/interface.py`)
+
+The request named "Volume V1" and "Interpretation V1". **Neither name exists
+in this codebase.** The interface is therefore defined against what does
+exist. Nothing was rebuilt, and no viewer was touched.
+
+| Platform piece (existing) | What a simulated profile gives it |
+|---|---|
+| Array path: `anomaly_grid_from_traces`, `benchmark.detection.detect_line` | `SyntheticLine.traces`, (n_traces, n_samples) |
+| Record path: `process_gpr_traces` → `preprocess_trace_local_anomaly` → `find_anomaly_candidates`, radargram view | `to_subterra_records`: one `SubterraRecord` per (trace, sample), the shape `SEGYConverter` writes |
+| 3D scene (`ScenePayload`, `views._scene_3d`) | **Nothing.** A profile has model-local x and no geographic or vertical reference, so the scene correctly stays unresolved |
+| Volume (`SubsurfaceVolume`, roadmap M2) | **Nothing yet.** The schema does not exist. Only `GRIDDED_3D_VOLUME` acquisitions will ever be eligible |
+| Ground truth, `SubsurfaceObject`, real-label tally | **Never.** Simulated truth stays in `truth.json` and is used for scoring only |
+
+**Two acquisition kinds, never mixed.**
+- `INDEPENDENT_2D_PROFILE` is everything the corpus holds. Each scene is a
+  2D TM world with infinitely long cylinders. Two profiles are not two
+  slices through one ground, so `volume_eligibility` refuses to stack or
+  interpolate them.
+- `GRIDDED_3D_VOLUME` is reserved for gprMax 3D runs, with many lines over
+  one model. Nothing produces it yet.
+
+**Records.**
+- Position is `LocalCartesianPosition(x = midpoint, y = 0)`. Latitude and
+  longitude are `None`.
+- Depth uses the soil velocity the solver was given, tagged `declared`
+  with an attribution.
+- `ground_truth` is `none`, and `simulated: true` is set on every record.
+
+**Equivalence.** A test runs one analytic line down both paths: array
+(`detect_line`) and records (`find_anomaly_candidates`). Both find the same
+candidates on the same traces.
+
+## Leakage and claim scope
+
+- **Split by draw, not by scene** (`SPLIT_VERSION` 2). The split hashes the
+  geometry group (`draw_s{seed}_{index}`). Any later variant of the same
+  random draw, such as another antenna or a 3D acquisition of the same
+  objects, lands in the same split. Split v1 hashed the full fingerprint;
+  this was changed before any model used a split. The split counts for
+  scenes 0–19 changed as a result.
+- **`simulation/leakage.py`** audits a corpus:
+  - duplicate fingerprints, which must be 0;
+  - draws straddling splits, which must be 0;
+  - near-duplicate geometry across splits once lengths are in wavelengths.
+    Generated scenes scale with the wavelength, so a 250 MHz scene and a
+    2.6 GHz scene can be the same picture. Flagged pairs are reported and
+    never moved, because moving them after seeing results would mean
+    choosing the split.
+- **Every number from the corpus is a simulation result.** It is never
+  merged with, averaged into, or quoted as real-data accuracy. The
+  platform's real-label count stays at 4.
+
+## Pilot corpus: seed 0, scenes 0–299 (2026-10-12)
+
+`python -m simulation.build_corpus --seed 0 --count 300` resumed from the 20
+existing scenes and simulated scenes 20–299. No scene was simulated twice:
+existing artifacts are matched by fingerprint. A second run with the v3
+code then rescored every stored scene without re-running the solver. Each
+superseded `validation.json` was archived in `validation_history/` and
+each v1 `truth.json` in `truth_history/`. The pre-v3 `index.json` was kept
+as `index_history/index_pre_v3.json`.
+
+**What each index entry records.**
+- seed, index, fingerprint, geometry group and split;
+- frequency, soil εr, σ and soil class;
+- cell size, trace count and time window;
+- the exact geometry and material of every target, with depth in
+  wavelengths;
+- validation status and verdict, analysis and truth-model versions;
+- solver version, wall time and sha256 of every output file.
+
+The top level records the generator settings.
+
+**Realised balance** (300 scenes, all unique):
+
+| | |
+|---|---|
+| Frequency | 0.25 GHz 57 · 0.5 GHz 50 · 1 GHz 74 · 1.5 GHz 50 · 2.6 GHz 69 |
+| Scene kind | empty 64 · single 143 · multi 93 |
+| Target labels (382 targets) | void 103 · rock 94 · pipe 94 · cable 91 |
+| Soil class | dry (εr 3–8) 66 · moist (8–15) 93 · **wet (15–25) 141** |
+| Split (by draw) | train 211 · val 35 · test 54 |
+
+**The soil classes are not balanced.** The generator draws εr uniformly
+over 3–25, so the wet class, which spans 10 of that range, gets about half
+the scenes. The generator was not changed: doing so would have changed
+scenes 0–19 and broken resumption. Every result below is reported per soil
+class, so the skew is visible rather than averaged away. If a later corpus
+needs balanced classes, it should sample by class under a new seed.
+
+**Cost.** Total solver wall time was 7.7 h on 6 OpenMP threads: median 91 s
+per scene, range 25–511 s. Disk use is 350 MB. The corpus lives in
+`artifacts/` and is not committed; it can be rebuilt from the seed.
+
+### Validation, before and after v3, all 143 scored scenes
+
+Only single-target scenes are scored. Empty and multi-target scenes are
+`not_applicable`.
+
+| | archived v2 | v3 |
+|---|---|---|
+| `target_free_reference` (pre-registered basis) | 127/143 | **131/143** |
+| `mean_trace` | 73/143 | 75/143 |
+| Verdicts changed | | 6, all fail → pass, all rock scored on the internal echo: 13 (both methods), 180 (both), 126 and 252 (`target_free_reference` only) |
+| Pass → fail | | **none** |
+| Scored on the internal echo | | 15 (rock and void) |
+
+**The 12 scenes still failing on the pre-registered basis.** Every one
+fails only the apex-trace (lateral vertex) check. Apex time and hyperbola
+shape pass in all 12.
+
+| Scene | Label | f (GHz) | εr | Event scored | Vertex error (traces, tolerance 2) |
+|---|---|---|---|---|---|
+| 22 | rock | 2.6 | 5.2 | internal | −6 |
+| 65 | rock | 2.6 | 4.5 | internal | −14 |
+| 66 | cable | 1.5 | 16.1 | top | +7 |
+| 85 | cable | 0.25 | 5.2 | top | +4 |
+| 106 | rock | 0.5 | 24.3 | top | +5 |
+| 135 | rock | 1.0 | 6.5 | internal | −18 |
+| 157 | rock | 2.6 | 4.7 | internal | +16 |
+| 177 | rock | 1.5 | 19.4 | top | −5 |
+| 185 | rock | 1.0 | 6.9 | internal | +14 |
+| 241 | pipe | 1.0 | 11.5 | top | −7 |
+| 245 | rock | 0.5 | 4.9 | internal | +3 |
+| 277 | void | 0.5 | 17.8 | top | +8 |
+
+These remain failures; no rule was loosened. Two patterns stand out, but
+neither is verified:
+- Six of the 12 are low-contrast rock (εr 4.5–6.9 in soil) scored on the
+  internal echo. Here the two echoes overlap and the kinematic vertex fit
+  is poorly constrained, for example scene 22, whose shape RMS is only
+  32 ps.
+- The others are top-echo picks pulled sideways. This fits the
+  interference already seen in scenes 03, 06, 07 and 19.
+
+The +110 ps residual in the internal–top separation of scene 13 is also
+still unexplained.
+
+`mean_trace` fails 68/143, against 12/143 for the target-free reference.
+That is the background-removal effect as seen by the validation picker (see
+below).
+
+### Leakage audit (`simulation.leakage.audit(generate(0, 300))`)
+
+| Check | Result |
+|---|---|
+| Duplicate fingerprints | 0 |
+| Draws straddling splits | 0 |
+| Near-duplicate geometry across splits (in wavelengths: depth ±0.1, x ±0.25, radius ±0.05, εr ±2) | 0 pairs among 236 target scenes |
+
+The 64 empty scenes are excluded from the near-duplicate check by design.
+
+## Background-removal benchmark (`simulation/background_benchmark.py`)
+
+The rules are pre-registered in the module docstring. There are three arms
+that differ only in the background step, and two samplings. The whole
+corpus is used: 300 scenes and 382 targets.
+
+**Result: the platform's existing detector finds none of the 382 simulated
+targets, in any arm, at either sampling.** Recall is 0.0 overall and in
+every frequency, soil, label, depth-bin, split and scene-kind category, so
+lateral and depth errors are undefined. The benchmark therefore **cannot
+rank the background-removal arms on recall or localisation**. It ranks
+them only on false alarms.
+
+| Sampling | Arm | Recall | FP / scene (strict = clutter) | FP / empty scene |
+|---|---|---|---|---|
+| 20 spp (primary) | mean-trace subtraction (production) | 0/382 | 0.027 | 0.12 |
+| | no removal | 0/382 | 0.003 | 0.02 |
+| | target-free oracle | 0/382 | 0.000 | 0.00 |
+| native (135–250 spp) | mean-trace subtraction | 0/382 | 10.3 (dry 0.24 · moist 2.7 · wet 20.0) | 24.6 |
+| | no removal | 0/382 | 8.5 (dry 0.03 · moist 1.6 · wet 16.9) | 17.1 |
+| | target-free oracle | 0/382 | 8.6 (dry 1.1 · moist 5.5 · wet 14.0) | 0.0 |
+
+**Why recall is zero.** This is not a background-removal effect, and it
+was checked on three scenes before the full run. With no noise, the
+strongest ring z-score on a simulated hyperbola is 2.4–2.7, below the
+threshold of 3. Every simulated echo is a full-width hyperbola, which fills
+its own background ring. This is the width saturation already measured on
+real lines (memory note of 2026-08-06), and
+`test_a_full_width_hyperbola_saturates_the_production_ring` pins it. With
+1–5% added noise the peak reaches |z| ≈ 4.3, but only on isolated cells
+that never form a 3-cell component. The detector was not changed.
+
+**What the false alarms say.**
+- At 20 spp, mean-trace subtraction adds a small number of false alarms
+  (8 in 300 scenes) that the other arms do not produce.
+- At native sampling, false alarms are dominated by wet soil. In empty
+  scenes, mean-trace subtraction produces 24.6 per scene where the oracle
+  produces none. In target scenes the oracle still produces 7–13 per
+  scene. These are classed as clutter or early arrivals, but they lie in
+  scenes whose only energy is the target and the direct wave, so they are
+  more likely fragments of target or direct-wave energy outside the match
+  windows than independent clutter. That is not verified.
+
+**Background removal as seen by the validation picker.** This is the
+existing blind picker (global envelope maximum per trace), not the
+platform detector. Picks after mean-trace subtraction pass 75/143, and
+picks after subtracting the true target-free background pass 131/143. On
+simulated single-target scenes, then, mean-trace subtraction costs
+substantial localisation accuracy. Measuring that with the platform's own
+detector needs a detector that does not saturate on hyperbolae. **No such
+detector was built here.** The request was not to replace interpretation
+algorithms without comparative evidence, and this benchmark is the first
+such evidence. It shows the gap but does not select a replacement.
+
+**Every number in this section is a simulation result** on noise-free 2D
+TM data. None of it is field accuracy.
+
 ## Next
 
-- Dielectric-target bottom reflections in `truth.py` (see gen_s0_00013).
-- Grow the corpus. Locally this is about 80 s per scene, or about 45 scenes
-  an hour. Kaggle or Colab is needed for hundreds of scenes, and for 3D.
-- 3D volumes (gprMax 3D, Kaggle or Colab GPU), which feed the `SubsurfaceVolume`
-  schema and the CT slice viewer (roadmap M2/M3).
+- Decide whether to add a hyperbola-aware detector arm, such as a
+  migration or Hough-style matched filter, as a candidate to compare
+  against the ring z-score. It would be compared on this corpus first, not
+  swapped in.
+- Investigate the lateral-vertex failures on low-contrast rock: whether
+  overlapping echoes or the vertex fit is responsible.
+- A class-balanced soil sampler for the next corpus seed.
+- 3D volumes (gprMax 3D, Kaggle or Colab GPU), which feed the
+  `SubsurfaceVolume` schema and the CT slice viewer (roadmap M2/M3).
