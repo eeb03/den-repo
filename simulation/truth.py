@@ -94,6 +94,11 @@ def build_truth_manifest(s: Scenario2D) -> dict:
             "relative_permittivity": s.soil.relative_permittivity,
             "conductivity_s_per_m": s.soil.conductivity,
             "velocity_m_per_s": s.soil.velocity,
+            "target_materials": {
+                m.name: {"relative_permittivity": m.relative_permittivity,
+                         "conductivity_s_per_m": m.conductivity}
+                for m in s.materials
+            },
         },
         "wavelet": {
             "type": "ricker",

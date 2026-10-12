@@ -157,12 +157,40 @@ def test_assessor_fails_a_bscan_shifted_by_one_period():
 
 
 def test_assessor_fails_when_the_apex_is_in_the_wrong_place():
+    """A hyperbola displaced 8 traces sideways: its kinematic vertex is wrong."""
+    truth = build_truth_manifest(S)
+    predicted = np.asarray(truth["targets"][0]["predicted"]["two_way_time_s"])
+    shifted = np.roll(predicted, 8)
+    shifted[:8] = predicted[0]
+    verdict = assess_against_truth(_analytic_bscan(shifted, _amps(truth)), DT, 0.0, truth)
+    assert not verdict["checks"]["apex_trace"]["pass"]
+
+
+def test_apex_is_kinematic_not_the_strongest_return():
+    """The gen_s0_00004 finding: an interface antenna's two oblique lobes make
+    the strongest returns land far from the apex. Correct times must still
+    pass, and the v1 amplitude rule is kept only as a failing diagnostic."""
     truth = build_truth_manifest(S)
     predicted = truth["targets"][0]["predicted"]["two_way_time_s"]
     apex = truth["targets"][0]["predicted"]["apex_trace"]
-    amps = [1.0 / (1 + 0.05 * abs(i - (apex + 8))) for i in range(S.n_traces)]
-    verdict = assess_against_truth(_analytic_bscan(predicted, amps), DT, 0.0, truth)
-    assert not verdict["checks"]["apex_trace"]["pass"]
+    lobes = [0.8 + 0.2 * math.exp(-((abs(i - apex) - 15) / 4) ** 2) for i in range(S.n_traces)]
+    bscan = _analytic_bscan(predicted, lobes)
+    background = _analytic_bscan([0.0] * S.n_traces, [0.0] * S.n_traces)
+    verdict = assess_against_truth(bscan, DT, 0.0, truth, background)
+    assert verdict["pass"], verdict["checks"]
+    assert verdict["checks"]["apex_trace"]["method"] == "kinematic_vertex_v2"
+    assert not verdict["diagnostics"]["amplitude_apex_v1_would_pass"]
+
+
+def test_an_unrecovered_target_is_a_failed_verdict_not_a_crash():
+    """Picks on a downward-opening cap -- no hyperbola -- fail the apex check
+    with a reason instead of raising."""
+    truth = build_truth_manifest(S)
+    cap = [2.4e-9 - 0.3e-9 * ((i - 30) / 30) ** 2 for i in range(S.n_traces)]
+    verdict = assess_against_truth(_analytic_bscan(cap, [1.0] * S.n_traces), DT, 0.0, truth)
+    check = verdict["checks"]["apex_trace"]
+    assert not verdict["pass"] and not check["pass"]
+    assert check["measured"] is None and "hyperbola" in check["failure"]
 
 
 def test_time_offset_is_applied_to_picks():
@@ -199,3 +227,47 @@ def test_background_must_match_the_bscan_shape():
     with pytest.raises(ValueError, match="background shape"):
         assess_against_truth(np.zeros((N_SAMPLES, S.n_traces)), DT, 0.0, truth,
                              np.zeros((N_SAMPLES, 3)))
+
+
+# --- rescore -----------------------------------------------------------------
+
+def _stored_artifact(tmp_path, validation):
+    import json
+    from simulation.run_gprmax import _sha256
+    out = tmp_path / S.scenario_id
+    out.mkdir()
+    truth = build_truth_manifest(S)
+    bscan = _analytic_bscan(truth["targets"][0]["predicted"]["two_way_time_s"], _amps(truth))
+    background = _analytic_bscan([0.0] * S.n_traces, [0.0] * S.n_traces)
+    np.savez_compressed(out / "bscan.npz", data=bscan, dt=DT, time_offset=0.0, background=background)
+    (out / "truth.json").write_text(json.dumps(truth))
+    (out / "validation.json").write_text(json.dumps(validation))
+    (out / "manifest.json").write_text(json.dumps({
+        "scenario": S.to_dict(), "scenario_fingerprint": S.fingerprint(),
+        "files": {"validation.json": _sha256(out / "validation.json")},
+    }))
+    return out
+
+
+def test_rescore_archives_the_old_verdict_and_rescores(tmp_path):
+    import json
+    from simulation.analysis import ANALYSIS_VERSION
+    from simulation.run_gprmax import rescore
+    out = _stored_artifact(tmp_path, {"pass": False, "note": "v1 verdict"})
+    manifest = rescore(out)
+    assert manifest["analysis_version"] == ANALYSIS_VERSION
+    assert manifest["validation_pass"] is True
+    assert manifest["superseded_validations"] == [{"analysis_version": 1, "pass": False}]
+    assert json.loads((out / "validation_history" / "validation_v1.json").read_text())["note"] == "v1 verdict"
+
+
+def test_rescore_refuses_a_stale_scene_without_touching_it(tmp_path):
+    import json
+    from simulation.run_gprmax import rescore
+    out = _stored_artifact(tmp_path, {"pass": False})
+    m = json.loads((out / "manifest.json").read_text())
+    m["scenario_fingerprint"] = "0" * 64
+    (out / "manifest.json").write_text(json.dumps(m))
+    with pytest.raises(RuntimeError, match="fingerprint"):
+        rescore(out)
+    assert not (out / "validation_history").exists()
