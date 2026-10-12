@@ -529,6 +529,7 @@ subtraction; test split; simulation only):
   - It passes S1, synthetic recovery.
   - It fails S2: precision 0.44 < 0.50, and most of its false positives are limbs of hyperbolas it has already found.
   - BAM regression (R1) cannot be measured. No threshold in the grid stays within the false-positive budget on the concrete dev scan, and the empty controls fail at every threshold.
+  - R2 passes: candidate counts stay within 2× production's on both INGV and 4TU. On 4TU, though, the activity-level separation is 0.50 against production's 0.68, from only 4 trench-empty activities.
 - **ring_widened: REJECT.** It fails S1.
 
 The saturation result of PR #11 is confirmed on held-out scenes.

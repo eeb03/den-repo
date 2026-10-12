@@ -171,13 +171,13 @@ If both arms are rejected, the failure mechanism and the next research approach 
 
 Written 2026-10-12, after the frozen test run (freeze commit `9bca277` came before any test scene was scored). Sections 1–8 are unchanged. **SIMULATION ONLY** applies to every synthetic number below. None of them is a field accuracy claim.
 
-**Result files.** Runs write to `artifacts/`, which is git-ignored. The summary outputs are committed under `evidence/detector_saturation/`: `report.json`, `selection.json`, `bam.json`, `ingv.json` and `failure_diagnosis.json`. The per-scene JSONL files (56 MB) can be regenerated with `python -m simulation.detector_comparison evaluate`.
+**Result files.** Runs write to `artifacts/`, which is git-ignored. The summary outputs are committed under `evidence/detector_saturation/`: `report.json`, `selection.json`, `bam.json`, `ingv.json`, `4tu.json` and `failure_diagnosis.json`. The per-scene JSONL files (56 MB) can be regenerated with `python -m simulation.detector_comparison evaluate`.
 
 ### 9.1 Verdict
 
 | Arm | S1 | S2 | R1 (BAM) | R2 (INGV / 4TU) | Verdict |
 |---|---|---|---|---|---|
-| `hyperbola_stack` | **pass**: recall 0.69 [0.58–0.80] vs ring 0.00 [0.00–0.00] | **fail**: precision 0.44 [0.37–0.52] < 0.50 (FP per empty scene 0.00 passes) | **cannot be measured**: no dev threshold meets the §7 rule (see 9.5) | INGV **pass** (11.4 vs ≤ 102 candidates/line; above its own null on 26/50 lines); 4TU **pending** | **KEEP_EXPERIMENTAL** |
+| `hyperbola_stack` | **pass**: recall 0.69 [0.58–0.80] vs ring 0.00 [0.00–0.00] | **fail**: precision 0.44 [0.37–0.52] < 0.50 (FP per empty scene 0.00 passes) | **cannot be measured**: no dev threshold meets the §7 rule (see 9.5) | **pass**: INGV 11.4 vs ≤ 102 candidates per line, above its own null on 26/50 lines; 4TU 62.4 vs ≤ 71.5, above its null on 8/40, activity AUC 0.50 vs 0.68 | **KEEP_EXPERIMENTAL** |
 | `ring_widened` | **fail**: recall 0.03 [0.00–0.08] | – | – | – | **REJECT** |
 
 The hyperbola stack is the first detector in this project to recover synthetic targets at a realistic noise and sampling level. It does so without simulator truth at inference. It stays experimental for three reasons:
@@ -423,10 +423,30 @@ Best recall at FP per scan ≤ 1.0 for each configuration, primary condition (`a
 1. **Permuting traces raises every ring variant's count** by 2–4× here. The ring compares a cell with its lateral neighbours, so shuffling the traces creates lateral contrast. The 2026-08-06 "chance rate" statement used a different null, and the two are not comparable.
 2. **The per-line permutation p-value can't go below 1/11 = 0.09 with 10 draws.** The "p < 0.05" column is therefore uninformative by construction. The p95 and mean comparisons above are what count.
 
-#### 4TU utility survey (40-file subset)
+#### 4TU utility survey, 40-file subset (`artifacts/realdata/4tu.json`)
 
-**Pending.** The run (`scripts/real_data_detector_saturation.py --corpus 4tu`, which writes `artifacts/realdata/4tu.json`) was still in progress when this section was committed. The verdict does not depend on it: S2 already fails, so the hyperbola stack is KEEP_EXPERIMENTAL whatever R2 shows.
+**Setup.** 500 MHz nominal, 0.02 m trace spacing from group X, mean-trace arm, and 10 trace permutations per line. The lines run to 7,130 traces.
 
+| Detector (threshold) | Candidates | Per line | ≥ 3-trace | Null mean (total) | Lines above null mean | Lines above null p95 | Activity AUC (26 utility vs 4 trench-empty) | Median CPU per line |
+|---|---|---|---|---|---|---|---|---|
+| ring @3.0 (production) | 1,429 | 35.7 | 0 | 43,812 | 0 | 0 | 0.68 | 0.11 s |
+| ring @2.5 (synthetic-frozen) | 7,565 | 189.1 | 63 | 90,919 | 0 | 0 | 0.63 | 0.09 s |
+| ring_widened @3.0 | 8,026 | 200.7 | 3,797 | 27,959 | 3 | 1 | 0.68 | 0.09 s |
+| hyperbola_stack @6.0 | 2,495 | **62.4** | 2,095 | 4,704 | **8** | 4 | **0.50** | 13 s (max 1,029 s) |
+
+**R2 (4TU).**
+
+- **hyperbola_stack: pass.** It gives 62.4 candidates per line, against a ceiling of 71.5, twice production's rate. Combined with INGV, **R2 passes**.
+- Its excess over the null is weaker here than on INGV: 8 of 40 lines are above the null mean and 4 above the p95. Most of its candidates span 3 or more traces, but so do most null candidates (1,962), so that width is not evidence of real lateral structure on this corpus.
+- **ring_widened fails R2.** It gives 200.7 per line, more than 5× production, and the excess is not explained by its null.
+
+**Activity level.** This is `score_activities`: candidates per 1,000 traces in activities where the trial trench found utilities, against trench-empty activities.
+
+- The hyperbola stack shows **no separation (AUC 0.50)**. The production ring shows 0.68.
+- With only 4 trench-empty activities, AUC moves in steps of 1/104 and has a wide interval, so this is a weak, unpowered signal. It is recorded as a possible regression, not established.
+- Every arm's count agreement with the number of utilities found is near zero (|ρ| ≤ 0.15).
+
+**Cost.** The hyperbola stack's cost grows with line length × aperture. The 7,130-trace line took 1,029 s for one pass (11 passes with the null), which makes a 4,000-trace-plus 4TU line impractical without a faster implementation.
 
 ### 9.6 The 12 validation failures and scene 13 (separate from the detector work)
 
