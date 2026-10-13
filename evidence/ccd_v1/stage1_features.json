@@ -1,0 +1,1039 @@
+{
+ "label": "EXPLORATORY -- every BAM specimen/scan was used in earlier research; CONCRETE NDT ONLY; units are objects (n = 4 vs 4)",
+ "objects": {
+  "ducts_1_5_GHz": [
+   {
+    "object": "Pk266-duct-1",
+    "type": "tendon_duct",
+    "specimen": "Pk266",
+    "frequency": "1_5_GHz",
+    "n_lines": 121,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": -0.6181529194150417,
+    "F1_line_fraction_negative": 0.8016528925619835,
+    "t_expected_ns": 4.820822934285049,
+    "median_t_peak_minus_expected_ns": 0.08132970759362035,
+    "F7_signed_median_rho": -0.09178726986120837,
+    "F7_P_abs_median_rho": 0.09178726986120837,
+    "F7_rho_iqr": [
+     -0.20219240827137086,
+     0.153748984732196
+    ],
+    "F8_run_mm": 135.0,
+    "F8_detail": {
+     "argmax_index": 1,
+     "run_lines": 28,
+     "run_mm": 135.0,
+     "run_index_range": [
+      0,
+      27
+     ],
+     "run_y_mm": [
+      100.0,
+      235.0
+     ]
+    }
+   },
+   {
+    "object": "Pk266-duct-2",
+    "type": "tendon_duct",
+    "specimen": "Pk266",
+    "frequency": "1_5_GHz",
+    "n_lines": 121,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": -0.7639205546151385,
+    "F1_line_fraction_negative": 0.8429752066115702,
+    "t_expected_ns": 3.891348188377686,
+    "median_t_peak_minus_expected_ns": 0.04211560809980863,
+    "F7_signed_median_rho": -0.15583931471784013,
+    "F7_P_abs_median_rho": 0.15583931471784013,
+    "F7_rho_iqr": [
+     -0.2902852875626825,
+     -0.05151986233977662
+    ],
+    "F8_run_mm": 600.0,
+    "F8_detail": {
+     "argmax_index": 0,
+     "run_lines": 121,
+     "run_mm": 600.0,
+     "run_index_range": [
+      0,
+      120
+     ],
+     "run_y_mm": [
+      100.0,
+      700.0
+     ]
+    }
+   },
+   {
+    "object": "Pk266-duct-3",
+    "type": "tendon_duct",
+    "specimen": "Pk266",
+    "frequency": "1_5_GHz",
+    "n_lines": 121,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": 0.9413812008402881,
+    "F1_line_fraction_negative": 0.09917355371900827,
+    "t_expected_ns": 2.910666987353557,
+    "median_t_peak_minus_expected_ns": 0.08346217115916277,
+    "F7_signed_median_rho": 0.01804721262666012,
+    "F7_P_abs_median_rho": 0.01804721262666012,
+    "F7_rho_iqr": [
+     -0.016744389621246275,
+     0.0634128974042164
+    ],
+    "F8_run_mm": 600.0,
+    "F8_detail": {
+     "argmax_index": 120,
+     "run_lines": 121,
+     "run_mm": 600.0,
+     "run_index_range": [
+      0,
+      120
+     ],
+     "run_y_mm": [
+      100.0,
+      700.0
+     ]
+    }
+   },
+   {
+    "object": "Pk266-duct-4",
+    "type": "tendon_duct",
+    "specimen": "Pk266",
+    "frequency": "1_5_GHz",
+    "n_lines": 121,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": 0.8355023918183208,
+    "F1_line_fraction_negative": 0.008264462809917356,
+    "t_expected_ns": 2.0261918535185037,
+    "median_t_peak_minus_expected_ns": 0.0873110819022398,
+    "F7_signed_median_rho": 0.06765119902524312,
+    "F7_P_abs_median_rho": 0.06765119902524312,
+    "F7_rho_iqr": [
+     0.04783747294217694,
+     0.08265684698930494
+    ],
+    "F8_run_mm": 600.0,
+    "F8_detail": {
+     "argmax_index": 18,
+     "run_lines": 121,
+     "run_mm": 600.0,
+     "run_index_range": [
+      0,
+      120
+     ],
+     "run_y_mm": [
+      100.0,
+      700.0
+     ]
+    }
+   }
+  ],
+  "cuboids_1_5_GHz": [
+   {
+    "object": "Pk401-cuboid-1",
+    "type": "void_analogue_cuboid",
+    "specimen": "Pk401",
+    "frequency": "1_5_GHz",
+    "n_lines": 24,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": 0.5698046917419257,
+    "F1_line_fraction_negative": 0.0,
+    "t_expected_ns": 5.301518598303928,
+    "median_t_peak_minus_expected_ns": 0.39319764435752,
+    "F7_signed_median_rho": 0.2215042778022196,
+    "F7_P_abs_median_rho": 0.2215042778022196,
+    "F7_rho_iqr": [
+     0.11274946547961978,
+     0.2775092214679338
+    ],
+    "F8_run_mm": 140.0,
+    "F8_detail": {
+     "argmax_index": 59,
+     "run_lines": 29,
+     "run_mm": 140.0,
+     "run_index_range": [
+      46,
+      74
+     ],
+     "run_y_mm": [
+      330.0,
+      470.0
+     ]
+    }
+   },
+   {
+    "object": "Pk401-cuboid-2",
+    "type": "void_analogue_cuboid",
+    "specimen": "Pk401",
+    "frequency": "1_5_GHz",
+    "n_lines": 24,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": -0.3433888159529374,
+    "F1_line_fraction_negative": 0.9166666666666666,
+    "t_expected_ns": 4.131813948727946,
+    "median_t_peak_minus_expected_ns": 0.418088203913932,
+    "F7_signed_median_rho": 0.6596983358859199,
+    "F7_P_abs_median_rho": 0.6596983358859199,
+    "F7_rho_iqr": [
+     0.5826621438408409,
+     0.7901240858315148
+    ],
+    "F8_run_mm": 120.0,
+    "F8_detail": {
+     "argmax_index": 59,
+     "run_lines": 25,
+     "run_mm": 120.0,
+     "run_index_range": [
+      46,
+      70
+     ],
+     "run_y_mm": [
+      330.0,
+      450.0
+     ]
+    }
+   },
+   {
+    "object": "Pk401-cuboid-3",
+    "type": "void_analogue_cuboid",
+    "specimen": "Pk401",
+    "frequency": "1_5_GHz",
+    "n_lines": 24,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": -0.3751097578963297,
+    "F1_line_fraction_negative": 1.0,
+    "t_expected_ns": 2.962109299151964,
+    "median_t_peak_minus_expected_ns": 0.5016871783431434,
+    "F7_signed_median_rho": 0.6097474684813124,
+    "F7_P_abs_median_rho": 0.6097474684813124,
+    "F7_rho_iqr": [
+     0.29849110936682116,
+     0.7084451831887877
+    ],
+    "F8_run_mm": 115.0,
+    "F8_detail": {
+     "argmax_index": 80,
+     "run_lines": 24,
+     "run_mm": 115.0,
+     "run_index_range": [
+      68,
+      91
+     ],
+     "run_y_mm": [
+      440.0,
+      555.0
+     ]
+    }
+   },
+   {
+    "object": "Pk401-cuboid-4",
+    "type": "void_analogue_cuboid",
+    "specimen": "Pk401",
+    "frequency": "1_5_GHz",
+    "n_lines": 24,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": -0.4085491654646711,
+    "F1_line_fraction_negative": 1.0,
+    "t_expected_ns": 1.792404649575982,
+    "median_t_peak_minus_expected_ns": 0.5852861527723545,
+    "F7_signed_median_rho": 0.39544676894994774,
+    "F7_P_abs_median_rho": 0.39544676894994774,
+    "F7_rho_iqr": [
+     0.017678563950472164,
+     0.7489057253398618
+    ],
+    "F8_run_mm": 110.0,
+    "F8_detail": {
+     "argmax_index": 59,
+     "run_lines": 23,
+     "run_mm": 110.0,
+     "run_index_range": [
+      49,
+      71
+     ],
+     "run_y_mm": [
+      345.0,
+      455.0
+     ]
+    }
+   }
+  ],
+  "ducts_2_6_GHz_descriptive": [
+   {
+    "object": "Pk266-duct-1",
+    "type": "tendon_duct",
+    "specimen": "Pk266",
+    "frequency": "2_6_GHz",
+    "n_lines": 121,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": -0.5841086201663678,
+    "F1_line_fraction_negative": 0.7107438016528925,
+    "t_expected_ns": 4.703213097454997,
+    "median_t_peak_minus_expected_ns": 0.14023112955087402,
+    "F7_signed_median_rho": 0.06391464950555878,
+    "F7_P_abs_median_rho": 0.06391464950555878,
+    "F7_rho_iqr": [
+     -0.08938838886193629,
+     0.18775309618821034
+    ],
+    "F8_run_mm": 80.0,
+    "F8_detail": {
+     "argmax_index": 120,
+     "run_lines": 17,
+     "run_mm": 80.0,
+     "run_index_range": [
+      104,
+      120
+     ],
+     "run_y_mm": [
+      620.0,
+      700.0
+     ]
+    }
+   },
+   {
+    "object": "Pk266-duct-2",
+    "type": "tendon_duct",
+    "specimen": "Pk266",
+    "frequency": "2_6_GHz",
+    "n_lines": 121,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": 0.6000625298795391,
+    "F1_line_fraction_negative": 0.21487603305785125,
+    "t_expected_ns": 3.773666232153942,
+    "median_t_peak_minus_expected_ns": 0.10108914945075487,
+    "F7_signed_median_rho": -0.04804783001372213,
+    "F7_P_abs_median_rho": 0.04804783001372213,
+    "F7_rho_iqr": [
+     -0.17956915546785424,
+     0.05562554006410465
+    ],
+    "F8_run_mm": 600.0,
+    "F8_detail": {
+     "argmax_index": 120,
+     "run_lines": 121,
+     "run_mm": 600.0,
+     "run_index_range": [
+      0,
+      120
+     ],
+     "run_y_mm": [
+      100.0,
+      700.0
+     ]
+    }
+   },
+   {
+    "object": "Pk266-duct-3",
+    "type": "tendon_duct",
+    "specimen": "Pk266",
+    "frequency": "2_6_GHz",
+    "n_lines": 121,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": 0.9078758982758731,
+    "F1_line_fraction_negative": 0.0,
+    "t_expected_ns": 2.792908938547486,
+    "median_t_peak_minus_expected_ns": 0.11315759765603639,
+    "F7_signed_median_rho": -0.003731813844340695,
+    "F7_P_abs_median_rho": 0.003731813844340695,
+    "F7_rho_iqr": [
+     -0.03477207199887477,
+     0.0342040021211245
+    ],
+    "F8_run_mm": 600.0,
+    "F8_detail": {
+     "argmax_index": 0,
+     "run_lines": 121,
+     "run_mm": 600.0,
+     "run_index_range": [
+      0,
+      120
+     ],
+     "run_y_mm": [
+      100.0,
+      700.0
+     ]
+    }
+   },
+   {
+    "object": "Pk266-duct-4",
+    "type": "tendon_duct",
+    "specimen": "Pk266",
+    "frequency": "2_6_GHz",
+    "n_lines": 121,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": 0.5267918991661169,
+    "F1_line_fraction_negative": 0.04132231404958678,
+    "t_expected_ns": 1.9083651769087524,
+    "median_t_peak_minus_expected_ns": 0.029012513893595937,
+    "F7_signed_median_rho": 0.061225439041504334,
+    "F7_P_abs_median_rho": 0.061225439041504334,
+    "F7_rho_iqr": [
+     0.04517947398771214,
+     0.07972589156846058
+    ],
+    "F8_run_mm": 600.0,
+    "F8_detail": {
+     "argmax_index": 17,
+     "run_lines": 121,
+     "run_mm": 600.0,
+     "run_index_range": [
+      0,
+      120
+     ],
+     "run_y_mm": [
+      100.0,
+      700.0
+     ]
+    }
+   }
+  ],
+  "cuboids_2_6_GHz": "not computed: Pk401 2.6 GHz calibration REFUSED (protocol A4)"
+ },
+ "controls": {
+  "C4_1_pk050_phantoms": [
+   {
+    "object": "Pk050-phantom-duct-1",
+    "type": "phantom_tendon_duct",
+    "specimen": "Pk050",
+    "frequency": "1_5_GHz",
+    "n_lines": 121,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": 0.07894233225601292,
+    "F1_line_fraction_negative": 0.4628099173553719,
+    "t_expected_ns": 4.785913315503688,
+    "median_t_peak_minus_expected_ns": 0.057530911502182924,
+    "F7_signed_median_rho": 0.21138768104227687,
+    "F7_P_abs_median_rho": 0.21138768104227687,
+    "F7_rho_iqr": [
+     -0.38101249257524195,
+     0.48197593811412753
+    ],
+    "F8_run_mm": 45.0,
+    "F8_detail": {
+     "argmax_index": 0,
+     "run_lines": 10,
+     "run_mm": 45.0,
+     "run_index_range": [
+      0,
+      9
+     ],
+     "run_y_mm": [
+      100.0,
+      145.0
+     ]
+    }
+   },
+   {
+    "object": "Pk050-phantom-duct-2",
+    "type": "phantom_tendon_duct",
+    "specimen": "Pk050",
+    "frequency": "1_5_GHz",
+    "n_lines": 121,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": -0.01850575953099505,
+    "F1_line_fraction_negative": 0.512396694214876,
+    "t_expected_ns": 3.815008055758165,
+    "median_t_peak_minus_expected_ns": -0.20444054108106124,
+    "F7_signed_median_rho": -0.05634800400571463,
+    "F7_P_abs_median_rho": 0.05634800400571463,
+    "F7_rho_iqr": [
+     -0.33444603104413007,
+     0.18579191196383485
+    ],
+    "F8_run_mm": 35.0,
+    "F8_detail": {
+     "argmax_index": 7,
+     "run_lines": 8,
+     "run_mm": 35.0,
+     "run_index_range": [
+      4,
+      11
+     ],
+     "run_y_mm": [
+      120.0,
+      155.0
+     ]
+    }
+   },
+   {
+    "object": "Pk050-phantom-duct-3",
+    "type": "phantom_tendon_duct",
+    "specimen": "Pk050",
+    "frequency": "1_5_GHz",
+    "n_lines": 121,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": -0.3384181226739474,
+    "F1_line_fraction_negative": 0.6446280991735537,
+    "t_expected_ns": 2.7906138584974474,
+    "median_t_peak_minus_expected_ns": 0.17416109257887324,
+    "F7_signed_median_rho": -0.08761794513455057,
+    "F7_P_abs_median_rho": 0.08761794513455057,
+    "F7_rho_iqr": [
+     -0.2759380379889921,
+     0.03496969398249316
+    ],
+    "F8_run_mm": 15.0,
+    "F8_detail": {
+     "argmax_index": 0,
+     "run_lines": 4,
+     "run_mm": 15.0,
+     "run_index_range": [
+      0,
+      3
+     ],
+     "run_y_mm": [
+      100.0,
+      115.0
+     ]
+    }
+   },
+   {
+    "object": "Pk050-phantom-duct-4",
+    "type": "phantom_tendon_duct",
+    "specimen": "Pk050",
+    "frequency": "1_5_GHz",
+    "n_lines": 121,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": 0.33185957689748186,
+    "F1_line_fraction_negative": 0.4297520661157025,
+    "t_expected_ns": 1.866714028689521,
+    "median_t_peak_minus_expected_ns": -0.10546158250556803,
+    "F7_signed_median_rho": -0.02036004205790776,
+    "F7_P_abs_median_rho": 0.02036004205790776,
+    "F7_rho_iqr": [
+     -0.32826268312868817,
+     0.14160255912551484
+    ],
+    "F8_run_mm": 70.0,
+    "F8_detail": {
+     "argmax_index": 79,
+     "run_lines": 15,
+     "run_mm": 70.0,
+     "run_index_range": [
+      74,
+      88
+     ],
+     "run_y_mm": [
+      470.0,
+      540.0
+     ]
+    }
+   },
+   {
+    "object": "Pk050-phantom-cuboid-1",
+    "type": "phantom_void_analogue_cuboid",
+    "specimen": "Pk050",
+    "frequency": "1_5_GHz",
+    "n_lines": 24,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": 0.3208987290749704,
+    "F1_line_fraction_negative": 0.3333333333333333,
+    "t_expected_ns": 4.769704546559689,
+    "median_t_peak_minus_expected_ns": -0.14641687532681225,
+    "F7_signed_median_rho": -0.5357181071158632,
+    "F7_P_abs_median_rho": 0.5357181071158632,
+    "F7_rho_iqr": [
+     -0.7554648591838317,
+     -0.1050472395428251
+    ],
+    "F8_run_mm": 45.0,
+    "F8_detail": {
+     "argmax_index": 0,
+     "run_lines": 10,
+     "run_mm": 45.0,
+     "run_index_range": [
+      0,
+      9
+     ],
+     "run_y_mm": [
+      100.0,
+      145.0
+     ]
+    }
+   },
+   {
+    "object": "Pk050-phantom-cuboid-2",
+    "type": "phantom_void_analogue_cuboid",
+    "specimen": "Pk050",
+    "frequency": "1_5_GHz",
+    "n_lines": 24,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": 0.27659615383672176,
+    "F1_line_fraction_negative": 0.2916666666666667,
+    "t_expected_ns": 3.7971784099197663,
+    "median_t_peak_minus_expected_ns": -0.15725668780626378,
+    "F7_signed_median_rho": 0.009509643672037476,
+    "F7_P_abs_median_rho": 0.009509643672037476,
+    "F7_rho_iqr": [
+     -0.11071760587452104,
+     0.17268166217326023
+    ],
+    "F8_run_mm": 35.0,
+    "F8_detail": {
+     "argmax_index": 7,
+     "run_lines": 8,
+     "run_mm": 35.0,
+     "run_index_range": [
+      4,
+      11
+     ],
+     "run_y_mm": [
+      120.0,
+      155.0
+     ]
+    }
+   },
+   {
+    "object": "Pk050-phantom-cuboid-3",
+    "type": "phantom_void_analogue_cuboid",
+    "specimen": "Pk050",
+    "frequency": "1_5_GHz",
+    "n_lines": 24,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": -0.45216682231579175,
+    "F1_line_fraction_negative": 0.8333333333333334,
+    "t_expected_ns": 2.8246522732798445,
+    "median_t_peak_minus_expected_ns": -0.036002566821919046,
+    "F7_signed_median_rho": -0.1357004999298434,
+    "F7_P_abs_median_rho": 0.1357004999298434,
+    "F7_rho_iqr": [
+     -0.38024146808382764,
+     -0.02063186397803969
+    ],
+    "F8_run_mm": 15.0,
+    "F8_detail": {
+     "argmax_index": 0,
+     "run_lines": 4,
+     "run_mm": 15.0,
+     "run_index_range": [
+      0,
+      3
+     ],
+     "run_y_mm": [
+      100.0,
+      115.0
+     ]
+    }
+   },
+   {
+    "object": "Pk050-phantom-cuboid-4",
+    "type": "phantom_void_analogue_cuboid",
+    "specimen": "Pk050",
+    "frequency": "1_5_GHz",
+    "n_lines": 24,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": 0.582692314100391,
+    "F1_line_fraction_negative": 0.25,
+    "t_expected_ns": 1.8521261366399222,
+    "median_t_peak_minus_expected_ns": -0.22296762391976577,
+    "F7_signed_median_rho": 0.025824066677957294,
+    "F7_P_abs_median_rho": 0.025824066677957294,
+    "F7_rho_iqr": [
+     -0.22598250337213457,
+     0.3336504270489765
+    ],
+    "F8_run_mm": 70.0,
+    "F8_detail": {
+     "argmax_index": 79,
+     "run_lines": 15,
+     "run_mm": 70.0,
+     "run_index_range": [
+      74,
+      88
+     ],
+     "run_y_mm": [
+      470.0,
+      540.0
+     ]
+    }
+   }
+  ],
+  "C4_2_pk401_off_object_lines": [
+   {
+    "object": "Pk401-cuboid-1",
+    "type": "void_analogue_cuboid",
+    "specimen": "Pk401",
+    "frequency": "1_5_GHz",
+    "n_lines": 48,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": -0.07548170988649297,
+    "F1_line_fraction_negative": 0.5208333333333334,
+    "t_expected_ns": 5.301518598303928,
+    "median_t_peak_minus_expected_ns": 0.1143326737117265,
+    "F7_signed_median_rho": -0.045404948902959825,
+    "F7_P_abs_median_rho": 0.045404948902959825,
+    "F7_rho_iqr": [
+     -0.35255566755412715,
+     0.15223741166192126
+    ]
+   },
+   {
+    "object": "Pk401-cuboid-2",
+    "type": "void_analogue_cuboid",
+    "specimen": "Pk401",
+    "frequency": "1_5_GHz",
+    "n_lines": 48,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": -0.5392755986846816,
+    "F1_line_fraction_negative": 0.7708333333333334,
+    "t_expected_ns": 4.131813948727946,
+    "median_t_peak_minus_expected_ns": -0.19835015225045138,
+    "F7_signed_median_rho": 0.08402822685716234,
+    "F7_P_abs_median_rho": 0.08402822685716234,
+    "F7_rho_iqr": [
+     -0.01886458963619502,
+     0.44690834512772404
+    ]
+   },
+   {
+    "object": "Pk401-cuboid-3",
+    "type": "void_analogue_cuboid",
+    "specimen": "Pk401",
+    "frequency": "1_5_GHz",
+    "n_lines": 48,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": 0.12116636434245108,
+    "F1_line_fraction_negative": 0.4166666666666667,
+    "t_expected_ns": 2.962109299151964,
+    "median_t_peak_minus_expected_ns": -0.012011451793842998,
+    "F7_signed_median_rho": -0.0783273001930353,
+    "F7_P_abs_median_rho": 0.0783273001930353,
+    "F7_rho_iqr": [
+     -0.25990391787681344,
+     0.08713113180415463
+    ]
+   },
+   {
+    "object": "Pk401-cuboid-4",
+    "type": "void_analogue_cuboid",
+    "specimen": "Pk401",
+    "frequency": "1_5_GHz",
+    "n_lines": 48,
+    "t_offset_T": 0.0,
+    "F1_polarity_median_c": -0.3917857985236637,
+    "F1_line_fraction_negative": 0.6666666666666666,
+    "t_expected_ns": 1.792404649575982,
+    "median_t_peak_minus_expected_ns": 0.027556211480769255,
+    "F7_signed_median_rho": 0.005643922601036078,
+    "F7_P_abs_median_rho": 0.005643922601036078,
+    "F7_rho_iqr": [
+     -0.09945411105457848,
+     0.1282486235879051
+    ]
+   }
+  ],
+  "C4_3_specimen_identity_late_window": {
+   "pk266": [
+    {
+     "object": "Pk266-duct-1",
+     "type": "tendon_duct",
+     "specimen": "Pk266",
+     "frequency": "1_5_GHz",
+     "n_lines": 121,
+     "t_offset_T": 3.0,
+     "F1_polarity_median_c": 0.09738620854042022,
+     "F1_line_fraction_negative": 0.45454545454545453,
+     "t_expected_ns": 6.820822934285049,
+     "median_t_peak_minus_expected_ns": -0.040001016476829854,
+     "F7_signed_median_rho": 0.019010117352258493,
+     "F7_P_abs_median_rho": 0.019010117352258493,
+     "F7_rho_iqr": [
+      -0.21165648934069153,
+      0.35224580974919456
+     ]
+    },
+    {
+     "object": "Pk266-duct-2",
+     "type": "tendon_duct",
+     "specimen": "Pk266",
+     "frequency": "1_5_GHz",
+     "n_lines": 121,
+     "t_offset_T": 3.0,
+     "F1_polarity_median_c": -0.5279788381227358,
+     "F1_line_fraction_negative": 0.7768595041322314,
+     "t_expected_ns": 5.891348188377686,
+     "median_t_peak_minus_expected_ns": 0.09691012864775406,
+     "F7_signed_median_rho": -0.09265357812131436,
+     "F7_P_abs_median_rho": 0.09265357812131436,
+     "F7_rho_iqr": [
+      -0.8243578880176106,
+      0.27265286612009393
+     ]
+    },
+    {
+     "object": "Pk266-duct-3",
+     "type": "tendon_duct",
+     "specimen": "Pk266",
+     "frequency": "1_5_GHz",
+     "n_lines": 121,
+     "t_offset_T": 3.0,
+     "F1_polarity_median_c": -0.5507239504768991,
+     "F1_line_fraction_negative": 0.8429752066115702,
+     "t_expected_ns": 4.910666987353557,
+     "median_t_peak_minus_expected_ns": -0.3314106272752797,
+     "F7_signed_median_rho": 0.38017965363672773,
+     "F7_P_abs_median_rho": 0.38017965363672773,
+     "F7_rho_iqr": [
+      -0.08547817440722379,
+      0.6148828242970447
+     ]
+    },
+    {
+     "object": "Pk266-duct-4",
+     "type": "tendon_duct",
+     "specimen": "Pk266",
+     "frequency": "1_5_GHz",
+     "n_lines": 121,
+     "t_offset_T": 3.0,
+     "F1_polarity_median_c": -0.9950482716606844,
+     "F1_line_fraction_negative": 1.0,
+     "t_expected_ns": 4.026191853518504,
+     "median_t_peak_minus_expected_ns": 0.28887663963218113,
+     "F7_signed_median_rho": -0.03878239739678421,
+     "F7_P_abs_median_rho": 0.03878239739678421,
+     "F7_rho_iqr": [
+      -0.05177140395254996,
+      -0.02882134548592942
+     ]
+    }
+   ],
+   "pk401": [
+    {
+     "object": "Pk401-cuboid-1",
+     "type": "void_analogue_cuboid",
+     "specimen": "Pk401",
+     "frequency": "1_5_GHz",
+     "n_lines": 24,
+     "t_offset_T": 3.0,
+     "F1_polarity_median_c": -0.754784338188708,
+     "F1_line_fraction_negative": 0.9166666666666666,
+     "t_expected_ns": 7.301518598303928,
+     "median_t_peak_minus_expected_ns": -0.15376908754071916,
+     "F7_signed_median_rho": -0.33377780806641266,
+     "F7_P_abs_median_rho": 0.33377780806641266,
+     "F7_rho_iqr": [
+      -0.4200447587699207,
+      -0.22225236199327558
+     ]
+    },
+    {
+     "object": "Pk401-cuboid-2",
+     "type": "void_analogue_cuboid",
+     "specimen": "Pk401",
+     "frequency": "1_5_GHz",
+     "n_lines": 24,
+     "t_offset_T": 3.0,
+     "F1_polarity_median_c": 0.5044011338948607,
+     "F1_line_fraction_negative": 0.16666666666666666,
+     "t_expected_ns": 6.131813948727946,
+     "median_t_peak_minus_expected_ns": 0.2967574798434818,
+     "F7_signed_median_rho": 0.15888309924531813,
+     "F7_P_abs_median_rho": 0.15888309924531813,
+     "F7_rho_iqr": [
+      0.07429605830591787,
+      0.3860972394971566
+     ]
+    },
+    {
+     "object": "Pk401-cuboid-3",
+     "type": "void_analogue_cuboid",
+     "specimen": "Pk401",
+     "frequency": "1_5_GHz",
+     "n_lines": 24,
+     "t_offset_T": 3.0,
+     "F1_polarity_median_c": 0.5964154269791022,
+     "F1_line_fraction_negative": 0.125,
+     "t_expected_ns": 4.9621092991519635,
+     "median_t_peak_minus_expected_ns": 0.013428861317702712,
+     "F7_signed_median_rho": 0.27307888356274723,
+     "F7_P_abs_median_rho": 0.27307888356274723,
+     "F7_rho_iqr": [
+      0.10347132313004656,
+      0.4041563319241159
+     ]
+    },
+    {
+     "object": "Pk401-cuboid-4",
+     "type": "void_analogue_cuboid",
+     "specimen": "Pk401",
+     "frequency": "1_5_GHz",
+     "n_lines": 24,
+     "t_offset_T": 3.0,
+     "F1_polarity_median_c": -0.19542061496536756,
+     "F1_line_fraction_negative": 0.625,
+     "t_expected_ns": 3.792404649575982,
+     "median_t_peak_minus_expected_ns": 0.05299652459231563,
+     "F7_signed_median_rho": 0.3252925753407184,
+     "F7_P_abs_median_rho": 0.3252925753407184,
+     "F7_rho_iqr": [
+      0.23562363259403435,
+      0.4079727774411951
+     ]
+    }
+   ],
+   "tests": {
+    "F7_P_abs_median_rho": {
+     "n_a": 4,
+     "n_b": 4,
+     "U": 4.0,
+     "auc": 0.25,
+     "alternative": "two-sided",
+     "p_exact": 0.34285714285714286,
+     "n_splits": 70,
+     "min_attainable_p": 0.02857142857142857,
+     "hodges_lehmann_shift": -0.20653215133041847,
+     "pairwise_difference_range": [
+      -0.31476769071415417,
+      0.2212965543914096
+     ],
+     "range_confidence": 0.9714285714285714,
+     "passes": false
+    },
+    "F1_polarity_median_c": {
+     "n_a": 4,
+     "n_b": 4,
+     "U": 4.0,
+     "auc": 0.25,
+     "alternative": "two-sided",
+     "p_exact": 0.34285714285714286,
+     "n_splits": 70,
+     "min_attainable_p": 0.02857142857142857,
+     "hodges_lehmann_shift": -0.45302207189656124,
+     "pairwise_difference_range": [
+      -1.5914636986397865,
+      0.8521705467291283
+     ],
+     "range_confidence": 0.9714285714285714,
+     "passes": false
+    }
+   }
+  }
+ },
+ "tests": {
+  "H5_F7_polarisation_magnitude": {
+   "n_a": 4,
+   "n_b": 4,
+   "U": 0.0,
+   "auc": 0.0,
+   "alternative": "greater",
+   "p_exact": 1.0,
+   "n_splits": 70,
+   "min_attainable_p": 0.014285714285714285,
+   "hodges_lehmann_shift": -0.4156538550433799,
+   "pairwise_difference_range": [
+    -0.6416511232592598,
+    -0.06566496308437947
+   ],
+   "range_confidence": 0.9714285714285714
+  },
+  "H6_F8_continuity_sanity": {
+   "n_a": 4,
+   "n_b": 4,
+   "U": 15.0,
+   "auc": 0.9375,
+   "alternative": "greater",
+   "p_exact": 0.02857142857142857,
+   "n_splits": 70,
+   "min_attainable_p": 0.014285714285714285,
+   "hodges_lehmann_shift": 480.0,
+   "pairwise_difference_range": [
+    -5.0,
+    490.0
+   ],
+   "range_confidence": 0.9714285714285714
+  },
+  "H7a_cuboid_polarity_opposite_backwall": {
+   "k_negative": 3,
+   "n": 4,
+   "p_exact_binomial_ge_k": 0.3125,
+   "clopper_pearson_95": [
+    0.19412044968324343,
+    0.9936905367902902
+   ],
+   "min_attainable_p": 0.0625
+  },
+  "H7b_polarity_ducts_vs_cuboids_two_sided": {
+   "n_a": 4,
+   "n_b": 4,
+   "U": 8.0,
+   "auc": 0.5,
+   "alternative": "two-sided",
+   "p_exact": 1.0,
+   "n_splits": 70,
+   "min_attainable_p": 0.02857142857142857,
+   "hodges_lehmann_shift": 0.028046973063012237,
+   "pairwise_difference_range": [
+    -1.3337252463570644,
+    1.3499303663049593
+   ],
+   "range_confidence": 0.9714285714285714
+  },
+  "duct_polarity_descriptive": {
+   "k_negative": 2,
+   "n": 4,
+   "note": "duct material is NOT STATED in the truth; no material is inferred (protocol A3)"
+  }
+ },
+ "combination_table": [
+  {
+   "object": "Pk266-duct-1",
+   "type": "tendon_duct",
+   "F7_P": 0.09178726986120837,
+   "F8_run_mm": 135.0,
+   "F1_c": -0.6181529194150417
+  },
+  {
+   "object": "Pk266-duct-2",
+   "type": "tendon_duct",
+   "F7_P": 0.15583931471784013,
+   "F8_run_mm": 600.0,
+   "F1_c": -0.7639205546151385
+  },
+  {
+   "object": "Pk266-duct-3",
+   "type": "tendon_duct",
+   "F7_P": 0.01804721262666012,
+   "F8_run_mm": 600.0,
+   "F1_c": 0.9413812008402881
+  },
+  {
+   "object": "Pk266-duct-4",
+   "type": "tendon_duct",
+   "F7_P": 0.06765119902524312,
+   "F8_run_mm": 600.0,
+   "F1_c": 0.8355023918183208
+  },
+  {
+   "object": "Pk401-cuboid-1",
+   "type": "void_analogue_cuboid",
+   "F7_P": 0.2215042778022196,
+   "F8_run_mm": 140.0,
+   "F1_c": 0.5698046917419257
+  },
+  {
+   "object": "Pk401-cuboid-2",
+   "type": "void_analogue_cuboid",
+   "F7_P": 0.6596983358859199,
+   "F8_run_mm": 120.0,
+   "F1_c": -0.3433888159529374
+  },
+  {
+   "object": "Pk401-cuboid-3",
+   "type": "void_analogue_cuboid",
+   "F7_P": 0.6097474684813124,
+   "F8_run_mm": 115.0,
+   "F1_c": -0.3751097578963297
+  },
+  {
+   "object": "Pk401-cuboid-4",
+   "type": "void_analogue_cuboid",
+   "F7_P": 0.39544676894994774,
+   "F8_run_mm": 110.0,
+   "F1_c": -0.4085491654646711
+  }
+ ]
+}
