@@ -1,0 +1,91 @@
+{
+ "label": "DESCRIPTIVE; corpus_s1_v2 eval is spent (PR #13); SIMULATION ONLY",
+ "scenes": 198,
+ "reproduced_all": true,
+ "class_replica_matches_all": true,
+ "not_reproduced": [],
+ "n_detections": 347,
+ "n_unmatched": 193,
+ "by_category": {
+  "clutter_object": 46,
+  "unexplained_noise": 45,
+  "direct_tail": 32,
+  "limb": 24,
+  "early": 19,
+  "unexplained_imprint": 10,
+  "target_late": 7,
+  "duplicate": 6,
+  "stone_limb": 3,
+  "unexplained_target_field": 1
+ },
+ "by_kind": {
+  "system_or_processing": 61,
+  "generator_object": 49,
+  "noise_induced": 45,
+  "scoring_policy": 30,
+  "scored_target_physics": 7,
+  "genuinely_unexplained_wavefield": 1
+ },
+ "by_family": {
+  "close_pair": {
+   "direct_tail": 9,
+   "limb": 4,
+   "unexplained_noise": 4,
+   "early": 3,
+   "unexplained_imprint": 2,
+   "duplicate": 1
+  },
+  "deep": {
+   "unexplained_noise": 19,
+   "unexplained_imprint": 7,
+   "limb": 5,
+   "unexplained_target_field": 1
+  },
+  "empty_clutter": {
+   "clutter_object": 46,
+   "stone_limb": 3,
+   "unexplained_noise": 2,
+   "direct_tail": 2,
+   "early": 2
+  },
+  "overlap": {
+   "direct_tail": 7,
+   "target_late": 7,
+   "early": 4,
+   "unexplained_noise": 4,
+   "limb": 3
+  },
+  "standard": {
+   "unexplained_noise": 5,
+   "direct_tail": 4,
+   "early": 4,
+   "limb": 3
+  },
+  "weak_contrast": {
+   "limb": 6,
+   "duplicate": 5,
+   "early": 4,
+   "unexplained_noise": 3,
+   "direct_tail": 3
+  },
+  "wet_conductive": {
+   "unexplained_noise": 8,
+   "direct_tail": 7,
+   "limb": 3,
+   "early": 2,
+   "unexplained_imprint": 1
+  }
+ },
+ "task_a": {
+  "objects": 453,
+  "stones": 151,
+  "objects_detected": 195,
+  "stones_detected": 41,
+  "recall_all_objects": 0.4304635761589404,
+  "recall_stones": 0.271523178807947,
+  "precision": 0.5619596541786743,
+  "physically_empty_scenes": 5,
+  "fp_per_physically_empty_scene": 0.0,
+  "physically_empty_scenes_without_layer": 5
+ }
+}
