@@ -35,7 +35,7 @@ import numpy as np
 
 from benchmark.hyperbola_stack import estimate_time_zero
 from benchmark.hyperbola_v2 import (
-    A1_THRESHOLD, GROUPING_GRID, LAMBDA0_GRID, StackContext, calibrated_threshold, canonical_line,
+    A1_THRESHOLD, GROUPING_GRID, LAMBDA0_GRID, STACK_CFG, StackContext, calibrated_threshold, canonical_line,
     detections_at, group, load_committed_freeze, null_peaks, stack_line,
 )
 from interpretation.anomaly_candidates import DEFAULT_ANOMALY_THRESHOLD
@@ -345,6 +345,39 @@ def select_lambda(workers: int) -> dict:
     return freeze
 
 
+def job_equivalence(args):
+    """C3 on one corpus line: the fast stack against the original, primary condition."""
+    from benchmark.hyperbola_stack import hyperbola_stack
+    from benchmark.hyperbola_stack_fast import hyperbola_stack_fast
+    key, sid, meta = args
+    line = condition_line(load_line(CORPORA[key] / sid), PRIMARY_CONDITION)
+    f = float(meta["centre_frequency_hz"])
+    tz = estimate_time_zero(line.traces, line.dt_s, line.time_offset_s)
+    bg = BACKGROUNDS[PRIMARY_ARM](line)
+    a = (bg, line.midpoint_x_m, line.dt_s, line.time_offset_s, tz, f)
+    z0, v0 = hyperbola_stack(*a, **STACK_CFG)
+    z1, v1 = hyperbola_stack_fast(*a, **STACK_CFG)
+    m = (z0 > 1) & np.isfinite(z0)
+    return {"sid": sid, "nan_pattern_equal": bool(np.array_equal(np.isnan(z0), np.isnan(z1))),
+            "max_abs_dz": float(np.nanmax(np.abs(z0 - z1))), "cells_z_gt_1": int(m.sum()),
+            "v_hat_mismatches": int((v0[m] != v1[m]).sum())}
+
+
+def equivalence(workers: int) -> dict:
+    """§5 C3: the first 20 corpus_s0 lines (sorted ids). A code check; no parameter depends on it."""
+    sel = scenes({"s0": {"train", "val", "test"}})[:20]
+    with Pool(workers) as pool:
+        rows = pool.map(job_equivalence, sel)
+    out = {"lines": len(rows), "tolerance_z": 1e-6,
+           "max_abs_dz": max(r["max_abs_dz"] for r in rows),
+           "nan_pattern_equal_all": all(r["nan_pattern_equal"] for r in rows),
+           "v_hat_mismatches": sum(r["v_hat_mismatches"] for r in rows),
+           "cells_z_gt_1": sum(r["cells_z_gt_1"] for r in rows), "rows": rows}
+    out["pass"] = out["max_abs_dz"] < 1e-6 and out["nan_pattern_equal_all"] and out["v_hat_mismatches"] == 0
+    (OUT / "equivalence.json").write_text(json.dumps(out, indent=1))
+    return out
+
+
 def _freeze_committed() -> dict:
     return load_committed_freeze(FREEZE)
 
@@ -381,7 +414,8 @@ def report() -> dict:
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("stage", choices=("select-grouping", "select-lambda", "evaluate", "evaluate-cost", "report"))
+    p.add_argument("stage", choices=("select-grouping", "select-lambda", "evaluate", "evaluate-cost", "report",
+                                      "equivalence"))
     p.add_argument("--workers", type=int, default=6)
     a = p.parse_args(argv)
     if a.stage == "select-grouping":
@@ -393,6 +427,8 @@ def main(argv=None) -> int:
         print(evaluate(a.workers))
     elif a.stage == "evaluate-cost":
         print(evaluate(1, measure_cost=True))
+    elif a.stage == "equivalence":
+        print(json.dumps({k: v for k, v in equivalence(a.workers).items() if k != "rows"}, indent=1))
     else:
         report()
         print(OUT / "report.json")
