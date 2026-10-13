@@ -1,0 +1,17 @@
+{
+ "frozen_before_eval": true,
+ "grouping": {
+  "delta_periods": 1.0,
+  "kappa": Infinity,
+  "rho": 0.3
+ },
+ "grouping_id": "d1_kinf_r0.3",
+ "lambda0": 0.25,
+ "rule": "no lambda0 met both; highest dev precision; ties -> smaller lambda0",
+ "stack": "PR #12 frozen: cone 45, tolerance T/4; fast implementation",
+ "A1_threshold": 6.0,
+ "R_cal": 8,
+ "z_floor": 3.0,
+ "canonical_spp": 20,
+ "dev_scenes": 382
+}
