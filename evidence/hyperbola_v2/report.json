@@ -1,0 +1,4838 @@
+{
+ "simulated": true,
+ "claim_scope": "simulation only; not a field accuracy claim",
+ "freeze": {
+  "frozen_before_eval": true,
+  "grouping": {
+   "delta_periods": 1.0,
+   "kappa": Infinity,
+   "rho": 0.3
+  },
+  "grouping_id": "d1_kinf_r0.3",
+  "lambda0": 0.25,
+  "rule": "no lambda0 met both; highest dev precision; ties -> smaller lambda0",
+  "stack": "PR #12 frozen: cone 45, tolerance T/4; fast implementation",
+  "A1_threshold": 6.0,
+  "R_cal": 8,
+  "z_floor": 3.0,
+  "canonical_spp": 20,
+  "dev_scenes": 382
+ },
+ "conditions": {
+  "instrument_20spp|noise_4tu_median": {
+   "A0": {
+    "all": {
+     "scenes": 198,
+     "targets": 302,
+     "matched": 0,
+     "detections": 1,
+     "recall": 0.0,
+     "precision": 0.0,
+     "fp_per_scan": 0.005050505050505051,
+     "fp_clutter_per_scan": 0.005050505050505051,
+     "empty_scenes": 33,
+     "fp_per_empty_scene": 0.0,
+     "median_abs_lateral_wl": null,
+     "median_abs_lateral_m": null,
+     "median_abs_depth_oracle_v_wl": null,
+     "median_abs_depth_own_v_wl": null,
+     "median_abs_velocity_frac": null,
+     "median_signed_depth_oracle_v_wl": null,
+     "n_matched_with_errors": 0,
+     "ci95": {
+      "recall": [
+       0.0,
+       0.0
+      ],
+      "fp_per_scan": [
+       0.0,
+       0.015151515151515152
+      ],
+      "fp_per_empty_scene": [
+       0.0,
+       0.0
+      ],
+      "precision": [
+       0.0,
+       0.0
+      ]
+     }
+    },
+    "by_label": {
+     "cable": {
+      "targets": 63,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "pipe": {
+      "targets": 66,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "rock": {
+      "targets": 103,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "void": {
+      "targets": 70,
+      "matched": 0,
+      "recall": 0.0
+     }
+    },
+    "by_depth_bin": {
+     "deep": {
+      "targets": 159,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "mid": {
+      "targets": 90,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "shallow": {
+      "targets": 53,
+      "matched": 0,
+      "recall": 0.0
+     }
+    },
+    "by_strength": {
+     "moderate": {
+      "targets": 4,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "strong": {
+      "targets": 298,
+      "matched": 0,
+      "recall": 0.0
+     }
+    },
+    "by_overlapping": {
+     "False": {
+      "targets": 238,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "True": {
+      "targets": 64,
+      "matched": 0,
+      "recall": 0.0
+     }
+    },
+    "by_family": {
+     "close_pair": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "deep": {
+      "scenes": 29,
+      "targets": 49,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "empty_clutter": {
+      "scenes": 28,
+      "targets": 0,
+      "matched": 0,
+      "detections": 0,
+      "recall": null,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 28,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "overlap": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "standard": {
+      "scenes": 23,
+      "targets": 29,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 5,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "weak_contrast": {
+      "scenes": 28,
+      "targets": 43,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "wet_conductive": {
+      "scenes": 30,
+      "targets": 61,
+      "matched": 0,
+      "detections": 1,
+      "recall": 0.0,
+      "precision": 0.0,
+      "fp_per_scan": 0.03333333333333333,
+      "fp_clutter_per_scan": 0.03333333333333333,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     }
+    },
+    "by_frequency": {
+     "0.25 GHz": {
+      "scenes": 34,
+      "targets": 47,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "0.5 GHz": {
+      "scenes": 38,
+      "targets": 62,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 3,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "1 GHz": {
+      "scenes": 42,
+      "targets": 64,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "1.5 GHz": {
+      "scenes": 40,
+      "targets": 64,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "2.6 GHz": {
+      "scenes": 44,
+      "targets": 65,
+      "matched": 0,
+      "detections": 1,
+      "recall": 0.0,
+      "precision": 0.0,
+      "fp_per_scan": 0.022727272727272728,
+      "fp_clutter_per_scan": 0.022727272727272728,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     }
+    },
+    "by_soil": {
+     "dry": {
+      "scenes": 41,
+      "targets": 57,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "moist": {
+      "scenes": 52,
+      "targets": 76,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 10,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "wet": {
+      "scenes": 105,
+      "targets": 169,
+      "matched": 0,
+      "detections": 1,
+      "recall": 0.0,
+      "precision": 0.0,
+      "fp_per_scan": 0.009523809523809525,
+      "fp_clutter_per_scan": 0.009523809523809525,
+      "empty_scenes": 15,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     }
+    },
+    "unmatched_classes": {
+     "clutter": 1
+    }
+   },
+   "A1": {
+    "all": {
+     "scenes": 198,
+     "targets": 302,
+     "matched": 166,
+     "detections": 463,
+     "recall": 0.5496688741721855,
+     "precision": 0.35853131749460043,
+     "fp_per_scan": 1.5,
+     "fp_clutter_per_scan": 0.6666666666666666,
+     "empty_scenes": 33,
+     "fp_per_empty_scene": 3.4242424242424243,
+     "median_abs_lateral_wl": 0.02845969555679808,
+     "median_abs_lateral_m": 0.003474999999999978,
+     "median_abs_depth_oracle_v_wl": 0.276822624211542,
+     "median_abs_depth_own_v_wl": 0.37997859182947413,
+     "median_abs_velocity_frac": 0.13258261951438055,
+     "median_signed_depth_oracle_v_wl": -0.2731002523379905,
+     "n_matched_with_errors": 166,
+     "ci95": {
+      "recall": [
+       0.5048216199663145,
+       0.5992789055931952
+      ],
+      "precision": [
+       0.31083301572470096,
+       0.40707597480905794
+      ],
+      "fp_per_scan": [
+       1.2727272727272727,
+       1.7626262626262625
+      ],
+      "fp_per_empty_scene": [
+       2.6428113553113555,
+       4.236873433583959
+      ]
+     }
+    },
+    "by_label": {
+     "cable": {
+      "targets": 63,
+      "matched": 30,
+      "recall": 0.47619047619047616
+     },
+     "pipe": {
+      "targets": 66,
+      "matched": 39,
+      "recall": 0.5909090909090909
+     },
+     "rock": {
+      "targets": 103,
+      "matched": 61,
+      "recall": 0.5922330097087378
+     },
+     "void": {
+      "targets": 70,
+      "matched": 36,
+      "recall": 0.5142857142857142
+     }
+    },
+    "by_depth_bin": {
+     "deep": {
+      "targets": 159,
+      "matched": 65,
+      "recall": 0.4088050314465409
+     },
+     "mid": {
+      "targets": 90,
+      "matched": 58,
+      "recall": 0.6444444444444445
+     },
+     "shallow": {
+      "targets": 53,
+      "matched": 43,
+      "recall": 0.8113207547169812
+     }
+    },
+    "by_strength": {
+     "moderate": {
+      "targets": 4,
+      "matched": 3,
+      "recall": 0.75
+     },
+     "strong": {
+      "targets": 298,
+      "matched": 163,
+      "recall": 0.5469798657718121
+     }
+    },
+    "by_overlapping": {
+     "False": {
+      "targets": 238,
+      "matched": 140,
+      "recall": 0.5882352941176471
+     },
+     "True": {
+      "targets": 64,
+      "matched": 26,
+      "recall": 0.40625
+     }
+    },
+    "by_family": {
+     "close_pair": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 31,
+      "detections": 44,
+      "recall": 0.5166666666666667,
+      "precision": 0.7045454545454546,
+      "fp_per_scan": 0.43333333333333335,
+      "fp_clutter_per_scan": 0.16666666666666666,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.05699140485529662,
+      "median_abs_lateral_m": 0.0041999999999999815,
+      "median_abs_depth_oracle_v_wl": 0.2663250835560965,
+      "median_abs_depth_own_v_wl": 0.305744935558276,
+      "median_abs_velocity_frac": 0.07297361584915452,
+      "median_signed_depth_oracle_v_wl": -0.26424420362884293,
+      "n_matched_with_errors": 31
+     },
+     "deep": {
+      "scenes": 29,
+      "targets": 49,
+      "matched": 16,
+      "detections": 45,
+      "recall": 0.32653061224489793,
+      "precision": 0.35555555555555557,
+      "fp_per_scan": 1.0,
+      "fp_clutter_per_scan": 0.5862068965517241,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.08478658056531868,
+      "median_abs_lateral_m": 0.010599999999999998,
+      "median_abs_depth_oracle_v_wl": 0.3298426922368075,
+      "median_abs_depth_own_v_wl": 0.9525700814125289,
+      "median_abs_velocity_frac": 0.18652769157268662,
+      "median_signed_depth_oracle_v_wl": -0.30200829992776396,
+      "n_matched_with_errors": 16
+     },
+     "empty_clutter": {
+      "scenes": 28,
+      "targets": 0,
+      "matched": 0,
+      "detections": 113,
+      "recall": null,
+      "precision": 0.0,
+      "fp_per_scan": 4.035714285714286,
+      "fp_clutter_per_scan": 1.0,
+      "empty_scenes": 28,
+      "fp_per_empty_scene": 4.035714285714286,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "overlap": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 38,
+      "detections": 73,
+      "recall": 0.6333333333333333,
+      "precision": 0.5205479452054794,
+      "fp_per_scan": 1.1666666666666667,
+      "fp_clutter_per_scan": 0.9,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.02812901360002161,
+      "median_abs_lateral_m": 0.002475000000000005,
+      "median_abs_depth_oracle_v_wl": 0.2659216419268506,
+      "median_abs_depth_own_v_wl": 0.2897828813340212,
+      "median_abs_velocity_frac": 0.14333235034143843,
+      "median_signed_depth_oracle_v_wl": -0.2580649788094689,
+      "n_matched_with_errors": 38
+     },
+     "standard": {
+      "scenes": 23,
+      "targets": 29,
+      "matched": 19,
+      "detections": 35,
+      "recall": 0.6551724137931034,
+      "precision": 0.5428571428571428,
+      "fp_per_scan": 0.6956521739130435,
+      "fp_clutter_per_scan": 0.30434782608695654,
+      "empty_scenes": 5,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": 0.028271770902344437,
+      "median_abs_lateral_m": 0.0044999999999999485,
+      "median_abs_depth_oracle_v_wl": 0.260612583821129,
+      "median_abs_depth_own_v_wl": 0.39365297421865947,
+      "median_abs_velocity_frac": 0.1239621204691026,
+      "median_signed_depth_oracle_v_wl": -0.2588227625281405,
+      "n_matched_with_errors": 19
+     },
+     "weak_contrast": {
+      "scenes": 28,
+      "targets": 43,
+      "matched": 32,
+      "detections": 83,
+      "recall": 0.7441860465116279,
+      "precision": 0.3855421686746988,
+      "fp_per_scan": 1.8214285714285714,
+      "fp_clutter_per_scan": 0.8214285714285714,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.028463588194760244,
+      "median_abs_lateral_m": 0.0021249999999999325,
+      "median_abs_depth_oracle_v_wl": 0.31921395348944925,
+      "median_abs_depth_own_v_wl": 0.45146748708729073,
+      "median_abs_velocity_frac": 0.21133023387478578,
+      "median_signed_depth_oracle_v_wl": -0.2908766549603766,
+      "n_matched_with_errors": 32
+     },
+     "wet_conductive": {
+      "scenes": 30,
+      "targets": 61,
+      "matched": 30,
+      "detections": 70,
+      "recall": 0.4918032786885246,
+      "precision": 0.42857142857142855,
+      "fp_per_scan": 1.3333333333333333,
+      "fp_clutter_per_scan": 0.8333333333333334,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.027514011186177793,
+      "median_abs_lateral_m": 0.001250000000000015,
+      "median_abs_depth_oracle_v_wl": 0.2738396924284776,
+      "median_abs_depth_own_v_wl": 0.3485563817202552,
+      "median_abs_velocity_frac": 0.10264956428259664,
+      "median_signed_depth_oracle_v_wl": -0.2738396924284776,
+      "n_matched_with_errors": 30
+     }
+    },
+    "by_frequency": {
+     "0.25 GHz": {
+      "scenes": 34,
+      "targets": 47,
+      "matched": 26,
+      "detections": 80,
+      "recall": 0.5531914893617021,
+      "precision": 0.325,
+      "fp_per_scan": 1.588235294117647,
+      "fp_clutter_per_scan": 0.6176470588235294,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 3.25,
+      "median_abs_lateral_wl": 0.0357172492563983,
+      "median_abs_lateral_m": 0.011400000000000021,
+      "median_abs_depth_oracle_v_wl": 0.3000112795625803,
+      "median_abs_depth_own_v_wl": 0.49457511811312044,
+      "median_abs_velocity_frac": 0.23217566977797915,
+      "median_signed_depth_oracle_v_wl": -0.2825136677863356,
+      "n_matched_with_errors": 26
+     },
+     "0.5 GHz": {
+      "scenes": 38,
+      "targets": 62,
+      "matched": 32,
+      "detections": 94,
+      "recall": 0.5161290322580645,
+      "precision": 0.3404255319148936,
+      "fp_per_scan": 1.631578947368421,
+      "fp_clutter_per_scan": 0.631578947368421,
+      "empty_scenes": 3,
+      "fp_per_empty_scene": 4.333333333333333,
+      "median_abs_lateral_wl": 0.028258415695351986,
+      "median_abs_lateral_m": 0.0043499999999999095,
+      "median_abs_depth_oracle_v_wl": 0.2724140331698607,
+      "median_abs_depth_own_v_wl": 0.35338846033998617,
+      "median_abs_velocity_frac": 0.14024496814990817,
+      "median_signed_depth_oracle_v_wl": -0.2691687698779558,
+      "n_matched_with_errors": 32
+     },
+     "1 GHz": {
+      "scenes": 42,
+      "targets": 64,
+      "matched": 34,
+      "detections": 98,
+      "recall": 0.53125,
+      "precision": 0.3469387755102041,
+      "fp_per_scan": 1.5238095238095237,
+      "fp_clutter_per_scan": 0.6904761904761905,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 3.5714285714285716,
+      "median_abs_lateral_wl": 0.02816873099789389,
+      "median_abs_lateral_m": 0.002150000000000013,
+      "median_abs_depth_oracle_v_wl": 0.2753166812318606,
+      "median_abs_depth_own_v_wl": 0.35963901766851114,
+      "median_abs_velocity_frac": 0.12011255629523598,
+      "median_signed_depth_oracle_v_wl": -0.26864139092988315,
+      "n_matched_with_errors": 34
+     },
+     "1.5 GHz": {
+      "scenes": 40,
+      "targets": 64,
+      "matched": 40,
+      "detections": 101,
+      "recall": 0.625,
+      "precision": 0.39603960396039606,
+      "fp_per_scan": 1.525,
+      "fp_clutter_per_scan": 0.7,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 3.875,
+      "median_abs_lateral_wl": 0.0279708202655703,
+      "median_abs_lateral_m": 0.001549999999999982,
+      "median_abs_depth_oracle_v_wl": 0.2838506987913789,
+      "median_abs_depth_own_v_wl": 0.4962271283525326,
+      "median_abs_velocity_frac": 0.12260939856594127,
+      "median_signed_depth_oracle_v_wl": -0.27819215542563636,
+      "n_matched_with_errors": 40
+     },
+     "2.6 GHz": {
+      "scenes": 44,
+      "targets": 65,
+      "matched": 34,
+      "detections": 90,
+      "recall": 0.5230769230769231,
+      "precision": 0.37777777777777777,
+      "fp_per_scan": 1.2727272727272727,
+      "fp_clutter_per_scan": 0.6818181818181818,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 2.5714285714285716,
+      "median_abs_lateral_wl": 0.03975249697083161,
+      "median_abs_lateral_m": 0.0013750000000000012,
+      "median_abs_depth_oracle_v_wl": 0.2814428870502576,
+      "median_abs_depth_own_v_wl": 0.3403776118609477,
+      "median_abs_velocity_frac": 0.10918354783468015,
+      "median_signed_depth_oracle_v_wl": -0.2599939400564426,
+      "n_matched_with_errors": 34
+     }
+    },
+    "by_soil": {
+     "dry": {
+      "scenes": 41,
+      "targets": 57,
+      "matched": 31,
+      "detections": 81,
+      "recall": 0.543859649122807,
+      "precision": 0.38271604938271603,
+      "fp_per_scan": 1.2195121951219512,
+      "fp_clutter_per_scan": 0.5365853658536586,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 2.5,
+      "median_abs_lateral_wl": 0.07171821976751765,
+      "median_abs_lateral_m": 0.009899999999999964,
+      "median_abs_depth_oracle_v_wl": 0.28812956060716555,
+      "median_abs_depth_own_v_wl": 0.7862690852246343,
+      "median_abs_velocity_frac": 0.18068051068683377,
+      "median_signed_depth_oracle_v_wl": -0.23549136903670206,
+      "n_matched_with_errors": 31
+     },
+     "moist": {
+      "scenes": 52,
+      "targets": 76,
+      "matched": 45,
+      "detections": 132,
+      "recall": 0.5921052631578947,
+      "precision": 0.3409090909090909,
+      "fp_per_scan": 1.6730769230769231,
+      "fp_clutter_per_scan": 0.75,
+      "empty_scenes": 10,
+      "fp_per_empty_scene": 4.0,
+      "median_abs_lateral_wl": 0.0429127040379681,
+      "median_abs_lateral_m": 0.00495000000000001,
+      "median_abs_depth_oracle_v_wl": 0.2987358396295721,
+      "median_abs_depth_own_v_wl": 0.5112793407379196,
+      "median_abs_velocity_frac": 0.21002490993569656,
+      "median_signed_depth_oracle_v_wl": -0.294430271929189,
+      "n_matched_with_errors": 45
+     },
+     "wet": {
+      "scenes": 105,
+      "targets": 169,
+      "matched": 90,
+      "detections": 250,
+      "recall": 0.5325443786982249,
+      "precision": 0.36,
+      "fp_per_scan": 1.5238095238095237,
+      "fp_clutter_per_scan": 0.6761904761904762,
+      "empty_scenes": 15,
+      "fp_per_empty_scene": 3.533333333333333,
+      "median_abs_lateral_wl": 0.027668779487336863,
+      "median_abs_lateral_m": 0.0017499999999999877,
+      "median_abs_depth_oracle_v_wl": 0.2708725765103577,
+      "median_abs_depth_own_v_wl": 0.34624717127864313,
+      "median_abs_velocity_frac": 0.10064277555208101,
+      "median_signed_depth_oracle_v_wl": -0.2652846435924697,
+      "n_matched_with_errors": 90
+     }
+    },
+    "unmatched_classes": {
+     "clutter": 94,
+     "limb": 55,
+     "duplicate": 25,
+     "clutter_object": 82,
+     "early": 38,
+     "layer": 3
+    }
+   },
+   "A2": {
+    "all": {
+     "scenes": 198,
+     "targets": 302,
+     "matched": 164,
+     "detections": 422,
+     "recall": 0.543046357615894,
+     "precision": 0.3886255924170616,
+     "fp_per_scan": 1.303030303030303,
+     "fp_clutter_per_scan": 0.601010101010101,
+     "empty_scenes": 33,
+     "fp_per_empty_scene": 3.0303030303030303,
+     "median_abs_lateral_wl": 0.02844543910890772,
+     "median_abs_lateral_m": 0.0034250000000000114,
+     "median_abs_depth_oracle_v_wl": 0.276822624211542,
+     "median_abs_depth_own_v_wl": 0.3719483630271339,
+     "median_abs_velocity_frac": 0.13258261951438055,
+     "median_signed_depth_oracle_v_wl": -0.27356140906643134,
+     "n_matched_with_errors": 164,
+     "ci95": {
+      "recall": [
+       0.4983601111050597,
+       0.5910583606769709
+      ],
+      "precision": [
+       0.33771513435487455,
+       0.4384740259740259
+      ],
+      "fp_per_scan": [
+       1.1161616161616161,
+       1.52020202020202
+      ],
+      "fp_per_empty_scene": [
+       2.3570852534562214,
+       3.750215517241378
+      ]
+     }
+    },
+    "by_label": {
+     "cable": {
+      "targets": 63,
+      "matched": 30,
+      "recall": 0.47619047619047616
+     },
+     "pipe": {
+      "targets": 66,
+      "matched": 39,
+      "recall": 0.5909090909090909
+     },
+     "rock": {
+      "targets": 103,
+      "matched": 61,
+      "recall": 0.5922330097087378
+     },
+     "void": {
+      "targets": 70,
+      "matched": 34,
+      "recall": 0.4857142857142857
+     }
+    },
+    "by_depth_bin": {
+     "deep": {
+      "targets": 159,
+      "matched": 64,
+      "recall": 0.4025157232704403
+     },
+     "mid": {
+      "targets": 90,
+      "matched": 58,
+      "recall": 0.6444444444444445
+     },
+     "shallow": {
+      "targets": 53,
+      "matched": 42,
+      "recall": 0.7924528301886793
+     }
+    },
+    "by_strength": {
+     "moderate": {
+      "targets": 4,
+      "matched": 3,
+      "recall": 0.75
+     },
+     "strong": {
+      "targets": 298,
+      "matched": 161,
+      "recall": 0.540268456375839
+     }
+    },
+    "by_overlapping": {
+     "False": {
+      "targets": 238,
+      "matched": 138,
+      "recall": 0.5798319327731093
+     },
+     "True": {
+      "targets": 64,
+      "matched": 26,
+      "recall": 0.40625
+     }
+    },
+    "by_family": {
+     "close_pair": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 30,
+      "detections": 42,
+      "recall": 0.5,
+      "precision": 0.7142857142857143,
+      "fp_per_scan": 0.4,
+      "fp_clutter_per_scan": 0.13333333333333333,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.05685531120831992,
+      "median_abs_lateral_m": 0.004124999999999997,
+      "median_abs_depth_oracle_v_wl": 0.2656389715059687,
+      "median_abs_depth_own_v_wl": 0.3023286155212749,
+      "median_abs_velocity_frac": 0.08165407781143297,
+      "median_signed_depth_oracle_v_wl": -0.2645985315423419,
+      "n_matched_with_errors": 30
+     },
+     "deep": {
+      "scenes": 29,
+      "targets": 49,
+      "matched": 16,
+      "detections": 40,
+      "recall": 0.32653061224489793,
+      "precision": 0.4,
+      "fp_per_scan": 0.8275862068965517,
+      "fp_clutter_per_scan": 0.5517241379310345,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.08478658056531868,
+      "median_abs_lateral_m": 0.010599999999999998,
+      "median_abs_depth_oracle_v_wl": 0.3298426922368075,
+      "median_abs_depth_own_v_wl": 0.9525700814125289,
+      "median_abs_velocity_frac": 0.18652769157268662,
+      "median_signed_depth_oracle_v_wl": -0.30200829992776396,
+      "n_matched_with_errors": 16
+     },
+     "empty_clutter": {
+      "scenes": 28,
+      "targets": 0,
+      "matched": 0,
+      "detections": 100,
+      "recall": null,
+      "precision": 0.0,
+      "fp_per_scan": 3.5714285714285716,
+      "fp_clutter_per_scan": 0.7857142857142857,
+      "empty_scenes": 28,
+      "fp_per_empty_scene": 3.5714285714285716,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "overlap": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 38,
+      "detections": 68,
+      "recall": 0.6333333333333333,
+      "precision": 0.5588235294117647,
+      "fp_per_scan": 1.0,
+      "fp_clutter_per_scan": 0.8333333333333334,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.02812901360002161,
+      "median_abs_lateral_m": 0.002475000000000005,
+      "median_abs_depth_oracle_v_wl": 0.2659216419268506,
+      "median_abs_depth_own_v_wl": 0.2897828813340212,
+      "median_abs_velocity_frac": 0.14333235034143843,
+      "median_signed_depth_oracle_v_wl": -0.2580649788094689,
+      "n_matched_with_errors": 38
+     },
+     "standard": {
+      "scenes": 23,
+      "targets": 29,
+      "matched": 19,
+      "detections": 34,
+      "recall": 0.6551724137931034,
+      "precision": 0.5588235294117647,
+      "fp_per_scan": 0.6521739130434783,
+      "fp_clutter_per_scan": 0.2608695652173913,
+      "empty_scenes": 5,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": 0.028271770902344437,
+      "median_abs_lateral_m": 0.0044999999999999485,
+      "median_abs_depth_oracle_v_wl": 0.260612583821129,
+      "median_abs_depth_own_v_wl": 0.39365297421865947,
+      "median_abs_velocity_frac": 0.1239621204691026,
+      "median_signed_depth_oracle_v_wl": -0.2588227625281405,
+      "n_matched_with_errors": 19
+     },
+     "weak_contrast": {
+      "scenes": 28,
+      "targets": 43,
+      "matched": 32,
+      "detections": 71,
+      "recall": 0.7441860465116279,
+      "precision": 0.4507042253521127,
+      "fp_per_scan": 1.3928571428571428,
+      "fp_clutter_per_scan": 0.7857142857142857,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.028463588194760244,
+      "median_abs_lateral_m": 0.0021249999999999325,
+      "median_abs_depth_oracle_v_wl": 0.31921395348944925,
+      "median_abs_depth_own_v_wl": 0.45146748708729073,
+      "median_abs_velocity_frac": 0.21133023387478578,
+      "median_signed_depth_oracle_v_wl": -0.2908766549603766,
+      "n_matched_with_errors": 32
+     },
+     "wet_conductive": {
+      "scenes": 30,
+      "targets": 61,
+      "matched": 29,
+      "detections": 67,
+      "recall": 0.47540983606557374,
+      "precision": 0.43283582089552236,
+      "fp_per_scan": 1.2666666666666666,
+      "fp_clutter_per_scan": 0.8,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.027513533495785662,
+      "median_abs_lateral_m": 0.0012000000000000066,
+      "median_abs_depth_oracle_v_wl": 0.2742944903208805,
+      "median_abs_depth_own_v_wl": 0.34685485007416467,
+      "median_abs_velocity_frac": 0.10264956428259664,
+      "median_signed_depth_oracle_v_wl": -0.2742944903208805,
+      "n_matched_with_errors": 29
+     }
+    },
+    "by_frequency": {
+     "0.25 GHz": {
+      "scenes": 34,
+      "targets": 47,
+      "matched": 26,
+      "detections": 75,
+      "recall": 0.5531914893617021,
+      "precision": 0.3466666666666667,
+      "fp_per_scan": 1.4411764705882353,
+      "fp_clutter_per_scan": 0.5882352941176471,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 2.875,
+      "median_abs_lateral_wl": 0.0357172492563983,
+      "median_abs_lateral_m": 0.011400000000000021,
+      "median_abs_depth_oracle_v_wl": 0.3000112795625803,
+      "median_abs_depth_own_v_wl": 0.49457511811312044,
+      "median_abs_velocity_frac": 0.23217566977797915,
+      "median_signed_depth_oracle_v_wl": -0.2825136677863356,
+      "n_matched_with_errors": 26
+     },
+     "0.5 GHz": {
+      "scenes": 38,
+      "targets": 62,
+      "matched": 32,
+      "detections": 78,
+      "recall": 0.5161290322580645,
+      "precision": 0.41025641025641024,
+      "fp_per_scan": 1.2105263157894737,
+      "fp_clutter_per_scan": 0.5263157894736842,
+      "empty_scenes": 3,
+      "fp_per_empty_scene": 3.6666666666666665,
+      "median_abs_lateral_wl": 0.028258415695351986,
+      "median_abs_lateral_m": 0.0043499999999999095,
+      "median_abs_depth_oracle_v_wl": 0.2724140331698607,
+      "median_abs_depth_own_v_wl": 0.35338846033998617,
+      "median_abs_velocity_frac": 0.14024496814990817,
+      "median_signed_depth_oracle_v_wl": -0.2691687698779558,
+      "n_matched_with_errors": 32
+     },
+     "1 GHz": {
+      "scenes": 42,
+      "targets": 64,
+      "matched": 33,
+      "detections": 91,
+      "recall": 0.515625,
+      "precision": 0.3626373626373626,
+      "fp_per_scan": 1.380952380952381,
+      "fp_clutter_per_scan": 0.6428571428571429,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 3.142857142857143,
+      "median_abs_lateral_wl": 0.028143500708912483,
+      "median_abs_lateral_m": 0.0020000000000000018,
+      "median_abs_depth_oracle_v_wl": 0.2742944903208805,
+      "median_abs_depth_own_v_wl": 0.3461554491093822,
+      "median_abs_velocity_frac": 0.12045466290815898,
+      "median_signed_depth_oracle_v_wl": -0.2742944903208805,
+      "n_matched_with_errors": 33
+     },
+     "1.5 GHz": {
+      "scenes": 40,
+      "targets": 64,
+      "matched": 39,
+      "detections": 95,
+      "recall": 0.609375,
+      "precision": 0.4105263157894737,
+      "fp_per_scan": 1.4,
+      "fp_clutter_per_scan": 0.65,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 3.5,
+      "median_abs_lateral_wl": 0.027931013960556778,
+      "median_abs_lateral_m": 0.0014999999999999736,
+      "median_abs_depth_oracle_v_wl": 0.28812956060716555,
+      "median_abs_depth_own_v_wl": 0.49022414461449354,
+      "median_abs_velocity_frac": 0.11140560433907754,
+      "median_signed_depth_oracle_v_wl": -0.2790960102646979,
+      "n_matched_with_errors": 39
+     },
+     "2.6 GHz": {
+      "scenes": 44,
+      "targets": 65,
+      "matched": 34,
+      "detections": 83,
+      "recall": 0.5230769230769231,
+      "precision": 0.40963855421686746,
+      "fp_per_scan": 1.1136363636363635,
+      "fp_clutter_per_scan": 0.5909090909090909,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 2.2857142857142856,
+      "median_abs_lateral_wl": 0.03975249697083161,
+      "median_abs_lateral_m": 0.0013750000000000012,
+      "median_abs_depth_oracle_v_wl": 0.2814428870502576,
+      "median_abs_depth_own_v_wl": 0.3403776118609477,
+      "median_abs_velocity_frac": 0.10918354783468015,
+      "median_signed_depth_oracle_v_wl": -0.2599939400564426,
+      "n_matched_with_errors": 34
+     }
+    },
+    "by_soil": {
+     "dry": {
+      "scenes": 41,
+      "targets": 57,
+      "matched": 31,
+      "detections": 74,
+      "recall": 0.543859649122807,
+      "precision": 0.4189189189189189,
+      "fp_per_scan": 1.048780487804878,
+      "fp_clutter_per_scan": 0.5365853658536586,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 2.25,
+      "median_abs_lateral_wl": 0.07171821976751765,
+      "median_abs_lateral_m": 0.009899999999999964,
+      "median_abs_depth_oracle_v_wl": 0.28812956060716555,
+      "median_abs_depth_own_v_wl": 0.7862690852246343,
+      "median_abs_velocity_frac": 0.18068051068683377,
+      "median_signed_depth_oracle_v_wl": -0.23549136903670206,
+      "n_matched_with_errors": 31
+     },
+     "moist": {
+      "scenes": 52,
+      "targets": 76,
+      "matched": 44,
+      "detections": 120,
+      "recall": 0.5789473684210527,
+      "precision": 0.36666666666666664,
+      "fp_per_scan": 1.4615384615384615,
+      "fp_clutter_per_scan": 0.6153846153846154,
+      "empty_scenes": 10,
+      "fp_per_empty_scene": 3.5,
+      "median_abs_lateral_wl": 0.04290317725192305,
+      "median_abs_lateral_m": 0.004725000000000035,
+      "median_abs_depth_oracle_v_wl": 0.29794725908353703,
+      "median_abs_depth_own_v_wl": 0.5097103858963195,
+      "median_abs_velocity_frac": 0.21549433779477006,
+      "median_signed_depth_oracle_v_wl": -0.294545472365257,
+      "n_matched_with_errors": 44
+     },
+     "wet": {
+      "scenes": 105,
+      "targets": 169,
+      "matched": 89,
+      "detections": 228,
+      "recall": 0.5266272189349113,
+      "precision": 0.39035087719298245,
+      "fp_per_scan": 1.3238095238095238,
+      "fp_clutter_per_scan": 0.6190476190476191,
+      "empty_scenes": 15,
+      "fp_per_empty_scene": 3.1333333333333333,
+      "median_abs_lateral_wl": 0.02766475314107533,
+      "median_abs_lateral_m": 0.001700000000000007,
+      "median_abs_depth_oracle_v_wl": 0.27133955687828865,
+      "median_abs_depth_own_v_wl": 0.3461554491093822,
+      "median_abs_velocity_frac": 0.09863598682156538,
+      "median_signed_depth_oracle_v_wl": -0.2663250835560965,
+      "n_matched_with_errors": 89
+     }
+    },
+    "unmatched_classes": {
+     "clutter": 84,
+     "limb": 48,
+     "duplicate": 13,
+     "clutter_object": 76,
+     "early": 35,
+     "layer": 2
+    }
+   },
+   "A3": {
+    "all": {
+     "scenes": 198,
+     "targets": 302,
+     "matched": 154,
+     "detections": 347,
+     "recall": 0.5099337748344371,
+     "precision": 0.4438040345821326,
+     "fp_per_scan": 0.9747474747474747,
+     "fp_clutter_per_scan": 0.5909090909090909,
+     "empty_scenes": 33,
+     "fp_per_empty_scene": 1.6666666666666667,
+     "median_abs_lateral_wl": 0.028397800998769283,
+     "median_abs_lateral_m": 0.0030000000000000027,
+     "median_abs_depth_oracle_v_wl": 0.27799061899733546,
+     "median_abs_depth_own_v_wl": 0.3719483630271339,
+     "median_abs_velocity_frac": 0.1338802916637185,
+     "median_signed_depth_oracle_v_wl": -0.2757023788196348,
+     "n_matched_with_errors": 154,
+     "ci95": {
+      "recall": [
+       0.4642826669917114,
+       0.5582191780821918
+      ],
+      "precision": [
+       0.3955416017499961,
+       0.4971578227876351
+      ],
+      "fp_per_scan": [
+       0.8131313131313131,
+       1.1363636363636365
+      ],
+      "fp_per_empty_scene": [
+       1.0966985887096774,
+       2.3103987068965512
+      ]
+     }
+    },
+    "by_label": {
+     "cable": {
+      "targets": 63,
+      "matched": 31,
+      "recall": 0.49206349206349204
+     },
+     "pipe": {
+      "targets": 66,
+      "matched": 36,
+      "recall": 0.5454545454545454
+     },
+     "rock": {
+      "targets": 103,
+      "matched": 52,
+      "recall": 0.5048543689320388
+     },
+     "void": {
+      "targets": 70,
+      "matched": 35,
+      "recall": 0.5
+     }
+    },
+    "by_depth_bin": {
+     "deep": {
+      "targets": 159,
+      "matched": 50,
+      "recall": 0.31446540880503143
+     },
+     "mid": {
+      "targets": 90,
+      "matched": 62,
+      "recall": 0.6888888888888889
+     },
+     "shallow": {
+      "targets": 53,
+      "matched": 42,
+      "recall": 0.7924528301886793
+     }
+    },
+    "by_strength": {
+     "moderate": {
+      "targets": 4,
+      "matched": 3,
+      "recall": 0.75
+     },
+     "strong": {
+      "targets": 298,
+      "matched": 151,
+      "recall": 0.5067114093959731
+     }
+    },
+    "by_overlapping": {
+     "False": {
+      "targets": 238,
+      "matched": 130,
+      "recall": 0.5462184873949579
+     },
+     "True": {
+      "targets": 64,
+      "matched": 24,
+      "recall": 0.375
+     }
+    },
+    "by_family": {
+     "close_pair": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 28,
+      "detections": 51,
+      "recall": 0.4666666666666667,
+      "precision": 0.5490196078431373,
+      "fp_per_scan": 0.7666666666666667,
+      "fp_clutter_per_scan": 0.6,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.05685531120831992,
+      "median_abs_lateral_m": 0.004574999999999996,
+      "median_abs_depth_oracle_v_wl": 0.2656389715059687,
+      "median_abs_depth_own_v_wl": 0.3420605878918598,
+      "median_abs_velocity_frac": 0.10199905460998254,
+      "median_signed_depth_oracle_v_wl": -0.2656389715059687,
+      "n_matched_with_errors": 28
+     },
+     "deep": {
+      "scenes": 29,
+      "targets": 49,
+      "matched": 14,
+      "detections": 46,
+      "recall": 0.2857142857142857,
+      "precision": 0.30434782608695654,
+      "fp_per_scan": 1.103448275862069,
+      "fp_clutter_per_scan": 0.9310344827586207,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.09983063781708766,
+      "median_abs_lateral_m": 0.010599999999999998,
+      "median_abs_depth_oracle_v_wl": 0.3077128451389881,
+      "median_abs_depth_own_v_wl": 0.9479342981163574,
+      "median_abs_velocity_frac": 0.17208539097904801,
+      "median_signed_depth_oracle_v_wl": -0.30200829992776396,
+      "n_matched_with_errors": 14
+     },
+     "empty_clutter": {
+      "scenes": 28,
+      "targets": 0,
+      "matched": 0,
+      "detections": 55,
+      "recall": null,
+      "precision": 0.0,
+      "fp_per_scan": 1.9642857142857142,
+      "fp_clutter_per_scan": 0.32142857142857145,
+      "empty_scenes": 28,
+      "fp_per_empty_scene": 1.9642857142857142,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "overlap": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 33,
+      "detections": 58,
+      "recall": 0.55,
+      "precision": 0.5689655172413793,
+      "fp_per_scan": 0.8333333333333334,
+      "fp_clutter_per_scan": 0.7333333333333333,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.028114526491130734,
+      "median_abs_lateral_m": 0.0023000000000000242,
+      "median_abs_depth_oracle_v_wl": 0.27516165867749826,
+      "median_abs_depth_own_v_wl": 0.29003138529351846,
+      "median_abs_velocity_frac": 0.1381286964707773,
+      "median_signed_depth_oracle_v_wl": -0.2728156101399063,
+      "n_matched_with_errors": 33
+     },
+     "standard": {
+      "scenes": 23,
+      "targets": 29,
+      "matched": 17,
+      "detections": 33,
+      "recall": 0.5862068965517241,
+      "precision": 0.5151515151515151,
+      "fp_per_scan": 0.6956521739130435,
+      "fp_clutter_per_scan": 0.5652173913043478,
+      "empty_scenes": 5,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": 0.02820195164024201,
+      "median_abs_lateral_m": 0.0044999999999999485,
+      "median_abs_depth_oracle_v_wl": 0.27373792359678806,
+      "median_abs_depth_own_v_wl": 0.28288833031656263,
+      "median_abs_velocity_frac": 0.1239621204691026,
+      "median_signed_depth_oracle_v_wl": -0.2651612817625219,
+      "n_matched_with_errors": 17
+     },
+     "weak_contrast": {
+      "scenes": 28,
+      "targets": 43,
+      "matched": 33,
+      "detections": 54,
+      "recall": 0.7674418604651163,
+      "precision": 0.6111111111111112,
+      "fp_per_scan": 0.75,
+      "fp_clutter_per_scan": 0.35714285714285715,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.028495723170955944,
+      "median_abs_lateral_m": 0.0021499999999998742,
+      "median_abs_depth_oracle_v_wl": 0.3124300227454889,
+      "median_abs_depth_own_v_wl": 0.451712913663364,
+      "median_abs_velocity_frac": 0.2198791584854244,
+      "median_signed_depth_oracle_v_wl": -0.2762430989617713,
+      "n_matched_with_errors": 33
+     },
+     "wet_conductive": {
+      "scenes": 30,
+      "targets": 61,
+      "matched": 29,
+      "detections": 50,
+      "recall": 0.47540983606557374,
+      "precision": 0.58,
+      "fp_per_scan": 0.7,
+      "fp_clutter_per_scan": 0.6,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.027511804627177186,
+      "median_abs_lateral_m": 0.0012000000000000066,
+      "median_abs_depth_oracle_v_wl": 0.2762828553876761,
+      "median_abs_depth_own_v_wl": 0.34685485007416467,
+      "median_abs_velocity_frac": 0.10264956428259664,
+      "median_signed_depth_oracle_v_wl": -0.2762828553876761,
+      "n_matched_with_errors": 29
+     }
+    },
+    "by_frequency": {
+     "0.25 GHz": {
+      "scenes": 34,
+      "targets": 47,
+      "matched": 25,
+      "detections": 58,
+      "recall": 0.5319148936170213,
+      "precision": 0.43103448275862066,
+      "fp_per_scan": 0.9705882352941176,
+      "fp_clutter_per_scan": 0.5294117647058824,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 1.125,
+      "median_abs_lateral_wl": 0.04294579108673008,
+      "median_abs_lateral_m": 0.01739999999999986,
+      "median_abs_depth_oracle_v_wl": 0.3241001179039916,
+      "median_abs_depth_own_v_wl": 0.47548036713235864,
+      "median_abs_velocity_frac": 0.22841390409466866,
+      "median_signed_depth_oracle_v_wl": -0.29278831160010305,
+      "n_matched_with_errors": 25
+     },
+     "0.5 GHz": {
+      "scenes": 38,
+      "targets": 62,
+      "matched": 33,
+      "detections": 63,
+      "recall": 0.532258064516129,
+      "precision": 0.5238095238095238,
+      "fp_per_scan": 0.7894736842105263,
+      "fp_clutter_per_scan": 0.5789473684210527,
+      "empty_scenes": 3,
+      "fp_per_empty_scene": 0.6666666666666666,
+      "median_abs_lateral_wl": 0.028245060488359536,
+      "median_abs_lateral_m": 0.0041999999999998705,
+      "median_abs_depth_oracle_v_wl": 0.27201245619981507,
+      "median_abs_depth_own_v_wl": 0.36720964857544336,
+      "median_abs_velocity_frac": 0.1381286964707773,
+      "median_signed_depth_oracle_v_wl": -0.2663250835560965,
+      "n_matched_with_errors": 33
+     },
+     "1 GHz": {
+      "scenes": 42,
+      "targets": 64,
+      "matched": 31,
+      "detections": 71,
+      "recall": 0.484375,
+      "precision": 0.43661971830985913,
+      "fp_per_scan": 0.9523809523809523,
+      "fp_clutter_per_scan": 0.5714285714285714,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 2.0,
+      "median_abs_lateral_wl": 0.02819396128687529,
+      "median_abs_lateral_m": 0.0020000000000000018,
+      "median_abs_depth_oracle_v_wl": 0.27701029923648296,
+      "median_abs_depth_own_v_wl": 0.3379657266743374,
+      "median_abs_velocity_frac": 0.12045466290815898,
+      "median_signed_depth_oracle_v_wl": -0.27701029923648296,
+      "n_matched_with_errors": 31
+     },
+     "1.5 GHz": {
+      "scenes": 40,
+      "targets": 64,
+      "matched": 36,
+      "detections": 80,
+      "recall": 0.5625,
+      "precision": 0.45,
+      "fp_per_scan": 1.1,
+      "fp_clutter_per_scan": 0.625,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 1.75,
+      "median_abs_lateral_wl": 0.02780190989707759,
+      "median_abs_lateral_m": 0.001449999999999979,
+      "median_abs_depth_oracle_v_wl": 0.294545472365257,
+      "median_abs_depth_own_v_wl": 0.512493624255252,
+      "median_abs_velocity_frac": 0.12260939856594127,
+      "median_signed_depth_oracle_v_wl": -0.2912799162681773,
+      "n_matched_with_errors": 36
+     },
+     "2.6 GHz": {
+      "scenes": 44,
+      "targets": 65,
+      "matched": 29,
+      "detections": 75,
+      "recall": 0.4461538461538462,
+      "precision": 0.38666666666666666,
+      "fp_per_scan": 1.0454545454545454,
+      "fp_clutter_per_scan": 0.6363636363636364,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 2.2857142857142856,
+      "median_abs_lateral_wl": 0.028359751983016095,
+      "median_abs_lateral_m": 0.0010500000000000093,
+      "median_abs_depth_oracle_v_wl": 0.2628855962077423,
+      "median_abs_depth_own_v_wl": 0.29011138610215187,
+      "median_abs_velocity_frac": 0.11555668902545557,
+      "median_signed_depth_oracle_v_wl": -0.25300075867419475,
+      "n_matched_with_errors": 29
+     }
+    },
+    "by_soil": {
+     "dry": {
+      "scenes": 41,
+      "targets": 57,
+      "matched": 29,
+      "detections": 71,
+      "recall": 0.5087719298245614,
+      "precision": 0.4084507042253521,
+      "fp_per_scan": 1.024390243902439,
+      "fp_clutter_per_scan": 0.5121951219512195,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 1.125,
+      "median_abs_lateral_wl": 0.08183394998594681,
+      "median_abs_lateral_m": 0.010800000000000032,
+      "median_abs_depth_oracle_v_wl": 0.29278831160010305,
+      "median_abs_depth_own_v_wl": 0.7862690852246343,
+      "median_abs_velocity_frac": 0.18068051068683377,
+      "median_signed_depth_oracle_v_wl": -0.23549136903670206,
+      "n_matched_with_errors": 29
+     },
+     "moist": {
+      "scenes": 52,
+      "targets": 76,
+      "matched": 42,
+      "detections": 86,
+      "recall": 0.5526315789473685,
+      "precision": 0.4883720930232558,
+      "fp_per_scan": 0.8461538461538461,
+      "fp_clutter_per_scan": 0.5384615384615384,
+      "empty_scenes": 10,
+      "fp_per_empty_scene": 1.5,
+      "median_abs_lateral_wl": 0.04116028928015482,
+      "median_abs_lateral_m": 0.004725000000000035,
+      "median_abs_depth_oracle_v_wl": 0.29590967566941345,
+      "median_abs_depth_own_v_wl": 0.5097103858963195,
+      "median_abs_velocity_frac": 0.19871915020642406,
+      "median_signed_depth_oracle_v_wl": -0.294545472365257,
+      "n_matched_with_errors": 42
+     },
+     "wet": {
+      "scenes": 105,
+      "targets": 169,
+      "matched": 83,
+      "detections": 190,
+      "recall": 0.4911242603550296,
+      "precision": 0.4368421052631579,
+      "fp_per_scan": 1.019047619047619,
+      "fp_clutter_per_scan": 0.6476190476190476,
+      "empty_scenes": 15,
+      "fp_per_empty_scene": 2.066666666666667,
+      "median_abs_lateral_wl": 0.027514488876569928,
+      "median_abs_lateral_m": 0.0016499999999999848,
+      "median_abs_depth_oracle_v_wl": 0.2733848945360747,
+      "median_abs_depth_own_v_wl": 0.3461554491093822,
+      "median_abs_velocity_frac": 0.10264956428259664,
+      "median_signed_depth_oracle_v_wl": -0.27133955687828865,
+      "n_matched_with_errors": 83
+     }
+    },
+    "unmatched_classes": {
+     "limb": 24,
+     "clutter": 98,
+     "early": 19,
+     "duplicate": 6,
+     "clutter_object": 46
+    }
+   }
+  },
+  "instrument_20spp|noise_4tu_p90": {
+   "A0": {
+    "all": {
+     "scenes": 198,
+     "targets": 302,
+     "matched": 0,
+     "detections": 0,
+     "recall": 0.0,
+     "precision": null,
+     "fp_per_scan": 0.0,
+     "fp_clutter_per_scan": 0.0,
+     "empty_scenes": 33,
+     "fp_per_empty_scene": 0.0,
+     "median_abs_lateral_wl": null,
+     "median_abs_lateral_m": null,
+     "median_abs_depth_oracle_v_wl": null,
+     "median_abs_depth_own_v_wl": null,
+     "median_abs_velocity_frac": null,
+     "median_signed_depth_oracle_v_wl": null,
+     "n_matched_with_errors": 0,
+     "ci95": {
+      "recall": [
+       0.0,
+       0.0
+      ],
+      "fp_per_scan": [
+       0.0,
+       0.0
+      ],
+      "fp_per_empty_scene": [
+       0.0,
+       0.0
+      ]
+     }
+    },
+    "by_label": {
+     "cable": {
+      "targets": 63,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "pipe": {
+      "targets": 66,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "rock": {
+      "targets": 103,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "void": {
+      "targets": 70,
+      "matched": 0,
+      "recall": 0.0
+     }
+    },
+    "by_depth_bin": {
+     "deep": {
+      "targets": 159,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "mid": {
+      "targets": 90,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "shallow": {
+      "targets": 53,
+      "matched": 0,
+      "recall": 0.0
+     }
+    },
+    "by_strength": {
+     "moderate": {
+      "targets": 4,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "strong": {
+      "targets": 298,
+      "matched": 0,
+      "recall": 0.0
+     }
+    },
+    "by_overlapping": {
+     "False": {
+      "targets": 238,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "True": {
+      "targets": 64,
+      "matched": 0,
+      "recall": 0.0
+     }
+    },
+    "by_family": {
+     "close_pair": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "deep": {
+      "scenes": 29,
+      "targets": 49,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "empty_clutter": {
+      "scenes": 28,
+      "targets": 0,
+      "matched": 0,
+      "detections": 0,
+      "recall": null,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 28,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "overlap": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "standard": {
+      "scenes": 23,
+      "targets": 29,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 5,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "weak_contrast": {
+      "scenes": 28,
+      "targets": 43,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "wet_conductive": {
+      "scenes": 30,
+      "targets": 61,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     }
+    },
+    "by_frequency": {
+     "0.25 GHz": {
+      "scenes": 34,
+      "targets": 47,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "0.5 GHz": {
+      "scenes": 38,
+      "targets": 62,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 3,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "1 GHz": {
+      "scenes": 42,
+      "targets": 64,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "1.5 GHz": {
+      "scenes": 40,
+      "targets": 64,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "2.6 GHz": {
+      "scenes": 44,
+      "targets": 65,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     }
+    },
+    "by_soil": {
+     "dry": {
+      "scenes": 41,
+      "targets": 57,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "moist": {
+      "scenes": 52,
+      "targets": 76,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 10,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "wet": {
+      "scenes": 105,
+      "targets": 169,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 15,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     }
+    },
+    "unmatched_classes": {}
+   },
+   "A1": {
+    "all": {
+     "scenes": 198,
+     "targets": 302,
+     "matched": 167,
+     "detections": 509,
+     "recall": 0.5529801324503312,
+     "precision": 0.3280943025540275,
+     "fp_per_scan": 1.7272727272727273,
+     "fp_clutter_per_scan": 0.7424242424242424,
+     "empty_scenes": 33,
+     "fp_per_empty_scene": 3.696969696969697,
+     "median_abs_lateral_wl": 0.040095431007667916,
+     "median_abs_lateral_m": 0.003999999999999976,
+     "median_abs_depth_oracle_v_wl": 0.27516165867749826,
+     "median_abs_depth_own_v_wl": 0.38712858657079074,
+     "median_abs_velocity_frac": 0.12045466290815898,
+     "median_signed_depth_oracle_v_wl": -0.26754292361501514,
+     "n_matched_with_errors": 167,
+     "ci95": {
+      "recall": [
+       0.5080893141447882,
+       0.6020416990325542
+      ],
+      "precision": [
+       0.281012336155372,
+       0.37636761487964987
+      ],
+      "fp_per_scan": [
+       1.4595959595959596,
+       2.0353535353535355
+      ],
+      "fp_per_empty_scene": [
+       2.6538461538461537,
+       4.914642857142855
+      ]
+     }
+    },
+    "by_label": {
+     "cable": {
+      "targets": 63,
+      "matched": 30,
+      "recall": 0.47619047619047616
+     },
+     "pipe": {
+      "targets": 66,
+      "matched": 40,
+      "recall": 0.6060606060606061
+     },
+     "rock": {
+      "targets": 103,
+      "matched": 61,
+      "recall": 0.5922330097087378
+     },
+     "void": {
+      "targets": 70,
+      "matched": 36,
+      "recall": 0.5142857142857142
+     }
+    },
+    "by_depth_bin": {
+     "deep": {
+      "targets": 159,
+      "matched": 67,
+      "recall": 0.42138364779874216
+     },
+     "mid": {
+      "targets": 90,
+      "matched": 58,
+      "recall": 0.6444444444444445
+     },
+     "shallow": {
+      "targets": 53,
+      "matched": 42,
+      "recall": 0.7924528301886793
+     }
+    },
+    "by_strength": {
+     "moderate": {
+      "targets": 4,
+      "matched": 3,
+      "recall": 0.75
+     },
+     "strong": {
+      "targets": 298,
+      "matched": 164,
+      "recall": 0.5503355704697986
+     }
+    },
+    "by_overlapping": {
+     "False": {
+      "targets": 238,
+      "matched": 141,
+      "recall": 0.592436974789916
+     },
+     "True": {
+      "targets": 64,
+      "matched": 26,
+      "recall": 0.40625
+     }
+    },
+    "by_family": {
+     "close_pair": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 30,
+      "detections": 42,
+      "recall": 0.5,
+      "precision": 0.7142857142857143,
+      "fp_per_scan": 0.4,
+      "fp_clutter_per_scan": 0.13333333333333333,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.05685531120831992,
+      "median_abs_lateral_m": 0.004124999999999997,
+      "median_abs_depth_oracle_v_wl": 0.2652846435924697,
+      "median_abs_depth_own_v_wl": 0.31982265460300335,
+      "median_abs_velocity_frac": 0.07852274585933738,
+      "median_signed_depth_oracle_v_wl": -0.26356489991829263,
+      "n_matched_with_errors": 30
+     },
+     "deep": {
+      "scenes": 29,
+      "targets": 49,
+      "matched": 18,
+      "detections": 49,
+      "recall": 0.3673469387755102,
+      "precision": 0.3673469387755102,
+      "fp_per_scan": 1.0689655172413792,
+      "fp_clutter_per_scan": 0.5862068965517241,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.0929191069914038,
+      "median_abs_lateral_m": 0.01572500000000021,
+      "median_abs_depth_oracle_v_wl": 0.32992694886735696,
+      "median_abs_depth_own_v_wl": 0.9436376520775906,
+      "median_abs_velocity_frac": 0.18652769157268662,
+      "median_signed_depth_oracle_v_wl": -0.3130337317065165,
+      "n_matched_with_errors": 18
+     },
+     "empty_clutter": {
+      "scenes": 28,
+      "targets": 0,
+      "matched": 0,
+      "detections": 122,
+      "recall": null,
+      "precision": 0.0,
+      "fp_per_scan": 4.357142857142857,
+      "fp_clutter_per_scan": 0.9285714285714286,
+      "empty_scenes": 28,
+      "fp_per_empty_scene": 4.357142857142857,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "overlap": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 39,
+      "detections": 74,
+      "recall": 0.65,
+      "precision": 0.527027027027027,
+      "fp_per_scan": 1.1666666666666667,
+      "fp_clutter_per_scan": 0.9,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.028495458387599204,
+      "median_abs_lateral_m": 0.0026000000000000467,
+      "median_abs_depth_oracle_v_wl": 0.261932285877563,
+      "median_abs_depth_own_v_wl": 0.30871278411100256,
+      "median_abs_velocity_frac": 0.1381286964707773,
+      "median_signed_depth_oracle_v_wl": -0.25902767371379487,
+      "n_matched_with_errors": 39
+     },
+     "standard": {
+      "scenes": 23,
+      "targets": 29,
+      "matched": 19,
+      "detections": 40,
+      "recall": 0.6551724137931034,
+      "precision": 0.475,
+      "fp_per_scan": 0.9130434782608695,
+      "fp_clutter_per_scan": 0.391304347826087,
+      "empty_scenes": 5,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": 0.028271770902344437,
+      "median_abs_lateral_m": 0.0044999999999999485,
+      "median_abs_depth_oracle_v_wl": 0.27373792359678806,
+      "median_abs_depth_own_v_wl": 0.39365297421865947,
+      "median_abs_velocity_frac": 0.15726605957390272,
+      "median_signed_depth_oracle_v_wl": -0.260612583821129,
+      "n_matched_with_errors": 19
+     },
+     "weak_contrast": {
+      "scenes": 28,
+      "targets": 43,
+      "matched": 32,
+      "detections": 109,
+      "recall": 0.7441860465116279,
+      "precision": 0.29357798165137616,
+      "fp_per_scan": 2.75,
+      "fp_clutter_per_scan": 1.3571428571428572,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.056553713269891365,
+      "median_abs_lateral_m": 0.005199999999999955,
+      "median_abs_depth_oracle_v_wl": 0.26977768990741513,
+      "median_abs_depth_own_v_wl": 0.40233456943364926,
+      "median_abs_velocity_frac": 0.21133023387478578,
+      "median_signed_depth_oracle_v_wl": -0.2519878085249426,
+      "n_matched_with_errors": 32
+     },
+     "wet_conductive": {
+      "scenes": 30,
+      "targets": 61,
+      "matched": 29,
+      "detections": 73,
+      "recall": 0.47540983606557374,
+      "precision": 0.3972602739726027,
+      "fp_per_scan": 1.4666666666666666,
+      "fp_clutter_per_scan": 0.8666666666666667,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.027513533495785662,
+      "median_abs_lateral_m": 0.0011000000000000176,
+      "median_abs_depth_oracle_v_wl": 0.2932736676722462,
+      "median_abs_depth_own_v_wl": 0.34607502648236593,
+      "median_abs_velocity_frac": 0.08348486100883201,
+      "median_signed_depth_oracle_v_wl": -0.2932736676722462,
+      "n_matched_with_errors": 29
+     }
+    },
+    "by_frequency": {
+     "0.25 GHz": {
+      "scenes": 34,
+      "targets": 47,
+      "matched": 27,
+      "detections": 91,
+      "recall": 0.574468085106383,
+      "precision": 0.2967032967032967,
+      "fp_per_scan": 1.8823529411764706,
+      "fp_clutter_per_scan": 0.6470588235294118,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 2.875,
+      "median_abs_lateral_wl": 0.042893650465878,
+      "median_abs_lateral_m": 0.013900000000000023,
+      "median_abs_depth_oracle_v_wl": 0.2971586785375019,
+      "median_abs_depth_own_v_wl": 0.5136698690938822,
+      "median_abs_velocity_frac": 0.22265754669477666,
+      "median_signed_depth_oracle_v_wl": -0.27373792359678806,
+      "n_matched_with_errors": 27
+     },
+     "0.5 GHz": {
+      "scenes": 38,
+      "targets": 62,
+      "matched": 32,
+      "detections": 101,
+      "recall": 0.5161290322580645,
+      "precision": 0.31683168316831684,
+      "fp_per_scan": 1.8157894736842106,
+      "fp_clutter_per_scan": 0.8157894736842105,
+      "empty_scenes": 3,
+      "fp_per_empty_scene": 5.0,
+      "median_abs_lateral_wl": 0.028485571292741742,
+      "median_abs_lateral_m": 0.006250000000000033,
+      "median_abs_depth_oracle_v_wl": 0.2652846435924697,
+      "median_abs_depth_own_v_wl": 0.3686932499685682,
+      "median_abs_velocity_frac": 0.14024496814990817,
+      "median_signed_depth_oracle_v_wl": -0.26308824475320297,
+      "n_matched_with_errors": 32
+     },
+     "1 GHz": {
+      "scenes": 42,
+      "targets": 64,
+      "matched": 34,
+      "detections": 99,
+      "recall": 0.53125,
+      "precision": 0.3434343434343434,
+      "fp_per_scan": 1.5476190476190477,
+      "fp_clutter_per_scan": 0.6428571428571429,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 3.4285714285714284,
+      "median_abs_lateral_wl": 0.02848801766073052,
+      "median_abs_lateral_m": 0.002899999999999958,
+      "median_abs_depth_oracle_v_wl": 0.2609055270335132,
+      "median_abs_depth_own_v_wl": 0.36266337325842346,
+      "median_abs_velocity_frac": 0.11815094371632667,
+      "median_signed_depth_oracle_v_wl": -0.2609055270335132,
+      "n_matched_with_errors": 34
+     },
+     "1.5 GHz": {
+      "scenes": 40,
+      "targets": 64,
+      "matched": 40,
+      "detections": 110,
+      "recall": 0.625,
+      "precision": 0.36363636363636365,
+      "fp_per_scan": 1.75,
+      "fp_clutter_per_scan": 0.925,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 4.625,
+      "median_abs_lateral_wl": 0.041504067522818,
+      "median_abs_lateral_m": 0.0020250000000000476,
+      "median_abs_depth_oracle_v_wl": 0.27819215542563636,
+      "median_abs_depth_own_v_wl": 0.3738195602441725,
+      "median_abs_velocity_frac": 0.1064731787797607,
+      "median_signed_depth_oracle_v_wl": -0.2713522911462567,
+      "n_matched_with_errors": 40
+     },
+     "2.6 GHz": {
+      "scenes": 44,
+      "targets": 65,
+      "matched": 34,
+      "detections": 108,
+      "recall": 0.5230769230769231,
+      "precision": 0.3148148148148148,
+      "fp_per_scan": 1.6818181818181819,
+      "fp_clutter_per_scan": 0.6818181818181818,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 3.2857142857142856,
+      "median_abs_lateral_wl": 0.05457550171218273,
+      "median_abs_lateral_m": 0.0014000000000000054,
+      "median_abs_depth_oracle_v_wl": 0.2881843111670679,
+      "median_abs_depth_own_v_wl": 0.39272594482651724,
+      "median_abs_velocity_frac": 0.10546409304051746,
+      "median_signed_depth_oracle_v_wl": -0.26752383673709257,
+      "n_matched_with_errors": 34
+     }
+    },
+    "by_soil": {
+     "dry": {
+      "scenes": 41,
+      "targets": 57,
+      "matched": 33,
+      "detections": 86,
+      "recall": 0.5789473684210527,
+      "precision": 0.38372093023255816,
+      "fp_per_scan": 1.2926829268292683,
+      "fp_clutter_per_scan": 0.5609756097560976,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 2.375,
+      "median_abs_lateral_wl": 0.07157868661418308,
+      "median_abs_lateral_m": 0.010800000000000032,
+      "median_abs_depth_oracle_v_wl": 0.28812956060716555,
+      "median_abs_depth_own_v_wl": 0.8083243244193808,
+      "median_abs_velocity_frac": 0.206924466015445,
+      "median_signed_depth_oracle_v_wl": -0.2527435651368462,
+      "n_matched_with_errors": 33
+     },
+     "moist": {
+      "scenes": 52,
+      "targets": 76,
+      "matched": 44,
+      "detections": 153,
+      "recall": 0.5789473684210527,
+      "precision": 0.2875816993464052,
+      "fp_per_scan": 2.0961538461538463,
+      "fp_clutter_per_scan": 0.8461538461538461,
+      "empty_scenes": 10,
+      "fp_per_empty_scene": 4.9,
+      "median_abs_lateral_wl": 0.04299337148872093,
+      "median_abs_lateral_m": 0.004974999999999952,
+      "median_abs_depth_oracle_v_wl": 0.2939410540701827,
+      "median_abs_depth_own_v_wl": 0.5044089714165549,
+      "median_abs_velocity_frac": 0.2075441689450026,
+      "median_signed_depth_oracle_v_wl": -0.28701482210405205,
+      "n_matched_with_errors": 44
+     },
+     "wet": {
+      "scenes": 105,
+      "targets": 169,
+      "matched": 90,
+      "detections": 270,
+      "recall": 0.5325443786982249,
+      "precision": 0.3333333333333333,
+      "fp_per_scan": 1.7142857142857142,
+      "fp_clutter_per_scan": 0.7619047619047619,
+      "empty_scenes": 15,
+      "fp_per_empty_scene": 3.6,
+      "median_abs_lateral_wl": 0.028085118245898825,
+      "median_abs_lateral_m": 0.0021749999999999825,
+      "median_abs_depth_oracle_v_wl": 0.26361624758386437,
+      "median_abs_depth_own_v_wl": 0.34611523779587405,
+      "median_abs_velocity_frac": 0.09348553827811223,
+      "median_signed_depth_oracle_v_wl": -0.26240894104265267,
+      "n_matched_with_errors": 90
+     }
+    },
+    "unmatched_classes": {
+     "clutter": 97,
+     "limb": 67,
+     "early": 50,
+     "clutter_object": 95,
+     "layer": 1,
+     "duplicate": 32
+    }
+   },
+   "A2": {
+    "all": {
+     "scenes": 198,
+     "targets": 302,
+     "matched": 165,
+     "detections": 443,
+     "recall": 0.5463576158940397,
+     "precision": 0.3724604966139955,
+     "fp_per_scan": 1.404040404040404,
+     "fp_clutter_per_scan": 0.6515151515151515,
+     "empty_scenes": 33,
+     "fp_per_empty_scene": 3.1818181818181817,
+     "median_abs_lateral_wl": 0.040095431007667916,
+     "median_abs_lateral_m": 0.003999999999999976,
+     "median_abs_depth_oracle_v_wl": 0.2762828553876761,
+     "median_abs_depth_own_v_wl": 0.38712858657079074,
+     "median_abs_velocity_frac": 0.12113709829120667,
+     "median_signed_depth_oracle_v_wl": -0.2704055961424267,
+     "n_matched_with_errors": 165,
+     "ci95": {
+      "recall": [
+       0.5016393442622951,
+       0.5958904109589042
+      ],
+      "precision": [
+       0.32251510321997134,
+       0.42361308845861806
+      ],
+      "fp_per_scan": [
+       1.196969696969697,
+       1.6464646464646464
+      ],
+      "fp_per_empty_scene": [
+       2.352450980392157,
+       4.138270637408567
+      ]
+     }
+    },
+    "by_label": {
+     "cable": {
+      "targets": 63,
+      "matched": 29,
+      "recall": 0.4603174603174603
+     },
+     "pipe": {
+      "targets": 66,
+      "matched": 40,
+      "recall": 0.6060606060606061
+     },
+     "rock": {
+      "targets": 103,
+      "matched": 61,
+      "recall": 0.5922330097087378
+     },
+     "void": {
+      "targets": 70,
+      "matched": 35,
+      "recall": 0.5
+     }
+    },
+    "by_depth_bin": {
+     "deep": {
+      "targets": 159,
+      "matched": 65,
+      "recall": 0.4088050314465409
+     },
+     "mid": {
+      "targets": 90,
+      "matched": 58,
+      "recall": 0.6444444444444445
+     },
+     "shallow": {
+      "targets": 53,
+      "matched": 42,
+      "recall": 0.7924528301886793
+     }
+    },
+    "by_strength": {
+     "moderate": {
+      "targets": 4,
+      "matched": 3,
+      "recall": 0.75
+     },
+     "strong": {
+      "targets": 298,
+      "matched": 162,
+      "recall": 0.5436241610738255
+     }
+    },
+    "by_overlapping": {
+     "False": {
+      "targets": 238,
+      "matched": 139,
+      "recall": 0.5840336134453782
+     },
+     "True": {
+      "targets": 64,
+      "matched": 26,
+      "recall": 0.40625
+     }
+    },
+    "by_family": {
+     "close_pair": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 30,
+      "detections": 41,
+      "recall": 0.5,
+      "precision": 0.7317073170731707,
+      "fp_per_scan": 0.36666666666666664,
+      "fp_clutter_per_scan": 0.1,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.05685531120831992,
+      "median_abs_lateral_m": 0.004124999999999997,
+      "median_abs_depth_oracle_v_wl": 0.2652846435924697,
+      "median_abs_depth_own_v_wl": 0.31982265460300335,
+      "median_abs_velocity_frac": 0.07852274585933738,
+      "median_signed_depth_oracle_v_wl": -0.26356489991829263,
+      "n_matched_with_errors": 30
+     },
+     "deep": {
+      "scenes": 29,
+      "targets": 49,
+      "matched": 18,
+      "detections": 41,
+      "recall": 0.3673469387755102,
+      "precision": 0.43902439024390244,
+      "fp_per_scan": 0.7931034482758621,
+      "fp_clutter_per_scan": 0.5862068965517241,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.0929191069914038,
+      "median_abs_lateral_m": 0.01572500000000021,
+      "median_abs_depth_oracle_v_wl": 0.32992694886735696,
+      "median_abs_depth_own_v_wl": 0.9436376520775906,
+      "median_abs_velocity_frac": 0.18652769157268662,
+      "median_signed_depth_oracle_v_wl": -0.3130337317065165,
+      "n_matched_with_errors": 18
+     },
+     "empty_clutter": {
+      "scenes": 28,
+      "targets": 0,
+      "matched": 0,
+      "detections": 105,
+      "recall": null,
+      "precision": 0.0,
+      "fp_per_scan": 3.75,
+      "fp_clutter_per_scan": 0.8571428571428571,
+      "empty_scenes": 28,
+      "fp_per_empty_scene": 3.75,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "overlap": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 38,
+      "detections": 66,
+      "recall": 0.6333333333333333,
+      "precision": 0.5757575757575758,
+      "fp_per_scan": 0.9333333333333333,
+      "fp_clutter_per_scan": 0.8,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.028482291167050852,
+      "median_abs_lateral_m": 0.002600000000000019,
+      "median_abs_depth_oracle_v_wl": 0.2659216419268506,
+      "median_abs_depth_own_v_wl": 0.30615007723415855,
+      "median_abs_velocity_frac": 0.14024496814990817,
+      "median_signed_depth_oracle_v_wl": -0.2580649788094689,
+      "n_matched_with_errors": 38
+     },
+     "standard": {
+      "scenes": 23,
+      "targets": 29,
+      "matched": 19,
+      "detections": 40,
+      "recall": 0.6551724137931034,
+      "precision": 0.475,
+      "fp_per_scan": 0.9130434782608695,
+      "fp_clutter_per_scan": 0.391304347826087,
+      "empty_scenes": 5,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": 0.028271770902344437,
+      "median_abs_lateral_m": 0.0044999999999999485,
+      "median_abs_depth_oracle_v_wl": 0.27373792359678806,
+      "median_abs_depth_own_v_wl": 0.39365297421865947,
+      "median_abs_velocity_frac": 0.15726605957390272,
+      "median_signed_depth_oracle_v_wl": -0.260612583821129,
+      "n_matched_with_errors": 19
+     },
+     "weak_contrast": {
+      "scenes": 28,
+      "targets": 43,
+      "matched": 32,
+      "detections": 84,
+      "recall": 0.7441860465116279,
+      "precision": 0.38095238095238093,
+      "fp_per_scan": 1.8571428571428572,
+      "fp_clutter_per_scan": 1.0,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.056553713269891365,
+      "median_abs_lateral_m": 0.005199999999999955,
+      "median_abs_depth_oracle_v_wl": 0.26977768990741513,
+      "median_abs_depth_own_v_wl": 0.40233456943364926,
+      "median_abs_velocity_frac": 0.21133023387478578,
+      "median_signed_depth_oracle_v_wl": -0.2519878085249426,
+      "n_matched_with_errors": 32
+     },
+     "wet_conductive": {
+      "scenes": 30,
+      "targets": 61,
+      "matched": 28,
+      "detections": 66,
+      "recall": 0.45901639344262296,
+      "precision": 0.42424242424242425,
+      "fp_per_scan": 1.2666666666666666,
+      "fp_clutter_per_scan": 0.8,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.027514011186177793,
+      "median_abs_lateral_m": 0.0011500000000000121,
+      "median_abs_depth_oracle_v_wl": 0.29567931736989506,
+      "median_abs_depth_own_v_wl": 0.3464649382782653,
+      "median_abs_velocity_frac": 0.08370313088046455,
+      "median_signed_depth_oracle_v_wl": -0.29567931736989506,
+      "n_matched_with_errors": 28
+     }
+    },
+    "by_frequency": {
+     "0.25 GHz": {
+      "scenes": 34,
+      "targets": 47,
+      "matched": 27,
+      "detections": 79,
+      "recall": 0.574468085106383,
+      "precision": 0.34177215189873417,
+      "fp_per_scan": 1.5294117647058822,
+      "fp_clutter_per_scan": 0.5882352941176471,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 2.625,
+      "median_abs_lateral_wl": 0.042893650465878,
+      "median_abs_lateral_m": 0.013900000000000023,
+      "median_abs_depth_oracle_v_wl": 0.2971586785375019,
+      "median_abs_depth_own_v_wl": 0.5136698690938822,
+      "median_abs_velocity_frac": 0.22265754669477666,
+      "median_signed_depth_oracle_v_wl": -0.27373792359678806,
+      "n_matched_with_errors": 27
+     },
+     "0.5 GHz": {
+      "scenes": 38,
+      "targets": 62,
+      "matched": 31,
+      "detections": 84,
+      "recall": 0.5,
+      "precision": 0.36904761904761907,
+      "fp_per_scan": 1.394736842105263,
+      "fp_clutter_per_scan": 0.631578947368421,
+      "empty_scenes": 3,
+      "fp_per_empty_scene": 4.333333333333333,
+      "median_abs_lateral_wl": 0.028475684197884276,
+      "median_abs_lateral_m": 0.00550000000000006,
+      "median_abs_depth_oracle_v_wl": 0.2663250835560965,
+      "median_abs_depth_own_v_wl": 0.35025791336634576,
+      "median_abs_velocity_frac": 0.14236123982903903,
+      "median_signed_depth_oracle_v_wl": -0.26424420362884293,
+      "n_matched_with_errors": 31
+     },
+     "1 GHz": {
+      "scenes": 42,
+      "targets": 64,
+      "matched": 34,
+      "detections": 89,
+      "recall": 0.53125,
+      "precision": 0.38202247191011235,
+      "fp_per_scan": 1.3095238095238095,
+      "fp_clutter_per_scan": 0.5714285714285714,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 2.857142857142857,
+      "median_abs_lateral_wl": 0.02848801766073052,
+      "median_abs_lateral_m": 0.002899999999999958,
+      "median_abs_depth_oracle_v_wl": 0.2609055270335132,
+      "median_abs_depth_own_v_wl": 0.36266337325842346,
+      "median_abs_velocity_frac": 0.11815094371632667,
+      "median_signed_depth_oracle_v_wl": -0.2609055270335132,
+      "n_matched_with_errors": 34
+     },
+     "1.5 GHz": {
+      "scenes": 40,
+      "targets": 64,
+      "matched": 39,
+      "detections": 100,
+      "recall": 0.609375,
+      "precision": 0.39,
+      "fp_per_scan": 1.525,
+      "fp_clutter_per_scan": 0.85,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 4.0,
+      "median_abs_lateral_wl": 0.0429127040379681,
+      "median_abs_lateral_m": 0.0022500000000000853,
+      "median_abs_depth_oracle_v_wl": 0.2790960102646979,
+      "median_abs_depth_own_v_wl": 0.3868345974313081,
+      "median_abs_velocity_frac": 0.10960682841791725,
+      "median_signed_depth_oracle_v_wl": -0.27516165867749826,
+      "n_matched_with_errors": 39
+     },
+     "2.6 GHz": {
+      "scenes": 44,
+      "targets": 65,
+      "matched": 34,
+      "detections": 91,
+      "recall": 0.5230769230769231,
+      "precision": 0.37362637362637363,
+      "fp_per_scan": 1.2954545454545454,
+      "fp_clutter_per_scan": 0.6136363636363636,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 2.7142857142857144,
+      "median_abs_lateral_wl": 0.05457550171218273,
+      "median_abs_lateral_m": 0.0014000000000000054,
+      "median_abs_depth_oracle_v_wl": 0.2881843111670679,
+      "median_abs_depth_own_v_wl": 0.39272594482651724,
+      "median_abs_velocity_frac": 0.10546409304051746,
+      "median_signed_depth_oracle_v_wl": -0.26752383673709257,
+      "n_matched_with_errors": 34
+     }
+    },
+    "by_soil": {
+     "dry": {
+      "scenes": 41,
+      "targets": 57,
+      "matched": 33,
+      "detections": 76,
+      "recall": 0.5789473684210527,
+      "precision": 0.4342105263157895,
+      "fp_per_scan": 1.048780487804878,
+      "fp_clutter_per_scan": 0.5609756097560976,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 2.25,
+      "median_abs_lateral_wl": 0.07157868661418308,
+      "median_abs_lateral_m": 0.010800000000000032,
+      "median_abs_depth_oracle_v_wl": 0.28812956060716555,
+      "median_abs_depth_own_v_wl": 0.8083243244193808,
+      "median_abs_velocity_frac": 0.206924466015445,
+      "median_signed_depth_oracle_v_wl": -0.2527435651368462,
+      "n_matched_with_errors": 33
+     },
+     "moist": {
+      "scenes": 52,
+      "targets": 76,
+      "matched": 44,
+      "detections": 134,
+      "recall": 0.5789473684210527,
+      "precision": 0.3283582089552239,
+      "fp_per_scan": 1.7307692307692308,
+      "fp_clutter_per_scan": 0.7115384615384616,
+      "empty_scenes": 10,
+      "fp_per_empty_scene": 4.2,
+      "median_abs_lateral_wl": 0.04299337148872093,
+      "median_abs_lateral_m": 0.004974999999999952,
+      "median_abs_depth_oracle_v_wl": 0.2939410540701827,
+      "median_abs_depth_own_v_wl": 0.5044089714165549,
+      "median_abs_velocity_frac": 0.2075441689450026,
+      "median_signed_depth_oracle_v_wl": -0.28701482210405205,
+      "n_matched_with_errors": 44
+     },
+     "wet": {
+      "scenes": 105,
+      "targets": 169,
+      "matched": 88,
+      "detections": 233,
+      "recall": 0.5207100591715976,
+      "precision": 0.3776824034334764,
+      "fp_per_scan": 1.380952380952381,
+      "fp_clutter_per_scan": 0.6571428571428571,
+      "empty_scenes": 15,
+      "fp_per_empty_scene": 3.0,
+      "median_abs_lateral_wl": 0.028085118245898825,
+      "median_abs_lateral_m": 0.0021749999999999825,
+      "median_abs_depth_oracle_v_wl": 0.2652846435924697,
+      "median_abs_depth_own_v_wl": 0.34611523779587405,
+      "median_abs_velocity_frac": 0.0940198946626622,
+      "median_signed_depth_oracle_v_wl": -0.2629369438733141,
+      "n_matched_with_errors": 88
+     }
+    },
+    "unmatched_classes": {
+     "clutter": 84,
+     "limb": 49,
+     "early": 45,
+     "clutter_object": 80,
+     "layer": 1,
+     "duplicate": 19
+    }
+   },
+   "A3": {
+    "all": {
+     "scenes": 198,
+     "targets": 302,
+     "matched": 151,
+     "detections": 339,
+     "recall": 0.5,
+     "precision": 0.44542772861356933,
+     "fp_per_scan": 0.9494949494949495,
+     "fp_clutter_per_scan": 0.5757575757575758,
+     "empty_scenes": 33,
+     "fp_per_empty_scene": 1.393939393939394,
+     "median_abs_lateral_wl": 0.04007806584723158,
+     "median_abs_lateral_m": 0.003999999999999976,
+     "median_abs_depth_oracle_v_wl": 0.27516165867749826,
+     "median_abs_depth_own_v_wl": 0.3826537204389876,
+     "median_abs_velocity_frac": 0.1318974029100315,
+     "median_signed_depth_oracle_v_wl": -0.27201245619981507,
+     "n_matched_with_errors": 151,
+     "ci95": {
+      "recall": [
+       0.45547860436728604,
+       0.5470416146209979
+      ],
+      "precision": [
+       0.3968209630220803,
+       0.4984817939333788
+      ],
+      "fp_per_scan": [
+       0.797979797979798,
+       1.095959595959596
+      ],
+      "fp_per_empty_scene": [
+       0.9642857142857143,
+       1.8334459459459453
+      ]
+     }
+    },
+    "by_label": {
+     "cable": {
+      "targets": 63,
+      "matched": 29,
+      "recall": 0.4603174603174603
+     },
+     "pipe": {
+      "targets": 66,
+      "matched": 37,
+      "recall": 0.5606060606060606
+     },
+     "rock": {
+      "targets": 103,
+      "matched": 50,
+      "recall": 0.4854368932038835
+     },
+     "void": {
+      "targets": 70,
+      "matched": 35,
+      "recall": 0.5
+     }
+    },
+    "by_depth_bin": {
+     "deep": {
+      "targets": 159,
+      "matched": 53,
+      "recall": 0.3333333333333333
+     },
+     "mid": {
+      "targets": 90,
+      "matched": 57,
+      "recall": 0.6333333333333333
+     },
+     "shallow": {
+      "targets": 53,
+      "matched": 41,
+      "recall": 0.7735849056603774
+     }
+    },
+    "by_strength": {
+     "moderate": {
+      "targets": 4,
+      "matched": 3,
+      "recall": 0.75
+     },
+     "strong": {
+      "targets": 298,
+      "matched": 148,
+      "recall": 0.4966442953020134
+     }
+    },
+    "by_overlapping": {
+     "False": {
+      "targets": 238,
+      "matched": 129,
+      "recall": 0.542016806722689
+     },
+     "True": {
+      "targets": 64,
+      "matched": 22,
+      "recall": 0.34375
+     }
+    },
+    "by_family": {
+     "close_pair": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 29,
+      "detections": 50,
+      "recall": 0.48333333333333334,
+      "precision": 0.58,
+      "fp_per_scan": 0.7,
+      "fp_clutter_per_scan": 0.6,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.056719217561343224,
+      "median_abs_lateral_m": 0.0041999999999999815,
+      "median_abs_depth_oracle_v_wl": 0.26424420362884293,
+      "median_abs_depth_own_v_wl": 0.3379657266743374,
+      "median_abs_velocity_frac": 0.09056451959202527,
+      "median_signed_depth_oracle_v_wl": -0.26424420362884293,
+      "n_matched_with_errors": 29
+     },
+     "deep": {
+      "scenes": 29,
+      "targets": 49,
+      "matched": 15,
+      "detections": 54,
+      "recall": 0.30612244897959184,
+      "precision": 0.2777777777777778,
+      "fp_per_scan": 1.3448275862068966,
+      "fp_clutter_per_scan": 1.0689655172413792,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.11411999421528995,
+      "median_abs_lateral_m": 0.013900000000000023,
+      "median_abs_depth_oracle_v_wl": 0.3261941149240672,
+      "median_abs_depth_own_v_wl": 0.8493847639120573,
+      "median_abs_velocity_frac": 0.16349027127126226,
+      "median_signed_depth_oracle_v_wl": -0.29987334848896574,
+      "n_matched_with_errors": 15
+     },
+     "empty_clutter": {
+      "scenes": 28,
+      "targets": 0,
+      "matched": 0,
+      "detections": 45,
+      "recall": null,
+      "precision": 0.0,
+      "fp_per_scan": 1.6071428571428572,
+      "fp_clutter_per_scan": 0.17857142857142858,
+      "empty_scenes": 28,
+      "fp_per_empty_scene": 1.6071428571428572,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "overlap": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 33,
+      "detections": 54,
+      "recall": 0.55,
+      "precision": 0.6111111111111112,
+      "fp_per_scan": 0.7,
+      "fp_clutter_per_scan": 0.6,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.028495458387599204,
+      "median_abs_lateral_m": 0.0025499999999999967,
+      "median_abs_depth_oracle_v_wl": 0.27516165867749826,
+      "median_abs_depth_own_v_wl": 0.30871278411100256,
+      "median_abs_velocity_frac": 0.133813192792805,
+      "median_signed_depth_oracle_v_wl": -0.2728156101399063,
+      "n_matched_with_errors": 33
+     },
+     "standard": {
+      "scenes": 23,
+      "targets": 29,
+      "matched": 16,
+      "detections": 29,
+      "recall": 0.5517241379310345,
+      "precision": 0.5517241379310345,
+      "fp_per_scan": 0.5652173913043478,
+      "fp_clutter_per_scan": 0.43478260869565216,
+      "empty_scenes": 5,
+      "fp_per_empty_scene": 0.2,
+      "median_abs_lateral_wl": 0.028197956463558247,
+      "median_abs_lateral_m": 0.0043499999999999095,
+      "median_abs_depth_oracle_v_wl": 0.269449602679655,
+      "median_abs_depth_own_v_wl": 0.3181460324550167,
+      "median_abs_velocity_frac": 0.13689874866212154,
+      "median_signed_depth_oracle_v_wl": -0.26288693279182546,
+      "n_matched_with_errors": 16
+     },
+     "weak_contrast": {
+      "scenes": 28,
+      "targets": 43,
+      "matched": 32,
+      "detections": 60,
+      "recall": 0.7441860465116279,
+      "precision": 0.5333333333333333,
+      "fp_per_scan": 1.0,
+      "fp_clutter_per_scan": 0.5357142857142857,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.07648236959138072,
+      "median_abs_lateral_m": 0.0063,
+      "median_abs_depth_oracle_v_wl": 0.2652424974711825,
+      "median_abs_depth_own_v_wl": 0.4033315661818049,
+      "median_abs_velocity_frac": 0.21560469618010508,
+      "median_signed_depth_oracle_v_wl": -0.2482443749146539,
+      "n_matched_with_errors": 32
+     },
+     "wet_conductive": {
+      "scenes": 30,
+      "targets": 61,
+      "matched": 26,
+      "detections": 47,
+      "recall": 0.4262295081967213,
+      "precision": 0.5531914893617021,
+      "fp_per_scan": 0.7,
+      "fp_clutter_per_scan": 0.5666666666666667,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.027231127118970674,
+      "median_abs_lateral_m": 0.001099999999999976,
+      "median_abs_depth_oracle_v_wl": 0.29567931736989506,
+      "median_abs_depth_own_v_wl": 0.3464649382782653,
+      "median_abs_velocity_frac": 0.09306721264571433,
+      "median_signed_depth_oracle_v_wl": -0.29567931736989506,
+      "n_matched_with_errors": 26
+     }
+    },
+    "by_frequency": {
+     "0.25 GHz": {
+      "scenes": 34,
+      "targets": 47,
+      "matched": 26,
+      "detections": 60,
+      "recall": 0.5531914893617021,
+      "precision": 0.43333333333333335,
+      "fp_per_scan": 1.0,
+      "fp_clutter_per_scan": 0.4411764705882353,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 1.0,
+      "median_abs_lateral_wl": 0.04291972077630404,
+      "median_abs_lateral_m": 0.015649999999999942,
+      "median_abs_depth_oracle_v_wl": 0.31095683582092554,
+      "median_abs_depth_own_v_wl": 0.5246449795210602,
+      "median_abs_velocity_frac": 0.2181367083206383,
+      "median_signed_depth_oracle_v_wl": -0.29203886178799304,
+      "n_matched_with_errors": 26
+     },
+     "0.5 GHz": {
+      "scenes": 38,
+      "targets": 62,
+      "matched": 30,
+      "detections": 69,
+      "recall": 0.4838709677419355,
+      "precision": 0.43478260869565216,
+      "fp_per_scan": 1.0263157894736843,
+      "fp_clutter_per_scan": 0.7105263157894737,
+      "empty_scenes": 3,
+      "fp_per_empty_scene": 1.6666666666666667,
+      "median_abs_lateral_wl": 0.02847347528961771,
+      "median_abs_lateral_m": 0.005400000000000016,
+      "median_abs_depth_oracle_v_wl": 0.2647027426956824,
+      "median_abs_depth_own_v_wl": 0.33474516008146027,
+      "median_abs_velocity_frac": 0.12651725060061908,
+      "median_signed_depth_oracle_v_wl": -0.2647027426956824,
+      "n_matched_with_errors": 30
+     },
+     "1 GHz": {
+      "scenes": 42,
+      "targets": 64,
+      "matched": 34,
+      "detections": 74,
+      "recall": 0.53125,
+      "precision": 0.4594594594594595,
+      "fp_per_scan": 0.9523809523809523,
+      "fp_clutter_per_scan": 0.5238095238095238,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 1.8571428571428572,
+      "median_abs_lateral_wl": 0.054909837501243924,
+      "median_abs_lateral_m": 0.0034999999999999754,
+      "median_abs_depth_oracle_v_wl": 0.2609055270335132,
+      "median_abs_depth_own_v_wl": 0.36266337325842346,
+      "median_abs_velocity_frac": 0.12507975033114416,
+      "median_signed_depth_oracle_v_wl": -0.2609055270335132,
+      "n_matched_with_errors": 34
+     },
+     "1.5 GHz": {
+      "scenes": 40,
+      "targets": 64,
+      "matched": 31,
+      "detections": 68,
+      "recall": 0.484375,
+      "precision": 0.45588235294117646,
+      "fp_per_scan": 0.925,
+      "fp_clutter_per_scan": 0.6,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 1.375,
+      "median_abs_lateral_wl": 0.040095431007667916,
+      "median_abs_lateral_m": 0.00180000000000001,
+      "median_abs_depth_oracle_v_wl": 0.27957183697559235,
+      "median_abs_depth_own_v_wl": 0.3868345974313081,
+      "median_abs_velocity_frac": 0.10960682841791725,
+      "median_signed_depth_oracle_v_wl": -0.2790960102646979,
+      "n_matched_with_errors": 31
+     },
+     "2.6 GHz": {
+      "scenes": 44,
+      "targets": 65,
+      "matched": 30,
+      "detections": 68,
+      "recall": 0.46153846153846156,
+      "precision": 0.4411764705882353,
+      "fp_per_scan": 0.8636363636363636,
+      "fp_clutter_per_scan": 0.5909090909090909,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 1.2857142857142858,
+      "median_abs_lateral_wl": 0.0391996255668619,
+      "median_abs_lateral_m": 0.001125000000000008,
+      "median_abs_depth_oracle_v_wl": 0.26752383673709257,
+      "median_abs_depth_own_v_wl": 0.33049071946146846,
+      "median_abs_velocity_frac": 0.11305605281131725,
+      "median_signed_depth_oracle_v_wl": -0.2556822490157493,
+      "n_matched_with_errors": 30
+     }
+    },
+    "by_soil": {
+     "dry": {
+      "scenes": 41,
+      "targets": 57,
+      "matched": 32,
+      "detections": 71,
+      "recall": 0.5614035087719298,
+      "precision": 0.4507042253521127,
+      "fp_per_scan": 0.9512195121951219,
+      "fp_clutter_per_scan": 0.43902439024390244,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 1.0,
+      "median_abs_lateral_wl": 0.06429484953546341,
+      "median_abs_lateral_m": 0.0119999999999999,
+      "median_abs_depth_oracle_v_wl": 0.2873272377979841,
+      "median_abs_depth_own_v_wl": 0.5986445986397864,
+      "median_abs_velocity_frac": 0.18469357778610945,
+      "median_signed_depth_oracle_v_wl": -0.2505295048438526,
+      "n_matched_with_errors": 32
+     },
+     "moist": {
+      "scenes": 52,
+      "targets": 76,
+      "matched": 39,
+      "detections": 84,
+      "recall": 0.5131578947368421,
+      "precision": 0.4642857142857143,
+      "fp_per_scan": 0.8653846153846154,
+      "fp_clutter_per_scan": 0.5192307692307693,
+      "empty_scenes": 10,
+      "fp_per_empty_scene": 1.4,
+      "median_abs_lateral_wl": 0.04294579108673008,
+      "median_abs_lateral_m": 0.005299999999999971,
+      "median_abs_depth_oracle_v_wl": 0.2934518362111763,
+      "median_abs_depth_own_v_wl": 0.5081414310547192,
+      "median_abs_velocity_frac": 0.20506342795430865,
+      "median_signed_depth_oracle_v_wl": -0.2888223222498371,
+      "n_matched_with_errors": 39
+     },
+     "wet": {
+      "scenes": 105,
+      "targets": 169,
+      "matched": 80,
+      "detections": 184,
+      "recall": 0.47337278106508873,
+      "precision": 0.43478260869565216,
+      "fp_per_scan": 0.9904761904761905,
+      "fp_clutter_per_scan": 0.6571428571428571,
+      "empty_scenes": 15,
+      "fp_per_empty_scene": 1.6,
+      "median_abs_lateral_wl": 0.028085118245898825,
+      "median_abs_lateral_m": 0.0021749999999999825,
+      "median_abs_depth_oracle_v_wl": 0.2647027426956824,
+      "median_abs_depth_own_v_wl": 0.34202037657835166,
+      "median_abs_velocity_frac": 0.09643831844181255,
+      "median_signed_depth_oracle_v_wl": -0.26361624758386437,
+      "n_matched_with_errors": 80
+     }
+    },
+    "unmatched_classes": {
+     "limb": 23,
+     "early": 14,
+     "clutter": 100,
+     "clutter_object": 40,
+     "duplicate": 11
+    }
+   }
+  },
+  "native|noise_4tu_median": {
+   "A0": {
+    "all": {
+     "scenes": 198,
+     "targets": 302,
+     "matched": 1,
+     "detections": 22,
+     "recall": 0.0033112582781456954,
+     "precision": 0.045454545454545456,
+     "fp_per_scan": 0.10606060606060606,
+     "fp_clutter_per_scan": 0.08080808080808081,
+     "empty_scenes": 33,
+     "fp_per_empty_scene": 0.12121212121212122,
+     "median_abs_lateral_wl": 0.3678504098888703,
+     "median_abs_lateral_m": 0.04420000000000002,
+     "median_abs_depth_oracle_v_wl": 0.030932314523051046,
+     "median_abs_depth_own_v_wl": null,
+     "median_abs_velocity_frac": null,
+     "median_signed_depth_oracle_v_wl": -0.030932314523051046,
+     "n_matched_with_errors": 1,
+     "ci95": {
+      "recall": [
+       0.0,
+       0.010239784468652105
+      ],
+      "precision": [
+       0.0,
+       0.14819444444444418
+      ],
+      "fp_per_scan": [
+       0.06060606060606061,
+       0.15151515151515152
+      ],
+      "fp_per_empty_scene": [
+       0.027777777777777776,
+       0.24140543364681283
+      ]
+     }
+    },
+    "by_label": {
+     "cable": {
+      "targets": 63,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "pipe": {
+      "targets": 66,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "rock": {
+      "targets": 103,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "void": {
+      "targets": 70,
+      "matched": 1,
+      "recall": 0.014285714285714285
+     }
+    },
+    "by_depth_bin": {
+     "deep": {
+      "targets": 159,
+      "matched": 1,
+      "recall": 0.006289308176100629
+     },
+     "mid": {
+      "targets": 90,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "shallow": {
+      "targets": 53,
+      "matched": 0,
+      "recall": 0.0
+     }
+    },
+    "by_strength": {
+     "moderate": {
+      "targets": 4,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "strong": {
+      "targets": 298,
+      "matched": 1,
+      "recall": 0.003355704697986577
+     }
+    },
+    "by_overlapping": {
+     "False": {
+      "targets": 238,
+      "matched": 1,
+      "recall": 0.004201680672268907
+     },
+     "True": {
+      "targets": 64,
+      "matched": 0,
+      "recall": 0.0
+     }
+    },
+    "by_family": {
+     "close_pair": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 0,
+      "detections": 3,
+      "recall": 0.0,
+      "precision": 0.0,
+      "fp_per_scan": 0.1,
+      "fp_clutter_per_scan": 0.1,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "deep": {
+      "scenes": 29,
+      "targets": 49,
+      "matched": 1,
+      "detections": 7,
+      "recall": 0.02040816326530612,
+      "precision": 0.14285714285714285,
+      "fp_per_scan": 0.20689655172413793,
+      "fp_clutter_per_scan": 0.1724137931034483,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.3678504098888703,
+      "median_abs_lateral_m": 0.04420000000000002,
+      "median_abs_depth_oracle_v_wl": 0.030932314523051046,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": -0.030932314523051046,
+      "n_matched_with_errors": 1
+     },
+     "empty_clutter": {
+      "scenes": 28,
+      "targets": 0,
+      "matched": 0,
+      "detections": 4,
+      "recall": null,
+      "precision": 0.0,
+      "fp_per_scan": 0.14285714285714285,
+      "fp_clutter_per_scan": 0.07142857142857142,
+      "empty_scenes": 28,
+      "fp_per_empty_scene": 0.14285714285714285,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "overlap": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 0,
+      "detections": 2,
+      "recall": 0.0,
+      "precision": 0.0,
+      "fp_per_scan": 0.06666666666666667,
+      "fp_clutter_per_scan": 0.06666666666666667,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "standard": {
+      "scenes": 23,
+      "targets": 29,
+      "matched": 0,
+      "detections": 0,
+      "recall": 0.0,
+      "precision": null,
+      "fp_per_scan": 0.0,
+      "fp_clutter_per_scan": 0.0,
+      "empty_scenes": 5,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "weak_contrast": {
+      "scenes": 28,
+      "targets": 43,
+      "matched": 0,
+      "detections": 2,
+      "recall": 0.0,
+      "precision": 0.0,
+      "fp_per_scan": 0.07142857142857142,
+      "fp_clutter_per_scan": 0.03571428571428571,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "wet_conductive": {
+      "scenes": 30,
+      "targets": 61,
+      "matched": 0,
+      "detections": 4,
+      "recall": 0.0,
+      "precision": 0.0,
+      "fp_per_scan": 0.13333333333333333,
+      "fp_clutter_per_scan": 0.1,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     }
+    },
+    "by_frequency": {
+     "0.25 GHz": {
+      "scenes": 34,
+      "targets": 47,
+      "matched": 0,
+      "detections": 3,
+      "recall": 0.0,
+      "precision": 0.0,
+      "fp_per_scan": 0.08823529411764706,
+      "fp_clutter_per_scan": 0.058823529411764705,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "0.5 GHz": {
+      "scenes": 38,
+      "targets": 62,
+      "matched": 1,
+      "detections": 7,
+      "recall": 0.016129032258064516,
+      "precision": 0.14285714285714285,
+      "fp_per_scan": 0.15789473684210525,
+      "fp_clutter_per_scan": 0.13157894736842105,
+      "empty_scenes": 3,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": 0.3678504098888703,
+      "median_abs_lateral_m": 0.04420000000000002,
+      "median_abs_depth_oracle_v_wl": 0.030932314523051046,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": -0.030932314523051046,
+      "n_matched_with_errors": 1
+     },
+     "1 GHz": {
+      "scenes": 42,
+      "targets": 64,
+      "matched": 0,
+      "detections": 6,
+      "recall": 0.0,
+      "precision": 0.0,
+      "fp_per_scan": 0.14285714285714285,
+      "fp_clutter_per_scan": 0.09523809523809523,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 0.2857142857142857,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "1.5 GHz": {
+      "scenes": 40,
+      "targets": 64,
+      "matched": 0,
+      "detections": 4,
+      "recall": 0.0,
+      "precision": 0.0,
+      "fp_per_scan": 0.1,
+      "fp_clutter_per_scan": 0.1,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 0.125,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "2.6 GHz": {
+      "scenes": 44,
+      "targets": 65,
+      "matched": 0,
+      "detections": 2,
+      "recall": 0.0,
+      "precision": 0.0,
+      "fp_per_scan": 0.045454545454545456,
+      "fp_clutter_per_scan": 0.022727272727272728,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 0.14285714285714285,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     }
+    },
+    "by_soil": {
+     "dry": {
+      "scenes": 41,
+      "targets": 57,
+      "matched": 0,
+      "detections": 3,
+      "recall": 0.0,
+      "precision": 0.0,
+      "fp_per_scan": 0.07317073170731707,
+      "fp_clutter_per_scan": 0.07317073170731707,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "moist": {
+      "scenes": 52,
+      "targets": 76,
+      "matched": 0,
+      "detections": 6,
+      "recall": 0.0,
+      "precision": 0.0,
+      "fp_per_scan": 0.11538461538461539,
+      "fp_clutter_per_scan": 0.057692307692307696,
+      "empty_scenes": 10,
+      "fp_per_empty_scene": 0.2,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "wet": {
+      "scenes": 105,
+      "targets": 169,
+      "matched": 1,
+      "detections": 13,
+      "recall": 0.005917159763313609,
+      "precision": 0.07692307692307693,
+      "fp_per_scan": 0.11428571428571428,
+      "fp_clutter_per_scan": 0.09523809523809523,
+      "empty_scenes": 15,
+      "fp_per_empty_scene": 0.13333333333333333,
+      "median_abs_lateral_wl": 0.3678504098888703,
+      "median_abs_lateral_m": 0.04420000000000002,
+      "median_abs_depth_oracle_v_wl": 0.030932314523051046,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": -0.030932314523051046,
+      "n_matched_with_errors": 1
+     }
+    },
+    "unmatched_classes": {
+     "clutter": 13,
+     "limb": 3,
+     "early": 3,
+     "clutter_object": 2
+    }
+   },
+   "A1": {
+    "all": {
+     "scenes": 198,
+     "targets": 302,
+     "matched": 166,
+     "detections": 1470,
+     "recall": 0.5496688741721855,
+     "precision": 0.11292517006802721,
+     "fp_per_scan": 6.585858585858586,
+     "fp_clutter_per_scan": 3.808080808080808,
+     "empty_scenes": 33,
+     "fp_per_empty_scene": 3.878787878787879,
+     "median_abs_lateral_wl": 0.05690374893648182,
+     "median_abs_lateral_m": 0.00555000000000002,
+     "median_abs_depth_oracle_v_wl": 0.23862642815271526,
+     "median_abs_depth_own_v_wl": 0.38262200758552234,
+     "median_abs_velocity_frac": 0.10622094193618181,
+     "median_signed_depth_oracle_v_wl": -0.2259896414137778,
+     "n_matched_with_errors": 166,
+     "ci95": {
+      "recall": [
+       0.4949824330259113,
+       0.60703307748538
+      ],
+      "precision": [
+       0.09435168278984346,
+       0.13614281583612967
+      ],
+      "fp_per_scan": [
+       5.408964646464646,
+       7.798232323232321
+      ],
+      "fp_per_empty_scene": [
+       2.191464032421479,
+       5.658114035087718
+      ]
+     }
+    },
+    "by_label": {
+     "cable": {
+      "targets": 63,
+      "matched": 38,
+      "recall": 0.6031746031746031
+     },
+     "pipe": {
+      "targets": 66,
+      "matched": 46,
+      "recall": 0.696969696969697
+     },
+     "rock": {
+      "targets": 103,
+      "matched": 40,
+      "recall": 0.3883495145631068
+     },
+     "void": {
+      "targets": 70,
+      "matched": 42,
+      "recall": 0.6
+     }
+    },
+    "by_depth_bin": {
+     "deep": {
+      "targets": 159,
+      "matched": 68,
+      "recall": 0.4276729559748428
+     },
+     "mid": {
+      "targets": 90,
+      "matched": 60,
+      "recall": 0.6666666666666666
+     },
+     "shallow": {
+      "targets": 53,
+      "matched": 38,
+      "recall": 0.7169811320754716
+     }
+    },
+    "by_strength": {
+     "moderate": {
+      "targets": 4,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "strong": {
+      "targets": 298,
+      "matched": 166,
+      "recall": 0.5570469798657718
+     }
+    },
+    "by_overlapping": {
+     "False": {
+      "targets": 238,
+      "matched": 133,
+      "recall": 0.5588235294117647
+     },
+     "True": {
+      "targets": 64,
+      "matched": 33,
+      "recall": 0.515625
+     }
+    },
+    "by_family": {
+     "close_pair": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 41,
+      "detections": 376,
+      "recall": 0.6833333333333333,
+      "precision": 0.10904255319148937,
+      "fp_per_scan": 11.166666666666666,
+      "fp_clutter_per_scan": 8.2,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.10037192110890505,
+      "median_abs_lateral_m": 0.007000000000000006,
+      "median_abs_depth_oracle_v_wl": 0.2545520116001907,
+      "median_abs_depth_own_v_wl": 0.31283966623053633,
+      "median_abs_velocity_frac": 0.08961546586071656,
+      "median_signed_depth_oracle_v_wl": -0.25033200775228887,
+      "n_matched_with_errors": 41
+     },
+     "deep": {
+      "scenes": 29,
+      "targets": 49,
+      "matched": 29,
+      "detections": 255,
+      "recall": 0.5918367346938775,
+      "precision": 0.11372549019607843,
+      "fp_per_scan": 7.793103448275862,
+      "fp_clutter_per_scan": 4.655172413793103,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.12909279558153075,
+      "median_abs_lateral_m": 0.0175500000000004,
+      "median_abs_depth_oracle_v_wl": 0.2623883901314096,
+      "median_abs_depth_own_v_wl": 0.8167220427491391,
+      "median_abs_velocity_frac": 0.1420804426592357,
+      "median_signed_depth_oracle_v_wl": -0.21075856536111295,
+      "n_matched_with_errors": 29
+     },
+     "empty_clutter": {
+      "scenes": 28,
+      "targets": 0,
+      "matched": 0,
+      "detections": 128,
+      "recall": null,
+      "precision": 0.0,
+      "fp_per_scan": 4.571428571428571,
+      "fp_clutter_per_scan": 0.6071428571428571,
+      "empty_scenes": 28,
+      "fp_per_empty_scene": 4.571428571428571,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "overlap": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 33,
+      "detections": 248,
+      "recall": 0.55,
+      "precision": 0.13306451612903225,
+      "fp_per_scan": 7.166666666666667,
+      "fp_clutter_per_scan": 3.7666666666666666,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.028495458387599204,
+      "median_abs_lateral_m": 0.002599999999999991,
+      "median_abs_depth_oracle_v_wl": 0.22697661413712197,
+      "median_abs_depth_own_v_wl": 0.2974941436105828,
+      "median_abs_velocity_frac": 0.11908183570409847,
+      "median_signed_depth_oracle_v_wl": -0.2132806134348872,
+      "n_matched_with_errors": 33
+     },
+     "standard": {
+      "scenes": 23,
+      "targets": 29,
+      "matched": 16,
+      "detections": 180,
+      "recall": 0.5517241379310345,
+      "precision": 0.08888888888888889,
+      "fp_per_scan": 7.130434782608695,
+      "fp_clutter_per_scan": 6.0,
+      "empty_scenes": 5,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": 0.03569320063000789,
+      "median_abs_lateral_m": 0.0052500000000000185,
+      "median_abs_depth_oracle_v_wl": 0.2466687807459457,
+      "median_abs_depth_own_v_wl": 0.3477220434129735,
+      "median_abs_velocity_frac": 0.09487636563101798,
+      "median_signed_depth_oracle_v_wl": -0.239558835576552,
+      "n_matched_with_errors": 16
+     },
+     "weak_contrast": {
+      "scenes": 28,
+      "targets": 43,
+      "matched": 11,
+      "detections": 90,
+      "recall": 0.2558139534883721,
+      "precision": 0.12222222222222222,
+      "fp_per_scan": 2.8214285714285716,
+      "fp_clutter_per_scan": 0.42857142857142855,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.05674292932697928,
+      "median_abs_lateral_m": 0.025000000000000133,
+      "median_abs_depth_oracle_v_wl": 0.21621253939674354,
+      "median_abs_depth_own_v_wl": 0.25867267385074094,
+      "median_abs_velocity_frac": 0.23861054883729982,
+      "median_signed_depth_oracle_v_wl": -0.13352923396711203,
+      "n_matched_with_errors": 11
+     },
+     "wet_conductive": {
+      "scenes": 30,
+      "targets": 61,
+      "matched": 36,
+      "detections": 193,
+      "recall": 0.5901639344262295,
+      "precision": 0.18652849740932642,
+      "fp_per_scan": 5.233333333333333,
+      "fp_clutter_per_scan": 3.1,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.054736104533412086,
+      "median_abs_lateral_m": 0.0025000000000000022,
+      "median_abs_depth_oracle_v_wl": 0.2259896414137778,
+      "median_abs_depth_own_v_wl": 0.32371152850399987,
+      "median_abs_velocity_frac": 0.06922543473871945,
+      "median_signed_depth_oracle_v_wl": -0.2259896414137778,
+      "n_matched_with_errors": 36
+     }
+    },
+    "by_frequency": {
+     "0.25 GHz": {
+      "scenes": 34,
+      "targets": 47,
+      "matched": 29,
+      "detections": 248,
+      "recall": 0.6170212765957447,
+      "precision": 0.11693548387096774,
+      "fp_per_scan": 6.4411764705882355,
+      "fp_clutter_per_scan": 3.0294117647058822,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 5.875,
+      "median_abs_lateral_wl": 0.05693579784391915,
+      "median_abs_lateral_m": 0.024150000000000005,
+      "median_abs_depth_oracle_v_wl": 0.26356104521104884,
+      "median_abs_depth_own_v_wl": 0.41562596124246515,
+      "median_abs_velocity_frac": 0.21361586994649995,
+      "median_signed_depth_oracle_v_wl": -0.2039413158947906,
+      "n_matched_with_errors": 29
+     },
+     "0.5 GHz": {
+      "scenes": 38,
+      "targets": 62,
+      "matched": 30,
+      "detections": 291,
+      "recall": 0.4838709677419355,
+      "precision": 0.10309278350515463,
+      "fp_per_scan": 6.868421052631579,
+      "fp_clutter_per_scan": 4.0,
+      "empty_scenes": 3,
+      "fp_per_empty_scene": 8.0,
+      "median_abs_lateral_wl": 0.05691153421240652,
+      "median_abs_lateral_m": 0.008074999999999999,
+      "median_abs_depth_oracle_v_wl": 0.23462735062828888,
+      "median_abs_depth_own_v_wl": 0.3188396319080681,
+      "median_abs_velocity_frac": 0.06728181425679874,
+      "median_signed_depth_oracle_v_wl": -0.22567353452620134,
+      "n_matched_with_errors": 30
+     },
+     "1 GHz": {
+      "scenes": 42,
+      "targets": 64,
+      "matched": 38,
+      "detections": 268,
+      "recall": 0.59375,
+      "precision": 0.1417910447761194,
+      "fp_per_scan": 5.476190476190476,
+      "fp_clutter_per_scan": 3.3095238095238093,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 0.2857142857142857,
+      "median_abs_lateral_wl": 0.0840825383013457,
+      "median_abs_lateral_m": 0.0058499999999999525,
+      "median_abs_depth_oracle_v_wl": 0.23935476261521832,
+      "median_abs_depth_own_v_wl": 0.3821207609693441,
+      "median_abs_velocity_frac": 0.12606498557147933,
+      "median_signed_depth_oracle_v_wl": -0.22345625346045567,
+      "n_matched_with_errors": 38
+     },
+     "1.5 GHz": {
+      "scenes": 40,
+      "targets": 64,
+      "matched": 35,
+      "detections": 367,
+      "recall": 0.546875,
+      "precision": 0.09536784741144415,
+      "fp_per_scan": 8.3,
+      "fp_clutter_per_scan": 4.875,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 2.25,
+      "median_abs_lateral_wl": 0.05532054676362521,
+      "median_abs_lateral_m": 0.002600000000000019,
+      "median_abs_depth_oracle_v_wl": 0.22523036467707333,
+      "median_abs_depth_own_v_wl": 0.38284383343536976,
+      "median_abs_velocity_frac": 0.098766764948369,
+      "median_signed_depth_oracle_v_wl": -0.21075856536111295,
+      "n_matched_with_errors": 35
+     },
+     "2.6 GHz": {
+      "scenes": 44,
+      "targets": 65,
+      "matched": 34,
+      "detections": 296,
+      "recall": 0.5230769230769231,
+      "precision": 0.11486486486486487,
+      "fp_per_scan": 5.954545454545454,
+      "fp_clutter_per_scan": 3.75,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 5.285714285714286,
+      "median_abs_lateral_wl": 0.06926043579869624,
+      "median_abs_lateral_m": 0.0024000000000000132,
+      "median_abs_depth_oracle_v_wl": 0.2473443604110084,
+      "median_abs_depth_own_v_wl": 0.42689370641569657,
+      "median_abs_velocity_frac": 0.09137859387623609,
+      "median_signed_depth_oracle_v_wl": -0.2380067182610111,
+      "n_matched_with_errors": 34
+     }
+    },
+    "by_soil": {
+     "dry": {
+      "scenes": 41,
+      "targets": 57,
+      "matched": 39,
+      "detections": 265,
+      "recall": 0.6842105263157895,
+      "precision": 0.1471698113207547,
+      "fp_per_scan": 5.512195121951219,
+      "fp_clutter_per_scan": 2.097560975609756,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 6.125,
+      "median_abs_lateral_wl": 0.07157868661418308,
+      "median_abs_lateral_m": 0.01574999999999993,
+      "median_abs_depth_oracle_v_wl": 0.23587471524493883,
+      "median_abs_depth_own_v_wl": 0.4562755829581467,
+      "median_abs_velocity_frac": 0.13232220783099913,
+      "median_signed_depth_oracle_v_wl": -0.1896534334115556,
+      "n_matched_with_errors": 39
+     },
+     "moist": {
+      "scenes": 52,
+      "targets": 76,
+      "matched": 38,
+      "detections": 398,
+      "recall": 0.5,
+      "precision": 0.09547738693467336,
+      "fp_per_scan": 6.923076923076923,
+      "fp_clutter_per_scan": 3.4615384615384617,
+      "empty_scenes": 10,
+      "fp_per_empty_scene": 7.4,
+      "median_abs_lateral_wl": 0.04983564726376567,
+      "median_abs_lateral_m": 0.005225000000000035,
+      "median_abs_depth_oracle_v_wl": 0.2627162565167592,
+      "median_abs_depth_own_v_wl": 0.4524852122946702,
+      "median_abs_velocity_frac": 0.15620483607119245,
+      "median_signed_depth_oracle_v_wl": -0.24376556064050509,
+      "n_matched_with_errors": 38
+     },
+     "wet": {
+      "scenes": 105,
+      "targets": 169,
+      "matched": 89,
+      "detections": 807,
+      "recall": 0.5266272189349113,
+      "precision": 0.11028500619578686,
+      "fp_per_scan": 6.838095238095238,
+      "fp_clutter_per_scan": 4.647619047619048,
+      "empty_scenes": 15,
+      "fp_per_empty_scene": 0.3333333333333333,
+      "median_abs_lateral_wl": 0.056118766275264235,
+      "median_abs_lateral_m": 0.0040000000000000036,
+      "median_abs_depth_oracle_v_wl": 0.23494417446763236,
+      "median_abs_depth_own_v_wl": 0.328718732326248,
+      "median_abs_velocity_frac": 0.08462815523669076,
+      "median_signed_depth_oracle_v_wl": -0.22697661413712197,
+      "n_matched_with_errors": 89
+     }
+    },
+    "unmatched_classes": {
+     "clutter": 643,
+     "limb": 248,
+     "early": 111,
+     "duplicate": 191,
+     "clutter_object": 111
+    }
+   },
+   "A2": {
+    "all": {
+     "scenes": 198,
+     "targets": 302,
+     "matched": 148,
+     "detections": 647,
+     "recall": 0.4900662251655629,
+     "precision": 0.2287480680061824,
+     "fp_per_scan": 2.5202020202020203,
+     "fp_clutter_per_scan": 1.5303030303030303,
+     "empty_scenes": 33,
+     "fp_per_empty_scene": 2.5454545454545454,
+     "median_abs_lateral_wl": 0.056012571772647776,
+     "median_abs_lateral_m": 0.00495000000000001,
+     "median_abs_depth_oracle_v_wl": 0.23862642815271526,
+     "median_abs_depth_own_v_wl": 0.3410085625245618,
+     "median_abs_velocity_frac": 0.1028830356457251,
+     "median_signed_depth_oracle_v_wl": -0.2259896414137778,
+     "n_matched_with_errors": 148,
+     "ci95": {
+      "recall": [
+       0.44026944785005023,
+       0.5433352090032154
+      ],
+      "precision": [
+       0.19969739418996843,
+       0.26134629748186083
+      ],
+      "fp_per_scan": [
+       2.191919191919192,
+       2.8686868686868685
+      ],
+      "fp_per_empty_scene": [
+       1.4515294771968854,
+       3.6757192676547517
+      ]
+     }
+    },
+    "by_label": {
+     "cable": {
+      "targets": 63,
+      "matched": 32,
+      "recall": 0.5079365079365079
+     },
+     "pipe": {
+      "targets": 66,
+      "matched": 42,
+      "recall": 0.6363636363636364
+     },
+     "rock": {
+      "targets": 103,
+      "matched": 37,
+      "recall": 0.3592233009708738
+     },
+     "void": {
+      "targets": 70,
+      "matched": 37,
+      "recall": 0.5285714285714286
+     }
+    },
+    "by_depth_bin": {
+     "deep": {
+      "targets": 159,
+      "matched": 54,
+      "recall": 0.33962264150943394
+     },
+     "mid": {
+      "targets": 90,
+      "matched": 56,
+      "recall": 0.6222222222222222
+     },
+     "shallow": {
+      "targets": 53,
+      "matched": 38,
+      "recall": 0.7169811320754716
+     }
+    },
+    "by_strength": {
+     "moderate": {
+      "targets": 4,
+      "matched": 0,
+      "recall": 0.0
+     },
+     "strong": {
+      "targets": 298,
+      "matched": 148,
+      "recall": 0.4966442953020134
+     }
+    },
+    "by_overlapping": {
+     "False": {
+      "targets": 238,
+      "matched": 120,
+      "recall": 0.5042016806722689
+     },
+     "True": {
+      "targets": 64,
+      "matched": 28,
+      "recall": 0.4375
+     }
+    },
+    "by_family": {
+     "close_pair": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 36,
+      "detections": 135,
+      "recall": 0.6,
+      "precision": 0.26666666666666666,
+      "fp_per_scan": 3.3,
+      "fp_clutter_per_scan": 2.6666666666666665,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.08538860535291884,
+      "median_abs_lateral_m": 0.006175,
+      "median_abs_depth_oracle_v_wl": 0.25244200967623975,
+      "median_abs_depth_own_v_wl": 0.30852110023726975,
+      "median_abs_velocity_frac": 0.08462815523669076,
+      "median_signed_depth_oracle_v_wl": -0.24573846871936117,
+      "n_matched_with_errors": 36
+     },
+     "deep": {
+      "scenes": 29,
+      "targets": 49,
+      "matched": 21,
+      "detections": 111,
+      "recall": 0.42857142857142855,
+      "precision": 0.1891891891891892,
+      "fp_per_scan": 3.103448275862069,
+      "fp_clutter_per_scan": 2.310344827586207,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.11411999421528995,
+      "median_abs_lateral_m": 0.01679999999999998,
+      "median_abs_depth_oracle_v_wl": 0.2623883901314096,
+      "median_abs_depth_own_v_wl": 0.8047524757060868,
+      "median_abs_velocity_frac": 0.1420804426592357,
+      "median_signed_depth_oracle_v_wl": -0.21075856536111295,
+      "n_matched_with_errors": 21
+     },
+     "empty_clutter": {
+      "scenes": 28,
+      "targets": 0,
+      "matched": 0,
+      "detections": 84,
+      "recall": null,
+      "precision": 0.0,
+      "fp_per_scan": 3.0,
+      "fp_clutter_per_scan": 0.35714285714285715,
+      "empty_scenes": 28,
+      "fp_per_empty_scene": 3.0,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "overlap": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 33,
+      "detections": 97,
+      "recall": 0.55,
+      "precision": 0.3402061855670103,
+      "fp_per_scan": 2.1333333333333333,
+      "fp_clutter_per_scan": 1.5666666666666667,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.028495458387599204,
+      "median_abs_lateral_m": 0.0026000000000000467,
+      "median_abs_depth_oracle_v_wl": 0.22697661413712197,
+      "median_abs_depth_own_v_wl": 0.2974941436105828,
+      "median_abs_velocity_frac": 0.13284303119776197,
+      "median_signed_depth_oracle_v_wl": -0.2132806134348872,
+      "n_matched_with_errors": 33
+     },
+     "standard": {
+      "scenes": 23,
+      "targets": 29,
+      "matched": 16,
+      "detections": 71,
+      "recall": 0.5517241379310345,
+      "precision": 0.22535211267605634,
+      "fp_per_scan": 2.391304347826087,
+      "fp_clutter_per_scan": 2.0,
+      "empty_scenes": 5,
+      "fp_per_empty_scene": 0.0,
+      "median_abs_lateral_wl": 0.03569320063000789,
+      "median_abs_lateral_m": 0.0052500000000000185,
+      "median_abs_depth_oracle_v_wl": 0.2466687807459457,
+      "median_abs_depth_own_v_wl": 0.3477220434129735,
+      "median_abs_velocity_frac": 0.09487636563101798,
+      "median_signed_depth_oracle_v_wl": -0.239558835576552,
+      "n_matched_with_errors": 16
+     },
+     "weak_contrast": {
+      "scenes": 28,
+      "targets": 43,
+      "matched": 11,
+      "detections": 39,
+      "recall": 0.2558139534883721,
+      "precision": 0.28205128205128205,
+      "fp_per_scan": 1.0,
+      "fp_clutter_per_scan": 0.2857142857142857,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.05674292932697928,
+      "median_abs_lateral_m": 0.025000000000000133,
+      "median_abs_depth_oracle_v_wl": 0.21621253939674354,
+      "median_abs_depth_own_v_wl": 0.25867267385074094,
+      "median_abs_velocity_frac": 0.23861054883729982,
+      "median_signed_depth_oracle_v_wl": -0.13352923396711203,
+      "n_matched_with_errors": 11
+     },
+     "wet_conductive": {
+      "scenes": 30,
+      "targets": 61,
+      "matched": 31,
+      "detections": 110,
+      "recall": 0.5081967213114754,
+      "precision": 0.2818181818181818,
+      "fp_per_scan": 2.6333333333333333,
+      "fp_clutter_per_scan": 1.5,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.04034332246490937,
+      "median_abs_lateral_m": 0.0024000000000000132,
+      "median_abs_depth_oracle_v_wl": 0.22609217630988113,
+      "median_abs_depth_own_v_wl": 0.3168455856600285,
+      "median_abs_velocity_frac": 0.06710581077695088,
+      "median_signed_depth_oracle_v_wl": -0.22609217630988113,
+      "n_matched_with_errors": 31
+     }
+    },
+    "by_frequency": {
+     "0.25 GHz": {
+      "scenes": 34,
+      "targets": 47,
+      "matched": 26,
+      "detections": 115,
+      "recall": 0.5531914893617021,
+      "precision": 0.22608695652173913,
+      "fp_per_scan": 2.6176470588235294,
+      "fp_clutter_per_scan": 1.1470588235294117,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 3.125,
+      "median_abs_lateral_wl": 0.056801709673323195,
+      "median_abs_lateral_m": 0.022475000000000078,
+      "median_abs_depth_oracle_v_wl": 0.26657899034020394,
+      "median_abs_depth_own_v_wl": 0.39479419110418573,
+      "median_abs_velocity_frac": 0.1914834320450946,
+      "median_signed_depth_oracle_v_wl": -0.20821989355154216,
+      "n_matched_with_errors": 26
+     },
+     "0.5 GHz": {
+      "scenes": 38,
+      "targets": 62,
+      "matched": 27,
+      "detections": 139,
+      "recall": 0.43548387096774194,
+      "precision": 0.19424460431654678,
+      "fp_per_scan": 2.9473684210526314,
+      "fp_clutter_per_scan": 1.9210526315789473,
+      "empty_scenes": 3,
+      "fp_per_empty_scene": 6.333333333333333,
+      "median_abs_lateral_wl": 0.05674292932697928,
+      "median_abs_lateral_m": 0.007000000000000006,
+      "median_abs_depth_oracle_v_wl": 0.23587471524493883,
+      "median_abs_depth_own_v_wl": 0.3187043246817517,
+      "median_abs_velocity_frac": 0.05914932109287396,
+      "median_signed_depth_oracle_v_wl": -0.23337998601163895,
+      "n_matched_with_errors": 27
+     },
+     "1 GHz": {
+      "scenes": 42,
+      "targets": 64,
+      "matched": 33,
+      "detections": 124,
+      "recall": 0.515625,
+      "precision": 0.2661290322580645,
+      "fp_per_scan": 2.1666666666666665,
+      "fp_clutter_per_scan": 1.4523809523809523,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 0.2857142857142857,
+      "median_abs_lateral_wl": 0.056118766275264235,
+      "median_abs_lateral_m": 0.0042999999999998595,
+      "median_abs_depth_oracle_v_wl": 0.23740141789166308,
+      "median_abs_depth_own_v_wl": 0.3515198798465432,
+      "median_abs_velocity_frac": 0.11328952582587748,
+      "median_signed_depth_oracle_v_wl": -0.21522246947731113,
+      "n_matched_with_errors": 33
+     },
+     "1.5 GHz": {
+      "scenes": 40,
+      "targets": 64,
+      "matched": 34,
+      "detections": 127,
+      "recall": 0.53125,
+      "precision": 0.2677165354330709,
+      "fp_per_scan": 2.325,
+      "fp_clutter_per_scan": 1.375,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 1.75,
+      "median_abs_lateral_wl": 0.055172078008989205,
+      "median_abs_lateral_m": 0.002600000000000005,
+      "median_abs_depth_oracle_v_wl": 0.21306652799030912,
+      "median_abs_depth_own_v_wl": 0.3232287307017984,
+      "median_abs_velocity_frac": 0.09284698866618685,
+      "median_signed_depth_oracle_v_wl": -0.2107304971703556,
+      "n_matched_with_errors": 34
+     },
+     "2.6 GHz": {
+      "scenes": 44,
+      "targets": 65,
+      "matched": 28,
+      "detections": 142,
+      "recall": 0.4307692307692308,
+      "precision": 0.19718309859154928,
+      "fp_per_scan": 2.590909090909091,
+      "fp_clutter_per_scan": 1.7045454545454546,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 3.4285714285714284,
+      "median_abs_lateral_wl": 0.055592272453276644,
+      "median_abs_lateral_m": 0.00205000000000001,
+      "median_abs_depth_oracle_v_wl": 0.25401885732373913,
+      "median_abs_depth_own_v_wl": 0.38976010380979126,
+      "median_abs_velocity_frac": 0.09137859387623609,
+      "median_signed_depth_oracle_v_wl": -0.2414290275284487,
+      "n_matched_with_errors": 28
+     }
+    },
+    "by_soil": {
+     "dry": {
+      "scenes": 41,
+      "targets": 57,
+      "matched": 35,
+      "detections": 143,
+      "recall": 0.6140350877192983,
+      "precision": 0.24475524475524477,
+      "fp_per_scan": 2.6341463414634148,
+      "fp_clutter_per_scan": 1.3902439024390243,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 3.625,
+      "median_abs_lateral_wl": 0.05708651047381453,
+      "median_abs_lateral_m": 0.01540000000000008,
+      "median_abs_depth_oracle_v_wl": 0.23337998601163895,
+      "median_abs_depth_own_v_wl": 0.3832867993193489,
+      "median_abs_velocity_frac": 0.13163018405657412,
+      "median_signed_depth_oracle_v_wl": -0.18950541390885348,
+      "n_matched_with_errors": 35
+     },
+     "moist": {
+      "scenes": 52,
+      "targets": 76,
+      "matched": 35,
+      "detections": 196,
+      "recall": 0.4605263157894737,
+      "precision": 0.17857142857142858,
+      "fp_per_scan": 3.0961538461538463,
+      "fp_clutter_per_scan": 1.4807692307692308,
+      "empty_scenes": 10,
+      "fp_per_empty_scene": 5.2,
+      "median_abs_lateral_wl": 0.04294579108673008,
+      "median_abs_lateral_m": 0.0048000000000000265,
+      "median_abs_depth_oracle_v_wl": 0.26356104521104884,
+      "median_abs_depth_own_v_wl": 0.4485510414712659,
+      "median_abs_velocity_frac": 0.1551436125684822,
+      "median_signed_depth_oracle_v_wl": -0.2500946055837262,
+      "n_matched_with_errors": 35
+     },
+     "wet": {
+      "scenes": 105,
+      "targets": 169,
+      "matched": 78,
+      "detections": 308,
+      "recall": 0.46153846153846156,
+      "precision": 0.2532467532467532,
+      "fp_per_scan": 2.1904761904761907,
+      "fp_clutter_per_scan": 1.6095238095238096,
+      "empty_scenes": 15,
+      "fp_per_empty_scene": 0.2,
+      "median_abs_lateral_wl": 0.054429146222384844,
+      "median_abs_lateral_m": 0.003649999999999959,
+      "median_abs_depth_oracle_v_wl": 0.23457455838663482,
+      "median_abs_depth_own_v_wl": 0.30516690492055953,
+      "median_abs_velocity_frac": 0.08321179646672267,
+      "median_signed_depth_oracle_v_wl": -0.2266643130001797,
+      "n_matched_with_errors": 78
+     }
+    },
+    "unmatched_classes": {
+     "clutter": 260,
+     "limb": 82,
+     "early": 43,
+     "duplicate": 40,
+     "clutter_object": 74
+    }
+   },
+   "A3": {
+    "all": {
+     "scenes": 198,
+     "targets": 302,
+     "matched": 153,
+     "detections": 339,
+     "recall": 0.5066225165562914,
+     "precision": 0.45132743362831856,
+     "fp_per_scan": 0.9393939393939394,
+     "fp_clutter_per_scan": 0.5505050505050505,
+     "empty_scenes": 33,
+     "fp_per_empty_scene": 1.6666666666666667,
+     "median_abs_lateral_wl": 0.028315171318409545,
+     "median_abs_lateral_m": 0.0030000000000000027,
+     "median_abs_depth_oracle_v_wl": 0.2792544600727044,
+     "median_abs_depth_own_v_wl": 0.35025791336634576,
+     "median_abs_velocity_frac": 0.12970483775412933,
+     "median_signed_depth_oracle_v_wl": -0.2762828553876761,
+     "n_matched_with_errors": 153,
+     "ci95": {
+      "recall": [
+       0.45999328859060407,
+       0.5534634719592609
+      ],
+      "precision": [
+       0.4030724637681159,
+       0.5060259330002939
+      ],
+      "fp_per_scan": [
+       0.7878787878787878,
+       1.095959595959596
+      ],
+      "fp_per_empty_scene": [
+       1.1599473684210526,
+       2.21875
+      ]
+     }
+    },
+    "by_label": {
+     "cable": {
+      "targets": 63,
+      "matched": 29,
+      "recall": 0.4603174603174603
+     },
+     "pipe": {
+      "targets": 66,
+      "matched": 37,
+      "recall": 0.5606060606060606
+     },
+     "rock": {
+      "targets": 103,
+      "matched": 52,
+      "recall": 0.5048543689320388
+     },
+     "void": {
+      "targets": 70,
+      "matched": 35,
+      "recall": 0.5
+     }
+    },
+    "by_depth_bin": {
+     "deep": {
+      "targets": 159,
+      "matched": 51,
+      "recall": 0.32075471698113206
+     },
+     "mid": {
+      "targets": 90,
+      "matched": 61,
+      "recall": 0.6777777777777778
+     },
+     "shallow": {
+      "targets": 53,
+      "matched": 41,
+      "recall": 0.7735849056603774
+     }
+    },
+    "by_strength": {
+     "moderate": {
+      "targets": 4,
+      "matched": 3,
+      "recall": 0.75
+     },
+     "strong": {
+      "targets": 298,
+      "matched": 150,
+      "recall": 0.5033557046979866
+     }
+    },
+    "by_overlapping": {
+     "False": {
+      "targets": 238,
+      "matched": 127,
+      "recall": 0.5336134453781513
+     },
+     "True": {
+      "targets": 64,
+      "matched": 26,
+      "recall": 0.40625
+     }
+    },
+    "by_family": {
+     "close_pair": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 31,
+      "detections": 51,
+      "recall": 0.5166666666666667,
+      "precision": 0.6078431372549019,
+      "fp_per_scan": 0.6666666666666666,
+      "fp_clutter_per_scan": 0.5,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.056719217561343224,
+      "median_abs_lateral_m": 0.0041999999999999815,
+      "median_abs_depth_oracle_v_wl": 0.2663250835560965,
+      "median_abs_depth_own_v_wl": 0.3379657266743374,
+      "median_abs_velocity_frac": 0.09056451959202527,
+      "median_signed_depth_oracle_v_wl": -0.2663250835560965,
+      "n_matched_with_errors": 31
+     },
+     "deep": {
+      "scenes": 29,
+      "targets": 49,
+      "matched": 14,
+      "detections": 46,
+      "recall": 0.2857142857142857,
+      "precision": 0.30434782608695654,
+      "fp_per_scan": 1.103448275862069,
+      "fp_clutter_per_scan": 0.896551724137931,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.10406120881729998,
+      "median_abs_lateral_m": 0.010599999999999998,
+      "median_abs_depth_oracle_v_wl": 0.3202436997497919,
+      "median_abs_depth_own_v_wl": 0.9479342981163574,
+      "median_abs_velocity_frac": 0.17208539097904801,
+      "median_signed_depth_oracle_v_wl": -0.30685726447909334,
+      "n_matched_with_errors": 14
+     },
+     "empty_clutter": {
+      "scenes": 28,
+      "targets": 0,
+      "matched": 0,
+      "detections": 53,
+      "recall": null,
+      "precision": 0.0,
+      "fp_per_scan": 1.8928571428571428,
+      "fp_clutter_per_scan": 0.2857142857142857,
+      "empty_scenes": 28,
+      "fp_per_empty_scene": 1.8928571428571428,
+      "median_abs_lateral_wl": null,
+      "median_abs_lateral_m": null,
+      "median_abs_depth_oracle_v_wl": null,
+      "median_abs_depth_own_v_wl": null,
+      "median_abs_velocity_frac": null,
+      "median_signed_depth_oracle_v_wl": null,
+      "n_matched_with_errors": 0
+     },
+     "overlap": {
+      "scenes": 30,
+      "targets": 60,
+      "matched": 34,
+      "detections": 54,
+      "recall": 0.5666666666666667,
+      "precision": 0.6296296296296297,
+      "fp_per_scan": 0.6666666666666666,
+      "fp_clutter_per_scan": 0.6,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.028291825218816617,
+      "median_abs_lateral_m": 0.0023500000000000187,
+      "median_abs_depth_oracle_v_wl": 0.27589830393204967,
+      "median_abs_depth_own_v_wl": 0.3022634185420075,
+      "median_abs_velocity_frac": 0.13597094463179116,
+      "median_signed_depth_oracle_v_wl": -0.27477864792634465,
+      "n_matched_with_errors": 34
+     },
+     "standard": {
+      "scenes": 23,
+      "targets": 29,
+      "matched": 17,
+      "detections": 33,
+      "recall": 0.5862068965517241,
+      "precision": 0.5151515151515151,
+      "fp_per_scan": 0.6956521739130435,
+      "fp_clutter_per_scan": 0.5652173913043478,
+      "empty_scenes": 5,
+      "fp_per_empty_scene": 0.4,
+      "median_abs_lateral_wl": 0.02820195164024201,
+      "median_abs_lateral_m": 0.0044999999999999485,
+      "median_abs_depth_oracle_v_wl": 0.27373792359678806,
+      "median_abs_depth_own_v_wl": 0.28288833031656263,
+      "median_abs_velocity_frac": 0.1239621204691026,
+      "median_signed_depth_oracle_v_wl": -0.260612583821129,
+      "n_matched_with_errors": 17
+     },
+     "weak_contrast": {
+      "scenes": 28,
+      "targets": 43,
+      "matched": 31,
+      "detections": 55,
+      "recall": 0.7209302325581395,
+      "precision": 0.5636363636363636,
+      "fp_per_scan": 0.8571428571428571,
+      "fp_clutter_per_scan": 0.39285714285714285,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.02819396128687529,
+      "median_abs_lateral_m": 0.0018500000000000183,
+      "median_abs_depth_oracle_v_wl": 0.3031021411327456,
+      "median_abs_depth_own_v_wl": 0.38712858657079074,
+      "median_abs_velocity_frac": 0.21133023387478578,
+      "median_signed_depth_oracle_v_wl": -0.2762430989617713,
+      "n_matched_with_errors": 31
+     },
+     "wet_conductive": {
+      "scenes": 30,
+      "targets": 61,
+      "matched": 26,
+      "detections": 47,
+      "recall": 0.4262295081967213,
+      "precision": 0.5531914893617021,
+      "fp_per_scan": 0.7,
+      "fp_clutter_per_scan": 0.6,
+      "empty_scenes": 0,
+      "fp_per_empty_scene": null,
+      "median_abs_lateral_wl": 0.027374879479441797,
+      "median_abs_lateral_m": 0.0011500000000000121,
+      "median_abs_depth_oracle_v_wl": 0.28473204311414574,
+      "median_abs_depth_own_v_wl": 0.28343815408063844,
+      "median_abs_velocity_frac": 0.10264956428259664,
+      "median_signed_depth_oracle_v_wl": -0.28473204311414574,
+      "n_matched_with_errors": 26
+     }
+    },
+    "by_frequency": {
+     "0.25 GHz": {
+      "scenes": 34,
+      "targets": 47,
+      "matched": 27,
+      "detections": 55,
+      "recall": 0.574468085106383,
+      "precision": 0.4909090909090909,
+      "fp_per_scan": 0.8235294117647058,
+      "fp_clutter_per_scan": 0.38235294117647056,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 1.0,
+      "median_abs_lateral_wl": 0.04286374104487314,
+      "median_abs_lateral_m": 0.011699999999999933,
+      "median_abs_depth_oracle_v_wl": 0.3241001179039916,
+      "median_abs_depth_own_v_wl": 0.4987649305848447,
+      "median_abs_velocity_frac": 0.22841390409466866,
+      "median_signed_depth_oracle_v_wl": -0.2938500675538825,
+      "n_matched_with_errors": 27
+     },
+     "0.5 GHz": {
+      "scenes": 38,
+      "targets": 62,
+      "matched": 31,
+      "detections": 61,
+      "recall": 0.5,
+      "precision": 0.5081967213114754,
+      "fp_per_scan": 0.7894736842105263,
+      "fp_clutter_per_scan": 0.6052631578947368,
+      "empty_scenes": 3,
+      "fp_per_empty_scene": 0.6666666666666666,
+      "median_abs_lateral_wl": 0.02820195164024201,
+      "median_abs_lateral_m": 0.0040999999999999925,
+      "median_abs_depth_oracle_v_wl": 0.2663250835560965,
+      "median_abs_depth_own_v_wl": 0.34633889344790403,
+      "median_abs_velocity_frac": 0.1381286964707773,
+      "median_signed_depth_oracle_v_wl": -0.26424420362884293,
+      "n_matched_with_errors": 31
+     },
+     "1 GHz": {
+      "scenes": 42,
+      "targets": 64,
+      "matched": 30,
+      "detections": 69,
+      "recall": 0.46875,
+      "precision": 0.43478260869565216,
+      "fp_per_scan": 0.9285714285714286,
+      "fp_clutter_per_scan": 0.5714285714285714,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 2.0,
+      "median_abs_lateral_wl": 0.02819396128687529,
+      "median_abs_lateral_m": 0.0019000000000000128,
+      "median_abs_depth_oracle_v_wl": 0.275702968205837,
+      "median_abs_depth_own_v_wl": 0.32804378226084374,
+      "median_abs_velocity_frac": 0.12507975033114416,
+      "median_signed_depth_oracle_v_wl": -0.275702968205837,
+      "n_matched_with_errors": 30
+     },
+     "1.5 GHz": {
+      "scenes": 40,
+      "targets": 64,
+      "matched": 36,
+      "detections": 85,
+      "recall": 0.5625,
+      "precision": 0.4235294117647059,
+      "fp_per_scan": 1.225,
+      "fp_clutter_per_scan": 0.7,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 1.875,
+      "median_abs_lateral_wl": 0.02780190989707759,
+      "median_abs_lateral_m": 0.001449999999999979,
+      "median_abs_depth_oracle_v_wl": 0.2838506987913789,
+      "median_abs_depth_own_v_wl": 0.4483090957730775,
+      "median_abs_velocity_frac": 0.11050621637849739,
+      "median_signed_depth_oracle_v_wl": -0.2793339236201451,
+      "n_matched_with_errors": 36
+     },
+     "2.6 GHz": {
+      "scenes": 44,
+      "targets": 65,
+      "matched": 29,
+      "detections": 69,
+      "recall": 0.4461538461538462,
+      "precision": 0.42028985507246375,
+      "fp_per_scan": 0.9090909090909091,
+      "fp_clutter_per_scan": 0.4772727272727273,
+      "empty_scenes": 7,
+      "fp_per_empty_scene": 2.2857142857142856,
+      "median_abs_lateral_wl": 0.027886635054548258,
+      "median_abs_lateral_m": 0.0009000000000000119,
+      "median_abs_depth_oracle_v_wl": 0.2911613003758688,
+      "median_abs_depth_own_v_wl": 0.3009394667267005,
+      "median_abs_velocity_frac": 0.10311650700885355,
+      "median_signed_depth_oracle_v_wl": -0.2628855962077423,
+      "n_matched_with_errors": 29
+     }
+    },
+    "by_soil": {
+     "dry": {
+      "scenes": 41,
+      "targets": 57,
+      "matched": 27,
+      "detections": 68,
+      "recall": 0.47368421052631576,
+      "precision": 0.39705882352941174,
+      "fp_per_scan": 1.0,
+      "fp_clutter_per_scan": 0.4146341463414634,
+      "empty_scenes": 8,
+      "fp_per_empty_scene": 1.125,
+      "median_abs_lateral_wl": 0.08183394998594681,
+      "median_abs_lateral_m": 0.009899999999999964,
+      "median_abs_depth_oracle_v_wl": 0.29278831160010305,
+      "median_abs_depth_own_v_wl": 0.6611471394656088,
+      "median_abs_velocity_frac": 0.16601367995783511,
+      "median_signed_depth_oracle_v_wl": -0.23549136903670206,
+      "n_matched_with_errors": 27
+     },
+     "moist": {
+      "scenes": 52,
+      "targets": 76,
+      "matched": 42,
+      "detections": 79,
+      "recall": 0.5526315789473685,
+      "precision": 0.5316455696202531,
+      "fp_per_scan": 0.7115384615384616,
+      "fp_clutter_per_scan": 0.4423076923076923,
+      "empty_scenes": 10,
+      "fp_per_empty_scene": 1.2,
+      "median_abs_lateral_wl": 0.028539031498289492,
+      "median_abs_lateral_m": 0.004500000000000004,
+      "median_abs_depth_oracle_v_wl": 0.294545472365257,
+      "median_abs_depth_own_v_wl": 0.5044089714165549,
+      "median_abs_velocity_frac": 0.19871915020642406,
+      "median_signed_depth_oracle_v_wl": -0.2939410540701827,
+      "n_matched_with_errors": 42
+     },
+     "wet": {
+      "scenes": 105,
+      "targets": 169,
+      "matched": 84,
+      "detections": 192,
+      "recall": 0.4970414201183432,
+      "precision": 0.4375,
+      "fp_per_scan": 1.0285714285714285,
+      "fp_clutter_per_scan": 0.6571428571428571,
+      "empty_scenes": 15,
+      "fp_per_empty_scene": 2.2666666666666666,
+      "median_abs_lateral_wl": 0.027513146751873236,
+      "median_abs_lateral_m": 0.0017999999999999683,
+      "median_abs_depth_oracle_v_wl": 0.2762613940173343,
+      "median_abs_depth_own_v_wl": 0.31693005893718107,
+      "median_abs_velocity_frac": 0.10264956428259664,
+      "median_signed_depth_oracle_v_wl": -0.27477864792634465,
+      "n_matched_with_errors": 84
+     }
+    },
+    "unmatched_classes": {
+     "limb": 22,
+     "early": 21,
+     "clutter": 88,
+     "duplicate": 10,
+     "clutter_object": 45
+    }
+   }
+  }
+ },
+ "cost": {
+  "A0": {
+   "median_cpu_s": 0.036684917000002315,
+   "max_cpu_s": 0.057243999999968764,
+   "median_peak_mb": 2.827997,
+   "max_peak_mb": 4.121616
+  },
+  "A1+A2": {
+   "median_cpu_s": 0.25010920649998525,
+   "max_cpu_s": 0.352659956999986,
+   "median_peak_mb": 2.791208,
+   "max_peak_mb": 4.035073
+  },
+  "A3": {
+   "median_cpu_s": 2.2353259499999982,
+   "max_cpu_s": 3.1663583210000183,
+   "median_peak_mb": 4.1139105,
+   "max_peak_mb": 5.962279
+  }
+ }
+}
