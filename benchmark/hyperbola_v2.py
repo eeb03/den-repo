@@ -24,8 +24,10 @@ data-derived time zero. Nothing from simulator truth or annotations.
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 from scipy import ndimage
@@ -281,3 +283,29 @@ def located(can: Canonical, d: dict) -> dict:
     if np.isfinite(d.get("v", np.nan)):
         out["v_est"] = d["v"]
     return out
+
+
+def load_committed_freeze(path) -> dict:
+    """The frozen V2 parameters, refusing unless the file is exactly as committed.
+
+    Uses git when present; inside a container without git, the host passes
+    FREEZE_BLOB = `git rev-parse HEAD:<path>` and the file's git blob hash
+    must equal it.
+    """
+    import os
+    import shutil
+    import subprocess
+    path = Path(path)
+    data = path.read_bytes()
+    if shutil.which("git"):
+        tracked = subprocess.run(["git", "ls-files", "--error-unmatch", str(path)], capture_output=True)
+        dirty = subprocess.run(["git", "diff", "--quiet", "HEAD", "--", str(path)])
+        ok = tracked.returncode == 0 and dirty.returncode == 0
+    else:
+        blob = hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
+        ok = os.environ.get("FREEZE_BLOB", "") == blob
+    if not ok:
+        raise SystemExit(f"{path} must be committed (and unmodified) before evaluation")
+    f = json.loads(data)
+    f["grouping"]["kappa"] = float(f["grouping"]["kappa"])
+    return f

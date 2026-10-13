@@ -26,7 +26,6 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import subprocess
 import time
 import tracemalloc
 from multiprocessing import Pool
@@ -37,7 +36,7 @@ import numpy as np
 from benchmark.hyperbola_stack import estimate_time_zero
 from benchmark.hyperbola_v2 import (
     A1_THRESHOLD, GROUPING_GRID, LAMBDA0_GRID, StackContext, calibrated_threshold, canonical_line,
-    detections_at, group, null_peaks, stack_line,
+    detections_at, group, load_committed_freeze, null_peaks, stack_line,
 )
 from interpretation.anomaly_candidates import DEFAULT_ANOMALY_THRESHOLD
 from simulation.background_benchmark import digitise, score_located
@@ -347,13 +346,7 @@ def select_lambda(workers: int) -> dict:
 
 
 def _freeze_committed() -> dict:
-    tracked = subprocess.run(["git", "ls-files", "--error-unmatch", str(FREEZE)], capture_output=True)
-    dirty = subprocess.run(["git", "diff", "--quiet", "HEAD", "--", str(FREEZE)])
-    if tracked.returncode != 0 or dirty.returncode != 0:
-        raise SystemExit(f"{FREEZE} must be committed (and unmodified) before evaluate")
-    f = json.loads(FREEZE.read_text())
-    f["grouping"]["kappa"] = float(f["grouping"]["kappa"])
-    return f
+    return load_committed_freeze(FREEZE)
 
 
 def evaluate(workers: int, measure_cost: bool = False) -> Path:

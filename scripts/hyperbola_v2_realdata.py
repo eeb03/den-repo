@@ -34,7 +34,8 @@ from scipy.signal import hilbert
 
 from benchmark.hyperbola_stack import estimate_time_zero
 from benchmark.hyperbola_v2 import (
-    A1_THRESHOLD, R_CAL, StackContext, components, detect_v2, detections_at, group, line_seed, stack_line,
+    A1_THRESHOLD, R_CAL, StackContext, components, detect_v2, detections_at, group, line_seed,
+    load_committed_freeze, stack_line,
 )
 from interpretation.anomaly_candidates import DEFAULT_ANOMALY_THRESHOLD, DEFAULT_MIN_CELLS
 from preprocessing.spatial_grid import TRACE_ANOMALY_WINDOWS, _local_anomaly_grid
@@ -50,14 +51,7 @@ ARMS = ("A0", "A1", "A2", "A3")
 
 
 def _freeze() -> dict:
-    import subprocess
-    tracked = subprocess.run(["git", "ls-files", "--error-unmatch", str(FREEZE)], capture_output=True)
-    dirty = subprocess.run(["git", "diff", "--quiet", "HEAD", "--", str(FREEZE)])
-    if tracked.returncode or dirty.returncode:
-        raise SystemExit(f"{FREEZE} must be committed before any real-data detector run")
-    f = json.loads(FREEZE.read_text())
-    f["grouping"]["kappa"] = float(f["grouping"]["kappa"])
-    return f
+    return load_committed_freeze(FREEZE)
 
 
 # --- the four arms on one real line -------------------------------------------------------
