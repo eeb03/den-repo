@@ -1,0 +1,403 @@
+{
+ "A": {
+  "median_duct_recall": 0.024793388429752067,
+  "score": {
+   "classes": {
+    "direct": 135,
+    "object": 66,
+    "back_wall": 31,
+    "step_edge": 2,
+    "edge_rebar_zone": 7,
+    "other": 243
+   },
+   "other_subclasses": {
+    "other_residual": 235,
+    "object_ringing": 8
+   },
+   "per_object": {
+    "Pk266-duct-1": {
+     "n_lines": 121,
+     "detected_lines": 0,
+     "line_recall": 0.0,
+     "longest_run": 0,
+     "longest_gap": 121,
+     "runs": 0
+    },
+    "Pk266-duct-2": {
+     "n_lines": 121,
+     "detected_lines": 0,
+     "line_recall": 0.0,
+     "longest_run": 0,
+     "longest_gap": 121,
+     "runs": 0
+    },
+    "Pk266-duct-3": {
+     "n_lines": 121,
+     "detected_lines": 29,
+     "line_recall": 0.2396694214876033,
+     "longest_run": 9,
+     "longest_gap": 71,
+     "runs": 10
+    },
+    "Pk266-duct-4": {
+     "n_lines": 121,
+     "detected_lines": 6,
+     "line_recall": 0.049586776859504134,
+     "longest_run": 2,
+     "longest_gap": 77,
+     "runs": 5
+    }
+   },
+   "artefact_fp_per_line": 0.8385093167701864,
+   "fp_per_line": 2.5962732919254656,
+   "n_detections": 484,
+   "median_z_star": 44.20739770513516,
+   "median_cpu_s_per_line": 8.883434376999986
+  }
+ },
+ "chosen": {
+  "G": 1,
+  "dx": 0.25,
+  "dt": 0.25,
+  "alpha": 0.7
+ },
+ "status": "selected",
+ "table": [
+  {
+   "config": {
+    "G": 1,
+    "dx": 0.25,
+    "dt": 0.25
+   },
+   "null_false_track_rate": {
+    "0.3": 0.14906832298136646,
+    "0.4": 0.16770186335403728,
+    "0.5": 0.17391304347826086,
+    "0.6": 0.14285714285714285,
+    "0.7": 0.07453416149068323
+   },
+   "alpha": 0.7,
+   "score": {
+    "classes": {
+     "direct": 229,
+     "back_wall": 85,
+     "object": 237,
+     "step_edge": 53,
+     "edge_rebar_zone": 26,
+     "other": 524
+    },
+    "other_subclasses": {
+     "other_residual": 403,
+     "object_ringing": 121
+    },
+    "per_object": {
+     "Pk266-duct-1": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-2": {
+      "n_lines": 121,
+      "detected_lines": 40,
+      "line_recall": 0.3305785123966942,
+      "longest_run": 22,
+      "longest_gap": 81,
+      "runs": 2
+     },
+     "Pk266-duct-3": {
+      "n_lines": 121,
+      "detected_lines": 121,
+      "line_recall": 1.0,
+      "longest_run": 121,
+      "longest_gap": 0,
+      "runs": 1
+     },
+     "Pk266-duct-4": {
+      "n_lines": 121,
+      "detected_lines": 17,
+      "line_recall": 0.14049586776859505,
+      "longest_run": 11,
+      "longest_gap": 61,
+      "runs": 7
+     }
+    },
+    "artefact_fp_per_line": 1.4223602484472049,
+    "fp_per_line": 5.695652173913044,
+    "n_detections": 1154,
+    "median_z_star": 44.20739770513516,
+    "median_cpu_s_per_line": 8.883434376999986
+   },
+   "median_duct_recall": 0.23553719008264462
+  },
+  {
+   "config": {
+    "G": 1,
+    "dx": 0.25,
+    "dt": 0.5
+   },
+   "null_false_track_rate": {
+    "0.3": 0.14906832298136646,
+    "0.4": 0.16770186335403728,
+    "0.5": 0.17391304347826086,
+    "0.6": 0.14285714285714285,
+    "0.7": 0.07453416149068323
+   },
+   "alpha": 0.7,
+   "score": {
+    "classes": {
+     "direct": 227,
+     "back_wall": 85,
+     "object": 229,
+     "step_edge": 53,
+     "edge_rebar_zone": 26,
+     "other": 524
+    },
+    "other_subclasses": {
+     "other_residual": 403,
+     "object_ringing": 121
+    },
+    "per_object": {
+     "Pk266-duct-1": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-2": {
+      "n_lines": 121,
+      "detected_lines": 40,
+      "line_recall": 0.3305785123966942,
+      "longest_run": 22,
+      "longest_gap": 81,
+      "runs": 2
+     },
+     "Pk266-duct-3": {
+      "n_lines": 121,
+      "detected_lines": 121,
+      "line_recall": 1.0,
+      "longest_run": 121,
+      "longest_gap": 0,
+      "runs": 1
+     },
+     "Pk266-duct-4": {
+      "n_lines": 121,
+      "detected_lines": 12,
+      "line_recall": 0.09917355371900827,
+      "longest_run": 4,
+      "longest_gap": 61,
+      "runs": 9
+     }
+    },
+    "artefact_fp_per_line": 1.4099378881987579,
+    "fp_per_line": 5.683229813664596,
+    "n_detections": 1144,
+    "median_z_star": 44.20739770513516,
+    "median_cpu_s_per_line": 8.883434376999986
+   },
+   "median_duct_recall": 0.21487603305785125
+  },
+  {
+   "config": {
+    "G": 1,
+    "dx": 0.5,
+    "dt": 0.25
+   },
+   "null_false_track_rate": {
+    "0.3": 0.14285714285714285,
+    "0.4": 0.15527950310559005,
+    "0.5": 0.16149068322981366,
+    "0.6": 0.14285714285714285,
+    "0.7": 0.09316770186335403
+   },
+   "alpha": 0.7,
+   "score": {
+    "classes": {
+     "direct": 205,
+     "back_wall": 85,
+     "object": 225,
+     "edge_rebar_zone": 27,
+     "step_edge": 11,
+     "other": 515
+    },
+    "other_subclasses": {
+     "other_residual": 394,
+     "object_ringing": 121
+    },
+    "per_object": {
+     "Pk266-duct-1": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-2": {
+      "n_lines": 121,
+      "detected_lines": 40,
+      "line_recall": 0.3305785123966942,
+      "longest_run": 22,
+      "longest_gap": 81,
+      "runs": 2
+     },
+     "Pk266-duct-3": {
+      "n_lines": 121,
+      "detected_lines": 121,
+      "line_recall": 1.0,
+      "longest_run": 121,
+      "longest_gap": 0,
+      "runs": 1
+     },
+     "Pk266-duct-4": {
+      "n_lines": 121,
+      "detected_lines": 16,
+      "line_recall": 0.1322314049586777,
+      "longest_run": 10,
+      "longest_gap": 61,
+      "runs": 7
+     }
+    },
+    "artefact_fp_per_line": 1.2732919254658386,
+    "fp_per_line": 5.236024844720497,
+    "n_detections": 1068,
+    "median_z_star": 44.20739770513516,
+    "median_cpu_s_per_line": 8.883434376999986
+   },
+   "median_duct_recall": 0.23140495867768596
+  },
+  {
+   "config": {
+    "G": 1,
+    "dx": 0.5,
+    "dt": 0.5
+   },
+   "null_false_track_rate": {
+    "0.3": 0.14285714285714285,
+    "0.4": 0.15527950310559005,
+    "0.5": 0.16149068322981366,
+    "0.6": 0.14285714285714285,
+    "0.7": 0.09316770186335403
+   },
+   "alpha": 0.7,
+   "score": {
+    "classes": {
+     "direct": 203,
+     "back_wall": 85,
+     "object": 217,
+     "edge_rebar_zone": 27,
+     "step_edge": 11,
+     "other": 515
+    },
+    "other_subclasses": {
+     "other_residual": 394,
+     "object_ringing": 121
+    },
+    "per_object": {
+     "Pk266-duct-1": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-2": {
+      "n_lines": 121,
+      "detected_lines": 40,
+      "line_recall": 0.3305785123966942,
+      "longest_run": 22,
+      "longest_gap": 81,
+      "runs": 2
+     },
+     "Pk266-duct-3": {
+      "n_lines": 121,
+      "detected_lines": 121,
+      "line_recall": 1.0,
+      "longest_run": 121,
+      "longest_gap": 0,
+      "runs": 1
+     },
+     "Pk266-duct-4": {
+      "n_lines": 121,
+      "detected_lines": 11,
+      "line_recall": 0.09090909090909091,
+      "longest_run": 3,
+      "longest_gap": 61,
+      "runs": 9
+     }
+    },
+    "artefact_fp_per_line": 1.2608695652173914,
+    "fp_per_line": 5.22360248447205,
+    "n_detections": 1058,
+    "median_z_star": 44.20739770513516,
+    "median_cpu_s_per_line": 8.883434376999986
+   },
+   "median_duct_recall": 0.21074380165289258
+  },
+  {
+   "config": {
+    "G": 3,
+    "dx": 0.25,
+    "dt": 0.25
+   },
+   "null_false_track_rate": {
+    "0.3": 0.14906832298136646,
+    "0.4": 0.14906832298136646,
+    "0.5": 0.14285714285714285,
+    "0.6": 0.16149068322981366,
+    "0.7": 0.13664596273291926
+   },
+   "alpha": null
+  },
+  {
+   "config": {
+    "G": 3,
+    "dx": 0.25,
+    "dt": 0.5
+   },
+   "null_false_track_rate": {
+    "0.3": 0.14906832298136646,
+    "0.4": 0.14906832298136646,
+    "0.5": 0.14285714285714285,
+    "0.6": 0.16149068322981366,
+    "0.7": 0.13664596273291926
+   },
+   "alpha": null
+  },
+  {
+   "config": {
+    "G": 3,
+    "dx": 0.5,
+    "dt": 0.25
+   },
+   "null_false_track_rate": {
+    "0.3": 0.14906832298136646,
+    "0.4": 0.14906832298136646,
+    "0.5": 0.13664596273291926,
+    "0.6": 0.16770186335403728,
+    "0.7": 0.16770186335403728
+   },
+   "alpha": null
+  },
+  {
+   "config": {
+    "G": 3,
+    "dx": 0.5,
+    "dt": 0.5
+   },
+   "null_false_track_rate": {
+    "0.3": 0.14906832298136646,
+    "0.4": 0.14906832298136646,
+    "0.5": 0.13664596273291926,
+    "0.6": 0.16770186335403728,
+    "0.7": 0.16770186335403728
+   },
+   "alpha": null
+  }
+ ]
+}

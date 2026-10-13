@@ -1,0 +1,1645 @@
+{
+ "label": "EXPLORATORY; CONCRETE NDT ONLY; units are objects; D, 4TU and synthetic parts not run",
+ "freeze": {
+  "frozen_before_holdouts": true,
+  "B": {
+   "k": 1.5,
+   "w": 161
+  },
+  "B_status": "selected",
+  "C": {
+   "G": 1,
+   "dx": 0.25,
+   "dt": 0.25,
+   "alpha": 0.7
+  },
+  "C_status": "selected",
+  "front_end": "V2 A3, simulation/hyperbola_v2_freeze.json (09dc288)",
+  "development_scan": "Pk266_1_5_GHz_Rot00"
+ },
+ "per_scan": {
+  "Pk266_2_6_GHz_Rot00": {
+   "A": {
+    "classes": {
+     "direct": 50,
+     "object": 257,
+     "edge_rebar_zone": 58,
+     "step_edge": 28,
+     "other": 243
+    },
+    "other_subclasses": {
+     "other_residual": 243
+    },
+    "per_object": {
+     "Pk266-duct-1": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-2": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-3": {
+      "n_lines": 121,
+      "detected_lines": 86,
+      "line_recall": 0.7107438016528925,
+      "longest_run": 46,
+      "longest_gap": 13,
+      "runs": 11
+     },
+     "Pk266-duct-4": {
+      "n_lines": 121,
+      "detected_lines": 121,
+      "line_recall": 1.0,
+      "longest_run": 121,
+      "longest_gap": 0,
+      "runs": 1
+     }
+    },
+    "artefact_fp_per_line": 0.3105590062111801,
+    "fp_per_line": 2.3540372670807455,
+    "n_detections": 636,
+    "median_z_star": 59.29743501049414,
+    "median_cpu_s_per_line": 20.06380792599998
+   },
+   "detectable": {
+    "Pk266-duct-1": {
+     "median_z": 3.674082040786743,
+     "detectable": false
+    },
+    "Pk266-duct-2": {
+     "median_z": 26.487321853637695,
+     "detectable": true
+    },
+    "Pk266-duct-3": {
+     "median_z": 47.17879867553711,
+     "detectable": true
+    },
+    "Pk266-duct-4": {
+     "median_z": 66.45230865478516,
+     "detectable": true
+    }
+   },
+   "B": {
+    "classes": {
+     "direct": 35,
+     "object": 279,
+     "edge_rebar_zone": 62,
+     "step_edge": 11,
+     "other": 151,
+     "back_wall": 2
+    },
+    "other_subclasses": {
+     "other_residual": 151
+    },
+    "per_object": {
+     "Pk266-duct-1": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-2": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-3": {
+      "n_lines": 121,
+      "detected_lines": 110,
+      "line_recall": 0.9090909090909091,
+      "longest_run": 101,
+      "longest_gap": 6,
+      "runs": 4
+     },
+     "Pk266-duct-4": {
+      "n_lines": 121,
+      "detected_lines": 121,
+      "line_recall": 1.0,
+      "longest_run": 121,
+      "longest_gap": 0,
+      "runs": 1
+     }
+    },
+    "artefact_fp_per_line": 0.21739130434782608,
+    "fp_per_line": 1.6211180124223603,
+    "n_detections": 540,
+    "median_z_star": 57.2971004810023,
+    "median_cpu_s_per_line": 28.67801857799998
+   },
+   "C": {
+    "classes": {
+     "direct": 176,
+     "object": 318,
+     "edge_rebar_zone": 201,
+     "step_edge": 262,
+     "other": 529,
+     "back_wall": 8
+    },
+    "other_subclasses": {
+     "other_residual": 529
+    },
+    "per_object": {
+     "Pk266-duct-1": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-2": {
+      "n_lines": 121,
+      "detected_lines": 4,
+      "line_recall": 0.03305785123966942,
+      "longest_run": 2,
+      "longest_gap": 112,
+      "runs": 3
+     },
+     "Pk266-duct-3": {
+      "n_lines": 121,
+      "detected_lines": 103,
+      "line_recall": 0.8512396694214877,
+      "longest_run": 101,
+      "longest_gap": 13,
+      "runs": 3
+     },
+     "Pk266-duct-4": {
+      "n_lines": 121,
+      "detected_lines": 121,
+      "line_recall": 1.0,
+      "longest_run": 121,
+      "longest_gap": 0,
+      "runs": 1
+     }
+    },
+    "artefact_fp_per_line": 1.093167701863354,
+    "fp_per_line": 7.304347826086956,
+    "n_detections": 1494,
+    "median_z_star": 59.29743501049414,
+    "median_cpu_s_per_line": 20.087788817714266,
+    "growth_cpu_s_per_line": 0.02398089171428572,
+    "tracks_ge2_lines": 62
+   }
+  },
+  "Pk266_1_5_GHz_Rot90": {
+   "A": {
+    "classes": {
+     "edge_rebar_zone": 74,
+     "object": 130,
+     "below_back_wall": 10,
+     "direct": 4,
+     "step_edge": 11,
+     "other": 50,
+     "back_wall": 92
+    },
+    "other_subclasses": {
+     "other_residual": 49,
+     "object_ringing": 1
+    },
+    "per_object": {
+     "Pk266-duct-1": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-2": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-3": {
+      "n_lines": 121,
+      "detected_lines": 14,
+      "line_recall": 0.11570247933884298,
+      "longest_run": 7,
+      "longest_gap": 59,
+      "runs": 4
+     },
+     "Pk266-duct-4": {
+      "n_lines": 121,
+      "detected_lines": 70,
+      "line_recall": 0.5785123966942148,
+      "longest_run": 24,
+      "longest_gap": 11,
+      "runs": 12
+     }
+    },
+    "artefact_fp_per_line": 0.08695652173913043,
+    "fp_per_line": 1.4968944099378882,
+    "n_detections": 371,
+    "median_z_star": 32.09064230129946,
+    "median_cpu_s_per_line": 5.897071769999997
+   },
+   "detectable": {
+    "Pk266-duct-1": {
+     "median_z": 1.854418158531189,
+     "detectable": false
+    },
+    "Pk266-duct-2": {
+     "median_z": 19.11284637451172,
+     "detectable": true
+    },
+    "Pk266-duct-3": {
+     "median_z": 24.68844985961914,
+     "detectable": true
+    },
+    "Pk266-duct-4": {
+     "median_z": 28.234373092651367,
+     "detectable": true
+    }
+   },
+   "B": {
+    "classes": {
+     "edge_rebar_zone": 120,
+     "direct": 37,
+     "object": 316,
+     "step_edge": 11,
+     "below_back_wall": 10,
+     "back_wall": 97,
+     "other": 64
+    },
+    "other_subclasses": {
+     "other_residual": 64
+    },
+    "per_object": {
+     "Pk266-duct-1": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-2": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-3": {
+      "n_lines": 121,
+      "detected_lines": 113,
+      "line_recall": 0.9338842975206612,
+      "longest_run": 51,
+      "longest_gap": 3,
+      "runs": 5
+     },
+     "Pk266-duct-4": {
+      "n_lines": 121,
+      "detected_lines": 121,
+      "line_recall": 1.0,
+      "longest_run": 121,
+      "longest_gap": 0,
+      "runs": 1
+     }
+    },
+    "artefact_fp_per_line": 0.2919254658385093,
+    "fp_per_line": 2.1055900621118013,
+    "n_detections": 655,
+    "median_z_star": 26.98748148635045,
+    "median_cpu_s_per_line": 6.467494145000003
+   },
+   "C": {
+    "classes": {
+     "edge_rebar_zone": 194,
+     "below_back_wall": 19,
+     "object": 336,
+     "step_edge": 139,
+     "direct": 12,
+     "back_wall": 291,
+     "other": 346
+    },
+    "other_subclasses": {
+     "other_residual": 240,
+     "object_ringing": 106
+    },
+    "per_object": {
+     "Pk266-duct-1": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-2": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-3": {
+      "n_lines": 121,
+      "detected_lines": 96,
+      "line_recall": 0.7933884297520661,
+      "longest_run": 50,
+      "longest_gap": 21,
+      "runs": 3
+     },
+     "Pk266-duct-4": {
+      "n_lines": 121,
+      "detected_lines": 121,
+      "line_recall": 1.0,
+      "longest_run": 121,
+      "longest_gap": 0,
+      "runs": 1
+     }
+    },
+    "artefact_fp_per_line": 0.19254658385093168,
+    "fp_per_line": 6.217391304347826,
+    "n_detections": 1337,
+    "median_z_star": 32.09064230129946,
+    "median_cpu_s_per_line": 5.898313253950307,
+    "growth_cpu_s_per_line": 0.0012414839503105664,
+    "tracks_ge2_lines": 46
+   }
+  },
+  "Pk266_2_6_GHz_Rot90": {
+   "A": {
+    "classes": {
+     "direct": 53,
+     "edge_rebar_zone": 36,
+     "object": 227,
+     "step_edge": 26,
+     "other": 147,
+     "back_wall": 6
+    },
+    "other_subclasses": {
+     "other_residual": 147
+    },
+    "per_object": {
+     "Pk266-duct-1": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-2": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-3": {
+      "n_lines": 121,
+      "detected_lines": 81,
+      "line_recall": 0.6694214876033058,
+      "longest_run": 30,
+      "longest_gap": 13,
+      "runs": 11
+     },
+     "Pk266-duct-4": {
+      "n_lines": 121,
+      "detected_lines": 118,
+      "line_recall": 0.9752066115702479,
+      "longest_run": 118,
+      "longest_gap": 3,
+      "runs": 1
+     }
+    },
+    "artefact_fp_per_line": 0.32919254658385094,
+    "fp_per_line": 1.6645962732919255,
+    "n_detections": 495,
+    "median_z_star": 54.857575965196276,
+    "median_cpu_s_per_line": 18.18528051199999
+   },
+   "detectable": {
+    "Pk266-duct-1": {
+     "median_z": 2.31649112701416,
+     "detectable": false
+    },
+    "Pk266-duct-2": {
+     "median_z": 25.370304107666016,
+     "detectable": true
+    },
+    "Pk266-duct-3": {
+     "median_z": 33.85127258300781,
+     "detectable": true
+    },
+    "Pk266-duct-4": {
+     "median_z": 37.45124435424805,
+     "detectable": true
+    }
+   },
+   "B": {
+    "classes": {
+     "direct": 47,
+     "object": 248,
+     "edge_rebar_zone": 33,
+     "step_edge": 5,
+     "back_wall": 4,
+     "other": 153
+    },
+    "other_subclasses": {
+     "other_residual": 153
+    },
+    "per_object": {
+     "Pk266-duct-1": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-2": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-3": {
+      "n_lines": 121,
+      "detected_lines": 100,
+      "line_recall": 0.8264462809917356,
+      "longest_run": 52,
+      "longest_gap": 12,
+      "runs": 8
+     },
+     "Pk266-duct-4": {
+      "n_lines": 121,
+      "detected_lines": 121,
+      "line_recall": 1.0,
+      "longest_run": 121,
+      "longest_gap": 0,
+      "runs": 1
+     }
+    },
+    "artefact_fp_per_line": 0.2919254658385093,
+    "fp_per_line": 1.5031055900621118,
+    "n_detections": 490,
+    "median_z_star": 50.03875756256681,
+    "median_cpu_s_per_line": 21.27655416099998
+   },
+   "C": {
+    "classes": {
+     "direct": 209,
+     "edge_rebar_zone": 66,
+     "object": 283,
+     "step_edge": 164,
+     "other": 500,
+     "back_wall": 9
+    },
+    "other_subclasses": {
+     "other_residual": 500
+    },
+    "per_object": {
+     "Pk266-duct-1": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-2": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-3": {
+      "n_lines": 121,
+      "detected_lines": 107,
+      "line_recall": 0.8842975206611571,
+      "longest_run": 101,
+      "longest_gap": 10,
+      "runs": 5
+     },
+     "Pk266-duct-4": {
+      "n_lines": 121,
+      "detected_lines": 121,
+      "line_recall": 1.0,
+      "longest_run": 121,
+      "longest_gap": 0,
+      "runs": 1
+     }
+    },
+    "artefact_fp_per_line": 1.2981366459627328,
+    "fp_per_line": 5.888198757763975,
+    "n_detections": 1231,
+    "median_z_star": 54.857575965196276,
+    "median_cpu_s_per_line": 18.187869298484465,
+    "growth_cpu_s_per_line": 0.002588786484472036,
+    "tracks_ge2_lines": 50
+   }
+  },
+  "Pk401_1_5_GHz_Rot00": {
+   "A": {
+    "classes": {
+     "direct": 94,
+     "edge_rebar_zone": 23,
+     "step_edge": 29,
+     "other": 162,
+     "object": 45
+    },
+    "other_subclasses": {
+     "other_residual": 162
+    },
+    "per_object": {
+     "Pk401-cuboid-1": {
+      "n_lines": 24,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 24,
+      "runs": 0
+     },
+     "Pk401-cuboid-2": {
+      "n_lines": 24,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 24,
+      "runs": 0
+     },
+     "Pk401-cuboid-3": {
+      "n_lines": 24,
+      "detected_lines": 17,
+      "line_recall": 0.7083333333333334,
+      "longest_run": 17,
+      "longest_gap": 4,
+      "runs": 1
+     },
+     "Pk401-cuboid-4": {
+      "n_lines": 24,
+      "detected_lines": 24,
+      "line_recall": 1.0,
+      "longest_run": 24,
+      "longest_gap": 0,
+      "runs": 1
+     }
+    },
+    "artefact_fp_per_line": 0.5838509316770186,
+    "fp_per_line": 1.9130434782608696,
+    "n_detections": 353,
+    "median_z_star": 79.90482038378093,
+    "median_cpu_s_per_line": 9.181896547999997
+   },
+   "detectable": {
+    "Pk401-cuboid-1": {
+     "median_z": 0.6119157075881958,
+     "detectable": false
+    },
+    "Pk401-cuboid-2": {
+     "median_z": 21.266326904296875,
+     "detectable": true
+    },
+    "Pk401-cuboid-3": {
+     "median_z": 96.838623046875,
+     "detectable": true
+    },
+    "Pk401-cuboid-4": {
+     "median_z": 186.83482360839844,
+     "detectable": true
+    }
+   },
+   "B": {
+    "classes": {
+     "direct": 140,
+     "edge_rebar_zone": 31,
+     "step_edge": 22,
+     "other": 149,
+     "back_wall": 4,
+     "object": 42
+    },
+    "other_subclasses": {
+     "other_residual": 149
+    },
+    "per_object": {
+     "Pk401-cuboid-1": {
+      "n_lines": 24,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 24,
+      "runs": 0
+     },
+     "Pk401-cuboid-2": {
+      "n_lines": 24,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 24,
+      "runs": 0
+     },
+     "Pk401-cuboid-3": {
+      "n_lines": 24,
+      "detected_lines": 18,
+      "line_recall": 0.75,
+      "longest_run": 18,
+      "longest_gap": 6,
+      "runs": 1
+     },
+     "Pk401-cuboid-4": {
+      "n_lines": 24,
+      "detected_lines": 24,
+      "line_recall": 1.0,
+      "longest_run": 24,
+      "longest_gap": 0,
+      "runs": 1
+     }
+    },
+    "artefact_fp_per_line": 0.8695652173913043,
+    "fp_per_line": 2.1490683229813663,
+    "n_detections": 388,
+    "median_z_star": 72.8261556301505,
+    "median_cpu_s_per_line": 9.443644508000006
+   },
+   "C": {
+    "classes": {
+     "direct": 202,
+     "edge_rebar_zone": 69,
+     "step_edge": 69,
+     "other": 453,
+     "back_wall": 13,
+     "object": 82
+    },
+    "other_subclasses": {
+     "other_residual": 453
+    },
+    "per_object": {
+     "Pk401-cuboid-1": {
+      "n_lines": 24,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 24,
+      "runs": 0
+     },
+     "Pk401-cuboid-2": {
+      "n_lines": 24,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 24,
+      "runs": 0
+     },
+     "Pk401-cuboid-3": {
+      "n_lines": 24,
+      "detected_lines": 22,
+      "line_recall": 0.9166666666666666,
+      "longest_run": 22,
+      "longest_gap": 1,
+      "runs": 1
+     },
+     "Pk401-cuboid-4": {
+      "n_lines": 24,
+      "detected_lines": 24,
+      "line_recall": 1.0,
+      "longest_run": 24,
+      "longest_gap": 0,
+      "runs": 1
+     }
+    },
+    "artefact_fp_per_line": 1.2546583850931676,
+    "fp_per_line": 5.0062111801242235,
+    "n_detections": 888,
+    "median_z_star": 79.90482038378093,
+    "median_cpu_s_per_line": 9.183378021590059,
+    "growth_cpu_s_per_line": 0.001481473590062117,
+    "tracks_ge2_lines": 50
+   }
+  },
+  "Pk401_1_5_GHz_Rot90": {
+   "A": {
+    "classes": {
+     "edge_rebar_zone": 56,
+     "direct": 47,
+     "step_edge": 22,
+     "other": 156,
+     "object": 29,
+     "back_wall": 1
+    },
+    "other_subclasses": {
+     "other_residual": 156
+    },
+    "per_object": {
+     "Pk401-cuboid-1": {
+      "n_lines": 24,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 24,
+      "runs": 0
+     },
+     "Pk401-cuboid-2": {
+      "n_lines": 24,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 24,
+      "runs": 0
+     },
+     "Pk401-cuboid-3": {
+      "n_lines": 24,
+      "detected_lines": 5,
+      "line_recall": 0.20833333333333334,
+      "longest_run": 3,
+      "longest_gap": 10,
+      "runs": 2
+     },
+     "Pk401-cuboid-4": {
+      "n_lines": 24,
+      "detected_lines": 24,
+      "line_recall": 1.0,
+      "longest_run": 24,
+      "longest_gap": 0,
+      "runs": 1
+     }
+    },
+    "artefact_fp_per_line": 0.2919254658385093,
+    "fp_per_line": 1.7515527950310559,
+    "n_detections": 311,
+    "median_z_star": 74.72395859268744,
+    "median_cpu_s_per_line": 9.322446925999998
+   },
+   "detectable": {
+    "Pk401-cuboid-1": {
+     "median_z": 1.0986154675483704,
+     "detectable": false
+    },
+    "Pk401-cuboid-2": {
+     "median_z": 18.818687438964844,
+     "detectable": true
+    },
+    "Pk401-cuboid-3": {
+     "median_z": 65.69558715820312,
+     "detectable": true
+    },
+    "Pk401-cuboid-4": {
+     "median_z": 160.92115020751953,
+     "detectable": true
+    }
+   },
+   "B": {
+    "classes": {
+     "edge_rebar_zone": 108,
+     "step_edge": 24,
+     "direct": 14,
+     "back_wall": 8,
+     "other": 155,
+     "object": 37
+    },
+    "other_subclasses": {
+     "other_residual": 155
+    },
+    "per_object": {
+     "Pk401-cuboid-1": {
+      "n_lines": 24,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 24,
+      "runs": 0
+     },
+     "Pk401-cuboid-2": {
+      "n_lines": 24,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 24,
+      "runs": 0
+     },
+     "Pk401-cuboid-3": {
+      "n_lines": 24,
+      "detected_lines": 13,
+      "line_recall": 0.5416666666666666,
+      "longest_run": 7,
+      "longest_gap": 8,
+      "runs": 2
+     },
+     "Pk401-cuboid-4": {
+      "n_lines": 24,
+      "detected_lines": 24,
+      "line_recall": 1.0,
+      "longest_run": 24,
+      "longest_gap": 0,
+      "runs": 1
+     }
+    },
+    "artefact_fp_per_line": 0.08695652173913043,
+    "fp_per_line": 1.9192546583850931,
+    "n_detections": 346,
+    "median_z_star": 77.31874719673833,
+    "median_cpu_s_per_line": 9.56551763200001
+   },
+   "C": {
+    "classes": {
+     "edge_rebar_zone": 172,
+     "direct": 108,
+     "step_edge": 69,
+     "back_wall": 36,
+     "other": 526,
+     "object": 81
+    },
+    "other_subclasses": {
+     "other_residual": 526
+    },
+    "per_object": {
+     "Pk401-cuboid-1": {
+      "n_lines": 24,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 24,
+      "runs": 0
+     },
+     "Pk401-cuboid-2": {
+      "n_lines": 24,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 24,
+      "runs": 0
+     },
+     "Pk401-cuboid-3": {
+      "n_lines": 24,
+      "detected_lines": 21,
+      "line_recall": 0.875,
+      "longest_run": 15,
+      "longest_gap": 3,
+      "runs": 2
+     },
+     "Pk401-cuboid-4": {
+      "n_lines": 24,
+      "detected_lines": 24,
+      "line_recall": 1.0,
+      "longest_run": 24,
+      "longest_gap": 0,
+      "runs": 1
+     }
+    },
+    "artefact_fp_per_line": 0.6708074534161491,
+    "fp_per_line": 5.658385093167702,
+    "n_detections": 992,
+    "median_z_star": 74.72395859268744,
+    "median_cpu_s_per_line": 9.323889053329191,
+    "growth_cpu_s_per_line": 0.0014421273291925492,
+    "tracks_ge2_lines": 73
+   }
+  },
+  "Pk050_1_5_GHz_Rot00": {
+   "A": {
+    "classes": {
+     "direct": 13,
+     "back_wall": 182,
+     "other": 112,
+     "step_edge": 1
+    },
+    "other_subclasses": {
+     "other_residual": 112
+    },
+    "per_object": {},
+    "artefact_fp_per_line": 0.08074534161490683,
+    "fp_per_line": 1.9130434782608696,
+    "n_detections": 308,
+    "median_z_star": 70.30592488735986,
+    "median_cpu_s_per_line": 9.532728921
+   },
+   "detectable": {},
+   "B": {
+    "classes": {
+     "direct": 25,
+     "back_wall": 268,
+     "edge_rebar_zone": 12,
+     "step_edge": 36,
+     "other": 55,
+     "below_back_wall": 12
+    },
+    "other_subclasses": {
+     "other_residual": 55
+    },
+    "per_object": {},
+    "artefact_fp_per_line": 0.22981366459627328,
+    "fp_per_line": 2.5341614906832297,
+    "n_detections": 408,
+    "median_z_star": 37.64406321555547,
+    "median_cpu_s_per_line": 11.40720008400001
+   },
+   "C": {
+    "classes": {
+     "direct": 38,
+     "back_wall": 295,
+     "step_edge": 20,
+     "edge_rebar_zone": 6,
+     "other": 330
+    },
+    "other_subclasses": {
+     "other_residual": 330
+    },
+    "per_object": {},
+    "artefact_fp_per_line": 0.2360248447204969,
+    "fp_per_line": 4.279503105590062,
+    "n_detections": 689,
+    "median_z_star": 70.30592488735986,
+    "median_cpu_s_per_line": 9.53516694273292,
+    "growth_cpu_s_per_line": 0.0024380217329192594,
+    "tracks_ge2_lines": 23
+   }
+  },
+  "Pk050_1_5_GHz_Rot90": {
+   "A": {
+    "classes": {
+     "edge_rebar_zone": 62,
+     "step_edge": 4,
+     "other": 190,
+     "back_wall": 44,
+     "direct": 1
+    },
+    "other_subclasses": {
+     "other_residual": 190
+    },
+    "per_object": {},
+    "artefact_fp_per_line": 0.006211180124223602,
+    "fp_per_line": 1.8695652173913044,
+    "n_detections": 301,
+    "median_z_star": 55.48601164008096,
+    "median_cpu_s_per_line": 9.417306666000002
+   },
+   "detectable": {},
+   "B": {
+    "classes": {
+     "edge_rebar_zone": 89,
+     "direct": 18,
+     "step_edge": 62,
+     "below_back_wall": 40,
+     "back_wall": 138,
+     "other": 117
+    },
+    "other_subclasses": {
+     "other_residual": 117
+    },
+    "per_object": {},
+    "artefact_fp_per_line": 0.36024844720496896,
+    "fp_per_line": 2.8819875776397517,
+    "n_detections": 464,
+    "median_z_star": 31.70196064527021,
+    "median_cpu_s_per_line": 10.155777672
+   },
+   "C": {
+    "classes": {
+     "edge_rebar_zone": 187,
+     "step_edge": 85,
+     "back_wall": 104,
+     "other": 386,
+     "direct": 4
+    },
+    "other_subclasses": {
+     "other_residual": 386
+    },
+    "per_object": {},
+    "artefact_fp_per_line": 0.024844720496894408,
+    "fp_per_line": 4.75776397515528,
+    "n_detections": 766,
+    "median_z_star": 55.48601164008096,
+    "median_cpu_s_per_line": 9.419063010453417,
+    "growth_cpu_s_per_line": 0.0017563444534161431,
+    "tracks_ge2_lines": 31
+   }
+  },
+  "Pk266_1_5_GHz_Rot00": {
+   "A": {
+    "classes": {
+     "direct": 135,
+     "object": 66,
+     "back_wall": 31,
+     "step_edge": 2,
+     "edge_rebar_zone": 7,
+     "other": 243
+    },
+    "other_subclasses": {
+     "other_residual": 235,
+     "object_ringing": 8
+    },
+    "per_object": {
+     "Pk266-duct-1": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-2": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-3": {
+      "n_lines": 121,
+      "detected_lines": 29,
+      "line_recall": 0.2396694214876033,
+      "longest_run": 9,
+      "longest_gap": 71,
+      "runs": 10
+     },
+     "Pk266-duct-4": {
+      "n_lines": 121,
+      "detected_lines": 6,
+      "line_recall": 0.049586776859504134,
+      "longest_run": 2,
+      "longest_gap": 77,
+      "runs": 5
+     }
+    },
+    "artefact_fp_per_line": 0.8385093167701864,
+    "fp_per_line": 2.5962732919254656,
+    "n_detections": 484,
+    "median_z_star": 44.20739770513516,
+    "median_cpu_s_per_line": 9.820127552999992
+   },
+   "detectable": {
+    "Pk266-duct-1": {
+     "median_z": 1.785156011581421,
+     "detectable": false
+    },
+    "Pk266-duct-2": {
+     "median_z": 17.76799964904785,
+     "detectable": true
+    },
+    "Pk266-duct-3": {
+     "median_z": 26.976316452026367,
+     "detectable": true
+    },
+    "Pk266-duct-4": {
+     "median_z": 29.7137508392334,
+     "detectable": true
+    }
+   },
+   "B": {
+    "classes": {
+     "direct": 13,
+     "object": 291,
+     "back_wall": 61,
+     "edge_rebar_zone": 10,
+     "other": 174,
+     "step_edge": 1
+    },
+    "other_subclasses": {
+     "other_residual": 174
+    },
+    "per_object": {
+     "Pk266-duct-1": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-2": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-3": {
+      "n_lines": 121,
+      "detected_lines": 100,
+      "line_recall": 0.8264462809917356,
+      "longest_run": 31,
+      "longest_gap": 4,
+      "runs": 10
+     },
+     "Pk266-duct-4": {
+      "n_lines": 121,
+      "detected_lines": 119,
+      "line_recall": 0.9834710743801653,
+      "longest_run": 77,
+      "longest_gap": 1,
+      "runs": 2
+     }
+    },
+    "artefact_fp_per_line": 0.08074534161490683,
+    "fp_per_line": 1.608695652173913,
+    "n_detections": 550,
+    "median_z_star": 36.96150713287713,
+    "median_cpu_s_per_line": 10.033118045000009
+   },
+   "C": {
+    "classes": {
+     "direct": 229,
+     "back_wall": 85,
+     "object": 237,
+     "step_edge": 53,
+     "edge_rebar_zone": 26,
+     "other": 524
+    },
+    "other_subclasses": {
+     "other_residual": 403,
+     "object_ringing": 121
+    },
+    "per_object": {
+     "Pk266-duct-1": {
+      "n_lines": 121,
+      "detected_lines": 0,
+      "line_recall": 0.0,
+      "longest_run": 0,
+      "longest_gap": 121,
+      "runs": 0
+     },
+     "Pk266-duct-2": {
+      "n_lines": 121,
+      "detected_lines": 40,
+      "line_recall": 0.3305785123966942,
+      "longest_run": 22,
+      "longest_gap": 81,
+      "runs": 2
+     },
+     "Pk266-duct-3": {
+      "n_lines": 121,
+      "detected_lines": 121,
+      "line_recall": 1.0,
+      "longest_run": 121,
+      "longest_gap": 0,
+      "runs": 1
+     },
+     "Pk266-duct-4": {
+      "n_lines": 121,
+      "detected_lines": 17,
+      "line_recall": 0.14049586776859505,
+      "longest_run": 11,
+      "longest_gap": 61,
+      "runs": 7
+     }
+    },
+    "artefact_fp_per_line": 1.4223602484472049,
+    "fp_per_line": 5.695652173913044,
+    "n_detections": 1154,
+    "median_z_star": 44.20739770513516,
+    "median_cpu_s_per_line": 9.822526582229806,
+    "growth_cpu_s_per_line": 0.0023990292298136763,
+    "tracks_ge2_lines": 36
+   }
+  }
+ },
+ "peak_mb_one_line": {
+  "A": 36.872374,
+  "B": 36.859611
+ },
+ "gates": {
+  "B": {
+   "G_REC": {
+    "pass": false,
+    "improved": 2,
+    "n_detectable": 3,
+    "sign_test_p": 0.5,
+    "pooled": {
+     "Pk266-duct-2": {
+      "A": 0.0,
+      "B": 0.0,
+      "scans": [
+       "Pk266_2_6_GHz_Rot00",
+       "Pk266_1_5_GHz_Rot90",
+       "Pk266_2_6_GHz_Rot90"
+      ]
+     },
+     "Pk266-duct-3": {
+      "A": 0.4986225895316804,
+      "B": 0.8898071625344353,
+      "scans": [
+       "Pk266_2_6_GHz_Rot00",
+       "Pk266_1_5_GHz_Rot90",
+       "Pk266_2_6_GHz_Rot90"
+      ]
+     },
+     "Pk266-duct-4": {
+      "A": 0.8512396694214877,
+      "B": 1.0,
+      "scans": [
+       "Pk266_2_6_GHz_Rot00",
+       "Pk266_1_5_GHz_Rot90",
+       "Pk266_2_6_GHz_Rot90"
+      ]
+     }
+    },
+    "drops_gt_0_10": []
+   },
+   "G_CONT": {
+    "pass": false,
+    "scans_ok": 0,
+    "detail": {
+     "Pk266_2_6_GHz_Rot00": {
+      "detectable": [
+       "Pk266-duct-2",
+       "Pk266-duct-3",
+       "Pk266-duct-4"
+      ],
+      "ok": false,
+      "gaps": {
+       "Pk266-duct-2": 121,
+       "Pk266-duct-3": 6,
+       "Pk266-duct-4": 0
+      },
+      "gaps_A": {
+       "Pk266-duct-2": 121,
+       "Pk266-duct-3": 13,
+       "Pk266-duct-4": 0
+      }
+     },
+     "Pk266_1_5_GHz_Rot90": {
+      "detectable": [
+       "Pk266-duct-2",
+       "Pk266-duct-3",
+       "Pk266-duct-4"
+      ],
+      "ok": false,
+      "gaps": {
+       "Pk266-duct-2": 121,
+       "Pk266-duct-3": 3,
+       "Pk266-duct-4": 0
+      },
+      "gaps_A": {
+       "Pk266-duct-2": 121,
+       "Pk266-duct-3": 59,
+       "Pk266-duct-4": 11
+      }
+     },
+     "Pk266_2_6_GHz_Rot90": {
+      "detectable": [
+       "Pk266-duct-2",
+       "Pk266-duct-3",
+       "Pk266-duct-4"
+      ],
+      "ok": false,
+      "gaps": {
+       "Pk266-duct-2": 121,
+       "Pk266-duct-3": 12,
+       "Pk266-duct-4": 0
+      },
+      "gaps_A": {
+       "Pk266-duct-2": 121,
+       "Pk266-duct-3": 13,
+       "Pk266-duct-4": 3
+      }
+     }
+    }
+   },
+   "G_ART_BAM_ONLY": {
+    "pass": false,
+    "detail": {
+     "Pk266_2_6_GHz_Rot00": {
+      "A": 0.3105590062111801,
+      "B": 0.21739130434782608
+     },
+     "Pk266_1_5_GHz_Rot90": {
+      "A": 0.08695652173913043,
+      "B": 0.2919254658385093
+     },
+     "Pk266_2_6_GHz_Rot90": {
+      "A": 0.32919254658385094,
+      "B": 0.2919254658385093
+     },
+     "Pk401_1_5_GHz_Rot00": {
+      "A": 0.5838509316770186,
+      "B": 0.8695652173913043
+     },
+     "Pk401_1_5_GHz_Rot90": {
+      "A": 0.2919254658385093,
+      "B": 0.08695652173913043
+     },
+     "Pk050_1_5_GHz_Rot00": {
+      "A": 0.08074534161490683,
+      "B": 0.22981366459627328
+     },
+     "Pk050_1_5_GHz_Rot90": {
+      "A": 0.006211180124223602,
+      "B": 0.36024844720496896
+     }
+    },
+    "note": "synthetic part not run -> incomplete"
+   },
+   "G_FREE": {
+    "pass": false,
+    "detail": {
+     "Pk050_1_5_GHz_Rot00": {
+      "A": 1.9130434782608696,
+      "B": 2.5341614906832297
+     },
+     "Pk050_1_5_GHz_Rot90": {
+      "A": 1.8695652173913044,
+      "B": 2.8819875776397517
+     }
+    }
+   },
+   "G_NULL": {
+    "pass": false,
+    "detail": {
+     "Pk050_1_5_GHz_Rot00": {
+      "A": 70.30592488735986,
+      "B": 37.64406321555547
+     },
+     "Pk050_1_5_GHz_Rot90": {
+      "A": 55.48601164008096,
+      "B": 31.70196064527021
+     },
+     "Pk266_2_6_GHz_Rot00": {
+      "A": 59.29743501049414,
+      "B": 57.2971004810023
+     },
+     "Pk266_1_5_GHz_Rot90": {
+      "A": 32.09064230129946,
+      "B": 26.98748148635045
+     },
+     "Pk266_2_6_GHz_Rot90": {
+      "A": 54.857575965196276,
+      "B": 50.03875756256681
+     }
+    }
+   },
+   "G_COST_BAM_ONLY": {
+    "pass": true,
+    "detail": {
+     "Pk266_2_6_GHz_Rot00": {
+      "A": 20.06380792599998,
+      "B": 28.67801857799998
+     },
+     "Pk266_1_5_GHz_Rot90": {
+      "A": 5.897071769999997,
+      "B": 6.467494145000003
+     },
+     "Pk266_2_6_GHz_Rot90": {
+      "A": 18.18528051199999,
+      "B": 21.27655416099998
+     },
+     "Pk401_1_5_GHz_Rot00": {
+      "A": 9.181896547999997,
+      "B": 9.443644508000006
+     },
+     "Pk401_1_5_GHz_Rot90": {
+      "A": 9.322446925999998,
+      "B": 9.56551763200001
+     },
+     "Pk050_1_5_GHz_Rot00": {
+      "A": 9.532728921,
+      "B": 11.40720008400001
+     },
+     "Pk050_1_5_GHz_Rot90": {
+      "A": 9.417306666000002,
+      "B": 10.155777672
+     }
+    },
+    "peak_mb_one_line": 36.859611,
+    "note": "4TU part not run -> incomplete"
+   },
+   "G_FREQ_POL": {
+    "pass": false,
+    "scans_ok": 0,
+    "detail": {
+     "Pk266_2_6_GHz_Rot00": {
+      "rec_ok": false,
+      "art_ok": false
+     },
+     "Pk266_1_5_GHz_Rot90": {
+      "rec_ok": false,
+      "art_ok": false
+     },
+     "Pk266_2_6_GHz_Rot90": {
+      "rec_ok": false,
+      "art_ok": false
+     }
+    }
+   }
+  },
+  "C": {
+   "G_REC": {
+    "pass": true,
+    "improved": 3,
+    "n_detectable": 3,
+    "sign_test_p": 0.125,
+    "pooled": {
+     "Pk266-duct-2": {
+      "A": 0.0,
+      "C": 0.011019283746556474,
+      "scans": [
+       "Pk266_2_6_GHz_Rot00",
+       "Pk266_1_5_GHz_Rot90",
+       "Pk266_2_6_GHz_Rot90"
+      ]
+     },
+     "Pk266-duct-3": {
+      "A": 0.4986225895316804,
+      "C": 0.8429752066115702,
+      "scans": [
+       "Pk266_2_6_GHz_Rot00",
+       "Pk266_1_5_GHz_Rot90",
+       "Pk266_2_6_GHz_Rot90"
+      ]
+     },
+     "Pk266-duct-4": {
+      "A": 0.8512396694214877,
+      "C": 1.0,
+      "scans": [
+       "Pk266_2_6_GHz_Rot00",
+       "Pk266_1_5_GHz_Rot90",
+       "Pk266_2_6_GHz_Rot90"
+      ]
+     }
+    },
+    "drops_gt_0_10": []
+   },
+   "G_CONT": {
+    "pass": false,
+    "scans_ok": 0,
+    "detail": {
+     "Pk266_2_6_GHz_Rot00": {
+      "detectable": [
+       "Pk266-duct-2",
+       "Pk266-duct-3",
+       "Pk266-duct-4"
+      ],
+      "ok": false,
+      "gaps": {
+       "Pk266-duct-2": 112,
+       "Pk266-duct-3": 13,
+       "Pk266-duct-4": 0
+      },
+      "gaps_A": {
+       "Pk266-duct-2": 121,
+       "Pk266-duct-3": 13,
+       "Pk266-duct-4": 0
+      }
+     },
+     "Pk266_1_5_GHz_Rot90": {
+      "detectable": [
+       "Pk266-duct-2",
+       "Pk266-duct-3",
+       "Pk266-duct-4"
+      ],
+      "ok": false,
+      "gaps": {
+       "Pk266-duct-2": 121,
+       "Pk266-duct-3": 21,
+       "Pk266-duct-4": 0
+      },
+      "gaps_A": {
+       "Pk266-duct-2": 121,
+       "Pk266-duct-3": 59,
+       "Pk266-duct-4": 11
+      }
+     },
+     "Pk266_2_6_GHz_Rot90": {
+      "detectable": [
+       "Pk266-duct-2",
+       "Pk266-duct-3",
+       "Pk266-duct-4"
+      ],
+      "ok": false,
+      "gaps": {
+       "Pk266-duct-2": 121,
+       "Pk266-duct-3": 10,
+       "Pk266-duct-4": 0
+      },
+      "gaps_A": {
+       "Pk266-duct-2": 121,
+       "Pk266-duct-3": 13,
+       "Pk266-duct-4": 3
+      }
+     }
+    }
+   },
+   "G_ART_BAM_ONLY": {
+    "pass": false,
+    "detail": {
+     "Pk266_2_6_GHz_Rot00": {
+      "A": 0.3105590062111801,
+      "C": 1.093167701863354
+     },
+     "Pk266_1_5_GHz_Rot90": {
+      "A": 0.08695652173913043,
+      "C": 0.19254658385093168
+     },
+     "Pk266_2_6_GHz_Rot90": {
+      "A": 0.32919254658385094,
+      "C": 1.2981366459627328
+     },
+     "Pk401_1_5_GHz_Rot00": {
+      "A": 0.5838509316770186,
+      "C": 1.2546583850931676
+     },
+     "Pk401_1_5_GHz_Rot90": {
+      "A": 0.2919254658385093,
+      "C": 0.6708074534161491
+     },
+     "Pk050_1_5_GHz_Rot00": {
+      "A": 0.08074534161490683,
+      "C": 0.2360248447204969
+     },
+     "Pk050_1_5_GHz_Rot90": {
+      "A": 0.006211180124223602,
+      "C": 0.024844720496894408
+     }
+    },
+    "note": "synthetic part not run -> incomplete"
+   },
+   "G_FREE": {
+    "pass": false,
+    "detail": {
+     "Pk050_1_5_GHz_Rot00": {
+      "A": 1.9130434782608696,
+      "C": 4.279503105590062
+     },
+     "Pk050_1_5_GHz_Rot90": {
+      "A": 1.8695652173913044,
+      "C": 4.75776397515528
+     }
+    }
+   },
+   "G_NULL": {
+    "pass": true,
+    "dev_null_false_track_rate": 0.07453416149068323
+   },
+   "G_COST_BAM_ONLY": {
+    "pass": true,
+    "detail": {
+     "Pk266_2_6_GHz_Rot00": {
+      "A": 20.06380792599998,
+      "C": 20.087788817714266
+     },
+     "Pk266_1_5_GHz_Rot90": {
+      "A": 5.897071769999997,
+      "C": 5.898313253950307
+     },
+     "Pk266_2_6_GHz_Rot90": {
+      "A": 18.18528051199999,
+      "C": 18.187869298484465
+     },
+     "Pk401_1_5_GHz_Rot00": {
+      "A": 9.181896547999997,
+      "C": 9.183378021590059
+     },
+     "Pk401_1_5_GHz_Rot90": {
+      "A": 9.322446925999998,
+      "C": 9.323889053329191
+     },
+     "Pk050_1_5_GHz_Rot00": {
+      "A": 9.532728921,
+      "C": 9.53516694273292
+     },
+     "Pk050_1_5_GHz_Rot90": {
+      "A": 9.417306666000002,
+      "C": 9.419063010453417
+     }
+    },
+    "peak_mb_one_line": 36.872374,
+    "note": "4TU part not run -> incomplete"
+   },
+   "G_FREQ_POL": {
+    "pass": false,
+    "scans_ok": 0,
+    "detail": {
+     "Pk266_2_6_GHz_Rot00": {
+      "rec_ok": false,
+      "art_ok": false
+     },
+     "Pk266_1_5_GHz_Rot90": {
+      "rec_ok": false,
+      "art_ok": false
+     },
+     "Pk266_2_6_GHz_Rot90": {
+      "rec_ok": false,
+      "art_ok": false
+     }
+    }
+   }
+  }
+ }
+}

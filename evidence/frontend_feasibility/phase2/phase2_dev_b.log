@@ -1,0 +1,73 @@
+{
+ "A": {
+  "median_duct_recall": 0.024793388429752067,
+  "score": {
+   "classes": {
+    "direct": 135,
+    "object": 66,
+    "back_wall": 31,
+    "step_edge": 2,
+    "edge_rebar_zone": 7,
+    "other": 243
+   },
+   "other_subclasses": {
+    "other_residual": 235,
+    "object_ringing": 8
+   },
+   "per_object": {
+    "Pk266-duct-1": {
+     "n_lines": 121,
+     "detected_lines": 0,
+     "line_recall": 0.0,
+     "longest_run": 0,
+     "longest_gap": 121,
+     "runs": 0
+    },
+    "Pk266-duct-2": {
+     "n_lines": 121,
+     "detected_lines": 0,
+     "line_recall": 0.0,
+     "longest_run": 0,
+     "longest_gap": 121,
+     "runs": 0
+    },
+    "Pk266-duct-3": {
+     "n_lines": 121,
+     "detected_lines": 29,
+     "line_recall": 0.2396694214876033,
+     "longest_run": 9,
+     "longest_gap": 71,
+     "runs": 10
+    },
+    "Pk266-duct-4": {
+     "n_lines": 121,
+     "detected_lines": 6,
+     "line_recall": 0.049586776859504134,
+     "longest_run": 2,
+     "longest_gap": 77,
+     "runs": 5
+    }
+   },
+   "artefact_fp_per_line": 0.8385093167701864,
+   "fp_per_line": 2.5962732919254656,
+   "n_detections": 484,
+   "median_z_star": 44.20739770513516,
+   "median_cpu_s_per_line": 5.919284482000009
+  }
+ },
+ "chosen": {
+  "k": 1.5,
+  "w": 161
+ },
+ "status": "selected"
+}
+None None None 0.839 44.2 {'Pk266-duct-1': 0.0, 'Pk266-duct-2': 0.0, 'Pk266-duct-3': 0.24, 'Pk266-duct-4': 0.05}
+{'k': 1.5, 'w': 41} True 0.32644628099173556 0.031 38.2 {'Pk266-duct-1': 0.0, 'Pk266-duct-2': 0.0, 'Pk266-duct-3': 0.65, 'Pk266-duct-4': 0.98}
+{'k': 1.5, 'w': 81} True 0.359504132231405 0.062 39.1 {'Pk266-duct-1': 0.0, 'Pk266-duct-2': 0.0, 'Pk266-duct-3': 0.72, 'Pk266-duct-4': 0.99}
+{'k': 1.5, 'w': 161} True 0.4132231404958678 0.081 37.0 {'Pk266-duct-1': 0.0, 'Pk266-duct-2': 0.0, 'Pk266-duct-3': 0.83, 'Pk266-duct-4': 0.98}
+{'k': 2.0, 'w': 41} True 0.3347107438016529 0.025 31.2 {'Pk266-duct-1': 0.0, 'Pk266-duct-2': 0.07, 'Pk266-duct-3': 0.99, 'Pk266-duct-4': 0.6}
+{'k': 2.0, 'w': 81} True 0.004132231404958678 0.037 38.5 {'Pk266-duct-1': 0.0, 'Pk266-duct-2': 0.0, 'Pk266-duct-3': 0.69, 'Pk266-duct-4': 0.01}
+{'k': 2.0, 'w': 161} True 0.0 0.043 37.7 {'Pk266-duct-1': 0.0, 'Pk266-duct-2': 0.0, 'Pk266-duct-3': 0.73, 'Pk266-duct-4': 0.0}
+{'k': 3.0, 'w': 41} True 0.03305785123966942 0.006 32.1 {'Pk266-duct-1': 0.0, 'Pk266-duct-2': 0.07, 'Pk266-duct-3': 0.78, 'Pk266-duct-4': 0.0}
+{'k': 3.0, 'w': 81} True 0.0 0.006 43.8 {'Pk266-duct-1': 0.0, 'Pk266-duct-2': 0.0, 'Pk266-duct-3': 0.06, 'Pk266-duct-4': 0.0}
+{'k': 3.0, 'w': 161} True 0.0 0.006 41.7 {'Pk266-duct-1': 0.0, 'Pk266-duct-2': 0.0, 'Pk266-duct-3': 0.07, 'Pk266-duct-4': 0.0}

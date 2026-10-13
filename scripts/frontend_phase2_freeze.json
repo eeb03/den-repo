@@ -1,0 +1,17 @@
+{
+ "frozen_before_holdouts": true,
+ "B": {
+  "k": 1.5,
+  "w": 161
+ },
+ "B_status": "selected",
+ "C": {
+  "G": 1,
+  "dx": 0.25,
+  "dt": 0.25,
+  "alpha": 0.7
+ },
+ "C_status": "selected",
+ "front_end": "V2 A3, simulation/hyperbola_v2_freeze.json (09dc288)",
+ "development_scan": "Pk266_1_5_GHz_Rot00"
+}
