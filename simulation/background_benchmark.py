@@ -163,19 +163,22 @@ def score_located(line: SyntheticLine, located: list[dict]) -> dict:
 
     used = set(matched.values())
     classes = defaultdict(int)
+    per_detection = ["matched" if i in used else None for i in range(len(located))]
     direct_end = 2 * half_offset / v + chi + 2 * period
     for i, d in enumerate(located):
         if i in used:
             continue
         if any(in_window(d, w) for w in windows):
-            classes["duplicate"] += 1
+            kind = "duplicate"
         elif any(abs(d["t"] - t[d["trace"]]) <= period
                  for w in windows for t in w["events"].values() if np.isfinite(t[d["trace"]])):
-            classes["limb"] += 1
+            kind = "limb"
         elif d["t"] <= direct_end:
-            classes["early"] += 1
+            kind = "early"
         else:
-            classes["clutter"] += 1
+            kind = "clutter"
+        classes[kind] += 1
+        per_detection[i] = kind
 
     targets = []
     for wi, w in enumerate(windows):
@@ -210,6 +213,7 @@ def score_located(line: SyntheticLine, located: list[dict]) -> dict:
         "fp_strict": sum(classes.values()),
         "fp_clutter": classes["early"] + classes["clutter"],
         "targets": targets,
+        "detection_classes": per_detection,
     }
 
 

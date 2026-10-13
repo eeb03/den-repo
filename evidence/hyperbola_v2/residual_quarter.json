@@ -1,0 +1,28 @@
+{
+ "scene": "gen_s0_00013",
+ "levels": {
+  "D": {
+   "cell_m": 0.0024,
+   "apex_time_error_s": 1.1174491539837343e-10,
+   "pass": true,
+   "vertex_error_traces": 0
+  },
+  "D/2": {
+   "cell_m": 0.0012,
+   "apex_time_error_s": 7.778029294917802e-11,
+   "pass": true,
+   "vertex_error_traces": 0
+  },
+  "D/4": {
+   "cell_m": 0.0006,
+   "apex_time_error_s": 6.787394473482719e-11,
+   "pass": true,
+   "vertex_error_traces": 0
+  }
+ },
+ "richardson": {
+  "order_p": 1.777607578663236,
+  "r0_s": 6.379486017597557e-11
+ },
+ "wall_seconds": 2234.0
+}

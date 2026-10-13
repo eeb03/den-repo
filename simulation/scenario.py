@@ -54,6 +54,21 @@ class CircularTarget:
 
 
 @dataclass(frozen=True)
+class Layer:
+    """A horizontal soil interface: below `interface_y` the soil is
+    `material` instead of the scene's soil. Used only for clutter in scenes
+    whose scored targets (if any) all lie above it, so truth.py's
+    single-medium target paths stay exact."""
+    material: Soil
+    interface_y: float
+
+
+#: Targets whose id starts with this are physical clutter (stones), kept in
+#: the target-free twin and never scored as targets.
+CLUTTER_PREFIX = "clutter_"
+
+
+@dataclass(frozen=True)
 class Scenario2D:
     scenario_id: str
     title: str
@@ -72,6 +87,9 @@ class Scenario2D:
     # Dielectric materials a target may use besides the soil and gprMax's
     # built-ins (e.g. a rock). Same shape as the soil: eps_r, sigma, name.
     materials: tuple[Soil, ...] = field(default_factory=tuple)
+    # Optional horizontal interface (clutter). Omitted from to_dict() when
+    # absent, so every scene without one keeps its fingerprint.
+    layer: Layer | None = None
 
     def tx_x(self, trace: int) -> float:
         return self.tx_start_x + trace * self.step
@@ -80,7 +98,10 @@ class Scenario2D:
         return self.tx_x(trace) + self.antenna_offset
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        d = asdict(self)
+        if d["layer"] is None:
+            del d["layer"]
+        return d
 
     def fingerprint(self) -> str:
         """SHA-256 of the canonical scene description."""
@@ -106,8 +127,9 @@ def validate(s: Scenario2D) -> None:
     if min(xs) < margin or max(xs) > s.domain_x - margin:
         problems.append("antenna positions leave the domain or enter the absorbing boundary")
 
-    known = GPRMAX_BUILTIN_MATERIALS | {s.soil.name} | {m.name for m in s.materials}
-    names = [s.soil.name] + [m.name for m in s.materials]
+    layer_names = [s.layer.material.name] if s.layer is not None else []
+    known = GPRMAX_BUILTIN_MATERIALS | {s.soil.name} | {m.name for m in s.materials} | set(layer_names)
+    names = [s.soil.name] + [m.name for m in s.materials] + layer_names
     if len(set(names)) != len(names) or set(names) & GPRMAX_BUILTIN_MATERIALS:
         problems.append("material names must be unique and must not shadow gprMax built-ins")
 
@@ -125,6 +147,13 @@ def validate(s: Scenario2D) -> None:
         if (t.centre_x - t.radius < margin or t.centre_x + t.radius > s.domain_x - margin
                 or t.centre_y - t.radius < margin):
             problems.append(f"{t.target_id}: target enters the absorbing boundary or leaves the domain")
+
+    if s.layer is not None:
+        if not (margin < s.layer.interface_y < s.surface_y):
+            problems.append("layer interface must lie in the soil, clear of the absorbing boundary")
+        for t in s.targets:
+            if t.centre_y - t.radius <= s.layer.interface_y:
+                problems.append(f"{t.target_id}: target must lie entirely above the layer interface")
 
     for i, a in enumerate(s.targets):
         for b in s.targets[i + 1:]:
@@ -153,6 +182,8 @@ def to_gprmax_input(s: Scenario2D) -> str:
         f"#material: {_fmt(soil.relative_permittivity)} {_fmt(soil.conductivity)} 1 0 {soil.name}",
         *(f"#material: {_fmt(m.relative_permittivity)} {_fmt(m.conductivity)} 1 0 {m.name}"
           for m in s.materials),
+        *([f"#material: {_fmt(s.layer.material.relative_permittivity)} "
+           f"{_fmt(s.layer.material.conductivity)} 1 0 {s.layer.material.name}"] if s.layer else []),
         "",
         f"#waveform: ricker 1 {_fmt(s.centre_frequency)} src_wavelet",
         f"#hertzian_dipole: z {_fmt(s.tx_x(0))} {_fmt(s.surface_y)} inf src_wavelet",
@@ -162,6 +193,8 @@ def to_gprmax_input(s: Scenario2D) -> str:
         "",
         f"#box: 0 0 0 {_fmt(s.domain_x)} {_fmt(s.surface_y)} inf {soil.name}",
     ]
+    if s.layer is not None:
+        lines.append(f"#box: 0 0 0 {_fmt(s.domain_x)} {_fmt(s.layer.interface_y)} inf {s.layer.material.name}")
     for t in s.targets:
         lines.append(
             f"#cylinder: {_fmt(t.centre_x)} {_fmt(t.centre_y)} 0 "

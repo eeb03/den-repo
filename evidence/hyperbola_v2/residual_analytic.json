@@ -1,0 +1,1458 @@
+{
+ "n_scored": 143,
+ "n_passing": 131,
+ "rows": [
+  {
+   "scene": "gen_s0_00003",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.968099936650197,
+   "measured_periods": 0.11799897549510388,
+   "image_periods": 0.0009861618847656327,
+   "point_periods": 0.004776982668662962
+  },
+  {
+   "scene": "gen_s0_00004",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 6.2030790268023885,
+   "measured_periods": 0.03182342490374126,
+   "image_periods": 0.00047707322920470844,
+   "point_periods": 0.0023988775057386955
+  },
+  {
+   "scene": "gen_s0_00005",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 1.964791208190138,
+   "measured_periods": -0.0009400294703365339,
+   "image_periods": 0.0014684452422330148,
+   "point_periods": 0.006848420232180525
+  },
+  {
+   "scene": "gen_s0_00006",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 4.329513366202758,
+   "measured_periods": 0.10573582656336226,
+   "image_periods": 0.0006809360653182284,
+   "point_periods": 0.003375740786210656
+  },
+  {
+   "scene": "gen_s0_00007",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 6.64170847981894,
+   "measured_periods": 0.2272002576055058,
+   "image_periods": 0.0004457914380603146,
+   "point_periods": 0.0022461456192017218
+  },
+  {
+   "scene": "gen_s0_00009",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "internal",
+   "tau_periods": 7.273439655168991,
+   "measured_periods": -0.01865506825229783,
+   "image_periods": 0.0004073134970965106,
+   "point_periods": 0.002057268878656518
+  },
+  {
+   "scene": "gen_s0_00010",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 5.186323840650202,
+   "measured_periods": 0.016667338727942054,
+   "image_periods": 0.0005696798670546536,
+   "point_periods": 0.0028466323257877882
+  },
+  {
+   "scene": "gen_s0_00012",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.74031371319907,
+   "measured_periods": 0.01149179895046282,
+   "image_periods": 0.0007863769127842118,
+   "point_periods": 0.0038674338133220377
+  },
+  {
+   "scene": "gen_s0_00013",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "internal",
+   "tau_periods": 6.629116541622346,
+   "measured_periods": 0.16761737309756014,
+   "image_periods": 0.00044663227816833215,
+   "point_periods": 0.0022502606624568867
+  },
+  {
+   "scene": "gen_s0_00014",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 5.760551195333131,
+   "measured_periods": 0.03281116453345704,
+   "image_periods": 0.0005134076559312608,
+   "point_periods": 0.002575342650212059
+  },
+  {
+   "scene": "gen_s0_00018",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.689994132567059,
+   "measured_periods": 0.007467983663761059,
+   "image_periods": 0.0007969105987316543,
+   "point_periods": 0.003916167138049815
+  },
+  {
+   "scene": "gen_s0_00019",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 1.8480218072503536,
+   "measured_periods": 0.12019288199243593,
+   "image_periods": 0.0015565688658743398,
+   "point_periods": 0.00720882043404166
+  },
+  {
+   "scene": "gen_s0_00020",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.5935968022545244,
+   "measured_periods": 0.07051394165465472,
+   "image_periods": 0.0008178940601659434,
+   "point_periods": 0.0040129864717346865
+  },
+  {
+   "scene": "gen_s0_00021",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 5.051147226969156,
+   "measured_periods": 0.01791955916833845,
+   "image_periods": 0.0005847615032060239,
+   "point_periods": 0.0029189237645676786
+  },
+  {
+   "scene": "gen_s0_00022",
+   "frequency_hz": 2600000000.0,
+   "pass": false,
+   "scored_event": "internal",
+   "tau_periods": 3.548698824825865,
+   "measured_periods": 0.07677716104735358,
+   "image_periods": 0.0008280468704226452,
+   "point_periods": 0.004059708592850236
+  },
+  {
+   "scene": "gen_s0_00023",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 4.629718145928532,
+   "measured_periods": 0.014979551940960846,
+   "image_periods": 0.0006373442761275988,
+   "point_periods": 0.0031695826188537068
+  },
+  {
+   "scene": "gen_s0_00026",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 6.54094990911609,
+   "measured_periods": 0.11296748551362099,
+   "image_periods": 0.0004526095522630351,
+   "point_periods": 0.0022794978733787835
+  },
+  {
+   "scene": "gen_s0_00033",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 4.857476180861909,
+   "measured_periods": 0.017803564968233182,
+   "image_periods": 0.0006078104960324467,
+   "point_periods": 0.003029062890951169
+  },
+  {
+   "scene": "gen_s0_00037",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 4.1018612645570425,
+   "measured_periods": 0.10620234249334991,
+   "image_periods": 0.000718165145024932,
+   "point_periods": 0.0035506274705035114
+  },
+  {
+   "scene": "gen_s0_00040",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 5.413972141986942,
+   "measured_periods": 0.05837736264801585,
+   "image_periods": 0.000545961136551081,
+   "point_periods": 0.0027325826392315847
+  },
+  {
+   "scene": "gen_s0_00044",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 1.3019733075657764,
+   "measured_periods": -0.008038926841303189,
+   "image_periods": 0.0021591024770072783,
+   "point_periods": 0.0095355393364282
+  },
+  {
+   "scene": "gen_s0_00045",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 1.5178760147735513,
+   "measured_periods": -0.017264547791386614,
+   "image_periods": 0.0018733349924478233,
+   "point_periods": 0.00846101379208993
+  },
+  {
+   "scene": "gen_s0_00046",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 5.009443406870671,
+   "measured_periods": 0.017922370593091194,
+   "image_periods": 0.0005895763352602193,
+   "point_periods": 0.0029419655876262306
+  },
+  {
+   "scene": "gen_s0_00047",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 1.4021041447232225,
+   "measured_periods": 0.02067172914620252,
+   "image_periods": 0.0020166314892545688,
+   "point_periods": 0.009006134852731247
+  },
+  {
+   "scene": "gen_s0_00049",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 7.187473511543412,
+   "measured_periods": 0.0377807230771749,
+   "image_periods": 0.000412155203170061,
+   "point_periods": 0.002081096097801823
+  },
+  {
+   "scene": "gen_s0_00050",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.4540252173317825,
+   "measured_periods": 0.11564632778217585,
+   "image_periods": 0.001186151194617018,
+   "point_periods": 0.005656787780442319
+  },
+  {
+   "scene": "gen_s0_00053",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 4.137258841215755,
+   "measured_periods": 0.11519464045226502,
+   "image_periods": 0.0007121126318974041,
+   "point_periods": 0.0035222693469268277
+  },
+  {
+   "scene": "gen_s0_00054",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.900916791693584,
+   "measured_periods": 0.08147076841659852,
+   "image_periods": 0.0007545350609494186,
+   "point_periods": 0.0037195905453410462
+  },
+  {
+   "scene": "gen_s0_00055",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.3929731931413802,
+   "measured_periods": -0.002136140688018564,
+   "image_periods": 0.0008652890527536314,
+   "point_periods": 0.004230403344584471
+  },
+  {
+   "scene": "gen_s0_00056",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.853748078154883,
+   "measured_periods": 0.0885672656221581,
+   "image_periods": 0.0010246363463247603,
+   "point_periods": 0.004948598665234704
+  },
+  {
+   "scene": "gen_s0_00057",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 7.127590982579907,
+   "measured_periods": 0.03850820127499629,
+   "image_periods": 0.0004155963126179724,
+   "point_periods": 0.0020980200596565682
+  },
+  {
+   "scene": "gen_s0_00059",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 5.806977350310985,
+   "measured_periods": 0.017519246800698166,
+   "image_periods": 0.000509338661437295,
+   "point_periods": 0.002555631124744375
+  },
+  {
+   "scene": "gen_s0_00064",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.726222614768398,
+   "measured_periods": 0.062283558860961596,
+   "image_periods": 0.0007892986648669417,
+   "point_periods": 0.0038809598035321213
+  },
+  {
+   "scene": "gen_s0_00065",
+   "frequency_hz": 2600000000.0,
+   "pass": false,
+   "scored_event": "internal",
+   "tau_periods": 7.924220183267878,
+   "measured_periods": 0.10868446934253322,
+   "image_periods": 0.0003740446178230943,
+   "point_periods": 0.0018930773488848238
+  },
+  {
+   "scene": "gen_s0_00066",
+   "frequency_hz": 1500000000.0,
+   "pass": false,
+   "scored_event": "top",
+   "tau_periods": 7.161477200504153,
+   "measured_periods": 0.03787900949892026,
+   "image_periods": 0.0004136420517326742,
+   "point_periods": 0.0020884097516378733
+  },
+  {
+   "scene": "gen_s0_00068",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.027109116223168,
+   "measured_periods": 0.003514245921780203,
+   "image_periods": 0.0009674084161162064,
+   "point_periods": 0.004692920733274015
+  },
+  {
+   "scene": "gen_s0_00070",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 1.290457014260545,
+   "measured_periods": -0.017691556208399378,
+   "image_periods": 0.002176763128508258,
+   "point_periods": 0.00960031083852972
+  },
+  {
+   "scene": "gen_s0_00072",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.583084342139027,
+   "measured_periods": 0.010832848708481273,
+   "image_periods": 0.0008202489958026127,
+   "point_periods": 0.004023830811768638
+  },
+  {
+   "scene": "gen_s0_00076",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 4.055857924177379,
+   "measured_periods": 0.1190901759850466,
+   "image_periods": 0.0007261858040625899,
+   "point_periods": 0.003588162740867383
+  },
+  {
+   "scene": "gen_s0_00077",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 6.557183038485378,
+   "measured_periods": 0.019724292049458556,
+   "image_periods": 0.00045149706273168506,
+   "point_periods": 0.0022740582895039462
+  },
+  {
+   "scene": "gen_s0_00080",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.5692513855238603,
+   "measured_periods": 0.10950792266477206,
+   "image_periods": 0.0011346423299090495,
+   "point_periods": 0.0054330695286316216
+  },
+  {
+   "scene": "gen_s0_00083",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 4.487023121789899,
+   "measured_periods": 0.11350877362395649,
+   "image_periods": 0.0006573497478491471,
+   "point_periods": 0.003264379274124732
+  },
+  {
+   "scene": "gen_s0_00085",
+   "frequency_hz": 250000000.0,
+   "pass": false,
+   "scored_event": "top",
+   "tau_periods": 5.4493712434233625,
+   "measured_periods": 0.017789221670746057,
+   "image_periods": 0.0005424486646339839,
+   "point_periods": 0.0027156560966487046
+  },
+  {
+   "scene": "gen_s0_00086",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "internal",
+   "tau_periods": 6.278125073739699,
+   "measured_periods": -0.029165042186540986,
+   "image_periods": 0.00047141426582366264,
+   "point_periods": 0.0023713028804378633
+  },
+  {
+   "scene": "gen_s0_00090",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 1.244526056286942,
+   "measured_periods": 0.0789504700053215,
+   "image_periods": 0.002250107989441301,
+   "point_periods": 0.009867329482161966
+  },
+  {
+   "scene": "gen_s0_00091",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.3122125018435193,
+   "measured_periods": -0.01135679148892198,
+   "image_periods": 0.0012562702114660186,
+   "point_periods": 0.005958172996853071
+  },
+  {
+   "scene": "gen_s0_00092",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 4.434266702928794,
+   "measured_periods": 0.016077877592525026,
+   "image_periods": 0.0006650664180797687,
+   "point_periods": 0.0033008611433262345
+  },
+  {
+   "scene": "gen_s0_00095",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.581861406890674,
+   "measured_periods": 0.004366570819029201,
+   "image_periods": 0.0008205238257288449,
+   "point_periods": 0.004025096104601215
+  },
+  {
+   "scene": "gen_s0_00097",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 4.214758985141334,
+   "measured_periods": 0.010923769804579243,
+   "image_periods": 0.000699209292929739,
+   "point_periods": 0.0034617167294515388
+  },
+  {
+   "scene": "gen_s0_00098",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 7.3232018199610245,
+   "measured_periods": 0.032061441701206735,
+   "image_periods": 0.0004045623806148061,
+   "point_periods": 0.0020437222228073437
+  },
+  {
+   "scene": "gen_s0_00099",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 6.269562233592192,
+   "measured_periods": 0.11045642618246394,
+   "image_periods": 0.0004720531815235078,
+   "point_periods": 0.0023744173671235106
+  },
+  {
+   "scene": "gen_s0_00103",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.080418484187374,
+   "measured_periods": 0.006623889692628001,
+   "image_periods": 0.0009510649090476558,
+   "point_periods": 0.004619440539718183
+  },
+  {
+   "scene": "gen_s0_00106",
+   "frequency_hz": 500000000.0,
+   "pass": false,
+   "scored_event": "top",
+   "tau_periods": 7.057998410501783,
+   "measured_periods": 0.21282502590480742,
+   "image_periods": 0.0004196681673845198,
+   "point_periods": 0.0021180347573542427
+  },
+  {
+   "scene": "gen_s0_00108",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.7452541731801197,
+   "measured_periods": 0.0020476300344564125,
+   "image_periods": 0.0010639968121227722,
+   "point_periods": 0.005122996970832361
+  },
+  {
+   "scene": "gen_s0_00111",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.350638417604974,
+   "measured_periods": 0.042557289185137376,
+   "image_periods": 0.0008759959690949717,
+   "point_periods": 0.0042792768589516176
+  },
+  {
+   "scene": "gen_s0_00112",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.399577557598018,
+   "measured_periods": 0.0431983841988075,
+   "image_periods": 0.0012121362345084762,
+   "point_periods": 0.005768899705846646
+  },
+  {
+   "scene": "gen_s0_00113",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 5.638586593432525,
+   "measured_periods": 0.10052671668881973,
+   "image_periods": 0.0005244126518454155,
+   "point_periods": 0.0026285905601321196
+  },
+  {
+   "scene": "gen_s0_00115",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.67616638286323,
+   "measured_periods": -0.009672077225696393,
+   "image_periods": 0.0010906621492690588,
+   "point_periods": 0.005240477220369714
+  },
+  {
+   "scene": "gen_s0_00116",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.464711153990238,
+   "measured_periods": 0.07901519341947291,
+   "image_periods": 0.0011811803292779307,
+   "point_periods": 0.005635284030292631
+  },
+  {
+   "scene": "gen_s0_00117",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 1.6192886386077965,
+   "measured_periods": 0.09112513162825239,
+   "image_periods": 0.0017633279088960438,
+   "point_periods": 0.008033655749925943
+  },
+  {
+   "scene": "gen_s0_00126",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "internal",
+   "tau_periods": 3.227086556188146,
+   "measured_periods": 0.059262109147203826,
+   "image_periods": 0.0009088044230275657,
+   "point_periods": 0.004428481130383259
+  },
+  {
+   "scene": "gen_s0_00127",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 4.716924767877971,
+   "measured_periods": 0.022826699762534434,
+   "image_periods": 0.0006257044298852251,
+   "point_periods": 0.0031142825052430873
+  },
+  {
+   "scene": "gen_s0_00129",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 4.935641634584367,
+   "measured_periods": 0.014265934460536358,
+   "image_periods": 0.0005982934536157601,
+   "point_periods": 0.0029836361611732774
+  },
+  {
+   "scene": "gen_s0_00133",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 1.9991330828111153,
+   "measured_periods": 0.0255713777968279,
+   "image_periods": 0.0014443729850098406,
+   "point_periods": 0.006749030354786474
+  },
+  {
+   "scene": "gen_s0_00134",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 6.645855872284359,
+   "measured_periods": 0.056909253659436165,
+   "image_periods": 0.0004455151827393045,
+   "point_periods": 0.002244793518682956
+  },
+  {
+   "scene": "gen_s0_00135",
+   "frequency_hz": 1000000000.0,
+   "pass": false,
+   "scored_event": "internal",
+   "tau_periods": 8.299870655760154,
+   "measured_periods": 0.17881966649595082,
+   "image_periods": 0.00035720028049107645,
+   "point_periods": 0.0018096378262105707
+  },
+  {
+   "scene": "gen_s0_00136",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 4.36141835145517,
+   "measured_periods": 0.013449290290159214,
+   "image_periods": 0.0006760233251805059,
+   "point_periods": 0.0033525815372515266
+  },
+  {
+   "scene": "gen_s0_00137",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 5.6383439806056534,
+   "measured_periods": 0.10831702339329324,
+   "image_periods": 0.0005244350119177303,
+   "point_periods": 0.002628698654813886
+  },
+  {
+   "scene": "gen_s0_00142",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 5.210555393436487,
+   "measured_periods": 0.08465917050856948,
+   "image_periods": 0.0005670579377258875,
+   "point_periods": 0.002834046461067114
+  },
+  {
+   "scene": "gen_s0_00143",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.481424588389738,
+   "measured_periods": 0.14402913178835003,
+   "image_periods": 0.0011734878031094604,
+   "point_periods": 0.005601970285898072
+  },
+  {
+   "scene": "gen_s0_00144",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 4.54317350190151,
+   "measured_periods": 0.05010553142684074,
+   "image_periods": 0.0006493301777694954,
+   "point_periods": 0.003226415917631213
+  },
+  {
+   "scene": "gen_s0_00145",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.61384034251065,
+   "measured_periods": 0.01616425968912901,
+   "image_periods": 0.0008133968885696059,
+   "point_periods": 0.003992265201487303
+  },
+  {
+   "scene": "gen_s0_00147",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 6.762591502587917,
+   "measured_periods": 0.10726069657122647,
+   "image_periods": 0.0004378772520182381,
+   "point_periods": 0.002207387780317789
+  },
+  {
+   "scene": "gen_s0_00153",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.933547354590409,
+   "measured_periods": 0.097900215724166,
+   "image_periods": 0.0007483765931194624,
+   "point_periods": 0.0036909046160439082
+  },
+  {
+   "scene": "gen_s0_00157",
+   "frequency_hz": 2600000000.0,
+   "pass": false,
+   "scored_event": "internal",
+   "tau_periods": 8.697980542975605,
+   "measured_periods": 0.1996067894872417,
+   "image_periods": 0.00034092746159599644,
+   "point_periods": 0.0017288355747289092
+  },
+  {
+   "scene": "gen_s0_00158",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 1.4595513427671134,
+   "measured_periods": 0.06104971971900458,
+   "image_periods": 0.0019429328935021005,
+   "point_periods": 0.008727385505334835
+  },
+  {
+   "scene": "gen_s0_00159",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.2038572925327515,
+   "measured_periods": 0.0091372229296825,
+   "image_periods": 0.0009152472847413496,
+   "point_periods": 0.004457683375649642
+  },
+  {
+   "scene": "gen_s0_00161",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 7.271689296215689,
+   "measured_periods": 0.1916003340696778,
+   "image_periods": 0.00040741094641098764,
+   "point_periods": 0.0020577486219065504
+  },
+  {
+   "scene": "gen_s0_00163",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 7.659667667629429,
+   "measured_periods": 0.21119743204628497,
+   "image_periods": 0.00038689188067353615,
+   "point_periods": 0.001956578546921728
+  },
+  {
+   "scene": "gen_s0_00167",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 7.307705864667256,
+   "measured_periods": 0.02680123883157605,
+   "image_periods": 0.0004054150931800846,
+   "point_periods": 0.002047921627600223
+  },
+  {
+   "scene": "gen_s0_00169",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.427214132363081,
+   "measured_periods": 0.08214662136018623,
+   "image_periods": 0.0011988074123877885,
+   "point_periods": 0.005711455249752692
+  },
+  {
+   "scene": "gen_s0_00170",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.781104688743915,
+   "measured_periods": 0.08941321702246566,
+   "image_periods": 0.0010506630493179432,
+   "point_periods": 0.005064049805692823
+  },
+  {
+   "scene": "gen_s0_00171",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 7.306140298825796,
+   "measured_periods": 0.012327955183137982,
+   "image_periods": 0.00040550144287864034,
+   "point_periods": 0.0020483468491475543
+  },
+  {
+   "scene": "gen_s0_00172",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 5.863427095069172,
+   "measured_periods": 0.026168361736805427,
+   "image_periods": 0.0005044769866742202,
+   "point_periods": 0.0025320629149287737
+  },
+  {
+   "scene": "gen_s0_00176",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 1.6802617903131942,
+   "measured_periods": 0.06641629035038096,
+   "image_periods": 0.0017031064497177565,
+   "point_periods": 0.007796361160233339
+  },
+  {
+   "scene": "gen_s0_00177",
+   "frequency_hz": 1500000000.0,
+   "pass": false,
+   "scored_event": "top",
+   "tau_periods": 7.057312619416131,
+   "measured_periods": 0.08791247355853844,
+   "image_periods": 0.00041970868927517695,
+   "point_periods": 0.002118233875615859
+  },
+  {
+   "scene": "gen_s0_00179",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.772358992409927,
+   "measured_periods": 0.07227268201062641,
+   "image_periods": 0.0010538851527161002,
+   "point_periods": 0.00507830676479619
+  },
+  {
+   "scene": "gen_s0_00180",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "internal",
+   "tau_periods": 8.146895384981097,
+   "measured_periods": 0.1456971101054599,
+   "image_periods": 0.00036387348044996363,
+   "point_periods": 0.0018427184910732406
+  },
+  {
+   "scene": "gen_s0_00183",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 6.394995568062938,
+   "measured_periods": 0.019636344103517677,
+   "image_periods": 0.00046286335787966215,
+   "point_periods": 0.002329590398743412
+  },
+  {
+   "scene": "gen_s0_00184",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 1.4100183087329672,
+   "measured_periods": -0.023329846215812185,
+   "image_periods": 0.002006154208544502,
+   "point_periods": 0.008966712667573979
+  },
+  {
+   "scene": "gen_s0_00185",
+   "frequency_hz": 1000000000.0,
+   "pass": false,
+   "scored_event": "internal",
+   "tau_periods": 7.389578788586043,
+   "measured_periods": 0.13267720011806675,
+   "image_periods": 0.0004009499447666809,
+   "point_periods": 0.0020259258799832586
+  },
+  {
+   "scene": "gen_s0_00189",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.041721319031385,
+   "measured_periods": -0.007582241076442949,
+   "image_periods": 0.0014155818602732994,
+   "point_periods": 0.006629621192097099
+  },
+  {
+   "scene": "gen_s0_00190",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 6.120313081382763,
+   "measured_periods": 0.05656647363932476,
+   "image_periods": 0.00048347359200010025,
+   "point_periods": 0.0024300353749996543
+  },
+  {
+   "scene": "gen_s0_00193",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 6.323061748283243,
+   "measured_periods": 0.12140714124309693,
+   "image_periods": 0.00046808940815772136,
+   "point_periods": 0.0023550903737138175
+  },
+  {
+   "scene": "gen_s0_00194",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 5.572658981966948,
+   "measured_periods": 0.028708914888216697,
+   "image_periods": 0.0005305595334876396,
+   "point_periods": 0.002658291733976658
+  },
+  {
+   "scene": "gen_s0_00197",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "internal",
+   "tau_periods": 4.087703417584703,
+   "measured_periods": -0.0675773880865247,
+   "image_periods": 0.0007206147119434746,
+   "point_periods": 0.003562096367548923
+  },
+  {
+   "scene": "gen_s0_00200",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.402311072227769,
+   "measured_periods": 0.011640792725738145,
+   "image_periods": 0.0008629623176786898,
+   "point_periods": 0.004219770755875184
+  },
+  {
+   "scene": "gen_s0_00203",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 6.979628853021274,
+   "measured_periods": 0.06900934486349725,
+   "image_periods": 0.0004243499639725886,
+   "point_periods": 0.002141032278142253
+  },
+  {
+   "scene": "gen_s0_00204",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 7.574126726675181,
+   "measured_periods": 0.03752226139173865,
+   "image_periods": 0.00039123657312759784,
+   "point_periods": 0.0019780260889690265
+  },
+  {
+   "scene": "gen_s0_00205",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 5.08500191865786,
+   "measured_periods": 0.05029588125556708,
+   "image_periods": 0.0005809101340848529,
+   "point_periods": 0.002900479675630251
+  },
+  {
+   "scene": "gen_s0_00206",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 7.661273738739248,
+   "measured_periods": 0.03802284448128951,
+   "image_periods": 0.00038681122831419115,
+   "point_periods": 0.0019561802762784524
+  },
+  {
+   "scene": "gen_s0_00209",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.5215946565971246,
+   "measured_periods": 0.11171206167410384,
+   "image_periods": 0.0008342981366352687,
+   "point_periods": 0.0040884361322389194
+  },
+  {
+   "scene": "gen_s0_00211",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.463063957364683,
+   "measured_periods": 0.09382236039585572,
+   "image_periods": 0.0008481228464638895,
+   "point_periods": 0.004151858791984652
+  },
+  {
+   "scene": "gen_s0_00212",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.75635611151955,
+   "measured_periods": 0.010780653818853046,
+   "image_periods": 0.000783076639581637,
+   "point_periods": 0.003852147441366196
+  },
+  {
+   "scene": "gen_s0_00216",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.955992937028426,
+   "measured_periods": 0.013775822380145542,
+   "image_periods": 0.0007441981043601519,
+   "point_periods": 0.0036714243971678177
+  },
+  {
+   "scene": "gen_s0_00219",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 1.717370443304977,
+   "measured_periods": -0.008018067520465341,
+   "image_periods": 0.001668399145519493,
+   "point_periods": 0.007658509611870451
+  },
+  {
+   "scene": "gen_s0_00220",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.4765020398660176,
+   "measured_periods": 0.12755736462951456,
+   "image_periods": 0.0008449087110085077,
+   "point_periods": 0.0041371268463248866
+  },
+  {
+   "scene": "gen_s0_00225",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 4.596224857999046,
+   "measured_periods": 0.10743919828919025,
+   "image_periods": 0.0006419302376450866,
+   "point_periods": 0.0031913410714199983
+  },
+  {
+   "scene": "gen_s0_00226",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 5.33769978610054,
+   "measured_periods": 0.10575620290923504,
+   "image_periods": 0.0005536855425400495,
+   "point_periods": 0.0027697727917225636
+  },
+  {
+   "scene": "gen_s0_00228",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.420042056841973,
+   "measured_periods": 0.09061463591827246,
+   "image_periods": 0.000858578304997755,
+   "point_periods": 0.004199725460688069
+  },
+  {
+   "scene": "gen_s0_00229",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 5.579541443944058,
+   "measured_periods": 0.03503491719690579,
+   "image_periods": 0.0005299111258085399,
+   "point_periods": 0.0026551600631054195
+  },
+  {
+   "scene": "gen_s0_00234",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.8248528289377894,
+   "measured_periods": -0.0012970518643326237,
+   "image_periods": 0.0007692898762426439,
+   "point_periods": 0.0037881968087987903
+  },
+  {
+   "scene": "gen_s0_00236",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 4.2134182822408315,
+   "measured_periods": 0.014741059758666396,
+   "image_periods": 0.0006994285546304565,
+   "point_periods": 0.0034627467693878577
+  },
+  {
+   "scene": "gen_s0_00238",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 5.801107903767125,
+   "measured_periods": 0.10122428645729842,
+   "image_periods": 0.0005098495302512491,
+   "point_periods": 0.002558106637334307
+  },
+  {
+   "scene": "gen_s0_00241",
+   "frequency_hz": 1000000000.0,
+   "pass": false,
+   "scored_event": "top",
+   "tau_periods": 7.210548285895264,
+   "measured_periods": 0.03149956760298081,
+   "image_periods": 0.00041084436112740765,
+   "point_periods": 0.0020746468402532
+  },
+  {
+   "scene": "gen_s0_00242",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.482977664868021,
+   "measured_periods": 0.0885323097803654,
+   "image_periods": 0.0008433684926415788,
+   "point_periods": 0.004130064417283979
+  },
+  {
+   "scene": "gen_s0_00244",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.559882917988205,
+   "measured_periods": 0.006840309204816269,
+   "image_periods": 0.0011386641358605508,
+   "point_periods": 0.005450608766212393
+  },
+  {
+   "scene": "gen_s0_00245",
+   "frequency_hz": 500000000.0,
+   "pass": false,
+   "scored_event": "internal",
+   "tau_periods": 9.13896645673523,
+   "measured_periods": 0.21855847139380816,
+   "image_periods": 0.00032454804061205454,
+   "point_periods": 0.0016473139766584907
+  },
+  {
+   "scene": "gen_s0_00249",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.46221186558918,
+   "measured_periods": 0.08363727072360765,
+   "image_periods": 0.0011823392439373485,
+   "point_periods": 0.005640299086438452
+  },
+  {
+   "scene": "gen_s0_00250",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "internal",
+   "tau_periods": 4.240032463669229,
+   "measured_periods": -0.02460985508817813,
+   "image_periods": 0.0006951014634294285,
+   "point_periods": 0.003442412135930189
+  },
+  {
+   "scene": "gen_s0_00252",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "internal",
+   "tau_periods": 3.8820372833372954,
+   "measured_periods": 0.10312169561856831,
+   "image_periods": 0.0007581445110607918,
+   "point_periods": 0.003736389394013353
+  },
+  {
+   "scene": "gen_s0_00255",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 7.419483310964815,
+   "measured_periods": 0.039560741514397924,
+   "image_periods": 0.0003993434101454176,
+   "point_periods": 0.0020180083342298716
+  },
+  {
+   "scene": "gen_s0_00258",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 6.962544868345895,
+   "measured_periods": 0.0337312032630319,
+   "image_periods": 0.00042538443619553987,
+   "point_periods": 0.002146111517492073
+  },
+  {
+   "scene": "gen_s0_00259",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 7.0483917578819195,
+   "measured_periods": 0.10320170180197567,
+   "image_periods": 0.00042023651588022736,
+   "point_periods": 0.0021208274219501368
+  },
+  {
+   "scene": "gen_s0_00261",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 7.466644663027462,
+   "measured_periods": 0.009381700676353685,
+   "image_periods": 0.0003968357566524875,
+   "point_periods": 0.0020056459651780307
+  },
+  {
+   "scene": "gen_s0_00262",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 7.367367179963647,
+   "measured_periods": 0.0400223425407503,
+   "image_periods": 0.0004021515765156521,
+   "point_periods": 0.002031846681874794
+  },
+  {
+   "scene": "gen_s0_00266",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.6451518021577596,
+   "measured_periods": 0.05974007523382128,
+   "image_periods": 0.000806536967763304,
+   "point_periods": 0.003960626774145609
+  },
+  {
+   "scene": "gen_s0_00273",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 5.324837567961222,
+   "measured_periods": 0.12604818220931313,
+   "image_periods": 0.0005550096719490073,
+   "point_periods": 0.002776143338605006
+  },
+  {
+   "scene": "gen_s0_00274",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 7.239548682958156,
+   "measured_periods": 0.03546136489616524,
+   "image_periods": 0.0004092086509383157,
+   "point_periods": 0.002066597464475245
+  },
+  {
+   "scene": "gen_s0_00276",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.833542053360804,
+   "measured_periods": 0.1012006891470345,
+   "image_periods": 0.000767575376150086,
+   "point_periods": 0.0037802335810714106
+  },
+  {
+   "scene": "gen_s0_00277",
+   "frequency_hz": 500000000.0,
+   "pass": false,
+   "scored_event": "top",
+   "tau_periods": 7.002743452657478,
+   "measured_periods": 0.11665437532978425,
+   "image_periods": 0.00042295829265624074,
+   "point_periods": 0.0021341979373190223
+  },
+  {
+   "scene": "gen_s0_00279",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 1.1269179736654065,
+   "measured_periods": 0.01706495760020564,
+   "image_periods": 0.0024619703931400205,
+   "point_periods": 0.010621135166399684
+  },
+  {
+   "scene": "gen_s0_00280",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.1734099625348233,
+   "measured_periods": 0.06947002422246654,
+   "image_periods": 0.0013333211192724985,
+   "point_periods": 0.0062852021592934735
+  },
+  {
+   "scene": "gen_s0_00282",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.459139026021746,
+   "measured_periods": 0.08866647254230658,
+   "image_periods": 0.0008490662064411904,
+   "point_periods": 0.00415618113827358
+  },
+  {
+   "scene": "gen_s0_00284",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 6.353668589656092,
+   "measured_periods": 0.14021410822515348,
+   "image_periods": 0.00046585147420048116,
+   "point_periods": 0.002344173142465537
+  },
+  {
+   "scene": "gen_s0_00285",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.6859505615800865,
+   "measured_periods": 0.08739078551220773,
+   "image_periods": 0.0010868055772041275,
+   "point_periods": 0.0052235194938069
+  },
+  {
+   "scene": "gen_s0_00286",
+   "frequency_hz": 1000000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.3627016648707633,
+   "measured_periods": 0.0007055584944350859,
+   "image_periods": 0.0012303847651927513,
+   "point_periods": 0.005847334279559346
+  },
+  {
+   "scene": "gen_s0_00288",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 4.390073446599439,
+   "measured_periods": 0.014984970656286232,
+   "image_periods": 0.0006716707822663117,
+   "point_periods": 0.003332047304067692
+  },
+  {
+   "scene": "gen_s0_00289",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "internal",
+   "tau_periods": 4.5368797089034025,
+   "measured_periods": -0.052853544453300545,
+   "image_periods": 0.0006502193658463474,
+   "point_periods": 0.0032306276762992907
+  },
+  {
+   "scene": "gen_s0_00290",
+   "frequency_hz": 500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 2.7224923910605305,
+   "measured_periods": 0.07349203766455967,
+   "image_periods": 0.001072638071629253,
+   "point_periods": 0.0051611270006256035
+  },
+  {
+   "scene": "gen_s0_00294",
+   "frequency_hz": 1500000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.8811813773238155,
+   "measured_periods": 0.10179584637055246,
+   "image_periods": 0.0007583089602606718,
+   "point_periods": 0.0037371545182208247
+  },
+  {
+   "scene": "gen_s0_00295",
+   "frequency_hz": 250000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 4.649871617457489,
+   "measured_periods": 0.09023364833353002,
+   "image_periods": 0.0006346161436092601,
+   "point_periods": 0.0031566309661863485
+  },
+  {
+   "scene": "gen_s0_00299",
+   "frequency_hz": 2600000000.0,
+   "pass": true,
+   "scored_event": "top",
+   "tau_periods": 3.717665004464232,
+   "measured_periods": 0.08381376801724731,
+   "image_periods": 0.0007910836233549554,
+   "point_periods": 0.0038892198154908643
+  }
+ ],
+ "image": {
+  "spearman_rho": -0.18027544974109858,
+  "median_predicted_periods": 0.0007206147119434746,
+  "median_measured_periods": 0.042557289185137376,
+  "median_ratio_predicted_over_measured": 0.016932815170829552
+ },
+ "point": {
+  "spearman_rho": -0.18027544974109858,
+  "median_predicted_periods": 0.003562096367548923,
+  "median_measured_periods": 0.042557289185137376,
+  "median_ratio_predicted_over_measured": 0.08370120455869973
+ },
+ "scene_13": {
+  "scene": "gen_s0_00013",
+  "frequency_hz": 1500000000.0,
+  "pass": true,
+  "scored_event": "internal",
+  "tau_periods": 6.629116541622346,
+  "measured_periods": 0.16761737309756014,
+  "image_periods": 0.00044663227816833215,
+  "point_periods": 0.0022502606624568867
+ }
+}

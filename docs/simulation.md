@@ -543,13 +543,42 @@ Halving the cell cuts it to 78 ps, about 30% less, as in scenes 135 and
 277, so part of it is discretisation. The rest is unexplained. See the
 experiment doc §9.6.
 
+## Hyperbola detector V2 (branch `exp/hyperbola-v2`)
+
+Pre-registered, with its results, in
+[`docs/hyperbola-v2-experiment.md`](hyperbola-v2-experiment.md).
+
+V2 is the PR #12 hyperbola stack with three additions:
+- a canonical input of 20 samples per period on a uniform grid;
+- a per-line threshold calibrated on 8 trace permutations of the line itself (λ0 = 0.25);
+- grouping of components that share one apex/velocity curve and support.
+
+It also uses a fast implementation of the same statistic. It was evaluated on a fresh corpus, `corpus_s1_v2`: seven families × 40 scenes, 198 of them in eval, held untouched until the dev freeze (commit 09dc288).
+
+**Verdict: REJECT** (G1 fails).
+- **G1 fails.** Recall is 0.510 pooled, but the `standard` family reaches 17/29 = 0.586 against a 0.60 bar.
+- **G2 fails.** Precision is 0.444, and there are 1.67 FP per empty scene.
+- **What passes:**
+  - G3 (nearby targets);
+  - C2 (memory);
+  - R1, BAM: held-out recall is 0.42–0.44 against production's 0.00–0.27, with fewer false positives per line than production;
+  - R2 on INGV and 4TU: A3 averages 2.6 and 6.9 candidates per line, against production's 51 and 36.
+- **C1 is missed.** The speed-up is 9.4×, below 10×.
+- **C3 holds up to float ties.**
+
+**What carries forward:**
+- Per-line null calibration makes precision independent of sampling: 0.44–0.45 in all three conditions, against A1's 0.11 at native sampling.
+- It makes the stack competitive on BAM.
+- The remaining false positives are mostly diffuse clutter and clutter stones, which no permutation null removes.
+
+The H_2D explanation of the apex-time residual is not supported (it predicts 2–8% of the residual).
+
 ## Next
 
-- Hyperbola-stack limb suppression: group the components that share one
-  apex/velocity solution. Pre-register it separately, with a fresh test
-  split or with the current one declared spent.
-- Calibrate the detector threshold per sampling rate and per corpus, or
-  use a statistic whose null does not depend on sample density.
+- Done in V2 (rejected, see above): limb grouping and per-line null
+  calibration. Open: a discriminant for coherent clutter (polarity and amplitude,
+  multi-line 3D continuity). It needs a new pre-registration and a new eval corpus,
+  because corpus_s1_v2's eval split is now spent.
 - Lateral-vertex failures (§9.6 of the experiment doc): a per-event vertex
   fit as a future, separately pre-registered analysis version. Tolerances
   are unchanged.
