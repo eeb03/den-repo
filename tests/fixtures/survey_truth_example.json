@@ -1,0 +1,64 @@
+{
+ "$comment": "SYNTHETIC test fixture for benchmark.survey_truth. Invented geometry: not a real site and not truth for anything.",
+ "schema": "subterra.survey_truth.v1",
+ "survey_id": "example-survey",
+ "site_id": "example-site",
+ "targets_manifest": {
+  "schema": "subterra.targets.v1",
+  "dataset_id": "example-survey",
+  "title": "Synthetic controlled survey (test fixture)",
+  "truth_source": {"provenance_class": "synthetic_test_fixture"},
+  "exhaustive": {"value": true, "statement": "Synthetic: the fixture lists every object it invents."},
+  "frames": [
+   {"frame_id": "site", "kind": "local_cartesian", "units": "m",
+    "origin": "control monument CP1", "origin_status": "declared", "units_status": "declared",
+    "registration_to_radar": "declared", "registration_note": "synthetic"}
+  ],
+  "depth_reference_surfaces": [
+   {"surface_id": "ground", "description": "surveyed ground surface at burial (synthetic)"}
+  ],
+  "open_questions": [],
+  "targets": [
+   {"target_id": "pipe-1", "object_class": "pipe", "material": "PE",
+    "dimensions": {"units": "m", "outer_diameter": 0.11},
+    "locations": [{"frame_id": "site", "geometry": "segment", "start": [1.0, 2.0], "end": [7.0, 2.0],
+                   "uncertainty": 0.01}],
+    "depths": [{"value": 0.6, "units": "m", "measured_to": "top", "reference_surface": "ground",
+                "method": "tape_at_placement", "uncertainty": 0.01}],
+    "evidence": {"basis": "seeded_placement", "grade": "independently_verified",
+                 "independent_of_gpr": true, "source": "synthetic burial log (test fixture)"}},
+   {"target_id": "stone-1", "object_class": "stone",
+    "dimensions": {"units": "m", "length": 0.25},
+    "locations": [{"frame_id": "site", "geometry": "point", "coordinates": [4.0, 5.0],
+                   "uncertainty": 0.015}],
+    "depths": [{"value": 0.4, "units": "m", "measured_to": "top", "reference_surface": "ground",
+                "method": "tape_at_placement", "uncertainty": 0.01}],
+    "evidence": {"basis": "seeded_placement", "grade": "independently_verified",
+                 "independent_of_gpr": true, "source": "synthetic burial log (test fixture)"}}
+  ]
+ },
+ "objects": [
+  {"target_id": "pipe-1", "class_group": "linear",
+   "axis": {"frame_id": "site", "vertices": [[1.0, 2.0], [1.9, 2.0], [2.8, 2.01], [3.7, 2.0],
+                                               [4.6, 1.99], [5.5, 2.0], [6.4, 2.0], [7.0, 2.0]],
+            "vertex_uncertainty": 0.01}},
+  {"target_id": "stone-1", "class_group": "compact"}
+ ],
+ "control_points": [
+  {"point_id": "CP1", "frame_id": "site", "coordinates": [0.0, 0.0], "uncertainty": 0.005,
+   "method": "total_station", "source": "synthetic"},
+  {"point_id": "CP2", "frame_id": "site", "coordinates": [10.0, 0.0], "uncertainty": 0.005,
+   "method": "total_station", "source": "synthetic"},
+  {"point_id": "CP3", "frame_id": "site", "coordinates": [10.0, 8.0], "uncertainty": 0.005,
+   "method": "total_station", "source": "synthetic"}
+ ],
+ "verified_empty_areas": [
+  {"area_id": "empty-1", "frame_id": "site", "polygon": [[6.0, 5.0], [8.0, 5.0], [8.0, 7.0], [6.0, 7.0]],
+   "excavation_depth": {"value": 1.6, "units": "m", "measured_to": "bottom", "reference_surface": "ground",
+                        "method": "excavation_measurement", "uncertainty": 0.02},
+   "evidence": {"basis": "trench_excavation", "grade": "independently_verified",
+                "independent_of_gpr": true, "source": "synthetic excavation record (test fixture)"}}
+ ],
+ "custody": {"sealed_utc": "2026-10-17T00:00:00+00:00", "sealed_by": "test fixture",
+             "statement": "Synthetic: recorded before any radar file was processed."}
+}
