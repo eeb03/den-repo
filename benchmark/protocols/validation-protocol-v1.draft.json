@@ -1,0 +1,53 @@
+{
+ "$comment": "DRAFT, NOT FROZEN. Values follow the audit in docs/validation-protocol-v1.md. Site ids are placeholders until a partner site exists; no truth digest is sealed. Freezing requires check_freezable() to return no reasons and an explicit approval.",
+ "schema": "subterra.validation_protocol.v1",
+ "protocol_id": "controlled-survey-task-a",
+ "version": "1.0.0-draft.1",
+ "status": "draft",
+ "sites": {"site-A": "development", "site-B": "test", "site-C": "holdout"},
+ "truth_digests": {},
+ "gates": {
+  "recall": {
+   "linear": {"alpha": 0.05, "threshold": 0.6, "min_n": 16},
+   "compact": {"alpha": 0.05, "threshold": 0.6, "min_n": 16}
+  },
+  "false_alarms": {"alpha": 0.05, "max_rate_per_m2": 0.25, "min_area_m2": 20.0}
+ },
+ "matching": {
+  "primary_tolerance": {"name": "pas128-ql-b1-reading", "horizontal_m": 0.15,
+                        "horizontal_depth_fraction": 0.0, "add_half_size_compact": true,
+                        "depth_fraction": 0.15, "depth_floor_m": 0.0,
+                        "source": "PAS 128 QL-B1 as reported by secondary sources (see docs/validation-protocol-v1.md section 3); primary text not yet read"},
+  "reported_tiers": [
+   {"name": "pas128-ql-b2-reading", "horizontal_m": 0.25, "depth_fraction": 0.40},
+   {"name": "pas128-ql-b3-reading", "horizontal_m": 0.50, "depth_fraction": null}
+  ],
+  "coverage_radius_m": 0.05,
+  "coverage_radius_basis": "half the 0.10 m line spacing of brief section 1.3",
+  "min_length_fraction": 0.5
+ },
+ "requirements": {"max_vertex_spacing_m": 1.0, "max_position_uncertainty_m": 0.02,
+                  "min_empty_excavation_depth_m": 1.5, "min_control_points": 3,
+                  "max_control_uncertainty_m": 0.02},
+ "runtime": {"max_cpu_minutes_per_survey": 15, "max_peak_memory_gb": 4,
+             "reference_survey": "8 x 10 m, two frequencies, brief section 1.3"},
+ "pooling": "If there is more than one test site, the gates apply to the pooled test-site counts AND each test site is reported separately. The pooling set is fixed at freeze. Development data never enter the gates.",
+ "revisions": [
+  {"id": "REV-1", "date": "2026-10-17", "change": "Recall bounds are one-sided at alpha 0.05 (the brief's section 6.4 numbers were two-sided 95%).", "reason": "The gate is a one-sided claim (recall at least 0.6), and this matches the one-sided false-alarm bound."},
+  {"id": "REV-2", "date": "2026-10-17", "change": "min_n 16 per class group in the test data (pooled test sites allowed), replacing the brief's per-site 7 linear / 5 compact.", "reason": "With 5 compact objects the gate cannot be passed even at 5/5; with 7 linear only at 7/7 (P(pass) 0.48 at true recall 0.9). At n = 16, P(pass) is 0.79 at true recall 0.9."},
+  {"id": "REV-3", "date": "2026-10-17", "change": "Verified-empty area at least 20 m2 in the test data (brief: 12 m2).", "reason": "12 m2 passes only with zero false alarms; 19 m2 is needed to tolerate one."},
+  {"id": "REV-4", "date": "2026-10-17", "change": "Horizontal tolerance fixed at 0.15 m (no depth-proportional term); depth tolerance 15% of depth, reported only.", "reason": "The brief's max(0.15 m, 0.15 x depth) mixed PAS 128 QL-B1's horizontal and depth terms; as reported, the standard has no depth-proportional horizontal term."}
+ ],
+ "uncertainties": [
+  {"id": "U-1", "statement": "PAS 128 tolerances are taken from secondary sources (survey-company pages), not from the BSI text of PAS 128:2022.", "resolution": "Read the primary text before freezing; if it is paid, obtaining it needs approval."},
+  {"id": "U-2", "statement": "ASCE 38-22 QL-B: secondary sources cite 0.2 ft (about 60 mm) horizontal as the accuracy with which the MARKED position is tied to the survey datum, not a detection tolerance; vertical figures are ambiguous between QL-A and QL-B.", "resolution": "Not used as a gate; read the primary text before any claim of ASCE 38 equivalence."},
+  {"id": "U-3", "statement": "No standard covers compact non-utility objects (stones, rubble, voids). The compact tolerance (0.15 m plus half the largest dimension) is a project choice.", "resolution": "Stated as a choice in every report."},
+  {"id": "U-4", "statement": "Gate power is modest: at n = 16 a detector with true recall 0.8 passes with probability 0.35.", "resolution": "Accepted: the gate certifies recall of at least 0.6 with confidence; it does not estimate recall. Report point estimates and intervals alongside the verdict."},
+  {"id": "U-5", "statement": "coverage_radius_m depends on the realised line spacing, and min_length_fraction 0.5 is a project choice.", "resolution": "Fix both at freeze from the acquisition actually performed."},
+  {"id": "U-6", "statement": "Site ids are placeholders and no partner site is confirmed (R0).", "resolution": "Bind real site ids and seal truth digests before freezing."}
+ ],
+ "references": [
+  "docs/post-pr17-acquisition-strategy-brief.md section 6",
+  "docs/validation-protocol-v1.md"
+ ]
+}
